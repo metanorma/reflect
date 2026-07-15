@@ -187,6 +187,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metanorma/prosemirror-schema@workspace:pkg/prosemirror-schema":
+  version: 0.0.0-use.local
+  resolution: "@metanorma/prosemirror-schema@workspace:pkg/prosemirror-schema"
+  dependencies:
+    prosemirror-model: "npm:^1.22.0"
+    typescript: "npm:~6.0.3"
+  languageName: unknown
+  linkType: soft
+
 "@types/node@npm:^22.5.5":
   version: 22.5.5
   resolution: "@types/node@npm:22.5.5"
@@ -348,6 +357,22 @@ __metadata:
     serve: ./packages/editor-server/serve.mjs
   languageName: unknown
   linkType: soft
+
+"orderedmap@npm:^2.0.0":
+  version: 2.1.1
+  resolution: "orderedmap@npm:2.1.1"
+  checksum: 10c0/8d7d266659d1828937046e8b2a7b5f75914e0391db985da0ca75cd2246cccbf6d6f3a0886aa2034da15ee4923e8c45f95f8b588f575f535f0adecdefccc54634
+  languageName: node
+  linkType: hard
+
+"prosemirror-model@npm:^1.22.0":
+  version: 1.25.11
+  resolution: "prosemirror-model@npm:1.25.11"
+  dependencies:
+    orderedmap: "npm:^2.0.0"
+  checksum: 10c0/e41faa477414160a602289b778189163b39a4563799defea1862183087f9ec77f02c292e3e79dd32fcc1a8878aedbdcea50f0f752ee03fe64c24ce6780b82205
+  languageName: node
+  linkType: hard
 
 "react-dom@npm:^19.2.7":
   version: 19.2.7

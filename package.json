@@ -17,7 +17,8 @@
     "server.mjs"
   ],
   "workspaces": [
-    "pkg/editor-gui"
+    "pkg/editor-gui",
+    "pkg/prosemirror-schema"
   ],
   "devDependencies": {
     "@types/node": "^22.5.5",

@@ -17,12 +17,17 @@ const RAW_RUNTIME_STATE =
     {\
       "name": "editor-gui",\
       "reference": "workspace:pkg/editor-gui"\
+    },\
+    {\
+      "name": "@metanorma/prosemirror-schema",\
+      "reference": "workspace:pkg/prosemirror-schema"\
     }\
   ],\
   "enableTopLevelFallback": true,\
   "ignorePatternData": "(^(?:\\\\.yarn\\\\/sdks(?:\\\\/(?!\\\\.{1,2}(?:\\\\/|$))(?:(?:(?!(?:^|\\\\/)\\\\.{1,2}(?:\\\\/|$)).)*?)|$))$)",\
   "pnpZipBackend": "libzip",\
   "fallbackExclusionList": [\
+    ["@metanorma/prosemirror-schema", ["workspace:pkg/prosemirror-schema"]],\
     ["editor-gui", ["workspace:pkg/editor-gui"]],\
     ["metanorma-editor", ["workspace:."]]\
   ],\
@@ -132,6 +137,10 @@ const RAW_RUNTIME_STATE =
       "npm:0.27.3"\
     ],\
     [\
+      "@metanorma/prosemirror-schema",\
+      "workspace:pkg/prosemirror-schema"\
+    ],\
+    [\
       "@types/node",\
       "npm:22.5.5"\
     ],\
@@ -158,6 +167,14 @@ const RAW_RUNTIME_STATE =
     [\
       "esbuild",\
       "npm:0.27.3"\
+    ],\
+    [\
+      "orderedmap",\
+      "npm:2.1.1"\
+    ],\
+    [\
+      "prosemirror-model",\
+      "npm:1.25.11"\
     ],\
     [\
       "react",\
@@ -453,6 +470,17 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["@metanorma/prosemirror-schema", [\
+      ["workspace:pkg/prosemirror-schema", {\
+        "packageLocation": "./pkg/prosemirror-schema/",\
+        "packageDependencies": [\
+          ["@metanorma/prosemirror-schema", "workspace:pkg/prosemirror-schema"],\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+        ],\
+        "linkType": "SOFT"\
+      }]\
+    ]],\
     ["@types/node", [\
       ["npm:22.5.5", {\
         "packageLocation": "./.yarn/cache/@types-node-npm-22.5.5-e8a43f7042-ead9495cfc.zip/node_modules/@types/node/",\
@@ -577,6 +605,25 @@ const RAW_RUNTIME_STATE =
           ["typescript-language-server", "npm:5.1.3"]\
         ],\
         "linkType": "SOFT"\
+      }]\
+    ]],\
+    ["orderedmap", [\
+      ["npm:2.1.1", {\
+        "packageLocation": "./.yarn/cache/orderedmap-npm-2.1.1-64b8a0684f-8d7d266659.zip/node_modules/orderedmap/",\
+        "packageDependencies": [\
+          ["orderedmap", "npm:2.1.1"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["prosemirror-model", [\
+      ["npm:1.25.11", {\
+        "packageLocation": "./.yarn/cache/prosemirror-model-npm-1.25.11-98cadf5aa5-e41faa4774.zip/node_modules/prosemirror-model/",\
+        "packageDependencies": [\
+          ["orderedmap", "npm:2.1.1"],\
+          ["prosemirror-model", "npm:1.25.11"]\
+        ],\
+        "linkType": "HARD"\
       }]\
     ]],\
     ["react", [\
