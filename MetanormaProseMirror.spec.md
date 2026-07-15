@@ -60,7 +60,8 @@ pkg/prosemirror-editor/
     │   ├── FormulaNodeView.tsx
     │   ├── FloatingTitleNodeView.tsx
     │   └── SourcecodeNodeView.tsx
-    ├── state.ts          ← createInitialEditorState helper (§6)
+    ├── types.ts          ← `MirrorDocument` JSON type (§6.1)
+    ├── state.ts          ← `createInitialEditorState` + `DEFAULT_MIRROR_DOC` (§6.2)
     └── style.css         ← editor + node-view styling (§9)
 ```
 
@@ -129,7 +130,7 @@ import type { EditorState } from "prosemirror-state";
 import type { Node } from "prosemirror-model";
 import type { ComponentType, ReactNode } from "react";
 import type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
-import type { MirrorDocument } from "@metanorma/prosemirror-schema";
+import type { MirrorDocument } from "./types"; // §6.1 — editor-local, not from schema
 
 export interface MetanormaProseMirrorProps {
   /** CONTROLLED mode: the authoritative EditorState. */
@@ -139,7 +140,7 @@ export interface MetanormaProseMirrorProps {
 
   /** UNCONTROLLED mode: the initial EditorState (component owns state thereafter). */
   readonly defaultState?: EditorState;
-  /** UNCONTROLLED convenience: build the initial state from a MirrorDocument (schema §15 shape). */
+  /** UNCONTROLLED convenience: build the initial state from a MirrorDocument (§6.1 shape). */
   readonly defaultDoc?: MirrorDocument;
 
   /** Whether the document is editable. Defaults to `true`. Configures the EditorView `editable` prop. */
@@ -196,13 +197,66 @@ can use `useEditorEventCallback` / `useEditorState` etc.
 
 ---
 
-## 6. EditorState setup (`state.ts`)
+## 6. Types and EditorState setup
+
+The editor package owns two definitions that the schema package does **not**
+export: the `MirrorDocument` JSON type and the default document. Both live in
+this package; they are **not** imported from
+`@metanorma/prosemirror-schema`.
+
+### 6.1 `MirrorDocument` (`types.ts`)
+
+`MirrorDocument` is the JSON-serializable document tree shape accepted by
+`prosemirror-model`'s `Schema.nodeFromJSON(...)`. It mirrors the open-attribute
+model of the schema: every node carries an optional `attrs` record, and unknown
+keys round-trip through the schema's catch-all `data` attribute (schema §6).
+
+```ts
+/**
+ * A JSON-serializable Mirror document tree: the input shape for
+ * `metanormaSchema.nodeFromJSON(...)`.
+ */
+export interface MirrorDocument {
+  readonly type: string;
+  readonly attrs?: Readonly<Record<string, unknown>>;
+  readonly content?: readonly MirrorDocument[];
+  readonly marks?: readonly { readonly type: string; readonly attrs?: Readonly<Record<string, unknown>> }[];
+  readonly text?: string;
+}
+```
+
+> `MirrorDocument` is an editor-local convenience type. It is structurally
+> compatible with the JSON that `Node.toJSON()` emits, but it is intentionally
+> loose (`attrs?: Record<string, unknown>`) so callers can supply partial or
+> hand-authored documents without satisfying a per-node-type attribute type.
+
+### 6.2 `createInitialEditorState` and the default document (`state.ts`)
 
 ```ts
 import { EditorState, type Plugin } from "prosemirror-state";
 import { reactKeys } from "@handlewithcare/react-prosemirror";
-import { metanormaSchema, type MirrorDocument } from "@metanorma/prosemirror-schema";
-import { defaultMirrorDoc } from "@metanorma/prosemirror-schema"; // schema §15 (re-exported)
+import { metanormaSchema } from "@metanorma/prosemirror-schema";
+import type { MirrorDocument } from "./types";
+
+/**
+ * The default document (schema.spec.md §15), inlined here. The schema package
+ * does not export a default document; this module owns it.
+ */
+export const DEFAULT_MIRROR_DOC: MirrorDocument = {
+  type: "doc",
+  content: [
+    {
+      type: "sections",
+      content: [
+        {
+          type: "clause",
+          attrs: { id: "_document_container", title: null },
+          content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }],
+        },
+      ],
+    },
+  ],
+};
 
 export function createInitialEditorState(opts: {
   doc?: MirrorDocument;
@@ -211,7 +265,7 @@ export function createInitialEditorState(opts: {
 }): EditorState {
   return EditorState.create({
     schema: metanormaSchema,
-    doc: metanormaSchema.nodeFromJSON(opts.doc ?? defaultMirrorDoc),
+    doc: metanormaSchema.nodeFromJSON(opts.doc ?? DEFAULT_MIRROR_DOC),
     plugins: [reactKeys(), ...(opts.plugins ?? [])],
   });
 }
@@ -223,8 +277,9 @@ Requirements:
    `@handlewithcare/react-prosemirror` to give node-view components stable keys
    across transactions. Omitting it is an error.
 2. The initial document is built with `metanormaSchema.nodeFromJSON(...)`, which
-   must accept the default document from `schema.spec.md` §15 without throwing
-   (schema acceptance criterion §14.5).
+   must accept `DEFAULT_MIRROR_DOC` (§6.2) without throwing. The constant is the
+   schema.spec.md §15 default document, reproduced verbatim; schema acceptance
+   criterion §14.5 guarantees `nodeFromJSON` accepts that shape.
 3. `opts.plugins` are appended **after** `reactKeys()` so consumer plugins cannot
    accidentally displace it.
 
@@ -355,10 +410,12 @@ provides the mount point.
 ```ts
 import type { EditorState } from "prosemirror-state";
 import type { Plugin } from "prosemirror-state";
-import type { MirrorDocument } from "@metanorma/prosemirror-schema";
 
 /** The main editor component. */
 export const MetanormaProseMirror: React.FC<MetanormaProseMirrorProps>;
+
+/** JSON-serializable document tree (§6.1); editor-local, not from the schema package. */
+export type { MirrorDocument } from "./types";
 
 /** Build an EditorState bound to metanormaSchema (always includes reactKeys). */
 export function createInitialEditorState(opts: {
@@ -424,10 +481,10 @@ Inherits the root `tsconfig.json` (`strict`, `exactOptionalPropertyTypes`,
 4. **`reactKeys` present.** The initial state's plugin set includes a
    `reactKeys` plugin (its key is `"reactKeys"`); constructing state via
    `createInitialEditorState({})` does not throw and yields an editable doc from
-   `schema.spec.md` §15.
-5. **Round-trip through the editor.** Loading `defaultMirrorDoc` into the editor
-   and reading back `view.state.doc.toJSON()` reproduces the typed attributes
-   with no loss (delegates to schema acceptance §14.3–14.4).
+   the package-local `DEFAULT_MIRROR_DOC` (§6.2, reproducing schema.spec.md §15).
+5. **Round-trip through the editor.** Loading `DEFAULT_MIRROR_DOC` (§6.2) into the
+   editor and reading back `view.state.doc.toJSON()` reproduces the typed
+   attributes with no loss (delegates to schema acceptance §14.3–14.4).
 6. **Controlled dispatch.** In controlled mode, typing/dispatching a transaction
    invokes `onStateChange` exactly once per transaction with
    `prevState.apply(tr)`.
