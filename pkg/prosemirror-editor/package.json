@@ -1,0 +1,27 @@
+{
+  "name": "@metanorma/prosemirror-editor",
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "yarn@4.17.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "compile": "tsc --outdir compiled"
+  },
+  "dependencies": {
+    "@handlewithcare/react-prosemirror": "3.2.7",
+    "@metanorma/prosemirror-schema": "workspace:^",
+    "prosemirror-model": "^1.22.0",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-view": "1.42.0",
+    "react-reconciler": "0.32.0"
+  },
+  "peerDependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "~6.0.3"
+  }
+}

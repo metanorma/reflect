@@ -19,6 +19,10 @@ const RAW_RUNTIME_STATE =
       "reference": "workspace:pkg/editor-gui"\
     },\
     {\
+      "name": "@metanorma/prosemirror-editor",\
+      "reference": "workspace:pkg/prosemirror-editor"\
+    },\
+    {\
       "name": "@metanorma/prosemirror-schema",\
       "reference": "workspace:pkg/prosemirror-schema"\
     }\
@@ -27,6 +31,7 @@ const RAW_RUNTIME_STATE =
   "ignorePatternData": "(^(?:\\\\.yarn\\\\/sdks(?:\\\\/(?!\\\\.{1,2}(?:\\\\/|$))(?:(?:(?!(?:^|\\\\/)\\\\.{1,2}(?:\\\\/|$)).)*?)|$))$)",\
   "pnpZipBackend": "libzip",\
   "fallbackExclusionList": [\
+    ["@metanorma/prosemirror-editor", ["workspace:pkg/prosemirror-editor"]],\
     ["@metanorma/prosemirror-schema", ["workspace:pkg/prosemirror-schema"]],\
     ["editor-gui", ["workspace:pkg/editor-gui"]],\
     ["metanorma-editor", ["workspace:."]]\
@@ -137,6 +142,14 @@ const RAW_RUNTIME_STATE =
       "npm:0.27.3"\
     ],\
     [\
+      "@handlewithcare/react-prosemirror",\
+      "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:3.2.7"\
+    ],\
+    [\
+      "@metanorma/prosemirror-editor",\
+      "workspace:pkg/prosemirror-editor"\
+    ],\
+    [\
       "@metanorma/prosemirror-schema",\
       "workspace:pkg/prosemirror-schema"\
     ],\
@@ -155,6 +168,10 @@ const RAW_RUNTIME_STATE =
     [\
       "@yarnpkg/types",\
       "npm:4.0.0"\
+    ],\
+    [\
+      "classnames",\
+      "npm:2.5.1"\
     ],\
     [\
       "csstype",\
@@ -177,12 +194,28 @@ const RAW_RUNTIME_STATE =
       "npm:1.25.11"\
     ],\
     [\
+      "prosemirror-state",\
+      "npm:1.4.4"\
+    ],\
+    [\
+      "prosemirror-transform",\
+      "npm:1.12.0"\
+    ],\
+    [\
+      "prosemirror-view",\
+      "npm:1.42.0"\
+    ],\
+    [\
       "react",\
       "npm:19.2.7"\
     ],\
     [\
       "react-dom",\
       "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"\
+    ],\
+    [\
+      "react-reconciler",\
+      "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:0.32.0"\
     ],\
     [\
       "scheduler",\
@@ -470,6 +503,79 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["@handlewithcare/react-prosemirror", [\
+      ["npm:3.2.7", {\
+        "packageLocation": "./.yarn/cache/@handlewithcare-react-prosemirror-npm-3.2.7-dc03ea487a-02b060be76.zip/node_modules/@handlewithcare/react-prosemirror/",\
+        "packageDependencies": [\
+          ["@handlewithcare/react-prosemirror", "npm:3.2.7"]\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:3.2.7", {\
+        "packageLocation": "./.yarn/__virtual__/@handlewithcare-react-prosemirror-virtual-092674ab3e/0/cache/@handlewithcare-react-prosemirror-npm-3.2.7-dc03ea487a-02b060be76.zip/node_modules/@handlewithcare/react-prosemirror/",\
+        "packageDependencies": [\
+          ["@handlewithcare/react-prosemirror", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:3.2.7"],\
+          ["@tiptap/core", null],\
+          ["@tiptap/pm", null],\
+          ["@tiptap/react", null],\
+          ["@types/prosemirror-model", null],\
+          ["@types/prosemirror-state", null],\
+          ["@types/prosemirror-view", null],\
+          ["@types/react", "npm:19.2.14"],\
+          ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
+          ["@types/react-reconciler", null],\
+          ["@types/tiptap__core", null],\
+          ["@types/tiptap__pm", null],\
+          ["@types/tiptap__react", null],\
+          ["classnames", "npm:2.5.1"],\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-view", "npm:1.42.0"],\
+          ["react", null],\
+          ["react-dom", null],\
+          ["react-reconciler", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:0.32.0"]\
+        ],\
+        "packagePeers": [\
+          "@tiptap/core",\
+          "@tiptap/pm",\
+          "@tiptap/react",\
+          "@types/prosemirror-model",\
+          "@types/prosemirror-state",\
+          "@types/prosemirror-view",\
+          "@types/react-dom",\
+          "@types/react-reconciler",\
+          "@types/react",\
+          "@types/tiptap__core",\
+          "@types/tiptap__pm",\
+          "@types/tiptap__react",\
+          "prosemirror-model",\
+          "prosemirror-state",\
+          "prosemirror-view",\
+          "react-dom",\
+          "react-reconciler",\
+          "react"\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@metanorma/prosemirror-editor", [\
+      ["workspace:pkg/prosemirror-editor", {\
+        "packageLocation": "./pkg/prosemirror-editor/",\
+        "packageDependencies": [\
+          ["@handlewithcare/react-prosemirror", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:3.2.7"],\
+          ["@metanorma/prosemirror-editor", "workspace:pkg/prosemirror-editor"],\
+          ["@metanorma/prosemirror-schema", "workspace:pkg/prosemirror-schema"],\
+          ["@types/react", "npm:19.2.14"],\
+          ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-view", "npm:1.42.0"],\
+          ["react-reconciler", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:0.32.0"],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+        ],\
+        "linkType": "SOFT"\
+      }]\
+    ]],\
     ["@metanorma/prosemirror-schema", [\
       ["workspace:pkg/prosemirror-schema", {\
         "packageLocation": "./pkg/prosemirror-schema/",\
@@ -527,6 +633,15 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@yarnpkg/types", "npm:4.0.0"],\
           ["tslib", "npm:2.7.0"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["classnames", [\
+      ["npm:2.5.1", {\
+        "packageLocation": "./.yarn/cache/classnames-npm-2.5.1-c7273f3423-afff4f77e6.zip/node_modules/classnames/",\
+        "packageDependencies": [\
+          ["classnames", "npm:2.5.1"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -626,6 +741,50 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["prosemirror-state", [\
+      ["npm:1.4.4", {\
+        "packageLocation": "./.yarn/cache/prosemirror-state-npm-1.4.4-8b7e3a396c-1428636a37.zip/node_modules/prosemirror-state/",\
+        "packageDependencies": [\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-transform", "npm:1.12.0"],\
+          ["prosemirror-view", "npm:1.42.1"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["prosemirror-transform", [\
+      ["npm:1.12.0", {\
+        "packageLocation": "./.yarn/cache/prosemirror-transform-npm-1.12.0-e37a4a8770-e9e94fbb36.zip/node_modules/prosemirror-transform/",\
+        "packageDependencies": [\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-transform", "npm:1.12.0"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["prosemirror-view", [\
+      ["npm:1.42.0", {\
+        "packageLocation": "./.yarn/cache/prosemirror-view-npm-1.42.0-33353208c7-92f5a6ca4b.zip/node_modules/prosemirror-view/",\
+        "packageDependencies": [\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-transform", "npm:1.12.0"],\
+          ["prosemirror-view", "npm:1.42.0"]\
+        ],\
+        "linkType": "HARD"\
+      }],\
+      ["npm:1.42.1", {\
+        "packageLocation": "./.yarn/cache/prosemirror-view-npm-1.42.1-e2b8aea2ba-159131ef97.zip/node_modules/prosemirror-view/",\
+        "packageDependencies": [\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-transform", "npm:1.12.0"],\
+          ["prosemirror-view", "npm:1.42.1"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["react", [\
       ["npm:19.2.7", {\
         "packageLocation": "./.yarn/cache/react-npm-19.2.7-74bfac2aac-0bd0e2f1bb.zip/node_modules/react/",\
@@ -658,7 +817,37 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["react-reconciler", [\
+      ["npm:0.32.0", {\
+        "packageLocation": "./.yarn/cache/react-reconciler-npm-0.32.0-9d60959fd4-ace0562d2a.zip/node_modules/react-reconciler/",\
+        "packageDependencies": [\
+          ["react-reconciler", "npm:0.32.0"]\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:0.32.0", {\
+        "packageLocation": "./.yarn/__virtual__/react-reconciler-virtual-db81ea2429/0/cache/react-reconciler-npm-0.32.0-9d60959fd4-ace0562d2a.zip/node_modules/react-reconciler/",\
+        "packageDependencies": [\
+          ["@types/react", "npm:19.2.14"],\
+          ["react", null],\
+          ["react-reconciler", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:0.32.0"],\
+          ["scheduler", "npm:0.26.0"]\
+        ],\
+        "packagePeers": [\
+          "@types/react",\
+          "react"\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["scheduler", [\
+      ["npm:0.26.0", {\
+        "packageLocation": "./.yarn/cache/scheduler-npm-0.26.0-980301a213-5b8d5bfdda.zip/node_modules/scheduler/",\
+        "packageDependencies": [\
+          ["scheduler", "npm:0.26.0"]\
+        ],\
+        "linkType": "HARD"\
+      }],\
       ["npm:0.27.0", {\
         "packageLocation": "./.yarn/cache/scheduler-npm-0.27.0-772f0dd512-4f03048cb0.zip/node_modules/scheduler/",\
         "packageDependencies": [\
