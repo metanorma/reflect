@@ -1,0 +1,35 @@
+{
+  "name": "metanorma-editor",
+  "type": "module",
+  "packageManager": "yarn@4.17.0",
+  "bin": {
+    "serve": "./packages/editor-server/serve.mjs"
+  },
+  "scripts": {
+    "compile": "tsc --outdir compiled",
+    "clean": "rm -f ./server-builder.mjs ./server.mjs",
+    "build-server-builder": "yarn esbuild server-builder.mts --packages=external --platform=node --target=node18 --minify=false --bundle --format=esm --outfile=server-builder.mjs",
+    "build-server": "yarn node server-builder.mjs",
+    "build-self": "yarn compile; yarn clean && yarn build-server-builder && yarn build-server"
+  },
+  "files": [
+    "README.rst",
+    "server.mjs"
+  ],
+  "workspaces": [
+    "pkg/editor-gui"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.5.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@yarnpkg/types": "^4.0.0",
+    "esbuild": "~0.27.3",
+    "typescript": "~6.0.3",
+    "typescript-language-server": "~5.1.3"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  }
+}

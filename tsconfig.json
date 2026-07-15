@@ -1,0 +1,35 @@
+{
+  "include": ["*.tsx", "*.mts", "*.d.ts"],
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "node16",
+
+    "lib": ["es2023", "dom", "ESNext.Array", "esnext"],
+
+    "resolveJsonModule": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "noImplicitReturns": true,
+    "noImplicitAny": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+
+    "isolatedModules": true,
+    "esModuleInterop": true,
+
+    "sourceMap": true,
+    "inlineSources": true,
+
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "noUncheckedIndexedAccess": true,
+
+    "newLine": "lf",
+
+    "declaration": true,
+    "jsx": "react"
+  }
+}
