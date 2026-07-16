@@ -76,9 +76,12 @@ const pnpPlugin = {
 
 // ── Build ──────────────────────────────────────────────────────────────
 
-// Clean previous output
-await fs.rm(outdir, { recursive: true, force: true });
+// Ensure dist/ exists, then clear its contents without removing the
+// directory itself (preserves any editor/IDE open handles on the folder).
 await fs.mkdir(outdir, { recursive: true });
+for (const entry of await fs.readdir(outdir)) {
+  await fs.rm(path.join(outdir, entry), { recursive: true, force: true });
+}
 
 await build({
   entryPoints: [entry],
