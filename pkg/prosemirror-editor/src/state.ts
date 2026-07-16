@@ -24,7 +24,7 @@ export const DEFAULT_MIRROR_DOC: MirrorDocument = {
         {
           type: "clause",
           attrs: { id: "_document_container", title: null },
-          content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }],
+          content: [{ type: "paragraph" }],
         },
       ],
     },
