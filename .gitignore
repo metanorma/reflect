@@ -7,7 +7,7 @@
 
 
 /package.mjs
-/build-*.mjs
+#/build-*.mjs
 
 .yarn/*
 !.yarn/patches
