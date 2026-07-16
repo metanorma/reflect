@@ -15,7 +15,9 @@
  * Usage:  yarn node build-gui.mjs [--dev]
  *
  * The optional `--dev` flag disables minification (and bundles React in
- * development mode) for easier debugging.
+ * development mode) for easier debugging. In dev mode the generated
+ * index.html also sets `data-use-react-strict="true"` on the <html> tag,
+ * which bootstrap.tsx reads to enable <StrictMode>.
  */
 import { build } from 'esbuild';
 import { createRequire } from 'node:module';
@@ -101,8 +103,12 @@ await build({
 
 // ── Generate index.html ────────────────────────────────────────────────
 
+// In dev mode, add data-use-react-strict="true" so bootstrap.tsx wraps the
+// app in <StrictMode>.
+const htmlAttr = dev ? ' data-use-react-strict="true"' : '';
+
 const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="en"${htmlAttr}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
