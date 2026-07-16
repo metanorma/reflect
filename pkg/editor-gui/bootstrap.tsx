@@ -1,13 +1,13 @@
 import React from 'react';
-import { hydrateRoot } from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import { StrictMode } from 'react';
 import { App } from './App.jsx';
 
 
-hydrateApp();
+bootstrap();
 
 
-function hydrateApp() {
+function bootstrap() {
 
   const appRoot = document.getElementById('app');
   if (!appRoot) {
@@ -39,8 +39,7 @@ function hydrateApp() {
   const useStrictMode =
     document.documentElement.dataset.useReactStrict === 'true';
 
-  hydrateRoot(
-    tempRoot,
+  createRoot(tempRoot).render(
     useStrictMode
       ? <StrictMode>{app}</StrictMode>
       : app,
