@@ -1,10 +1,26 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import {
+  MetanormaProseMirror,
+  createInitialEditorState,
+} from '@metanorma/prosemirror-editor';
+import type { EditorState } from '@metanorma/prosemirror-editor';
 import classNames from './style.module.css';
 
 
 export const App: React.FC<{ onDoneLoading: () => void }> =
 function ({ onDoneLoading }) {
+  const [editorState, setEditorState] = useState<EditorState>(
+    () => createInitialEditorState({}),
+  );
+
+  useEffect(() => {
+    onDoneLoading();
+  }, [onDoneLoading]);
+
   return <div className={classNames.app}>
-    Metanorma ProseMirror editor goes here
+    <MetanormaProseMirror
+      state={editorState}
+      onStateChange={setEditorState}
+    />
   </div>;
 };

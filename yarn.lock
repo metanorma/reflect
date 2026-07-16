@@ -213,7 +213,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metanorma/prosemirror-editor@workspace:pkg/prosemirror-editor":
+"@metanorma/prosemirror-editor@workspace:^, @metanorma/prosemirror-editor@workspace:pkg/prosemirror-editor":
   version: 0.0.0-use.local
   resolution: "@metanorma/prosemirror-editor@workspace:pkg/prosemirror-editor"
   dependencies:
@@ -295,6 +295,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "editor-gui@workspace:pkg/editor-gui"
   dependencies:
+    "@metanorma/prosemirror-editor": "workspace:^"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
     react: "npm:^19.2.7"
