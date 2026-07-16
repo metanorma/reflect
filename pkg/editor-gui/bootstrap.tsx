@@ -32,14 +32,7 @@ function hydrateApp() {
 
   //const originalHTML = appRoot.innerHTML;
 
-  // If there’s an error, the boundary will fall back to SSR’d DOM.
-  const app =
-    //<ErrorBoundaryWithCustomFallback fallback={<div
-    //  dangerouslySetInnerHTML={{ __html: originalHTML }}
-    //  suppressHydrationWarning={true}
-    ///>}>
-      <App onDoneLoading={handleDone} />
-    //</ErrorBoundaryWithCustomFallback>;
+  const app = <App onDoneLoading={handleDone} />
 
   //holdBodyHeightUntilHydrationIsComplete(appRoot.clientHeight);
 
