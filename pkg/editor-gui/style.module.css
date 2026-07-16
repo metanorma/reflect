@@ -18,5 +18,20 @@
   }
   .appwrapper {
     padding: 10px 10px 10px 0;
+    position: absolute;
+    inset: 0;
+  }
+}
+
+.app {
+  position: absolute;
+  inset: 0;
+  > * {
+    position: absolute;
+    inset: 0;
+    > * {
+      position: absolute;
+      inset: 0;
+    }
   }
 }
