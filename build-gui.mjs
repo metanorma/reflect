@@ -3,7 +3,7 @@
  * Build script for the editor-gui static web app.
  *
  * Bundles `pkg/editor-gui/bootstrap.tsx` into `dist/` using esbuild, producing:
- *   - dist/bootstrap.js   (all JS, tree-shaken & minified)
+ *   - dist/bootstrap.js   (all JS, tree-shaken; minified unless --dev)
  *   - dist/bootstrap.css  (all CSS, extracted from JS)
  *   - dist/index.html     (loads the JS + CSS)
  *
@@ -12,13 +12,18 @@
  * specifiers through Node's PnP-aware `createRequire` and feeding the file
  * contents back to esbuild via `onLoad`.
  *
- * Usage:  yarn node build-gui.mjs
+ * Usage:  yarn node build-gui.mjs [--dev]
+ *
+ * The optional `--dev` flag disables minification (and bundles React in
+ * development mode) for easier debugging.
  */
 import { build } from 'esbuild';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+
+const dev = process.argv.includes('--dev') || process.argv.includes('dev');
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const entry = path.join(projectRoot, 'pkg', 'editor-gui', 'bootstrap.tsx');
@@ -82,11 +87,11 @@ await build({
   target: 'es2020',
   outdir,
   sourcemap: true,
-  minify: true,
+  minify: !dev,
   // React (and other libs) select prod vs. dev via process.env.NODE_ENV.
-  // Pin it so the production code path is bundled and dead code is dropped.
+  // Use "development" in dev mode so React dev-time warnings are included.
   define: {
-    'process.env.NODE_ENV': '"production"',
+    'process.env.NODE_ENV': dev ? '"development"' : '"production"',
   },
   // CSS loaders for files resolved natively (project-local stylesheets).
   loader: { '.module.css': 'local-css', '.css': 'global-css' },
@@ -112,4 +117,4 @@ const html = `<!DOCTYPE html>
 `;
 
 await fs.writeFile(path.join(outdir, 'index.html'), html);
-console.log('✓ editor-gui built → dist/');
+console.log(`✓ editor-gui built → dist/${dev ? ' (dev)' : ''}`);

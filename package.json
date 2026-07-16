@@ -11,6 +11,7 @@
     "build-server-builder": "yarn esbuild server-builder.mts --packages=external --platform=node --target=node18 --minify=false --bundle --format=esm --outfile=server-builder.mjs",
     "build-server": "yarn node server-builder.mjs",
     "build-gui": "yarn node build-gui.mjs",
+    "build-gui:dev": "yarn node build-gui.mjs --dev",
     "build-self": "yarn compile; yarn clean && yarn build-server-builder && yarn build-server"
   },
   "files": [
