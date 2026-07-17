@@ -224,11 +224,10 @@ __metadata:
     prosemirror-model: "npm:^1.22.0"
     prosemirror-state: "npm:^1.4.4"
     prosemirror-view: "npm:1.42.0"
+    react: "npm:^19.2.7"
+    react-dom: "npm:^19.2.7"
     react-reconciler: "npm:0.32.0"
     typescript: "npm:~6.0.3"
-  peerDependencies:
-    react: ^19.2.7
-    react-dom: ^19.2.7
   languageName: unknown
   linkType: soft
 
