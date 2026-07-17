@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   MetanormaProseMirror,
+  MetanormaToolbar,
   createInitialEditorState,
 } from '@metanorma/prosemirror-editor';
 import type { EditorState } from '@metanorma/prosemirror-editor';
@@ -19,8 +20,9 @@ function ({ onDoneLoading }) {
 
   return <div className={classNames.app}>
     <MetanormaProseMirror
-      state={editorState}
-      onStateChange={setEditorState}
-    />
+        state={editorState}
+        onStateChange={setEditorState}>
+      <MetanormaToolbar />
+    </MetanormaProseMirror>
   </div>;
 };
