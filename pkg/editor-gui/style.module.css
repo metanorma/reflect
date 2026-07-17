@@ -3,6 +3,7 @@
     margin: 0;
     padding: 0;
     padding-left: 68px;
+    /*
     @media (prefers-color-scheme: light) {
       & {
         color-scheme: light;
@@ -15,6 +16,7 @@
         background: rgb(0, 0, 0);
       }
     }
+    */
   }
   .appwrapper {
     padding: 10px 10px 10px 0;
@@ -26,12 +28,4 @@
 .app {
   position: absolute;
   inset: 0;
-  > * {
-    position: absolute;
-    inset: 0;
-    > * {
-      position: absolute;
-      inset: 0;
-    }
-  }
 }
