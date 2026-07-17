@@ -221,6 +221,7 @@ __metadata:
     "@metanorma/prosemirror-schema": "workspace:^"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
+    prosemirror-commands: "npm:^1.7.1"
     prosemirror-model: "npm:^1.22.0"
     prosemirror-state: "npm:^1.4.4"
     prosemirror-view: "npm:1.42.0"
@@ -417,6 +418,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"prosemirror-commands@npm:^1.7.1":
+  version: 1.7.1
+  resolution: "prosemirror-commands@npm:1.7.1"
+  dependencies:
+    prosemirror-model: "npm:^1.0.0"
+    prosemirror-state: "npm:^1.0.0"
+    prosemirror-transform: "npm:^1.10.2"
+  checksum: 10c0/4884ea7a66b79b51e72bb2ef358284d70e9a071deb4cbfab3dd8ee3449e9a0e34cb391d92f487c013d3716b823fc5568ad5e409a9444b3630ae0b87617c2fca1
+  languageName: node
+  linkType: hard
+
 "prosemirror-model@npm:^1.0.0, prosemirror-model@npm:^1.21.0, prosemirror-model@npm:^1.22.0, prosemirror-model@npm:^1.25.8":
   version: 1.25.11
   resolution: "prosemirror-model@npm:1.25.11"
@@ -437,7 +449,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prosemirror-transform@npm:^1.0.0, prosemirror-transform@npm:^1.1.0":
+"prosemirror-transform@npm:^1.0.0, prosemirror-transform@npm:^1.1.0, prosemirror-transform@npm:^1.10.2":
   version: 1.12.0
   resolution: "prosemirror-transform@npm:1.12.0"
   dependencies:

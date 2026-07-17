@@ -13,6 +13,10 @@ import type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
 export { MetanormaProseMirror } from "./MetanormaProseMirror.js";
 export type { MetanormaProseMirrorProps } from "./MetanormaProseMirror.js";
 
+export { MetanormaToolbar } from "./MetanormaToolbar.js";
+export type { MetanormaToolbarProps, ToolbarGroup } from "./MetanormaToolbar.js";
+export { toggleList } from "./commands/toggleList.js";
+
 export type { MirrorDocument, MirrorMark } from "./types.js";
 
 export {

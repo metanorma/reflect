@@ -10,6 +10,7 @@
   "dependencies": {
     "@handlewithcare/react-prosemirror": "3.2.7",
     "@metanorma/prosemirror-schema": "workspace:^",
+    "prosemirror-commands": "^1.7.1",
     "prosemirror-model": "^1.22.0",
     "prosemirror-state": "^1.4.4",
     "prosemirror-view": "1.42.0",
