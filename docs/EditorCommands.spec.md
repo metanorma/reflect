@@ -14,9 +14,9 @@ model. It is the command-logic companion to
 
 ---
 
-## The editor-commands module
+## 1. The editor-commands module
 
-### 1. Purpose
+### 1.1 Purpose
 
 Provide a library of document-modification commands — ProseMirror `Command`
 functions — tailored to the node/mark vocabulary and content model of
@@ -35,7 +35,7 @@ functions — tailored to the node/mark vocabulary and content model of
 
 ---
 
-### 2. Relationship to other packages
+### 1.2 Relationship to other packages
 
 | Package | Relationship |
 |---|---|
@@ -58,7 +58,7 @@ This package sits below the editor mount in the dependency graph:
 
 ---
 
-### 3. Module layout
+### 1.3 Module layout
 
 A new workspace package, sibling to the schema and editor packages:
 
@@ -84,7 +84,7 @@ to the `workspaces` array in the root `package.json`.
 
 ---
 
-### 4. Dependencies
+### 1.4 Dependencies
 
 | Package | Version | Purpose / constraint |
 |---|---|---|
@@ -101,7 +101,7 @@ No React. No DOM libraries. No `prosemirror-view` — commands never touch an
 
 ---
 
-### 5. Command contract
+### 1.5 Command contract
 
 Every exported command conforms to ProseMirror's `Command` type from
 `prosemirror-state`:
@@ -139,21 +139,21 @@ All commands obey these invariants:
 
 ---
 
-### 6. Schema coupling
+### 1.6 Schema coupling
 
 Commands are bound to the Metanorma schema. The following principles govern
 **every** command:
 
-#### 6.1 Resolve types by name, through the schema instance
+#### 1.6.1 Resolve types by name, through the schema instance
 
 Commands must not hard-code node/mark lookups with unverified string literals.
 Node and mark types are resolved from a `Schema` instance using names drawn from
 the exported `NODE_NAMES` / `MARK_NAMES` constants, e.g.
 `state.schema.nodes.list_item`. For reference equality and clarity, the package
-keeps a shared, lazily-captured schema context in `src/schema.ts` (module layout section) defaulting
+keeps a shared, lazily-captured schema context in `src/schema.ts` (§1.3) defaulting
 to `metanormaSchema`.
 
-#### 6.2 Schema-parameterized where reuse matters
+#### 1.6.2 Schema-parameterized where reuse matters
 
 Because the schema package exposes the raw spec maps (`metanormaNodes` /
 `metanormaMarks`) precisely so consumers may compose a **modified** schema
@@ -164,7 +164,7 @@ the Metanorma vocabulary may bind `metanormaSchema` directly. The per-command
 sections decide which form applies; the general rule is: *prefer the factory form
 unless the command only makes sense for the exact Metanorma schema.*
 
-#### 6.3 Schema facts that motivate custom logic
+#### 1.6.3 Schema facts that motivate custom logic
 
 The Metanorma content model diverges from ProseMirror's defaults in several
 places. These divergences are the reason a dedicated commands package exists
@@ -185,7 +185,7 @@ in the later, per-command sections.
 
 ---
 
-### 7. Transaction discipline
+### 1.7 Transaction discipline
 
 When a command dispatches, the transaction it produces obeys:
 
@@ -212,7 +212,7 @@ When a command dispatches, the transaction it produces obeys:
 
 ---
 
-### 8. Purity, side-effects, and testability
+### 1.8 Purity, side-effects, and testability
 
 1. **No DOM, no `EditorView`.** Commands read only from `EditorState` and write
    only through the supplied `dispatch` callback. They never call
@@ -228,11 +228,11 @@ When a command dispatches, the transaction it produces obeys:
 
 ---
 
-### 9. Composition and chaining
+### 1.9 Composition and chaining
 
 1. **Reuse over reimplementation.** Where an upstream command is correct for the
    Metanorma schema, the package re-exports or thin-wraps it rather than
-   reimplementing. Custom logic is added **only** where the Schema coupling section requires.
+   reimplementing. Custom logic is added **only** where §1.6 requires.
 2. **Chaining.** Multi-step key bindings (e.g. "try A, else B, else C") are
    expressed with a chaining combinator. The package provides/re-exports a
    `chainCommands`-style helper in `src/util.ts` that runs commands in order and
@@ -244,10 +244,10 @@ When a command dispatches, the transaction it produces obeys:
 
 ---
 
-### 10. Public API conventions (`src/index.ts`)
+### 1.10 Public API conventions (`src/index.ts`)
 
 1. **Every exported symbol is a `Command`** (or a `(schema) => Command` factory,
-   per the Schema coupling section). No non-command helpers are part of the public API unless explicitly
+   per §1.6.2). No non-command helpers are part of the public API unless explicitly
    documented.
 2. **Naming.** Commands are named for the **action** they perform
    (`splitParagraph`, `insertSoftBreak`, …), not for the key that triggers them
@@ -265,7 +265,7 @@ fixes only the conventions.
 
 ---
 
-### 11. TypeScript constraints
+### 1.11 TypeScript constraints
 
 Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`,
@@ -286,7 +286,7 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 
 ---
 
-### 12. Acceptance criteria
+### 1.12 Acceptance criteria
 
 These are the **general** criteria every command and the package as a whole must
 satisfy; per-command criteria are added in later sections.
@@ -316,7 +316,7 @@ satisfy; per-command criteria are added in later sections.
 
 ---
 
-### 13. Specified elsewhere
+### 1.13 Specified elsewhere
 
 - **Definitions of individual commands** (e.g. paragraph split, list split/lift,
   code newline, definition-list flow, line-break insertion, atom-adjacent
@@ -325,7 +325,7 @@ satisfy; per-command criteria are added in later sections.
 - **Keymap bindings** (mapping physical keys such as `Enter`, `Shift-Enter`,
   `Mod-Enter` to commands). Keymap wiring lives in the editor mount's `plugins`
   prop or a dedicated keymap package; it is intentionally separate from command
-  logic (Purpose section, Public API conventions section).
+  logic (§1.1, §1.10.2).
 - **Input rules**, menu/toolbar UI, and collaborative-editing bindings.
 - **Command serialization / undo grouping policy** beyond ProseMirror's default
   transaction history.
@@ -334,7 +334,7 @@ satisfy; per-command criteria are added in later sections.
 
 ---
 
-## The Enter key
+## 2. The Enter key
 
 This section specifies the **Enter-key-handling feature** of the
 `MetanormaProseMirror` editor: the complete, context-dependent behaviour of the
@@ -359,7 +359,7 @@ and bound to the Enter key by a keymap plugin wired into the editor mount (see
 the MetanormaProseMirror spec). This section specifies the per-context
 behaviour, the composition, and the binding.
 
-### Scope
+### 2.1 Scope
 
 In scope:
 
@@ -381,7 +381,7 @@ Out of scope (handled by other keys or elsewhere):
   integrated — Enter inside a cell splits the cell's textblock only).
 - Input rules, paste handling, drag-and-drop, and collaborative bindings.
 
-### What determines Enter's behaviour
+### 2.2 What determines Enter's behaviour
 
 Enter's effect is a pure function of the editor state at the moment of the
 keypress. The relevant inputs are:
@@ -404,22 +404,28 @@ keypress. The relevant inputs are:
    - *end* — collapsed at the trailing boundary;
    - *empty* — the textblock has no content (start = end = empty).
 5. **Marks** active at the cursor (relevant only for carrying formatting across a
-   split — see the Transaction discipline section).
+   split — see §1.7).
 
 The decision tables below key off these inputs.
 
-### The Enter dispatch chain
+### 2.3 The Enter dispatch chain
 
-Enter is one exported command, `enterKey`, defined as an ordered composition (a
-`chainCommands`-style combinator — see the Composition and chaining section).
+The Enter behaviour is an ordered composition of the individual commands
+introduced in §2.7, assembled with the `chainCommands`-style combinator (§1.9.2).
 The first command in the chain that is *applicable* in the current state runs
 and the rest are skipped; if none is applicable, Enter does nothing (returns
 `false`, dispatches nothing).
 
-The chain is ordered **most-specific context first, most-generic last**:
+Per §1.10.2 (commands are named for the action, not the key that triggers them),
+the package does **not** export a composite `enterKey`/`onEnter` symbol. The
+chain is assembled at the call site — specifically, in the keymap plugin
+specified in §2.8 — so that composition is explicit (§1.9.3) and keymap wiring
+stays outside the command package (§1.13).
+
+The recommended order is **most-specific context first, most-generic last**:
 
 ```
-enterKey = chainCommands(
+chainCommands(
   newlineInCode,          // 1. inside sourcecode
   enterDefinitionList,    // 2. inside dl / dt / dd
   splitListItem,          // 3. inside a list_item
@@ -451,14 +457,13 @@ particular, each branch that applies to a *ranged* selection first performs a
 minimal replacement (`deleteSelection` / `replaceSelectionWith`) so that "Enter
 over a selection" behaves identically across all branches.
 
-### Behaviour by context
+### 2.4 Behaviour by context
 
 The tables below give the observable effect of Enter for each context, plus the
 schema invariant the branch must preserve. "Node" rows for non-atom blocks are
-covered once under "Atoms and node selections" and referenced from the
-per-context tables.
+covered once under §2.4.7 and referenced from the per-context tables.
 
-#### Plain paragraphs
+#### 2.4.1 Plain paragraphs
 
 The innermost textblock is a `paragraph`, and no list / container / dl / table
 context alters the behaviour (the nearest "interesting" ancestor is a section or
@@ -471,13 +476,13 @@ the document body).
 | Collapsed | end | Insert an empty paragraph after; cursor in it. | New trailing block; valid. |
 | Collapsed | empty | Insert another empty paragraph after; cursor in it. (Container/list exit is handled upstream in the chain.) | New block; valid. |
 | Ranged | any | Delete the selected range, then split at the resulting position per the collapsed rules. | `inline*` reflows; valid. |
-| Node | — | See "Atoms and node selections" (a `paragraph` is a non-atom block). | — |
+| Node | — | See §2.4.7 (a `paragraph` is a non-atom block). | — |
 
 Marks are carried across a split via ProseMirror's `splitBlock`-with-`storedMarks`
 mechanism so that, for example, pressing Enter inside a bold paragraph continues
 bold in the new paragraph.
 
-#### Source code (`sourcecode`)
+#### 2.4.2 Source code (`sourcecode`)
 
 `sourcecode` has content `text*` and `code: true`; it is the only code context
 in the schema.
@@ -486,15 +491,14 @@ in the schema.
 |---|---|---|---|
 | Collapsed | any | Insert a newline character (`\n`) into the sourcecode text at the cursor. Do **not** split the block, do **not** insert a `soft_break` node, do **not** exit. | Stays a single `text*` block; valid. |
 | Ranged | any | Replace the range with a newline. | `text*`; valid. |
-| Node | — | See "Atoms and node selections" (`sourcecode` is a non-atom block). | — |
+| Node | — | See §2.4.7 (`sourcecode` is a non-atom block). | — |
 
 The newline is plain text, matching round-tripping expectations: the
 `sourcecode` records `\n`, never a node.
 
-#### Lists (`bullet_list`, `ordered_list`, `list_item`)
+#### 2.4.3 Lists (`bullet_list`, `ordered_list`, `list_item`)
 
-`list_item` content is `block+` — generalised, not paragraph-only (see the
-Schema coupling section). The cursor's innermost textblock is typically a
+`list_item` content is `block+` — generalised, not paragraph-only (see §1.6). The cursor's innermost textblock is typically a
 `paragraph` directly inside a `list_item`.
 
 | Selection | Zone | Context | Effect | Invariant |
@@ -506,7 +510,7 @@ Schema coupling section). The cursor's innermost textblock is typically a
 | Collapsed | empty | the empty paragraph is in a **nested** list_item | **Exit one level**: lift the empty paragraph into the parent list_item as a trailing block; remove the nested list if it becomes empty. | Parent item keeps `block+`; no empty nested list. |
 | Ranged | within one item | any | Delete the range, then apply the collapsed rule at the resulting position. | `list_item+`. |
 | Ranged | spanning items | — | Delete the range (which may merge items), then apply the collapsed rule at the join. | Resulting list still `list_item+`. |
-| Node | — | — | See "Atoms and node selections". | — |
+| Node | — | — | See §2.4.7. | — |
 
 Because list items are generalised, the split operates on whichever block type
 the cursor is in (a paragraph, a nested list's paragraph, …), not on an assumed
@@ -514,7 +518,7 @@ the cursor is in (a paragraph, a nested list's paragraph, …), not on an assume
 content; it never adds a sibling block *within* the same item (that is a
 deliberate match to universal list-editing expectation).
 
-#### Definition lists (`dl`, `dt`, `dd`)
+#### 2.4.4 Definition lists (`dl`, `dt`, `dd`)
 
 `dl` content is `(dt dd)+`; the **alternation invariant** is the dominant
 constraint. The dl is therefore never left with two adjacent `dt` or two
@@ -529,13 +533,13 @@ adjacent `dd` nodes, and never with a trailing `dt` lacking a `dd`.
 | Collapsed | empty | the LAST `dd`'s only block is an empty paragraph | **Exit the dl**: remove the trailing `(dt dd)` pair; if it was the only pair, remove the `dl`; insert an empty paragraph after; cursor in it. | No dangling `dt`; no empty `dl`. |
 | Collapsed | empty | empty paragraph in a `dd` that is NOT last | Split in place (another paragraph in the `dd`); never exit mid-dl. | `(dt dd)+`. |
 | Ranged | any | within `dt` or `dd` | Delete the range, then apply the collapsed rule. | Alternation preserved. |
-| Node | — | — | See "Atoms and node selections". | — |
+| Node | — | — | See §2.4.7. | — |
 
 A new entry is always created as a complete `(dt dd)` pair, so the dl is valid
 at every intermediate state. Enter **never splits a `dt`** (terms are
 single-line); the way to "finish" a term is Enter, which moves to its `dd`.
 
-#### Container blocks (`note`, `example`, `quote`, `review`, `admonition`, `figure`)
+#### 2.4.5 Container blocks (`note`, `example`, `quote`, `review`, `admonition`, `figure`)
 
 These nodes share content `block+` (for `figure`, `(image | block)*`). They are
 "wrapper" blocks the user enters and later wants to leave.
@@ -547,7 +551,7 @@ These nodes share content `block+` (for `figure`, `(image | block)*`). They are
 | Collapsed | empty | the container's **last** block is an empty paragraph | **Exit the container**: lift an empty paragraph out to sit *after* the container (sibling in the container's parent); if the container would become empty, remove it. | No empty container left; parent content model honoured. |
 | Collapsed | empty | an empty paragraph that is NOT the container's last block | Split in place (add another paragraph inside). Exiting mid-container would reorder siblings unexpectedly. | `block+`. |
 | Ranged | any | within the container | Delete the range, then apply the collapsed rule. | `block+`. |
-| Node | — | — | See "Atoms and node selections". | — |
+| Node | — | — | See §2.4.7. | — |
 
 The exit rule is what lets the user "press Enter on the last empty line to leave
 the note/quote/figure." For `figure`, exiting leaves the figure (with its image
@@ -559,7 +563,7 @@ and caption blocks) intact and creates a paragraph after it.
 > `footnote_entry` therefore only ever splits the inner block (or adds a
 > paragraph); exiting a footnote is left to dedicated commands / arrow keys.
 
-#### Tables (`table`, `table_cell`)
+#### 2.4.6 Tables (`table`, `table_cell`)
 
 `prosemirror-tables` is not integrated. Enter therefore performs **no row or
 cell management**.
@@ -574,7 +578,7 @@ cell management**.
 The deliberate choice here is predictability over cleverness: Enter inside a
 table does what it does in a paragraph, nothing more.
 
-#### Atoms and node selections (`image`, `formula`, `floating_title`)
+#### 2.4.7 Atoms and node selections (`image`, `formula`, `floating_title`)
 
 `image`, `formula`, and `floating_title` are block-level atoms (empty content,
 `atom: true`). The cursor cannot rest *inside* them; it can only node-select
@@ -588,7 +592,7 @@ that contains them just splits the paragraph around them.)
 | Gap cursor immediately before/after an atom | — | Same: create an adjacent empty paragraph on the cursor's side; cursor in it. | New paragraph is a legal child of the atom's parent. |
 | Node selection on a **non-atom** block (`paragraph`, `sourcecode`, `note`, `clause`, …) | — | Return `false` (Enter does nothing). Restructuring whole blocks or sections on Enter is surprising; dedicated commands handle those, and the user can arrow into the block to type. | — |
 
-#### Structural and section nodes
+#### 2.4.8 Structural and section nodes
 
 The cursor is always inside some textblock; it is never "inside" a `clause`,
 `sections`, `doc`, etc. in a way that Enter would split. Therefore:
@@ -603,7 +607,7 @@ The cursor is always inside some textblock; it is never "inside" a `clause`,
   schema-safety rule below still applies: the section is never left with zero
   blocks.
 
-### Schema-preservation guarantees
+### 2.5 Schema-preservation guarantees
 
 Every branch of `enterKey` upholds the following invariants. They are testable
 properties (see the test matrix) and take precedence over any "nice to have"
@@ -632,7 +636,7 @@ behaviour:
    the destination (none currently exist in the schema, but the rule is stated
    for forward-compatibility).
 
-### User-expectation guarantees
+### 2.6 User-expectation guarantees
 
 Where several schema-legal behaviours exist, Enter picks the one a
 word-processor user expects:
@@ -652,12 +656,12 @@ word-processor user expects:
 When in doubt, Enter's effect matches the platform's dominant word-processor
 (Word / Google Docs) for the analogous construct.
 
-### Command inventory
+### 2.7 Command inventory
 
 The Enter feature introduces the following commands in
 `@metanorma/editor-commands`. Each is an exported `Command` (or a
-`(schema) => Command` factory where reuse on a composed schema matters — see the
-Schema coupling section) and conforms to the Command contract.
+`(schema) => Command` factory where reuse on a composed schema matters — see
+§1.6) and conforms to the Command contract.
 
 | Command | Form | Source | Responsibility |
 |---|---|---|---|
@@ -667,13 +671,15 @@ Schema coupling section) and conforms to the Command contract.
 | `exitContainerBlock` | `Command` | custom | Lift an empty trailing paragraph out of a `block+` container (`note`, `example`, `quote`, `review`, `admonition`, `figure`), removing the container if it would become empty. |
 | `createParagraphNear` | `Command` | re-exported from `prosemirror-commands` | Create an empty paragraph adjacent to a node-selected atom or at a gap cursor beside one. |
 | `splitBlockKeepMarks` | `Command` | adapted from `prosemirror-commands` | Default fallback: split the innermost textblock (typically a `paragraph`) carrying active marks, after deleting any ranged selection. |
-| `enterKey` | `Command` | custom (composition) | The chain of all the above in the documented order; this is what the keymap binds to Enter. |
 
-`enterKey` is the only symbol the keymap needs; the individual commands are also
-exported so consumers can compose alternative Enter behaviours or reuse them in
-other keymaps.
+The package also re-exports the `chainCommands` combinator (§1.9.2) so consumers
+can assemble the chain. No composite "enter" symbol is exported: per §1.10.2 the
+chain is composed at the call site (the keymap plugin of §2.8), which also keeps
+the composition explicit (§1.9.3) and keymap wiring outside the package (§1.13).
+Consumers may reorder or substitute commands to build alternative Enter
+behaviours.
 
-### Keymap binding
+### 2.8 Keymap binding
 
 The Enter feature is wired into the editor through a keymap plugin supplied to
 `MetanormaProseMirror` via its `plugins` prop (the mount itself remains
@@ -681,7 +687,9 @@ keymap-agnostic — see the MetanormaProseMirror spec). The binding contract:
 
 - **Key:** `"Enter"` (the numeric keypad's Enter is delivered as the same key by
   `prosemirror-keymap`; no separate binding is required).
-- **Bound command:** `enterKey` (the chain above).
+- **Bound command:** the `chainCommands(...)` composition specified in §2.3,
+  assembled inline (the package exports the individual commands and the
+  `chainCommands` helper, not a pre-built "enter" command).
 - **Platform notes:**
   - `"Mod-Enter"`, `"Shift-Enter"`, and `"Alt-Enter"` are **not** bound by this
     feature.
@@ -709,7 +717,7 @@ export function metanormaEnterKeymap() {
 
 Wiring: `<MetanormaProseMirror plugins={[metanormaEnterKeymap(), …]} />`.
 
-### Relationship to Shift-Enter
+### 2.9 Relationship to Shift-Enter
 
 To prevent the two line-break keys from being conflated:
 
@@ -721,7 +729,7 @@ To prevent the two line-break keys from being conflated:
 The distinction mirrors every major word-processor: **Enter ends the paragraph;
 Shift-Enter breaks the line.**
 
-### Test matrix
+### 2.10 Test matrix
 
 Each row is a fixture (an `EditorState` built from a `MirrorDocument`), an
 Enter keypress, and an assertion on the resulting `tr.doc.toJSON()` and
