@@ -354,8 +354,8 @@ to an atom, or lift the cursor out of a container. The governing rule is:
 > least surprising one for a word-processor user wins.
 
 The feature is delivered as a set of commands in
-`@metanorma/editor-commands`, composed into a single `enterKey` dispatch chain
-and bound to the Enter key by a keymap plugin wired into the editor mount (see
+`@metanorma/editor-commands`, composed into a single dispatch chain (§2.3) and
+bound to the Enter key by a keymap plugin wired into the editor mount (see
 the MetanormaProseMirror spec). This section specifies the per-context
 behaviour, the composition, and the binding.
 
@@ -609,7 +609,7 @@ The cursor is always inside some textblock; it is never "inside" a `clause`,
 
 ### 2.5 Schema-preservation guarantees
 
-Every branch of `enterKey` upholds the following invariants. They are testable
+Every branch of the Enter chain upholds the following invariants. They are testable
 properties (see the test matrix) and take precedence over any "nice to have"
 behaviour:
 
@@ -705,11 +705,31 @@ or a dedicated `@metanorma/editor-keymap` package):
 
 ```ts
 import { keymap } from "prosemirror-keymap";
-import { enterKey, insertSoftBreak } from "@metanorma/editor-commands";
+import { chainCommands } from "prosemirror-commands";
+import {
+  newlineInCode,
+  enterDefinitionList,
+  splitListItem,
+  exitContainerBlock,
+  createParagraphNear,
+  splitBlockKeepMarks,
+  insertSoftBreak,
+  metanormaSchema,
+} from "@metanorma/editor-commands";
+
+// The Enter binding is the chain from §2.3, composed at the call site.
+const enterBinding = chainCommands(
+  newlineInCode,
+  enterDefinitionList,
+  splitListItem(metanormaSchema),
+  exitContainerBlock,
+  createParagraphNear,
+  splitBlockKeepMarks,
+);
 
 export function metanormaEnterKeymap() {
   return keymap({
-    Enter: enterKey,
+    Enter: enterBinding,
     "Shift-Enter": insertSoftBreak,
   });
 }
@@ -723,7 +743,7 @@ To prevent the two line-break keys from being conflated:
 
 | Key | Command | Effect | When |
 |---|---|---|---|
-| `Enter` | `enterKey` | Structural: split block / continue-or-exit list / commit term / start entry / code newline / paragraph-near atom. | Always (the subject of this section). |
+| `Enter` | the §2.3 `chainCommands(...)` (composed in the keymap, not a named export) | Structural: split block / continue-or-exit list / commit term / start entry / code newline / paragraph-near atom. | Always (the subject of this section). |
 | `Shift-Enter` | `insertSoftBreak` | Insert an inline `soft_break` node at the cursor (a line break *within* the current block). No structural change. | Only inside textblocks that allow inline content (`paragraph`, `dt`, a `dd`'s paragraph, a list item's paragraph). Inside `sourcecode`, `Shift-Enter` also inserts a `\n` (same as Enter, since there is no `soft_break` in code). |
 
 The distinction mirrors every major word-processor: **Enter ends the paragraph;
