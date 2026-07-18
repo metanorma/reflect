@@ -10,11 +10,13 @@ model. It is the command-logic companion to
 > cross-cutting aspects** of command implementation — the contract every command
 > obeys, how commands couple to the schema, transaction discipline, testability,
 > and the public-API conventions. The definitions of **individual commands** and
-> **keymap / input-rule wiring** are deferred to later sections (see §13).
+> **keymap / input-rule wiring** are deferred to later sections.
 
 ---
 
-## 1. Purpose
+## The editor-commands module
+
+### 1. Purpose
 
 Provide a library of document-modification commands — ProseMirror `Command`
 functions — tailored to the node/mark vocabulary and content model of
@@ -24,22 +26,22 @@ functions — tailored to the node/mark vocabulary and content model of
    can be invoked from keymaps, toolbars, menus, input rules, or tests.
 2. Is **schema-aware**: it resolves node and mark types through the Metanorma
    schema and adapts ProseMirror's stock behaviour where the Metanorma content
-   model diverges from upstream defaults (§6).
+   model diverges from upstream defaults (defined in later sections).
 3. Is **framework-agnostic and DOM-free**: it operates on `EditorState` /
    `Transaction` only, with no React and no DOM access, so every command is
    unit-testable headless.
 4. Ships **command logic only**. It does **not** bind keys, ship a keymap plugin,
-   or render UI (§13).
+   or render UI (defined in later sections).
 
 ---
 
-## 2. Relationship to other packages
+### 2. Relationship to other packages
 
 | Package | Relationship |
 |---|---|
 | `@metanorma/prosemirror-schema` | **Source of truth.** Commands consume `metanormaSchema`, `NODE_NAMES`, and `MARK_NAMES`. They never redefine nodes, marks, attributes, or `toDOM`/`parseDOM`. |
 | `@metanorma/prosemirror-editor` (planned) | **Consumer.** The React editor mount provides the `plugins` prop and `children` hook surface (`MetanormaProseMirror.spec.md` §5, §10) into which keymaps built from these commands are wired. This package does not import React. |
-| `prosemirror-commands`, `prosemirror-schema-list` (upstream) | **Composition bases.** Where a stock upstream command works unchanged, it is reused; where the Metanorma schema diverges, this package provides an adapted/custom replacement (§6, §9). |
+| `prosemirror-commands`, `prosemirror-schema-list` (upstream) | **Composition bases.** Where a stock upstream command works unchanged, it is reused; where the Metanorma schema diverges, this package provides an adapted/custom replacement (defined in later sections). |
 | `prosemirror-state`, `prosemirror-model` | **Runtime types.** `EditorState`, `Transaction`, `Command`, `Node`, `Schema`. |
 
 This package sits below the editor mount in the dependency graph:
@@ -56,7 +58,7 @@ This package sits below the editor mount in the dependency graph:
 
 ---
 
-## 3. Module layout
+### 3. Module layout
 
 A new workspace package, sibling to the schema and editor packages:
 
@@ -65,9 +67,9 @@ pkg/editor-commands/
 ├── package.json          ← name: "@metanorma/editor-commands"
 ├── tsconfig.json         ← extends ../../tsconfig.json
 └── src/
-    ├── index.ts          ← public exports (§10)
-    ├── schema.ts         ← schema-coupling helpers: name resolution, shared context (§6)
-    ├── util.ts           ← shared command utilities: chain, predicates (§9)
+    ├── index.ts          ← public exports (defined in later sections)
+    ├── schema.ts         ← schema-coupling helpers: name resolution, shared context (defined in later sections)
+    ├── util.ts           ← shared command utilities: chain, predicates (defined in later sections)
     └── commands/         ← individual command modules (reserved for later sections)
 ```
 
@@ -75,14 +77,14 @@ pkg/editor-commands/
 > name `@metanorma/editor-commands` is chosen over `@metanorma/prosemirror-commands`
 > to avoid confusion with the upstream `prosemirror-commands` dependency (which
 > this package itself consumes). The implementer may rename, provided the public
-> exports (§10) and contract (§5) are honoured.
+> exports and contract are honoured.
 
 The package must be registered as a Yarn workspace by adding `"pkg/editor-commands"`
 to the `workspaces` array in the root `package.json`.
 
 ---
 
-## 4. Dependencies
+### 4. Dependencies
 
 | Package | Version | Purpose / constraint |
 |---|---|---|
@@ -95,11 +97,11 @@ to the `workspaces` array in the root `package.json`.
 `devDependencies`: `typescript@~6.0.3` (matching the root).
 
 No React. No DOM libraries. No `prosemirror-view` — commands never touch an
-`EditorView` or the DOM (§8).
+`EditorView` or the DOM (defined in later sections).
 
 ---
 
-## 5. Command contract
+### 5. Command contract
 
 Every exported command conforms to ProseMirror's `Command` type from
 `prosemirror-state`:
@@ -117,7 +119,7 @@ All commands obey these invariants:
    produce side effects. This makes commands usable in keymap dispatch chains
    ("first applicable command wins") and in UI enable/disable checks.
 2. **Effect when dispatched.** When `dispatch` **is** supplied and the command is
-   applicable, it builds exactly **one** transaction (§7), calls `dispatch(tr)`
+   applicable, it builds exactly **one** transaction (defined in later sections), calls `dispatch(tr)`
    **exactly once**, and returns `true`.
 3. **No-when-inapplicable.** When not applicable, a command returns `false`
    whether or not `dispatch` is supplied, and dispatches **nothing**.
@@ -137,32 +139,32 @@ All commands obey these invariants:
 
 ---
 
-## 6. Schema coupling
+### 6. Schema coupling
 
 Commands are bound to the Metanorma schema. The following principles govern
 **every** command:
 
-### 6.1 Resolve types by name, through the schema instance
+#### 6.1 Resolve types by name, through the schema instance
 
 Commands must not hard-code node/mark lookups with unverified string literals.
 Node and mark types are resolved from a `Schema` instance using names drawn from
 the exported `NODE_NAMES` / `MARK_NAMES` constants, e.g.
 `state.schema.nodes.list_item`. For reference equality and clarity, the package
-keeps a shared, lazily-captured schema context in `src/schema.ts` (§3) defaulting
+keeps a shared, lazily-captured schema context in `src/schema.ts` (module layout section) defaulting
 to `metanormaSchema`.
 
-### 6.2 Schema-parameterized where reuse matters
+#### 6.2 Schema-parameterized where reuse matters
 
 Because the schema package exposes the raw spec maps (`metanormaNodes` /
 `metanormaMarks`) precisely so consumers may compose a **modified** schema
-(schema §11), commands that are likely to be reused on a composed schema should
+(see the schema specification), commands that are likely to be reused on a composed schema should
 be exposed as **factories** `(schema: Schema) => Command` rather than closures
 over the `metanormaSchema` singleton. Commands that are intrinsically specific to
 the Metanorma vocabulary may bind `metanormaSchema` directly. The per-command
 sections decide which form applies; the general rule is: *prefer the factory form
 unless the command only makes sense for the exact Metanorma schema.*
 
-### 6.3 Schema facts that motivate custom logic
+#### 6.3 Schema facts that motivate custom logic
 
 The Metanorma content model diverges from ProseMirror's defaults in several
 places. These divergences are the reason a dedicated commands package exists
@@ -183,14 +185,14 @@ in the later, per-command sections.
 
 ---
 
-## 7. Transaction discipline
+### 7. Transaction discipline
 
 When a command dispatches, the transaction it produces obeys:
 
 1. **One transaction per invocation.** A single `state.tr` is built and
    dispatched once. Multi-step edits are composed *within* that transaction
    (chained steps), never by dispatching repeatedly. Multi-command sequences are
-   the **caller's** responsibility, composed via chaining helpers (§9).
+   the **caller's** responsibility, composed via chaining helpers (defined in later sections).
 2. **Valid resulting selection.** After any structural change (split, insert,
    lift), the transaction must set a valid selection — typically
    `TextSelection.near(tr.doc.resolve(pos))`, or a `NodeSelection` where a node
@@ -210,7 +212,7 @@ When a command dispatches, the transaction it produces obeys:
 
 ---
 
-## 8. Purity, side-effects, and testability
+### 8. Purity, side-effects, and testability
 
 1. **No DOM, no `EditorView`.** Commands read only from `EditorState` and write
    only through the supplied `dispatch` callback. They never call
@@ -226,11 +228,11 @@ When a command dispatches, the transaction it produces obeys:
 
 ---
 
-## 9. Composition and chaining
+### 9. Composition and chaining
 
 1. **Reuse over reimplementation.** Where an upstream command is correct for the
    Metanorma schema, the package re-exports or thin-wraps it rather than
-   reimplementing. Custom logic is added **only** where §6.3 requires.
+   reimplementing. Custom logic is added **only** where the Schema coupling section requires.
 2. **Chaining.** Multi-step key bindings (e.g. "try A, else B, else C") are
    expressed with a chaining combinator. The package provides/re-exports a
    `chainCommands`-style helper in `src/util.ts` that runs commands in order and
@@ -242,14 +244,14 @@ When a command dispatches, the transaction it produces obeys:
 
 ---
 
-## 10. Public API conventions (`src/index.ts`)
+### 10. Public API conventions (`src/index.ts`)
 
 1. **Every exported symbol is a `Command`** (or a `(schema) => Command` factory,
-   per §6.2). No non-command helpers are part of the public API unless explicitly
+   per the Schema coupling section). No non-command helpers are part of the public API unless explicitly
    documented.
 2. **Naming.** Commands are named for the **action** they perform
    (`splitParagraph`, `insertSoftBreak`, …), not for the key that triggers them
-   (never `enterKey`, `onEnter`). Key binding is a separate concern (§13).
+   (never `enterKey`, `onEnter`). Key binding is a separate concern (defined in later sections).
 3. **Re-exports.** Upstream commands that are re-used unchanged are re-exported
    under their standard names so consumers can import all commands from one
    package. Adapted/custom commands use Metanorma-specific names where they
@@ -263,7 +265,7 @@ fixes only the conventions.
 
 ---
 
-## 11. TypeScript constraints
+### 11. TypeScript constraints
 
 Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`,
@@ -284,7 +286,7 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 
 ---
 
-## 12. Acceptance criteria
+### 12. Acceptance criteria
 
 These are the **general** criteria every command and the package as a whole must
 satisfy; per-command criteria are added in later sections.
@@ -314,7 +316,7 @@ satisfy; per-command criteria are added in later sections.
 
 ---
 
-## 13. Specified elsewhere
+### 13. Specified elsewhere
 
 - **Definitions of individual commands** (e.g. paragraph split, list split/lift,
   code newline, definition-list flow, line-break insertion, atom-adjacent
@@ -323,7 +325,7 @@ satisfy; per-command criteria are added in later sections.
 - **Keymap bindings** (mapping physical keys such as `Enter`, `Shift-Enter`,
   `Mod-Enter` to commands). Keymap wiring lives in the editor mount's `plugins`
   prop or a dedicated keymap package; it is intentionally separate from command
-  logic (§1, §10.2).
+  logic (Purpose section, Public API conventions section).
 - **Input rules**, menu/toolbar UI, and collaborative-editing bindings.
 - **Command serialization / undo grouping policy** beyond ProseMirror's default
   transaction history.
