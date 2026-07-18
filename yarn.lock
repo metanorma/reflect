@@ -213,6 +213,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metanorma/editor-commands@workspace:pkg/editor-commands":
+  version: 0.0.0-use.local
+  resolution: "@metanorma/editor-commands@workspace:pkg/editor-commands"
+  dependencies:
+    "@metanorma/prosemirror-schema": "workspace:^"
+    prosemirror-commands: "npm:^1.7.1"
+    prosemirror-model: "npm:^1.22.0"
+    prosemirror-schema-list: "npm:^1.4.0"
+    prosemirror-state: "npm:^1.4.4"
+    typescript: "npm:~6.0.3"
+  languageName: unknown
+  linkType: soft
+
 "@metanorma/prosemirror-editor@workspace:^, @metanorma/prosemirror-editor@workspace:pkg/prosemirror-editor":
   version: 0.0.0-use.local
   resolution: "@metanorma/prosemirror-editor@workspace:pkg/prosemirror-editor"
@@ -438,6 +451,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"prosemirror-schema-list@npm:^1.4.0":
+  version: 1.5.1
+  resolution: "prosemirror-schema-list@npm:1.5.1"
+  dependencies:
+    prosemirror-model: "npm:^1.0.0"
+    prosemirror-state: "npm:^1.0.0"
+    prosemirror-transform: "npm:^1.7.3"
+  checksum: 10c0/e6fd27446bc90556a9797f6ca0cb54e7db53cc7c20fbf633b7d0f4709c45accfa2f3a0f6575fe47aa83cb75781a9b773198d236a44db9d8eef2802a1501e4301
+  languageName: node
+  linkType: hard
+
 "prosemirror-state@npm:^1.0.0, prosemirror-state@npm:^1.4.4":
   version: 1.4.4
   resolution: "prosemirror-state@npm:1.4.4"
@@ -449,7 +473,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prosemirror-transform@npm:^1.0.0, prosemirror-transform@npm:^1.1.0, prosemirror-transform@npm:^1.10.2":
+"prosemirror-transform@npm:^1.0.0, prosemirror-transform@npm:^1.1.0, prosemirror-transform@npm:^1.10.2, prosemirror-transform@npm:^1.7.3":
   version: 1.12.0
   resolution: "prosemirror-transform@npm:1.12.0"
   dependencies:

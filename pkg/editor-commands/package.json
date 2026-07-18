@@ -1,0 +1,20 @@
+{
+  "name": "@metanorma/editor-commands",
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "yarn@4.17.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "compile": "tsc --outdir compiled"
+  },
+  "dependencies": {
+    "@metanorma/prosemirror-schema": "workspace:^",
+    "prosemirror-commands": "^1.7.1",
+    "prosemirror-model": "^1.22.0",
+    "prosemirror-schema-list": "^1.4.0",
+    "prosemirror-state": "^1.4.4"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  }
+}

@@ -15,6 +15,10 @@ const RAW_RUNTIME_STATE =
       "reference": "workspace:."\
     },\
     {\
+      "name": "@metanorma/editor-commands",\
+      "reference": "workspace:pkg/editor-commands"\
+    },\
+    {\
       "name": "editor-gui",\
       "reference": "workspace:pkg/editor-gui"\
     },\
@@ -31,6 +35,7 @@ const RAW_RUNTIME_STATE =
   "ignorePatternData": "(^(?:\\\\.yarn\\\\/sdks(?:\\\\/(?!\\\\.{1,2}(?:\\\\/|$))(?:(?:(?!(?:^|\\\\/)\\\\.{1,2}(?:\\\\/|$)).)*?)|$))$)",\
   "pnpZipBackend": "libzip",\
   "fallbackExclusionList": [\
+    ["@metanorma/editor-commands", ["workspace:pkg/editor-commands"]],\
     ["@metanorma/prosemirror-editor", ["workspace:pkg/prosemirror-editor"]],\
     ["@metanorma/prosemirror-schema", ["workspace:pkg/prosemirror-schema"]],\
     ["editor-gui", ["workspace:pkg/editor-gui"]],\
@@ -146,6 +151,10 @@ const RAW_RUNTIME_STATE =
       "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:3.2.7"\
     ],\
     [\
+      "@metanorma/editor-commands",\
+      "workspace:pkg/editor-commands"\
+    ],\
+    [\
       "@metanorma/prosemirror-editor",\
       "workspace:pkg/prosemirror-editor"\
     ],\
@@ -196,6 +205,10 @@ const RAW_RUNTIME_STATE =
     [\
       "prosemirror-model",\
       "npm:1.25.11"\
+    ],\
+    [\
+      "prosemirror-schema-list",\
+      "npm:1.5.1"\
     ],\
     [\
       "prosemirror-state",\
@@ -562,6 +575,21 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["@metanorma/editor-commands", [\
+      ["workspace:pkg/editor-commands", {\
+        "packageLocation": "./pkg/editor-commands/",\
+        "packageDependencies": [\
+          ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
+          ["@metanorma/prosemirror-schema", "workspace:pkg/prosemirror-schema"],\
+          ["prosemirror-commands", "npm:1.7.1"],\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-schema-list", "npm:1.5.1"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+        ],\
+        "linkType": "SOFT"\
+      }]\
+    ]],\
     ["@metanorma/prosemirror-editor", [\
       ["workspace:pkg/prosemirror-editor", {\
         "packageLocation": "./pkg/prosemirror-editor/",\
@@ -757,6 +785,18 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["orderedmap", "npm:2.1.1"],\
           ["prosemirror-model", "npm:1.25.11"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["prosemirror-schema-list", [\
+      ["npm:1.5.1", {\
+        "packageLocation": "./.yarn/cache/prosemirror-schema-list-npm-1.5.1-7b138c5fed-e6fd27446b.zip/node_modules/prosemirror-schema-list/",\
+        "packageDependencies": [\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-schema-list", "npm:1.5.1"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-transform", "npm:1.12.0"]\
         ],\
         "linkType": "HARD"\
       }]\

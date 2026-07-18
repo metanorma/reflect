@@ -21,7 +21,8 @@
   "workspaces": [
     "pkg/editor-gui",
     "pkg/prosemirror-schema",
-    "pkg/prosemirror-editor"
+    "pkg/prosemirror-editor",
+    "pkg/editor-commands"
   ],
   "devDependencies": {
     "@types/node": "^22.5.5",
