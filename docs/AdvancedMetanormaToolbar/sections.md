@@ -155,7 +155,7 @@ clause" composition.
 | `title` | `"Insert clause (wrap selection in a new clause)"` |
 | `isActive` | `false` — insertion is not a toggle. (See note below.) |
 | `isEnabled` | `canWrapInClause(state)` (§5): the resolved selection's ancestor chain contains a container that permits a `clause` child. |
-| `run` | `wrapInClause(view)` (§5.4 / §5 commands). Prompts for the heading `title` per §6, wraps the selection in a new `clause` (with a child paragraph), and places the cursor in that paragraph. |
+| `run` | Toolbar adapter calls `wrapInClause(view.state, view.dispatch, { title })` (§5.2), then `view.focus()`. Prompts for the heading `title` per §7, wraps the selection in a new `clause` (with a child paragraph), and places the cursor in that paragraph. |
 
 > `isActive` is `false` because insertion is a one-shot command, not a state
 > toggle. (Conceivably one could mark it active when the immediate parent is
@@ -172,7 +172,7 @@ clause" composition.
 | `title` | `"Promote clause (move out one level)"` |
 | `isActive` | `false` |
 | `isEnabled` | The nearest enclosing section node is a `clause` **and** its parent is itself a section node (or a container that can legally receive the clause as a child at the post-lift position). Disabled when the clause is already a top-level child of `sections`/`preface`/`bibliography` (nothing to lift into without violating the doc ordering). |
-| `run` | `promoteClause(view)` (§5). |
+| `run` | Toolbar adapter calls `promoteClause(view.state, view.dispatch)` (§5.3), then `view.focus()`. |
 
 ### 4.4 Button: Demote clause
 
@@ -183,7 +183,7 @@ clause" composition.
 | `title` | `"Demote clause (nest one level deeper)"` |
 | `isActive` | `false` |
 | `isEnabled` | The nearest enclosing clause has a preceding sibling that is a clause (or `annex`/`terms`/`definitions`/`references`/`content_section` that can legally contain a `clause`), so it can be reparented as that sibling's last child. Disabled at the top of a container with no preceding-section sibling, or when the only candidate parent is a leaf section. |
-| `run` | `demoteClause(view)` (§5). |
+| `run` | Toolbar adapter calls `demoteClause(view.state, view.dispatch)` (§5.3), then `view.focus()`. |
 
 ### 4.5 Button: Change section type
 
@@ -194,20 +194,57 @@ clause" composition.
 | `title` | `"Change section type…"` |
 | `isActive` | `true` when the nearest enclosing section node's type matches the most recently chosen target — used only to reflect the current type once a sub-menu selection has been made. In the common (no sub-menu) rendering, `false`. |
 | `isEnabled` | There exists at least one *other* section node type such that `targetType.validContent(currentNode.content)` and the current parent permits `targetType` (same group `section`, so the parent's content expression is unaffected). Disabled inside `block`-only contexts and when no legal target exists. |
-| `run` | `setSectionType(view, targetType)` (§5). Target is chosen via a sub-menu / `<select>` of legal types (§6 interaction). |
+| `run` | Toolbar adapter calls `setSectionType(view.state, view.dispatch, targetType)` (§5.4), then `view.focus()`. Target is chosen via a sub-menu / `<select>` of legal types (§7 interaction). |
 
 ## 5. Commands
 
-Exported from `pkg/prosemirror-editor/src/commands/sections.ts`. All commands
-follow the ProseMirror `(state, dispatch?) => boolean` shape so they compose
-with `prosemirror-commands` and can be unit-tested without a view; the toolbar
-adapters (`run`) simply call `command(view.state, view.dispatch)`.
+The structural command logic lives in the **`@metanorma/editor-commands`**
+package, at `pkg/editor-commands/src/commands/sections.ts` — **not** in
+`pkg/prosemirror-editor`. The editor package (`@metanorma/prosemirror-editor`)
+re-exports them; the toolbar component and its view-holding adapters stay in
+`prosemirror-editor`. See §11 (exports) and §12 (file structure).
+
+> **Command contract conformance.** These commands conform to the Command
+> contract defined in `docs/EditorCommands.spec.md` §1.5. In particular:
+>
+> - **Pure / DOM-free.** Every command has the ProseMirror
+>   `Command` shape `(state: EditorState, dispatch?: (tr: Transaction) => void) => boolean`
+>   (the `Command` type is imported from `prosemirror-state`). They operate on
+>   `state` / `dispatch` **only**. They never take an `EditorView` parameter,
+>   never call `view.focus()` / `view.dispatch`, and never touch the DOM. This
+>   makes them unit-testable headless and composable with `prosemirror-commands`.
+> - **Query / dispatch parity.** Called without `dispatch`, a command is a pure
+>   applicability test that returns `true` iff it would apply and mutates
+>   nothing. Called with `dispatch`, it builds exactly one transaction,
+>   dispatches it once, and returns `true`. It returns `false` (no dispatch) when
+>   not applicable, regardless of `dispatch`.
+> - **Non-throwing.** On well-formed state over `metanormaSchema`, a command
+>   never throws; failure is reported by returning `false`.
+> - **Transaction discipline.** One `state.tr`, dispatched once; a valid
+>   resulting selection; `tr.scrollIntoView()` on these user-initiated commands;
+>   active marks preserved across the structural change.
+>
+> The `EditorView` / `view.focus()` concerns live entirely in the **toolbar
+> adapter** (in `prosemirror-editor`): each button's `run(view)` resolves any
+> needed argument (e.g. the clause `title` or a `targetType`), calls the pure
+> command as `command(view.state, view.dispatch, …)`, and then `view.focus()`.
+> No `*View` command overloads are exported from `editor-commands`.
+
+**Schema coupling.** These commands are tightly bound to the Metanorma section
+vocabulary, so they resolve node types **by name through `state.schema`** (e.g.
+`state.schema.nodes.clause`) rather than binding the `metanormaSchema` singleton.
+Operating on `state.schema` is simplest and keeps the commands correct on a
+composed schema without a `(schema) => Command` factory. A factory form is
+therefore **not** required for these section/clause commands (see
+`EditorCommands.spec.md` §1.6.2).
 
 ```typescript
 import type { Command, EditorState, Transaction } from "prosemirror-state";
-import type { Node, NodeType } from "prosemirror-model";
-import type { EditorView } from "prosemirror-view";
+import type { Node, NodeType, ResolvedPos } from "prosemirror-model";
 ```
+
+> No `prosemirror-view` import appears in this module — commands never reference
+> `EditorView`.
 
 ### 5.1 Legality helper — `canWrapInClause`
 
@@ -276,23 +313,34 @@ export function parentAccepts(
  * Wrap the block(s) covered by the selection in a new `clause` node that
  * contains a leading empty `paragraph`, then place the selection in that
  * paragraph. The heading `title` attribute is set from `opts.title`
- * (defaulting to null / empty — see §6). `id` and `number` are left null
+ * (defaulting to null / empty — see §7). `id` and `number` are left null
  * (tooling-assigned).
  *
- * Returns true and dispatches via `dispatch` when legal; returns false (no
- * dispatch) when `canWrapInClause(state)` is false.
+ * Conforms to the Command contract (EditorCommands.spec.md §1.5):
+ * - Without `dispatch`: pure applicability test — returns true iff
+ *   `canWrapInClause(state)`, mutates nothing.
+ * - With `dispatch`: dispatches exactly one transaction (wrap + leading
+ *   paragraph + selection move + `scrollIntoView`) and returns true.
+ * - Returns false (no dispatch) when not applicable. Never throws.
  *
- * Toolbar adapter:
+ * The `title` is threaded as a plain optional argument — not via a view
+ * wrapper. The toolbar adapter (in prosemirror-editor) obtains the title
+ * (§7) and calls `wrapInClause(view.state, view.dispatch, { title })`.
  */
 export function wrapInClause(
   state: EditorState,
   dispatch?: (tr: Transaction) => void,
   opts?: { readonly title?: string | null },
 ): boolean;
-
-/** View-level adapter used by the toolbar button's `run`. */
-export function wrapInClauseView(view: EditorView, title: string | null): void;
 ```
+
+> **No `wrapInClauseView` overload.** An earlier draft specified a
+> `wrapInClauseView(view: EditorView, title): void` adapter in this module. That
+> is a UI concern and is **not** exported from `editor-commands`: the toolbar
+> button's `run(view)` adapter (which lives in `prosemirror-editor`) resolves the
+> heading `title` per §7, calls `wrapInClause(view.state, view.dispatch, { title })`,
+> and then `view.focus()`. The pure command takes `title` as an ordinary optional
+> argument so no `EditorView` ever enters the command.
 
 **Algorithm (`wrapInClause`):**
 
@@ -426,6 +474,16 @@ export function findNearestSectionOfType(
 
 These walk `$pos.depth → 1` via `$pos.node(d)`, returning the first match.
 `$pos.node(0)` (the doc) is never a section and is skipped.
+
+> **Location / visibility.** All four legality helpers (`canWrapInClause`,
+> `parentAccepts`, `nearestSectionAncestor`, `findNearestSectionOfType`) are pure
+> state-reading functions and live alongside the commands in
+> `pkg/editor-commands/src/commands/sections.ts`. They are **internal helpers**:
+> `canWrapInClause` is exposed because the toolbar's `isEnabled` selector calls it
+> directly, but the others (`parentAccepts`, `nearestSectionAncestor`,
+> `findNearestSectionOfType`) need not be part of the documented public API unless
+> a consumer requires them — they may be unexported or exported as utilities. None
+> of them take an `EditorView` or touch the DOM.
 
 ## 6. Active / enabled detection (UI wiring)
 
@@ -599,24 +657,49 @@ These are genuine unresolved design questions, listed for review:
 
 ## 11. Export changes
 
-`pkg/prosemirror-editor/src/index.ts` must add the structural commands and the
-section-group type. (Note: there is currently no `commands/` directory or
-`MetanormaToolbar.tsx` in `pkg/prosemirror-editor/src/`; the base spec's
-exports and the `toggleList` command are assumed to land alongside these.)
+Per the command contract (`EditorCommands.spec.md` §1.2, §1.10), the structural
+commands are defined in and exported from **`@metanorma/editor-commands`**, and
+`@metanorma/prosemirror-editor` **re-exports** them for toolbar/keymap
+consumers. The toolbar component and its view-holding adapters stay in
+`prosemirror-editor`.
+
+**`pkg/editor-commands/src/index.ts`** adds:
 
 ```typescript
-// Structural (section/clause nesting) commands
+// Structural (section/clause nesting) commands — Command contract §1.5.
+// Pure: (state, dispatch?, ...) => boolean; no EditorView, no DOM.
 export {
   wrapInClause,
-  wrapInClauseView,
+  promoteClause,
+  demoteClause,
+  setSectionType,
+  canWrapInClause,        // exposed for toolbar isEnabled selector
+} from "./commands/sections.js";
+
+// Internal helpers (exported only as needed; not part of documented public API
+// unless a consumer requires them — see §5.5):
+//   parentAccepts, nearestSectionAncestor, findNearestSectionOfType
+```
+
+> **No `wrapInClauseView` (or any `*View` symbol) is exported from
+> `editor-commands`.** View-holding adapters are a UI concern and live in
+> `prosemirror-editor`; the pure commands take `title` / `targetType` as ordinary
+> arguments so no `EditorView` enters the command layer.
+
+**`pkg/prosemirror-editor/src/index.ts`** re-exports the commands from the
+commands package (so toolbar/keymap code can import everything from one place)
+and adds the section-group type. (Note: the base spec's `toggleList` command is
+similarly sourced from `@metanorma/editor-commands` and re-exported here.)
+
+```typescript
+// Re-export structural commands from @metanorma/editor-commands.
+export {
+  wrapInClause,
   promoteClause,
   demoteClause,
   setSectionType,
   canWrapInClause,
-  parentAccepts,
-  nearestSectionAncestor,
-  findNearestSectionOfType,
-} from "./commands/sections.js";
+} from "@metanorma/editor-commands";
 ```
 
 If the advanced toolbar lives in a separate component (e.g.
@@ -630,31 +713,49 @@ export type { AdvancedMetanormaToolbarProps } from "./AdvancedMetanormaToolbar.j
 
 ## 12. File structure summary
 
+The structural command logic lives in `@metanorma/editor-commands`; the toolbar
+component, its view-holding adapters, and the re-exports live in
+`@metanorma/prosemirror-editor`.
+
 ```
+pkg/editor-commands/src/
+  commands/
+    sections.ts                   ← structural commands + legality helpers (§5)
+  index.ts                        ← exports wrapInClause, promoteClause,
+                                    demoteClause, setSectionType, canWrapInClause
+
 pkg/prosemirror-editor/src/
   MetanormaToolbar.tsx            ← base toolbar (existing spec; gains 'sections' group)
   AdvancedMetanormaToolbar.tsx    ← advanced toolbar (this document), if separated
   toolbar.css                     ← shared styles; add --sections modifiers (§8)
-  commands/
-    sections.ts                   ← structural commands (§5)
-    toggleList.ts                 ← list toggle (base spec)
-  index.ts                        ← add exports (§11)
+  index.ts                        ← re-export commands from @metanorma/editor-commands;
+                                    export AdvancedMetanormaToolbar (§11)
 
 docs/AdvancedMetanormaToolbar/
   sections.md                     ← this document
 ```
 
+> The `commands/` directory does **not** exist under
+> `pkg/prosemirror-editor/src/` for these commands — section/clause command
+> logic lives in `pkg/editor-commands/src/commands/sections.ts`. Only view-holding
+> adapters (the button `run(view)` wrappers that call the pure command and then
+> `view.focus()`) belong in `prosemirror-editor`, alongside the toolbar component.
+
 ## 13. TypeScript constraints
 
 The project tsconfig enforces `strict`, `exactOptionalPropertyTypes`,
 `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, `module: node16` (per
-project memory). All new code in `commands/sections.ts` and the toolbar
-component must:
+project memory). All new code in `pkg/editor-commands/src/commands/sections.ts`
+(the command logic) and the toolbar component in `prosemirror-editor` must:
 
 - Use `import type` for type-only imports (`Command`, `EditorState`,
-  `Transaction`, `Node`, `NodeType`, `ResolvedPos`, `EditorView`).
+  `Transaction`, `Node`, `NodeType`, `ResolvedPos`). **`EditorView` is imported
+  only in `prosemirror-editor` (the adapter layer), never in
+  `editor-commands`** — commands are DOM-free per the Command contract
+  (`EditorCommands.spec.md` §1.8).
 - Use `.js` extensions in all relative imports
-  (`from "./commands/sections.js"`, `from "../types.js"`).
+  (`from "./commands/sections.js"`, `from "../schema.js"`). Imports across
+  packages use the package name (`from "@metanorma/editor-commands"`).
 - Avoid `undefined` for optional values — use optional `?` syntax and `null`
   for absent attr values (matching `sectionAttrs` defaults).
 - Handle `null` / `undefined` from `noUncheckedIndexedAccess`: every
@@ -663,4 +764,4 @@ component must:
   `{ node, depth } | null` and callers must guard.
 - Export all types alongside implementations; command signatures use the
   standard `(state, dispatch?) => boolean` so they compose with
-  `prosemirror-commands`.
+  `prosemirror-commands` and satisfy the Command contract.

@@ -32,17 +32,39 @@ the six reference marks and the new `refs` toolbar group they introduce into
 
 | Aspect | Value |
 |---|---|
-| Defined in | `@metanorma/prosemirror-editor` |
+| Command logic | `@metanorma/editor-commands` — `pkg/editor-commands/src/commands/referenceMarks.ts` |
 | Toolbar component | `pkg/prosemirror-editor/src/AdvancedMetanormaToolbar.tsx` |
-| Command helpers | `pkg/prosemirror-editor/src/commands/referenceMarks.ts` |
-| Popover/menu styles | `pkg/prosemirror-editor/src/reference-marks.css` (imported side-effect) |
-| Exported from | `pkg/prosemirror-editor/src/index.ts` |
+| Popover/menu UI | `pkg/prosemirror-editor/src/reference-marks.css` (imported side-effect) |
+| Commands re-exported from | `@metanorma/prosemirror-editor` (`pkg/prosemirror-editor/src/index.ts`) |
+| Popover/prompt hooks (UI) | `pkg/prosemirror-editor/src/AdvancedMetanormaToolbar.tsx` |
 | New toolbar group | `'refs'` |
 
-Rationale, as in the base spec: these commands are schema-bound (they
-reference specific `MarkType` objects) and editor-bound (they use the
-`@handlewithcare/react-prosemirror` context). They belong in
-`prosemirror-editor`, not in the framework-agnostic `prosemirror-schema`.
+> **Layering.** The pure command logic lives in `@metanorma/editor-commands`,
+> the framework-agnostic, DOM-free command package defined in
+> [`EditorCommands.spec.md`](../EditorCommands.spec.md). Everything that touches
+> the `EditorView`, the DOM, async prompt hooks, or React — the toolbar
+> component, the attribute-collection popovers/menus, and the `on*Prompt`
+> upgrade hooks — stays in `@metanorma/prosemirror-editor`. The editor package
+> **re-exports** the commands for toolbar consumption; it does not define them.
+
+Rationale, as in the base spec and `EditorCommands.spec.md` §1.8: the
+**command logic** is schema-bound (it resolves `MarkType`s through
+`state.schema`) but must remain **pure** — no `EditorView`, no DOM, no async —
+so it composes with keymaps and is headless-testable. It therefore belongs in
+`@metanorma/editor-commands`, not in `prosemirror-editor`. The
+`@handlewithcare/react-prosemirror` context, the prompt hooks, and the popover
+UI *are* editor-bound and stay in `prosemirror-editor`.
+
+> **Conformance note.** `applyReferenceMark` and the six `toggle*` wrappers
+> conform to the Command contract (`EditorCommands.spec.md` §1.5): they are
+> `Command`-typed `(state, dispatch?, …) => boolean` functions; calling
+> without `dispatch` is a pure applicability probe that mutates nothing;
+> calling with `dispatch` builds and dispatches exactly one transaction and
+> returns `true`; they return `false` when inapplicable; and they never throw
+> on well-formed state. They never take an `EditorView`, never call
+> `view.focus()` / `view.dispatch`, and never touch the DOM. The
+> `EditorView`/async/prompt concerns live in the toolbar adapter in
+> `prosemirror-editor` (§6.3).
 
 ## 3. Schema recap
 
@@ -104,6 +126,17 @@ The default (no hook) implementations are deliberately minimal —
 `window.prompt`, a generated id, or a small inline menu — and are meant to be
 replaced. The hooks make the toolbar usable out of the box while leaving the
 real UX to the host.
+
+> **UI/command boundary.** Attribute resolution — the xref target picker, the
+> eref cite picker, the concept picker, the bcp14 keyword menu, footnote id
+> generation, the stem formula popover, and all the `on*Prompt` hooks — is a
+> **UI concern** and lives in `@metanorma/prosemirror-editor`
+> (the toolbar component). The pure commands in
+> `@metanorma/editor-commands` (§6) receive **already-resolved** attribute
+> values and never prompt, await, or touch the DOM. The toolbar's `run(view)`
+> adapter is the seam: it resolves the attribute through the hook, then calls
+> the command as `toggleXref(view.state, view.dispatch, target)` (and
+> `view.focus()` afterwards), as shown in §6.3.
 
 ### 5.1 `xref` — target resolution
 
@@ -256,15 +289,40 @@ export interface StemPromptContext extends RefPromptContext {
 
 ## 6. Command helpers
 
-Exported from `pkg/prosemirror-editor/src/commands/referenceMarks.ts`. A
-generic core command plus per-mark wrappers, all following the ProseMirror
-`(state, dispatch?) => boolean` command signature so they compose with
-`useEditorEventCallback`.
+Pure command logic, defined in `@metanorma/editor-commands` at
+`pkg/editor-commands/src/commands/referenceMarks.ts`, and **re-exported** by
+`@metanorma/prosemirror-editor` (§11). A generic core command plus per-mark
+wrappers, all conforming to the ProseMirror `Command` contract
+(`EditorCommands.spec.md` §1.5): each is `(state, dispatch?, …) => boolean`.
+
+- **Query/dispatch parity.** Called without `dispatch`, a command returns
+  `true` iff the mark would apply at the current selection and mutates
+  nothing (no transaction, no `state.tr`). Called with `dispatch` and
+  applicable, it builds exactly one transaction, calls `dispatch(tr)` once,
+  and returns `true`. It returns `false` when inapplicable, regardless of
+  `dispatch`.
+- **Non-throwing.** No command throws on a well-formed `EditorState`; on
+  failure it returns `false`.
+- **Schema coupling.** These are mark-toggling commands operating on
+  `state.schema`. They resolve mark types by name through the schema instance
+  at call time (`state.schema.marks.xref`, `…marks.eref`, …), so **no
+  separate `(schema) => Command` factory is needed** — the mark type is read
+  from the state passed in at invocation, not captured over a schema
+  singleton. This is the §1.6.2 exception ("the command only makes sense for
+  the exact Metanorma schema"); the decision is to use the plain-`Command`
+  form.
+- **Naming.** Named for the action (`toggleXref`, `applyReferenceMark`), not
+  the trigger; no `Command` suffix (`EditorCommands.spec.md` §1.10.2).
+
+> The attribute-collection arguments below (`target`, `cite`, `ref`, `type`,
+> `id`, `source`) are **already-resolved** values — the toolbar obtains them
+> via the §5 prompt hooks before calling. The commands never prompt or
+> `await`.
 
 ### 6.1 Generic core
 
 ```typescript
-import type { Attrs, EditorState, MarkType, Transaction } from "prosemirror-state";
+import type { Attrs, Command, EditorState, MarkType, Transaction } from "prosemirror-state";
 
 /**
  * Apply or remove a reference mark with attributes over the current selection.
@@ -277,7 +335,11 @@ import type { Attrs, EditorState, MarkType, Transaction } from "prosemirror-stat
  * Marks that require content to attach to (bcp14, stem, footnote) should be
  * gated on a non-empty selection by the caller (or by the wrapper).
  *
- * Returns true if a transaction was (or would be) dispatched.
+ * Conforms to the Command contract (EditorCommands.spec.md §1.5):
+ * without `dispatch` it is a pure applicability probe; with `dispatch` it
+ * dispatches exactly one transaction. Never throws; returns false when
+ * inapplicable. `markType` is a schema-resolved MarkType passed by the caller
+ * (the wrappers resolve it from `state.schema`).
  */
 export function applyReferenceMark(
   state: EditorState,
@@ -296,8 +358,9 @@ export function applyReferenceMark(
    toggling off → `tr.removeMark(from, to, markType)`; dispatch; return `true`.
 4. Else → `tr.removeMark(from, to, markType)` (clear stale attrs), then
    `tr.addMark(from, to, markType.create(attrs))`; dispatch; return `true`.
-5. If `dispatch` is undefined, return whether the operation *would* apply
-   (for `isEnabled` probing).
+5. If `dispatch` is undefined, perform **no** mutation: return whether the
+   operation *would* apply (query/dispatch parity, for `isEnabled` probing).
+   `state.doc` and `state.selection` stay reference-equal and unchanged.
 
 For **empty selections** where content is required (see §7), the command
 returns `false`; the toolbar layer may instead choose to insert placeholder
@@ -305,9 +368,12 @@ text first (open question, §10).
 
 ### 6.2 Mark-specific wrappers
 
-Each wrapper hides the attribute-collection step from the caller. They take
-the already-resolved attribute value (the toolbar obtains it via the prompt
-hook before calling):
+Each wrapper is a **thin** command that resolves its mark type from
+`state.schema` by name at call time (e.g. `state.schema.marks.xref`), then
+delegates to `applyReferenceMark`. They take the already-resolved attribute
+value (the toolbar obtains it via the prompt hook before calling). The
+wrappers inherit the Command contract from the core: pure when queried
+without `dispatch`, single-dispatch when applied, non-throwing.
 
 ```typescript
 export function toggleXref(
@@ -357,16 +423,32 @@ exists for `id` (§5.5) within the same transaction.
 
 ### 6.3 Toolbar-side dispatch
 
-The buttons call the wrappers through `useEditorEventCallback`, awaiting the
-prompt hook before dispatching:
+The toolbar adapter is the **only** place that touches the `EditorView`, the
+DOM, or async. It lives in `@metanorma/prosemirror-editor`
+(`AdvancedMetanormaToolbar.tsx`), not in the commands package. The buttons
+resolve the attribute through the prompt hook, then call the **pure** command
+with `view.state` / `view.dispatch` and restore focus — exactly the seam the
+Command contract is designed for:
 
 ```typescript
 const handleXref = useEditorEventCallback(async (view) => {
+  // UI concern: resolve the attribute (async, DOM, host hook).
   const target = await (onXrefPrompt ?? defaultXrefPrompt)(ctxFromView(view));
-  if (target === null) return;            // cancelled
+  if (target === null) return;            // cancelled — no transaction
+
+  // Pure command: operates on state/dispatch only, no view/DOM inside.
   toggleXref(view.state, view.dispatch, target);
+
+  // EditorView concern: restore focus after the edit.
+  view.focus();
 });
 ```
+
+Note the boundary is honoured inside the command as well: `toggleXref`
+receives `view.state` and `view.dispatch` as plain arguments and never
+references `view` itself — so it remains headless-testable
+(`EditorCommands.spec.md` §1.8). The `await` and `view.focus()` calls live
+**only** in this adapter.
 
 ## 7. Active and enabled detection
 
@@ -403,8 +485,8 @@ base `link` button's removal behaviour.
 ## 8. Styling
 
 Follows base §8 conventions: plain CSS side-effect import, `mn-toolbar`
-prefix. New classes for the attribute-collection UI live in
-`pkg/prosemirror-editor/src/reference-marks.css`:
+prefix. The attribute-collection UI (a `prosemirror-editor` concern, §5)
+introduces new classes in `pkg/prosemirror-editor/src/reference-marks.css`:
 
 ```
 .mn-toolbar-popover             /* floating container for xref/eref/concept/stem input */
@@ -486,10 +568,11 @@ Genuine unknowns to resolve before/while implementing:
 
 ## 11. Export changes
 
-`pkg/prosemirror-editor/src/index.ts` must add:
+The commands are **defined and exported** from
+`@metanorma/editor-commands`. Its `pkg/editor-commands/src/index.ts` adds:
 
 ```typescript
-// Command helpers
+// Command helpers (pure logic; Command contract, EditorCommands.spec.md §1.5)
 export {
   applyReferenceMark,
   toggleXref,
@@ -501,19 +584,48 @@ export {
 } from "./commands/referenceMarks.js";
 
 // Reference-mark constants and types
-export {
-  BCP14_KEYWORDS,
-} from "./commands/referenceMarks.js";
+export { BCP14_KEYWORDS } from "./commands/referenceMarks.js";
 export type {
   Bcp14Keyword,
+} from "./commands/referenceMarks.js";
+```
+
+`@metanorma/prosemirror-editor` **re-exports** them (so toolbar code can
+import all editor APIs from one package) via
+`pkg/prosemirror-editor/src/index.ts`:
+
+```typescript
+// Re-export pure reference-mark commands from @metanorma/editor-commands
+export {
+  applyReferenceMark,
+  toggleXref,
+  toggleEref,
+  toggleConcept,
+  toggleBcp14,
+  toggleFootnote,
+  toggleStem,
+  BCP14_KEYWORDS,
+} from "@metanorma/editor-commands";
+export type { Bcp14Keyword } from "@metanorma/editor-commands";
+
+// UI-only types: the prompt/picker context objects live with the toolbar UI
+// in prosemirror-editor, not in the commands package.
+export type {
   RefPromptContext,
   StemPromptContext,
   StemResult,
-} from "./commands/referenceMarks.js";
+} from "./AdvancedMetanormaToolbar.js";
 
 // New toolbar group key (extends base ToolbarGroup)
 export type { ToolbarGroup } from "./AdvancedMetanormaToolbar.js";
 ```
+
+> **Split rationale.** Commands and the `BCP14_KEYWORDS` enum are pure and
+> schema-derived, so they originate in `@metanorma/editor-commands`. The
+> `RefPromptContext` / `StemPromptContext` / `StemResult` types describe the
+> **attribute-resolution UI** (they carry `EditorState` for host pickers and
+> are consumed only by the `on*Prompt` hooks), so they stay in
+> `prosemirror-editor` alongside the toolbar component.
 
 `ToolbarGroup` is extended in `AdvancedMetanormaToolbar.tsx` to add
 `'refs'`:
@@ -530,13 +642,19 @@ export type ToolbarGroup =
 ## 12. File structure summary
 
 ```
-pkg/prosemirror-editor/src/
-  AdvancedMetanormaToolbar.tsx     ← extended toolbar; adds 'refs' group + prompts
-  reference-marks.css              ← popover/menu styles for attribute collection
+pkg/editor-commands/src/                         ← PURE command logic (no React, no DOM)
   commands/
-    referenceMarks.ts              ← applyReferenceMark + six toggle wrappers,
-                                    │   BCP14_KEYWORDS, prompt-context types
-  index.ts                         ← add exports above
+    referenceMarks.ts                            ← applyReferenceMark + six toggle wrappers,
+                                                 │   BCP14_KEYWORDS, Bcp14Keyword
+  index.ts                                       ← exports the commands above
+
+pkg/prosemirror-editor/src/                      ← UI + EditorView concerns
+  AdvancedMetanormaToolbar.tsx                   ← extended toolbar; adds 'refs' group,
+                                                 │   on*Prompt hooks, popover/menu UI,
+                                                 │   RefPromptContext / StemPromptContext / StemResult
+  reference-marks.css                            ← popover/menu styles for attribute collection
+  index.ts                                       ← re-exports commands from @metanorma/editor-commands;
+                                                   exports UI types + ToolbarGroup
 ```
 
 ## 13. TypeScript constraints
@@ -546,10 +664,17 @@ All new code follows the project tsconfig (`strict`,
 `module: node16`):
 
 - `import type` for type-only imports (`Attrs`, `EditorState`, `MarkType`,
-  `Transaction`, etc.).
-- `.js` extensions on all relative imports (`./commands/referenceMarks.js`).
+  `Transaction`, `Command`, etc.).
+- **`Command` type** is imported from `prosemirror-state`; the commands are
+  annotated to conform to it (`EditorCommands.spec.md` §1.5, §1.11.2).
+- `.js` extensions on all relative imports
+  (`./commands/referenceMarks.js` within `editor-commands`; `@metanorma/editor-commands`
+  is a workspace package specifier, no extension).
 - Optional hook props use `?` syntax, never an explicit `undefined`.
 - Handle `null` from `noUncheckedIndexedAccess`: e.g. array access into
   `BCP14_KEYWORDS` and `mark.attrs[key]` lookups must be null-checked.
+- Mark-type resolution goes through `state.schema.marks.X` (returns
+  `MarkType | undefined` under `noUncheckedIndexedAccess`); the wrappers
+  null-check and return `false` if the mark is absent from the schema.
 - All exported types (`Bcp14Keyword`, `RefPromptContext`,
   `StemPromptContext`, `StemResult`) are exported alongside their values.

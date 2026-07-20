@@ -31,19 +31,24 @@ undo/redo and the new `history` toolbar group it introduces into
 
 | Aspect | Value |
 |---|---|
-| Defined in | `@metanorma/prosemirror-editor` |
+| Command module | `pkg/editor-commands/src/commands/history.ts` (`@metanorma/editor-commands`) |
 | Toolbar component | `pkg/prosemirror-editor/src/AdvancedMetanormaToolbar.tsx` |
 | Plugin wiring | `pkg/prosemirror-editor/src/state.ts` (`createInitialEditorState`) |
-| Command helpers | `pkg/prosemirror-editor/src/commands/history.ts` |
-| Exported from | `pkg/prosemirror-editor/src/index.ts` |
+| Button adapters / keymap | `pkg/prosemirror-editor/src/` |
+| Commands re-exported from | `@metanorma/editor-commands` (package barrel `pkg/editor-commands/src/index.ts`) |
+| Editor re-exports | `pkg/prosemirror-editor/src/index.ts` |
 | New toolbar group | `'history'` |
 | New runtime deps | `prosemirror-history`, `prosemirror-keymap` |
 
-Rationale, as in the base spec and sibling documents: these concerns are
-editor-bound (they read editor state and dispatch through the
-`@handlewithcare/react-prosemirror` context) and live in `prosemirror-editor`,
-not in the framework-agnostic `prosemirror-schema`. The history plugin and
-keymap are pure editor plumbing and belong with the editor bootstrap.
+Rationale, as in the base spec and sibling documents: the **pure command logic**
+lives in the framework-agnostic `@metanorma/editor-commands` package (it consumes
+only `EditorState`/`Transaction`, never React or the DOM — see
+`EditorCommands.spec.md` §1.5/§1.8). The **editor-bound** concerns — the
+`history()` plugin, the `buildUndoRedoKeymap()` keymap, and the toolbar button
+adapters that touch `EditorView`/`view.focus()` — live in
+`@metanorma/prosemirror-editor`, per §1.13 (plugins and keymaps are intentionally
+separate from command logic). This split matches the sibling feature docs and
+keeps the command seam DOM-free and headless-testable.
 
 ## 3. Technical background
 
@@ -93,9 +98,13 @@ Proposed new signature for `createInitialEditorState`
 ```typescript
 import { EditorState, type Plugin } from "prosemirror-state";
 import { reactKeys } from "@handlewithcare/react-prosemirror";
-import { history, type HistoryOptions } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
-import { undo, redo } from "prosemirror-history";
+import {
+  history,
+  undo,
+  redo,
+  type HistoryOptions,
+} from "@metanorma/editor-commands";
 import { metanormaSchema } from "@metanorma/prosemirror-schema";
 import type { MirrorDocument } from "./types.js";
 
@@ -113,6 +122,10 @@ export const DEFAULT_HISTORY_OPTIONS: Readonly<HistoryOptions> = {
  * Build the undo/redo keymap plugin. `Mod` resolves to Cmd on macOS and Ctrl
  * elsewhere. Both `Shift-Mod-z` (macOS convention) and `Mod-y`
  * (Windows/Linux convention) map to redo so the binding is cross-platform.
+ *
+ * This keymap lives in `prosemirror-editor` (per EditorCommands §1.13), not in
+ * the commands package: it imports the `undo`/`redo` commands from
+ * `@metanorma/editor-commands` and binds them to physical keys.
  */
 export function buildUndoRedoKeymap(): Plugin {
   return keymap({
@@ -241,11 +254,13 @@ exactly when `isEnabled` is `false`, i.e. when the relevant depth is `0`.
 
 Both buttons dispatch through the standard command signature
 `(state, dispatch)`. The `ToolbarButton.run` receives the `EditorView`, so the
-wrappers pass `view.state` and `view.dispatch`:
+adapters pass `view.state` and `view.dispatch`. The commands themselves are pure
+and view-free; the `EditorView` appears **only** in this adapter, which lives in
+`prosemirror-editor`:
 
 ```typescript
 import type { EditorView } from "prosemirror-view";
-import { undo, redo } from "prosemirror-history";
+import { undo, redo, undoDepth, redoDepth } from "@metanorma/editor-commands";
 
 export const undoButton = {
   key: "undo",
@@ -292,7 +307,7 @@ primitive `boolean`, so a re-render is triggered only when the depth crosses
 the `0` boundary:
 
 ```typescript
-import { undoDepth, redoDepth } from "prosemirror-history";
+import { undoDepth, redoDepth } from "@metanorma/editor-commands";
 import { useEditorStateSelector } from "@handlewithcare/react-prosemirror";
 
 // Inside the Undo button component:
@@ -312,64 +327,63 @@ history group the cheapest group in the toolbar to subscribe to.
 | Redo | `(state) => redoDepth(state) > 0` | depth crosses 0 ↔ positive |
 
 Click handling uses `useEditorEventCallback` to obtain the `EditorView`, then
-calls the wrappers from §7:
+calls the command and restores focus:
 
 ```typescript
 import { useEditorEventCallback } from "@handlewithcare/react-prosemirror";
-import { undoCommand } from "./commands/history.js";
+import { undo } from "@metanorma/editor-commands";
 
 const handleUndo = useEditorEventCallback((view) => {
-  undoCommand(view.state, view.dispatch);
+  undo(view.state, view.dispatch);
+  view.focus();
 });
 ```
 
-## 7. Command wrappers
+## 7. Command re-exports
 
-`prosemirror-history`'s `undo` / `redo` are already plain ProseMirror commands
-of the canonical `(state, dispatch?) => boolean` shape. Thin wrappers are
-optional but recommended so that (a) all toolbar commands live under
-`pkg/prosemirror-editor/src/commands/` for consistency with the sibling
-feature docs, and (b) there is a single seam to add project-specific behaviour
-later (transaction grouping, telemetry, focus handling).
-
-Proposed `pkg/prosemirror-editor/src/commands/history.ts`:
+`prosemirror-history`'s `undo` / `redo` are already plain ProseMirror commands of
+the canonical `(state, dispatch?) => boolean` shape. Per `EditorCommands.spec.md`
+§1.10.3, an upstream command reused **unchanged** is re-exported under its
+**standard name** rather than wrapped in a thin function. The editor-commands
+package therefore simply re-exports `undo`/`redo` (and the `undoDepth`/
+`redoDepth` selectors and the `history` plugin factory + `HistoryOptions` type
+that the rest of this document consumes):
 
 ```typescript
+// pkg/editor-commands/src/commands/history.ts
 /**
- * Thin wrappers around prosemirror-history's undo/redo commands.
- *
- * prosemirror-history owns the actual undo/redo logic; these wrappers exist so
- * that every toolbar command originates in ./commands/ and to provide a single
- * seam for future cross-cutting concerns (e.g. focus restore, grouping hints).
+ * Undo/redo are re-exported unchanged from prosemirror-history under their
+ * standard names (EditorCommands §1.10.3). They already conform to the Command
+ * contract (§1.5): pure, query/dispatch parity, non-throwing, and view-free.
  */
+export {
+  undo,
+  redo,
+  undoDepth,
+  redoDepth,
+  history,
+} from "prosemirror-history";
+export type { HistoryOptions } from "prosemirror-history";
+```
 
-import type { EditorState, Transaction } from "prosemirror-state";
-import { undo, redo, undoDepth, redoDepth } from "prosemirror-history";
+> **Conformance note.** `undo`/`redo` from `prosemirror-history` already satisfy
+> every clause of the Command contract in `EditorCommands.spec.md` §1.5: they
+> act as a pure applicability predicate when called without `dispatch`
+> (§1.5.1/§1.5.3), dispatch exactly one transaction when applicable (§1.5.2),
+> and never throw on well-formed state (§1.5.4). Because they are reused with
+> **no** project-specific adaptation, no wrapper, factory, or `…Command`
+> suffix is introduced — the re-export under the standard `undo`/`redo` names
+> is the whole of the editor-commands surface for this feature
+> (§1.10.2, §1.10.3). The `EditorView`/`view.focus()` and plugin/keymap-wiring
+> concerns belong to `@metanorma/prosemirror-editor` (§1.13), and are covered in
+> §4 and §5 above.
 
-/** Re-export so consumers can import history primitives from one place. */
-export { undo, redo, undoDepth, redoDepth };
+The package barrel `pkg/editor-commands/src/index.ts` re-exports these in turn:
 
-/**
- * Undo the most recent history group.
- * Returns `true` if a transaction was dispatched.
- */
-export function undoCommand(
-  state: EditorState,
-  dispatch?: (tr: Transaction) => void,
-): boolean {
-  return undo(state, dispatch);
-}
-
-/**
- * Redo the most recently undone history group.
- * Returns `true` if a transaction was dispatched.
- */
-export function redoCommand(
-  state: EditorState,
-  dispatch?: (tr: Transaction) => void,
-): boolean {
-  return redo(state, dispatch);
-}
+```typescript
+// pkg/editor-commands/src/index.ts
+export { undo, redo, undoDepth, redoDepth, history } from "./commands/history.js";
+export type { HistoryOptions } from "./commands/history.js";
 ```
 
 ### 7.1 Transaction grouping — keep minimal
@@ -494,14 +508,24 @@ Genuine unknowns to resolve before/while implementing:
 
 ### 11.1 Runtime dependencies
 
-`pkg/prosemirror-editor/package.json` `dependencies` must add (neither is
-currently present):
+`prosemirror-history` is consumed by `@metanorma/editor-commands` (which
+re-exports `undo`/`redo`/`undoDepth`/`redoDepth`/`history`), and
+`prosemirror-keymap` is consumed by `@metanorma/prosemirror-editor` (for
+`buildUndoRedoKeymap`). Add the dependency where the runtime import lives:
 
 ```jsonc
+// pkg/editor-commands/package.json — deps
 {
   "dependencies": {
     // ...existing...
-    "prosemirror-history": "^1.4.1",
+    "prosemirror-history": "^1.4.1"
+  }
+}
+// pkg/prosemirror-editor/package.json — deps
+{
+  "dependencies": {
+    // ...existing...
+    "@metanorma/editor-commands": "workspace:^",
     "prosemirror-keymap": "^1.2.2"
   }
 }
@@ -511,33 +535,46 @@ Exact versions to be pinned to whatever the workspace resolves; the ranges
 above are the current `prosemirror-*` 1.x line compatible with the existing
 `prosemirror-state@^1.4.4` / `prosemirror-view@1.42.0`.
 
+> The editor package no longer needs a direct `prosemirror-history` dependency
+> for the commands/keymap path — it reaches `undo`/`redo` through
+> `@metanorma/editor-commands`. It still imports the `history` plugin factory
+> and `HistoryOptions` in `state.ts`; those are re-exported through
+> `@metanorma/editor-commands`, so `prosemirror-editor` can import everything
+> from the one workspace package.
+
 ### 11.2 `index.ts` exports
 
-`pkg/prosemirror-editor/src/index.ts` must add:
+The command symbols originate in `@metanorma/editor-commands`.
+`pkg/editor-commands/src/index.ts` re-exports `undo`, `redo`, `undoDepth`,
+`redoDepth`, and the `history` plugin factory + `HistoryOptions` type (see §7).
+The editor barrel `pkg/prosemirror-editor/src/index.ts` re-exports them in turn
+so that consumers can depend only on `@metanorma/prosemirror-editor`:
 
 ```typescript
-// History commands (this document)
+// pkg/prosemirror-editor/src/index.ts
+// History commands — re-exported through @metanorma/editor-commands (§7).
 export {
-  undoCommand,
-  redoCommand,
   undo,
   redo,
   undoDepth,
   redoDepth,
-} from "./commands/history.js";
+  history,
+} from "@metanorma/editor-commands";
+export type { HistoryOptions } from "@metanorma/editor-commands";
 
-// History plugin construction helpers + option type
+// History plugin construction helpers — editor-bound (live here, not in the
+// commands package; EditorCommands §1.13).
 export {
   buildUndoRedoKeymap,
   DEFAULT_HISTORY_OPTIONS,
 } from "./state.js";
-export type { HistoryOptions } from "prosemirror-history";
 ```
 
-Re-exporting `undo`/`redo`/`undoDepth`/`redoDepth` and `HistoryOptions` from
-the package barrel lets consumers depend only on
-`@metanorma/prosemirror-editor` and avoids forcing a direct
-`prosemirror-history` dependency on hosts.
+Re-exporting `undo`/`redo`/`undoDepth`/`redoDepth`/`history` and
+`HistoryOptions` from the editor barrel lets consumers depend only on
+`@metanorma/prosemirror-editor` and avoids forcing a direct `prosemirror-history`
+dependency on hosts. (They can equally import the commands from
+`@metanorma/editor-commands` directly.)
 
 The `createInitialEditorState` signature change (new `history?: HistoryOptions
 | false` option) is additive and backwards-compatible; the existing
@@ -570,17 +607,30 @@ export type ToolbarGroup =
 ## 12. File structure summary
 
 ```
-pkg/prosemirror-editor/src/
-  state.ts                        ← add history() + keymap to default plugins;
-                                  │   new history? option, buildUndoRedoKeymap,
-                                  │   DEFAULT_HISTORY_OPTIONS
-  MetanormaProseMirror.tsx        ← add history? prop (uncontrolled forwarding)
-  AdvancedMetanormaToolbar.tsx    ← add 'history' group (undo, redo buttons)
+pkg/editor-commands/src/
   commands/
-    history.ts                    ← undoCommand / redoCommand wrappers +
-                                  │   re-export undo/redo/undoDepth/redoDepth
-  index.ts                        ← add exports above
-  package.json                    ← add prosemirror-history, prosemirror-keymap
+    history.ts                      ← re-export { undo, redo, undoDepth,
+                                    │   redoDepth, history } from
+                                    │   "prosemirror-history" (+ type
+                                    │   HistoryOptions); no wrappers, no
+                                    │   …Command suffix (EditorCommands §1.10.3)
+  index.ts                          ← re-export the above from ./commands/history.js
+
+pkg/prosemirror-editor/src/
+  state.ts                          ← add history() + keymap to default plugins;
+                                    │   new history? option, buildUndoRedoKeymap,
+                                    │   DEFAULT_HISTORY_OPTIONS; imports undo/redo
+                                    │   from @metanorma/editor-commands
+  MetanormaProseMirror.tsx          ← add history? prop (uncontrolled forwarding)
+  AdvancedMetanormaToolbar.tsx      ← add 'history' group (undo, redo buttons);
+                                    │   button run() adapters live here (the only
+                                    │   place EditorView/view.focus() appears)
+  index.ts                          ← re-export undo/redo/undoDepth/redoDepth/
+                                    │   history/HistoryOptions from
+                                    │   @metanorma/editor-commands; export
+                                    │   buildUndoRedoKeymap, DEFAULT_HISTORY_OPTIONS
+  package.json                      ← add @metanorma/editor-commands (workspace:^),
+                                    │   prosemirror-keymap
 ```
 
 ## 13. TypeScript constraints
@@ -589,11 +639,15 @@ All new code follows the project `tsconfig` (`strict`,
 `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`,
 `module: node16`):
 
-- `import type` for type-only imports (`EditorState`, `Transaction`,
-  `EditorView`, `Plugin`, `HistoryOptions`). `history`, `keymap`, `undo`,
-  `redo`, `undoDepth`, `redoDepth` are runtime values and use plain `import`.
-- `.js` extensions on all relative imports (`./commands/history.js`,
-  `./state.js`).
+- `.js` extensions on all **relative** imports (`./state.js`,
+  `./commands/history.js` within a package). Cross-package imports use the
+  bare specifier (`@metanorma/editor-commands`), which Node16 resolves via the
+  workspace; the `.js`-extension rule applies only to relative paths.
+- `undo`/`redo`/`undoDepth`/`redoDepth`/`history` are runtime values and use
+  plain `import`; `HistoryOptions` is a type and uses `import type`. The
+  command symbols are imported from `@metanorma/editor-commands` (their
+  canonical home), not directly from `prosemirror-history`, in both
+  `state.ts` and the toolbar layer.
 - The new `history?` option uses `?` syntax with the union
   `HistoryOptions | false`; it is never assigned an explicit `undefined`.
   Where it is threaded through `MetanormaProseMirror`'s `useMemo` builder, the

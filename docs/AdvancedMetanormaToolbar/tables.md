@@ -54,18 +54,28 @@ it carries a `title`; the other five table nodes carry only `...DATA_ATTR`.
 
 | Aspect | Value |
 |---|---|
-| Editor package | `@metanorma/prosemirror-editor` |
-| Command module | `pkg/prosemirror-editor/src/commands/insertTable.ts` |
-| Popover component | `pkg/prosemirror-editor/src/TableSizePicker.tsx` |
+| Commands package | `@metanorma/editor-commands` (command logic, DOM-free) |
+| Editor package | `@metanorma/prosemirror-editor` (React mount + toolbar adapter) |
+| Command module | `pkg/editor-commands/src/commands/insertTable.ts` |
+| Popover / adapter component | `pkg/prosemirror-editor/src/TableSizePicker.tsx` (`InsertTableButton` + grid picker) |
 | Picker styles | `pkg/prosemirror-editor/src/table-picker.css` (imported side-effect) |
-| Public barrel | `pkg/prosemirror-editor/src/index.ts` (add exports — §8) |
+| Commands barrel | `pkg/editor-commands/src/index.ts` (export `insertTable`, `canInsertTable`, `MAX_ROWS`, `MAX_COLS` — §10) |
+| Editor barrel | `pkg/prosemirror-editor/src/index.ts` (re-export the command; export `InsertTableButton` — §10) |
 | Schema source | `@metanorma/prosemirror-schema` (`metanormaSchema`, `DATA_ATTR`) |
+
+The pure `insertTable` command lives in the `@metanorma/editor-commands` package,
+where every command obeys the `Command` contract
+(`docs/EditorCommands.spec.md` §1.5). The grid-picker popover and its
+`InsertTableButton` component live in `@metanorma/prosemirror-editor`; they are
+the **toolbar adapter** — the only layer that holds an `EditorView`, restores
+focus, and calls the pure command. The command itself never touches the DOM or
+an `EditorView` (§8).
 
 The picker is rendered as a descendent of the toolbar (and therefore a
 descendent of `<ProseMirror>`), so it may use
 `useEditorStateSelector` / `useEditorEventCallback` directly when it needs to
 inspect or dispatch against the editor — though in practice it only needs the
-event callback to run the insert command.
+event callback to run the insert command from the adapter.
 
 ## 4. The "Insert table" button
 
@@ -86,11 +96,17 @@ visuals (`.mn-toolbar-btn` and modifiers) plus the popover. Concretely:
 
 ```tsx
 // pkg/prosemirror-editor/src/TableSizePicker.tsx (excerpt)
+import { insertTable } from "@metanorma/editor-commands";
+import { canInsertTable } from "@metanorma/editor-commands";
+
 export function InsertTableButton() {
   const [open, setOpen] = useState(false);
   const enabled = useEditorStateSelector(canInsertTable);
   const insert = useEditorEventCallback((view) => {
-    insertTable(view, rows, cols); // rows/cols chosen inside the picker
+    // Adapter layer: this is the ONLY place an EditorView is used.
+    // The pure command takes (state, dispatch, r, c); focus is restored here.
+    insertTable(view.state, view.dispatch, rows, cols); // rows/cols chosen inside the picker
+    view.focus();
   });
 
   return (
@@ -155,7 +171,7 @@ Below the grid, a live readout shows the highlighted dimensions, e.g.
 | Click "Insert table" button | Toggle popover open/closed. |
 | Pointer move over a cell at `(r, c)` | Highlight the rectangle rows `1..r`, cols `1..c` (top-left anchored). Update the readout to `r × c`. |
 | Pointer leave the grid | Clear the highlight (revert to a `1 × 1` default preview, or the last-committed preview). |
-| Click a cell at `(r, c)` | Commit: close the popover and dispatch `insertTable(view, r, c)`. |
+| Click a cell at `(r, c)` | Commit: close the popover and call `insertTable(view.state, view.dispatch, r, c)` (then `view.focus()`) from the adapter. |
 | `Escape` (focus within popover) | Cancel: close the popover without inserting. |
 | Click outside the popover | Cancel (same as `Escape`). |
 
@@ -253,9 +269,12 @@ adding/removing rows — is out of scope; this feature only inserts.)
 
 The button is enabled when the selection is a legal insertion site for a
 `block`-group node **and** is not already inside a table cell (we do not support
-nesting tables in this schema).
+nesting tables in this schema). The predicate lives in
+`pkg/editor-commands/src/commands/insertTable.ts` (alongside `insertTable`) and
+is the single legality check shared by the query and dispatch paths (see §8.1).
 
 ```typescript
+// pkg/editor-commands/src/commands/insertTable.ts
 import type { EditorState } from "prosemirror-state";
 
 /** True when a table may be inserted at the current selection. */
@@ -297,31 +316,63 @@ Notes on the strict-tsconfig constraints in play:
   keep the type system honest.
 - `isActive`/`isEnabled` are pure functions of `EditorState`, so they plug
   directly into `useEditorStateSelector` (one selector per concern).
+- `canInsertTable` is the no-dispatch **query path** of the command. Calling
+  `insertTable(state)` (no `dispatch`) returns the **same** boolean — both
+  delegate to one shared legality check, so the enable/disable test and the
+  command's own applicability test can never disagree (query/dispatch parity,
+  `docs/EditorCommands.spec.md` §1.5(1)/§1.12(3)).
 
 ## 8. The `insertTable` command
 
-Lives in `pkg/prosemirror-editor/src/commands/insertTable.ts`.
+Lives in `pkg/editor-commands/src/commands/insertTable.ts` and conforms to the
+`@metanorma/editor-commands` `Command` contract
+(`docs/EditorCommands.spec.md` §1.5). It is **pure**: it reads `EditorState`,
+writes only through the supplied `dispatch`, and never imports `prosemirror-view`
+or touches the DOM. The `EditorView` / `view.focus()` concerns live exclusively
+in the toolbar adapter in `@metanorma/prosemirror-editor` (§4, §5.2).
+
+> **Command vs. trigger.** Per the naming rule
+> (`docs/EditorCommands.spec.md` §1.10.2) the command is named for the action it
+> performs (`insertTable`), not for its UI trigger. There is no `Command` suffix.
 
 ### 8.1 Signature
 
 ```typescript
-import type { EditorView } from "prosemirror-view";
+// pkg/editor-commands/src/commands/insertTable.ts
+import type { EditorState, Transaction } from "prosemirror-state";
+import type { Node } from "prosemirror-model";
 
 /**
  * Insert a `rows × cols` table at the current selection.
  *
- * Builds `table > table_body > table_row+ > table_cell+`, each cell holding an
- * empty `paragraph`, inserts it, and moves the selection into the first cell.
+ * Pure ProseMirror command (Command contract, EditorCommands.spec.md §1.5):
+ * operates on `state`/`dispatch` only; never takes an EditorView or touches the
+ * DOM. The toolbar adapter in @metanorma/prosemirror-editor supplies the view
+ * and restores focus (§4).
  *
- * @returns `true` if a transaction was dispatched, `false` if insertion was
- *          not legal at the current selection.
+ * Query path — `insertTable(state)` (no `dispatch`): returns the same boolean
+ * as `canInsertTable(state)` and mutates nothing (query/dispatch parity).
+ *
+ * Dispatch path — `insertTable(state, dispatch, r, c)`: when applicable, builds
+ * exactly one transaction, dispatches it once, and returns `true`. Returns
+ * `false` (and dispatches nothing) when insertion is not legal, regardless of
+ * whether `dispatch` is supplied.
+ *
+ * @returns `true` if insertion applies / was applied, else `false`.
  */
 export function insertTable(
-  view: EditorView,
-  rows: number,
-  cols: number,
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+  rows?: number,
+  cols?: number,
 ): boolean;
 ```
+
+The `Command` shape is `EditorState` + optional `dispatch` (per §1.5); the
+extra `rows`/`cols` parameters are trailing optionals so the command still
+satisfies query/dispatch parity — omitting `dispatch` always yields the pure
+applicability test. When `rows`/`cols` are omitted on the dispatch path they
+default to `1`.
 
 `rows` and `cols` are clamped to `[1, MAX_ROWS]` / `[1, MAX_COLS]` inside the
 command so the picker's highlight cannot produce an out-of-range request. The
@@ -329,33 +380,66 @@ defaults `colspan: 1`, `rowspan: 1` are taken from the schema; the command does
 not pass them explicitly (it relies on `NodeType.create` applying attribute
 defaults), but they are documented here as the deliberate initial state.
 
+#### 8.1.1 Schema coupling (factory vs. singleton)
+
+`insertTable` reads node types **off `state.schema` at call time**
+(`state.schema.nodes.table`, etc.), so it is already schema-parameterised: the
+schema instance is whatever the caller's `EditorState` carries, never a captured
+singleton. This satisfies `docs/EditorCommands.spec.md` §1.6.1 (resolve types by
+name through the schema instance) and is the simplest form that remains
+schema-agnostic.
+
+> **Decision: operate on `state.schema` directly, not a `(schema) => Command`
+> factory.** Table insertion is generic — it builds `table > table_body >
+> table_row > table_cell` and seeds an empty `paragraph` — and contains no
+> Metanorma-vocabulary-specific branching that would only ever apply to the
+> exact `metanormaSchema`. Because the command resolves node types from
+> `state.schema`, it is automatically reusable on any composed schema that
+> keeps those node names, without binding the `metanormaSchema` singleton. A
+> `createInsertTable(schema): Command` factory (§1.6.2) would add an indirection
+> with no benefit here, since there is no construction-time schema validation to
+> perform. (Should a future variant need to *override* node names, it can be
+> added as an explicit factory without changing this command.)
+
 ### 8.2 Algorithm
 
-1. **Validate.** Run the `canInsertTable` predicate (§7.2) against `view.state`.
-   If it returns `false`, return `false` without dispatching.
-2. **Clamp dimensions.** `rows = clamp(rows, 1, MAX_ROWS)`,
-   `cols = clamp(cols, 1, MAX_COLS)`.
-3. **Build the node tree** bottom-up using the schema node types and
-   `NodeType.create` / `node.create`. Every leaf cell contains a single empty
-   `paragraph` (a `block`, satisfying `table_cell`'s `block+` content).
+1. **Validate (and, if no `dispatch`, report).** Run the shared legality check
+   behind `canInsertTable` (§7.2) against `state`. If it returns `false`, return
+   `false` without dispatching — whether or not `dispatch` was supplied
+   (`docs/EditorCommands.spec.md` §1.5(3)). If `dispatch` was **not** supplied,
+   return the predicate's boolean now: this is the query path, which must not
+   mutate anything (§1.5(1)).
+2. **Clamp dimensions.** `rows = clamp(rows ?? 1, 1, MAX_ROWS)`,
+   `cols = clamp(cols ?? 1, 1, MAX_COLS)`.
+3. **Build the node tree** bottom-up using the schema node types resolved from
+   `state.schema` and `NodeType.create` / `node.create`. Every leaf cell contains
+   a single empty `paragraph` (a `block`, satisfying `table_cell`'s `block+`
+   content).
 4. **Insert.** Replace the (possibly empty) selection with the `table` node via
    `tr.replaceSelectionWith(table)`. When the selection is empty and inside a
    paragraph, ProseMirror splits appropriately; when the parent is a block that
    only allows one child, use `replaceWith` against the grandparent if needed
-   (the `canInsertTable` check already guarantees a valid slot).
+   (the legality check already guarantees a valid slot).
 5. **Place the cursor.** Compute a `TextSelection` at the start of the first
    cell's paragraph (position of the empty paragraph's content start) and set it
-   via `tr.setSelection`. This puts the caret inside cell `(1,1)` ready to type.
-6. **Dispatch + focus.** `view.dispatch(tr); view.focus();`
+   via `tr.setSelection` using `TextSelection.near(...)`. This puts the caret
+   inside cell `(1,1)` ready to type and guarantees a content-model-valid
+   selection (§1.7.2).
+6. **Scroll into view.** `tr.scrollIntoView()` — this is a user-initiated
+   command, so the viewport follows the cursor (§1.7.3).
+7. **Dispatch once.** `dispatch(tr)` exactly once, return `true`. The command
+   does **not** call `view.focus()` — that is the adapter's responsibility
+   (§1.8.1, §4). If `dispatch` was not supplied, step 1 already returned the
+   applicability boolean; this step is only reached on the dispatch path.
 
-### 8.3 Example node construction
+### 8.3 Example implementation
 
 ```typescript
-// pkg/prosemirror-editor/src/commands/insertTable.ts
-import type { Node } from "prosemirror-model";
+// pkg/editor-commands/src/commands/insertTable.ts
+import type { EditorState, Transaction } from "prosemirror-state";
 import { TextSelection } from "prosemirror-state";
-import type { EditorView } from "prosemirror-view";
-import { metanormaSchema } from "@metanorma/prosemirror-schema";
+import type { Node, Schema } from "prosemirror-model";
+// NOTE: no `prosemirror-view` import — this command never touches EditorView/DOM.
 
 export const MAX_ROWS = 10;
 export const MAX_COLS = 10;
@@ -363,9 +447,10 @@ export const MAX_COLS = 10;
 const clamp = (n: number, lo: number, hi: number): number =>
   Math.min(hi, Math.max(lo, n));
 
-function buildTable(rows: number, cols: number): Node {
-  const schema = metanormaSchema;
-  const cellType = schema.nodes["table_cell"]!; // present in metanormaSchema
+// Node types are resolved off the schema argument, not a captured singleton,
+// so the command works on any schema that keeps the table node names (§8.1.1).
+function buildTable(schema: Schema, rows: number, cols: number): Node {
+  const cellType = schema.nodes["table_cell"]!; // resolved by name from state.schema
   const rowType = schema.nodes["table_row"]!;
   const bodyType = schema.nodes["table_body"]!;
   const tableType = schema.nodes["table"]!;
@@ -387,16 +472,21 @@ function buildTable(rows: number, cols: number): Node {
 }
 
 export function insertTable(
-  view: EditorView,
-  rows: number,
-  cols: number,
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+  rows?: number,
+  cols?: number,
 ): boolean {
-  const { state } = view;
+  // Single shared legality check for query and dispatch paths (§7.2, §8.2.1).
   if (!canInsertTable(state)) return false;
 
-  const r = clamp(rows, 1, MAX_ROWS);
-  const c = clamp(cols, 1, MAX_COLS);
-  const table = buildTable(r, c);
+  // Query path: no dispatch → act as a pure applicability predicate, mutate
+  // nothing. (docs/EditorCommands.spec.md §1.5(1).)
+  if (!dispatch) return true;
+
+  const r = clamp(rows ?? 1, 1, MAX_ROWS);
+  const c = clamp(cols ?? 1, 1, MAX_COLS);
+  const table = buildTable(state.schema, r, c);
 
   const tr = state.tr;
   tr.replaceSelectionWith(table);
@@ -408,10 +498,24 @@ export function insertTable(
   const firstCellPos = startPos + 4; // table→body→row→cell = 4 open tags
   tr.setSelection(TextSelection.near(tr.doc.resolve(firstCellPos), 1));
 
-  view.dispatch(tr);
-  view.focus();
+  tr.scrollIntoView(); // user-initiated command (§1.7.3)
+  dispatch(tr);        // exactly one transaction, dispatched once (§1.7.1)
   return true;
 }
+```
+
+The adapter that drives it (in `@metanorma/prosemirror-editor`) is the **only**
+place an `EditorView` appears:
+
+```typescript
+// pkg/prosemirror-editor/src/TableSizePicker.tsx (adapter excerpt)
+import { insertTable } from "@metanorma/editor-commands";
+
+// inside InsertTableButton's commit handler (useEditorEventCallback):
+const onCommit = (view, r, c) => {
+  insertTable(view.state, view.dispatch, r, c); // pure command, no view inside it
+  view.focus();                                  // DOM concern stays in the adapter
+};
 ```
 
 > **Position arithmetic.** `firstCellPos = startPos + 4` reflects four nested
@@ -455,10 +559,10 @@ These are genuine design decisions left for the implementer / product owner:
    row/column add-remove, cell merge/split, column resize, and a robust
    `insertTable` command out of the box. Should the editor adopt
    `prosemirror-tables` (adding the dependency and its keymap/plugins) rather
-   than hand-rolling `insertTable.ts`? This is the largest architectural fork:
-   the custom command is schema-light and dependency-free, but
-   `prosemirror-tables` gives far richer editing later. (Note:
-   `prosemirror-tables` is already referenced as future work in
+   than hand-rolling `insertTable.ts` (in `@metanorma/editor-commands`)? This is
+   the largest architectural fork: the custom command is schema-light and
+   dependency-free, but `prosemirror-tables` gives far richer editing later.
+   (Note: `prosemirror-tables` is already referenced as future work in
    `MetanormaProseMirror.spec.md` and `schema.spec.md`; the custom command here
    is an interim that does not preclude a later migration.)
 6. **ID assignment.** `table` carries `id` (default `null`). Should insertion
@@ -469,11 +573,28 @@ These are genuine design decisions left for the implementer / product owner:
 
 ## 10. Export changes
 
-`pkg/prosemirror-editor/src/index.ts` must add:
+The pure command is **defined** in `@metanorma/editor-commands` and
+**re-exported** by `@metanorma/prosemirror-editor`; the popover/adapter component
+is defined in `prosemirror-editor`.
+
+`pkg/editor-commands/src/index.ts` must add (command logic — values, not
+type-only):
 
 ```typescript
-export { insertTable, MAX_ROWS, MAX_COLS } from "./commands/insertTable.js";
-export { canInsertTable } from "./commands/insertTable.js";
+export { insertTable, canInsertTable, MAX_ROWS, MAX_COLS } from "./commands/insertTable.js";
+```
+
+`pkg/prosemirror-editor/src/index.ts` must add — a **re-export** of the command
+from `@metanorma/editor-commands` (so toolbar/keymap consumers can import from
+one place), plus the adapter component from this package:
+
+```typescript
+export {
+  insertTable,
+  canInsertTable,
+  MAX_ROWS,
+  MAX_COLS,
+} from "@metanorma/editor-commands";
 export { InsertTableButton } from "./TableSizePicker.js";
 ```
 
@@ -488,12 +609,16 @@ export type { InsertTableButtonProps } from "./TableSizePicker.js";
 ## 11. File-structure summary
 
 ```
-pkg/prosemirror-editor/src/
-  TableSizePicker.tsx          ← popover + InsertTableButton component
-  table-picker.css             ← picker styles (side-effect import)
+pkg/editor-commands/src/                  ← pure command logic (no React, no DOM)
   commands/
-    insertTable.ts             ← insertTable command, canInsertTable, buildTable
-  index.ts                     ← add exports (§10)
+    insertTable.ts                        ← insertTable command, canInsertTable, buildTable
+  index.ts                                ← export insertTable, canInsertTable, MAX_ROWS, MAX_COLS (§10)
+
+pkg/prosemirror-editor/src/               ← React mount + toolbar adapter (the EditorView layer)
+  TableSizePicker.tsx                     ← grid popover + InsertTableButton adapter component
+  table-picker.css                        ← picker styles (side-effect import)
+  index.ts                                ← re-export command from @metanorma/editor-commands;
+                                            export InsertTableButton (§10)
 ```
 
 ## 12. TypeScript constraints
@@ -502,10 +627,18 @@ The project tsconfig enforces `strict`, `exactOptionalPropertyTypes`,
 `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, `module: node16`. All new
 code must:
 
-- Use `import type` for type-only imports (`EditorView`, `EditorState`, `Node`).
-- Use `.js` extensions in relative imports (`"./commands/insertTable.js"`).
+- Use `import type` for type-only imports. In the command module
+  (`@metanorma/editor-commands`) these are `EditorState`, `Transaction`, `Node`,
+  `Schema` — **never** `EditorView` (the command must not import
+  `prosemirror-view`). `EditorView` may appear only in the adapter component in
+  `@metanorma/prosemirror-editor`.
+- Use `.js` extensions in relative imports (e.g. `"./commands/insertTable.js"`
+  inside `editor-commands`; `"./TableSizePicker.js"` inside `prosemirror-editor`).
 - Treat `schema.nodes["table"]` lookups as `NodeType | undefined` under
   `noUncheckedIndexedAccess` — guard or assert before use.
 - Pass `null` (not `undefined`) for defaulted attrs in `NodeType.create`, and
   omit `colspan`/`rowspan` entirely so the schema defaults (`1`) apply.
 - Export all types alongside their implementations.
+- The command's `rows`/`cols` parameters are optional (`rows?: number`); under
+  `exactOptionalPropertyTypes`, callers must pass either a concrete number or
+  omit the argument — never explicitly `undefined`.

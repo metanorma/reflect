@@ -24,11 +24,11 @@ to every document in this directory unless a document states otherwise.
 
 | Aspect | Value |
 |---|---|
-| Package | `@metanorma/prosemirror-editor` |
+| Package | `@metanorma/prosemirror-editor` (toolbar, UI, view adapters); commands in `@metanorma/editor-commands` |
 | Schema package | `@metanorma/prosemirror-schema` |
-| Source root | `pkg/prosemirror-editor/src/` |
+| Source root | `pkg/prosemirror-editor/src/` (UI); `pkg/editor-commands/src/` (pure commands) |
 | Toolbar stylesheet | `toolbar.css` (class prefix `mn-toolbar`) |
-| Commands subdirectory | `pkg/prosemirror-editor/src/commands/` |
+| Commands package | `@metanorma/editor-commands` — see §6 |
 
 ### 2.2 Integration model
 
@@ -425,40 +425,81 @@ marks · blocks · lists · link · refs · sections · dl · tables · images �
 
 ### 5.9 File structure (consolidated)
 
+Pure command logic lives in `@metanorma/editor-commands`; the React toolbar,
+view adapters, popovers, and keymap plugins live in `@metanorma/prosemirror-editor`.
+This split mirrors the layering rule in `docs/EditorCommands.spec.md` §1.2–1.3
+(see §6 below).
+
 ```
+pkg/editor-commands/src/                  ← pure commands (no React, no DOM, no EditorView)
+  commands/
+    insertTable.ts                        ← insertTable(state, dispatch?, rows, cols), canInsertTable
+    insertImage.ts                        ← insertImage(state, dispatch?, attrs), canInsertFigure
+    sections.ts                           ← wrapInClause, promoteClause, demoteClause, setSectionType
+    referenceMarks.ts                     ← applyReferenceMark, toggleXref/Eref/Concept/Bcp14/Footnote/Stem
+    definitionList.ts                     ← insertDefinitionList, addDefinitionPair (+ helpers)
+    toggleList.ts                         ← toggleList (factory)
+    history.ts                            ← undo, redo (re-exports of prosemirror-history)
+  util.ts                                 ← chainCommands, shared predicates
+  schema.ts                               ← name-resolution helpers (NODE_NAMES / MARK_NAMES)
+  index.ts                                ← public command exports
+
 pkg/prosemirror-editor/src/
   toolbar/
-    Toolbar.tsx                   ← shared shell (renders groups + dividers)
-    ToolbarButtonView.tsx         ← renders one ToolbarButton descriptor
-    types.ts                      ← ToolbarButton, ToolbarEntry, ToolbarGroupDef,
-                                    BaseToolbarGroup, AdvancedToolbarGroup
+    Toolbar.tsx                           ← shared shell (renders groups + dividers)
+    ToolbarButtonView.tsx                 ← renders one ToolbarButton descriptor
+    types.ts                              ← ToolbarButton, ToolbarEntry, ToolbarGroupDef,
+                                          ←   BaseToolbarGroup, AdvancedToolbarGroup
     groups/
-      marksGroup.tsx              ┐
-      blocksGroup.tsx             │ base groups (shared)
-      listsGroup.tsx              │
-      linkGroup.tsx               ┘
-      tablesGroup.tsx             ┐
-      imagesGroup.tsx             │
-      sectionsGroup.tsx           │ advanced groups
-      refsGroup.tsx               │
-      definitionListGroup.tsx     │
-      historyGroup.tsx            ┘
-      index.ts                    ← baseGroups, buildAdvancedGroups
-  commands/                       ← command helpers (per feature docs)
-    toggleList.ts  insertTable.ts  insertImage.ts  sections.ts
-    referenceMarks.ts  definitionList.ts  history.ts
-  MetanormaToolbar.tsx            ← thin: <Toolbar groups={baseGroups} …/>
-  AdvancedMetanormaToolbar.tsx    ← thin: <Toolbar groups={base+advanced} …/>
-  toolbar.css                     ← shared styles (mn-toolbar*)
-  index.ts                        ← add exports (§5.10)
+      marksGroup.tsx  blocksGroup.tsx     ← base groups (shared)
+      listsGroup.tsx  linkGroup.tsx
+      tablesGroup.tsx                     ← stateful: TableSizePicker + view adapter
+      imagesGroup.tsx                     ← stateful: ImageInsertDialog + view adapter
+      sectionsGroup.tsx                   ← view adapter over editor-commands
+      refsGroup.tsx                       ← stateful: popovers + view adapter
+      definitionListGroup.tsx             ← view adapter over editor-commands
+      historyGroup.tsx                    ← view adapter over editor-commands
+      index.ts                            ← baseGroups, buildAdvancedGroups
+    TableSizePicker.tsx                   ← grid-picker popover UI
+    ImageInsertDialog.tsx                 ← URL/upload dialog UI
+  plugins/
+    definitionListKeymap.ts               ← Enter/Backspace keymap (UI-layer plugin)
+  MetanormaToolbar.tsx                    ← thin: <Toolbar groups={baseGroups} …/>
+  AdvancedMetanormaToolbar.tsx            ← thin: <Toolbar groups={base+advanced} …/>
+  toolbar.css                             ← shared styles (mn-toolbar*)
+  index.ts                                ← re-exports commands + UI components (§5.10)
 ```
 
 ### 5.10 Export changes (consolidated)
 
-`pkg/prosemirror-editor/src/index.ts` adds — superseding the per-document
-export proposals, which are consolidated here:
+Pure commands are exported from `@metanorma/editor-commands` and re-exported
+through `@metanorma/prosemirror-editor` for one-stop toolbar imports. This
+supersedes the per-document export proposals, which are consolidated here.
 
 ```typescript
+// ── pkg/editor-commands/src/index.ts ── pure commands (no React, no DOM) ──
+
+// Each command conforms to Command = (state, dispatch?) => boolean
+// (or (schema) => Command factory form — see §6).
+export { insertTable, canInsertTable } from "./commands/insertTable.js";
+export { insertImage, canInsertFigure } from "./commands/insertImage.js";
+export {
+  wrapInClause, promoteClause, demoteClause, setSectionType,
+} from "./commands/sections.js";
+export {
+  applyReferenceMark,
+  toggleXref, toggleEref, toggleConcept, toggleBcp14, toggleFootnote, toggleStem,
+} from "./commands/referenceMarks.js";
+export {
+  insertDefinitionList, addDefinitionPair,
+} from "./commands/definitionList.js";
+export { toggleList } from "./commands/toggleList.js";
+export { undo, redo } from "./commands/history.js";
+export { chainCommands } from "./util.js";
+
+
+// ── pkg/prosemirror-editor/src/index.ts ── React editor + toolbar ──
+
 // Base toolbar (unchanged surface from MetanormaToolbar.spec.md)
 export { MetanormaToolbar } from "./MetanormaToolbar.js";
 export type { MetanormaToolbarProps, ToolbarGroup } from "./MetanormaToolbar.js";
@@ -472,14 +513,21 @@ export { Toolbar } from "./toolbar/Toolbar.js";
 export type { ToolbarProps, ToolbarGroupDef, ToolbarEntry, ToolbarButton } from "./toolbar/types.js";
 export { baseGroups, buildAdvancedGroups } from "./toolbar/groups/index.js";
 
-// Command helpers (one per feature doc)
-export { toggleList } from "./commands/toggleList.js";
-export { insertTable } from "./commands/insertTable.js";
-export { insertImage } from "./commands/insertImage.js";
-export { wrapInClause, promoteClause, demoteClause, setSectionType } from "./commands/sections.js";
-export { applyReferenceMark } from "./commands/referenceMarks.js";
-export { insertDefinitionList, addDefinitionPair } from "./commands/definitionList.js";
-export { undo, redo } from "./commands/history.js";
+// Stateful UI components (view adapters + popovers/dialogs)
+export { TableSizePicker } from "./toolbar/TableSizePicker.js";
+export { ImageInsertDialog } from "./toolbar/ImageInsertDialog.js";
+
+// Re-export pure commands for one-stop imports (sourced from editor-commands)
+export {
+  insertTable, canInsertTable,
+  insertImage, canInsertFigure,
+  wrapInClause, promoteClause, demoteClause, setSectionType,
+  applyReferenceMark,
+  toggleXref, toggleEref, toggleConcept, toggleBcp14, toggleFootnote, toggleStem,
+  insertDefinitionList, addDefinitionPair,
+  toggleList,
+  undo, redo,
+} from "@metanorma/editor-commands";
 ```
 
 ### 5.11 Alternatives considered
@@ -512,3 +560,133 @@ export { undo, redo } from "./commands/history.js";
   the schema also has a standalone `floating_title` block node. Decide whether
   heading creation should ever produce a `floating_title` instead of a clause
   `title` attr (see `sections.md` open questions).
+
+## 6. Command layering (alignment with `EditorCommands.spec.md`)
+
+The feature documents in this directory each propose editor commands. Those
+proposals must conform to the command contract defined in
+[`docs/EditorCommands.spec.md`](../EditorCommands.spec.md), which governs how
+*all* Metanorma editor commands are structured. This section states the rules
+every feature document's command sections must honour, and is normative for
+the per-document command proposals (where they conflict, this section wins).
+
+### 6.1 The layering rule
+
+Command logic is split across two packages by responsibility:
+
+```
+@metanorma/prosemirror-schema          ← node/mark vocabulary (source of truth)
+        ▲
+        │
+@metanorma/editor-commands            ← PURE command logic (this section's target)
+        ▲                              · (state, dispatch?) => boolean
+        │                              · no React, no DOM, no EditorView
+        │ (view adapters + UI call the pure commands)
+@metanorma/prosemirror-editor          ← React toolbar, popovers, keymaps
+```
+
+| Concern | Package | What lives here |
+|---|---|---|
+| **Pure command logic** | `@metanorma/editor-commands` (`pkg/editor-commands/src/commands/`) | `(state, dispatch?) => boolean` functions; schema-coupling helpers; predicates; the `chainCommands` combinator. |
+| **View adapters & UI** | `@metanorma/prosemirror-editor` (`pkg/prosemirror-editor/src/`) | The toolbar `run(view)` callbacks that extract `view.state`/`view.dispatch`, call a pure command, then optionally `view.focus()`; popover/dialog components; keymap plugins. |
+
+**No pure command imports `prosemirror-view`, `React`, or touches the DOM.**
+This guarantees every command is headless-testable
+(`EditorCommands.spec.md` §1.8) and usable from keymaps, menus, and toolbars
+alike.
+
+### 6.2 Command contract
+
+Every command proposed in a feature document must conform to ProseMirror's
+`Command` type and the invariants in `EditorCommands.spec.md` §1.5:
+
+```typescript
+import type { Command } from "prosemirror-state";
+// Command = (state: EditorState, dispatch?: (tr: Transaction) => void) => boolean
+```
+
+1. **Predicate when queried.** Called without `dispatch`, a command returns
+   `true` iff it *would* apply, and mutates nothing (query/dispatch parity).
+2. **Effect when dispatched.** Called with `dispatch` and applicable, it builds
+   **exactly one** transaction, calls `dispatch(tr)` **once**, returns `true`.
+3. **No-when-inapplicable.** Returns `false` and dispatches nothing when not
+   applicable — whether or not `dispatch` is supplied.
+4. **Non-throwing.** Never throws on a well-formed `EditorState` over
+   `metanormaSchema`; reports failure by returning `false`.
+5. **Selection-aware.** Behaviour follows `state.selection`.
+
+> **Toolbar `run(view)` is an adapter, not a command.** The `ToolbarButton.run`
+> field receives an `EditorView` (§2.3), but it is *not* itself a command. It
+> must extract `view.state`/`view.dispatch`, delegate to a pure command, and
+> then call `view.focus()` if appropriate. The `EditorView` never crosses into
+> `@metanorma/editor-commands`.
+
+### 6.3 Transaction discipline
+
+When a command dispatches, its single transaction obeys
+(`EditorCommands.spec.md` §1.7):
+
+- One `state.tr`, dispatched exactly once.
+- Sets a valid resulting selection (`TextSelection.near` / `NodeSelection`).
+- Calls `tr.scrollIntoView()` for user-initiated commands.
+- Preserves active marks across splits/inserts.
+- Replaces ranged selections before structural steps.
+
+### 6.4 Schema coupling
+
+- **Resolve by name.** Node/mark types are resolved through a `Schema` instance
+  using names drawn from `NODE_NAMES` / `MARK_NAMES`
+  (`EditorCommands.spec.md` §1.6.1) — no bare, unchecked `schema.nodes.<lit>`.
+- **Factory form.** Commands likely to be reused on a composed schema are
+  exposed as `(schema) => Command` factories; commands intrinsically specific
+  to the Metanorma vocabulary may bind `metanormaSchema` directly
+  (§1.6.2). Each feature document states which form its commands take.
+- **Rely on schema defaults.** When creating nodes, omit unset attrs rather
+  than constructing explicit `null`/`{}`, so `data` and defaults are preserved.
+
+### 6.5 Naming and exports
+
+- Commands are named for the **action** (`insertTable`, `wrapInClause`), never
+  the trigger (no `onInsertTable`, no `enterKey`) — `EditorCommands.spec.md`
+  §1.10.2.
+- No redundant `Command` suffix (`undo`, not `undoCommand`).
+- Pure commands export from `@metanorma/editor-commands`; the editor package
+  re-exports them for convenience (§5.10).
+
+### 6.6 Async and stateful controls
+
+Three feature areas — tables (`tables.md`), images (`images-figures.md`), and
+reference-mark popovers (`reference-marks.md`) — need *interaction before
+dispatch*: picking grid dimensions, resolving a URL or uploading a file,
+collecting a target/type. This interaction is a **UI concern**, not a command
+concern. The boundary is:
+
+- The **pure command** takes already-resolved inputs (`rows, cols`; `{src,
+  alt}`; `{target}`) and is fully synchronous, pure, and headless-testable.
+- The **UI layer** (a React component in `prosemirror-editor`) owns the
+  stateful/async flow — opening a popover, resolving a `Promise`, reading a
+  `File` — and is the only code that touches `EditorView`, `window`, or async.
+
+Concretely, the "gather inputs → validate → dispatch" flow is split as:
+
+```
+React control (UI layer, prosemirror-editor)
+  ├─ open popover / await upload / await prompt   ← stateful, async, touches view
+  └─ on commit:
+       pureCommand(view.state, view.dispatch, resolvedInputs)   ← pure
+       view.focus()                                              ← UI concern
+```
+
+This satisfies `EditorCommands.spec.md` §1.8 (purity) without losing the UX:
+"gathering inputs" is UI; "apply the resolved edit" is a command.
+
+### 6.7 Per-feature summary
+
+| Feature doc | Pure command(s) → `editor-commands` | UI / view adapter → `prosemirror-editor` |
+|---|---|---|
+| `tables.md` | `insertTable(state, dispatch?, rows, cols)`; `canInsertTable(state)` is the predicate form | `TableSizePicker.tsx` (popover) + toolbar `run` adapter |
+| `images-figures.md` | `insertImage(state, dispatch?, attrs)`; `canInsertFigure(state)` predicate | `ImageInsertDialog.tsx` (URL/upload) + toolbar `run` adapter |
+| `sections.md` | `wrapInClause`, `promoteClause`, `demoteClause`, `setSectionType` (+ legality helpers) | toolbar `run` adapter (no view-taking overloads) |
+| `reference-marks.md` | `applyReferenceMark`, `toggleXref/Eref/Concept/Bcp14/Footnote/Stem` | per-mark popover/prompt UI + toolbar `run` adapter |
+| `definition-lists.md` | `insertDefinitionList`, `addDefinitionPair` (pure `Command` only; no `(view)` overload) | `definitionListKeymap.ts` plugin + toolbar `run` adapter |
+| `undo-redo.md` | `undo`, `redo` (re-exported from `prosemirror-history`, standard names) | toolbar `run` adapter; history plugin wiring in `state.ts` |
