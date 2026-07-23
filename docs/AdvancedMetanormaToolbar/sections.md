@@ -7,8 +7,8 @@ nesting** operations in `AdvancedMetanormaToolbar`. It directly addresses the
 item listed as "out of scope (future work)" in §5.5 of
 `docs/MetanormaToolbar.spec.md`:
 
-> **Section / clause nesting** — structural operations that affect the
-> document tree at the `sections` / `clause` level.
+**Section / clause nesting** — structural operations that affect the
+document tree at the `sections` / `clause` level.
 
 The base `MetanormaToolbar` handles inline marks, block wraps (`quote`,
 `note`, `example`), lists, and links. It deliberately does not touch the
@@ -40,13 +40,13 @@ The document skeleton is built from four non-section container nodes:
 | `sections` | `(section \| block)*` | `baseAttrs` | `<section class="mn-sections">` |
 | `bibliography` | `(section \| block)*` | `baseAttrs` | `<section class="mn-bibliography">` |
 
-> **doc ordering constraint.** `doc.content` is strictly ordered:
-> `(preface? sections? bibliography? footnotes?)`. A section node may **never**
-> be a direct child of `doc`; it can only appear inside `preface`, `sections`,
-> or `bibliography`, and those three containers must appear in that fixed
-> order. Top-level placement of a new clause is therefore always "insert as a
-> child of `sections` (or `preface` / `bibliography`)", never "insert as a
-> child of `doc`".
+**doc ordering constraint.** `doc.content` is strictly ordered:
+`(preface? sections? bibliography? footnotes?)`. A section node may **never**
+be a direct child of `doc`; it can only appear inside `preface`, `sections`,
+or `bibliography`, and those three containers must appear in that fixed
+order. Top-level placement of a new clause is therefore always "insert as a
+child of `sections` (or `preface` / `bibliography`)", never "insert as a
+child of `doc`".
 
 ### 2.2 Section nodes — group `"section"`
 
@@ -75,25 +75,27 @@ block content but no child sections. Any "insert clause" / "demote" operation
 must be disabled when the insertion or demotion target is a leaf section or a
 `block`-only context.
 
-> **`floating_title` is a distinct concept, not a section.** The schema also
-> defines a `floating_title` block node (`group: "block"`, `atom: true`,
-> `content: ""`, `sectionAttrs()` — i.e. it carries `id`/`number`/`title`/`data`
-> but has no children). It renders as a non-`<section>` `<div class="floating-title">`
-> and is deliberately placed **outside the numbered section hierarchy** — per
-> [Metanorma's documentation](https://www.metanorma.org/author/topics/sections/),
-> "a floating title is a title that is placed outside the numbered hierarchy of
-> clauses … not uniquely referable like normal clauses." It is therefore **not**
-> an alternative to a clause `title` (which is the heading *of* a numbered
-> section node that participates in nesting and cross-referencing) but a
-> free-standing, unnumbered heading block.
->
-> **Consequence for this toolbar:** the "Insert clause" split menu (§4.2) lists
-> only the ten `section`-group node types; it does **not** offer
-> `floating_title`, and the structural commands never produce one. Inserting a
-> `floating_title` is a *block-element* operation (it is in the `block` group,
-> like `paragraph`/`note`/`example`), not a structural-section operation. It is
-> **deferred to a future "block elements" toolbar group**; the sections feature
-> does not insert it.
+#### floating_title is a distinct concept, not a section
+
+The schema also defines a `floating_title` block node (`group: "block"`,
+`atom: true`, `content: ""`, `sectionAttrs()` — i.e. it carries
+`id`/`number`/`title`/`data` but has no children). It renders as a
+non-`<section>` `<div class="floating-title">` and is deliberately placed
+**outside the numbered section hierarchy** — per
+[Metanorma's documentation](https://www.metanorma.org/author/topics/sections/),
+"a floating title is a title that is placed outside the numbered hierarchy of
+clauses … not uniquely referable like normal clauses." It is therefore **not**
+an alternative to a clause `title` (which is the heading *of* a numbered
+section node that participates in nesting and cross-referencing) but a
+free-standing, unnumbered heading block.
+
+**Consequence for this toolbar:** the "Insert clause" split menu (§4.2) lists
+only the ten `section`-group node types; it does **not** offer
+`floating_title`, and the structural commands never produce one. Inserting a
+`floating_title` is a *block-element* operation (it is in the `block` group,
+like `paragraph`/`note`/`example`), not a structural-section operation. It is
+**deferred to a future "block elements" toolbar group**; the sections feature
+does not insert it.
 
 ### 2.3 Attributes
 
@@ -202,18 +204,18 @@ legality at the current cursor position:
 - An entry is **disabled** (`disabled`, `aria-disabled="true"`) when that type
   is not legal at the current position — greyed out but visible.
 
-> `isActive` is `false` because insertion is a one-shot command, not a state
-> toggle. (Conceivably one could mark it active when the immediate parent is
-> already a `clause` to hint "you are inside a clause", but that conflates
-> location with toggle state; the dedicated Promote/Demote/Change-type buttons
-> convey context instead.)
+`isActive` is `false` because insertion is a one-shot command, not a state
+toggle. (Conceivably one could mark it active when the immediate parent is
+already a `clause` to hint "you are inside a clause", but that conflates
+location with toggle state; the dedicated Promote/Demote/Change-type buttons
+convey context instead.)
 
-> **Relationship to "Change section type" (§4.5).** The split-menu dropdown
-> *inserts a new* section node of the chosen type (in place, splitting the
-> current block). "Change section type" *converts the enclosing* section node
-> to the chosen type, preserving its children. They are complementary: insert
-> when you need a new section, convert when the section exists but has the
-> wrong type.
+**Relationship to "Change section type" (§4.5).** The split-menu dropdown
+*inserts a new* section node of the chosen type (in place, splitting the
+current block). "Change section type" *converts the enclosing* section node
+to the chosen type, preserving its children. They are complementary: insert
+when you need a new section, convert when the section exists but has the
+wrong type.
 
 ### 4.3 Button: Promote clause
 
@@ -256,31 +258,33 @@ package, at `pkg/editor-commands/commands/sections.ts` — **not** in
 re-exports them; the toolbar component and its view-holding adapters stay in
 `prosemirror-editor`. See §11 (exports) and §12 (file structure).
 
-> **Command contract conformance.** These commands conform to the Command
-> contract defined in `docs/EditorCommands.spec.md` §1.5. In particular:
->
-> - **Pure / DOM-free.** Every command has the ProseMirror
->   `Command` shape `(state: EditorState, dispatch?: (tr: Transaction) => void) => boolean`
->   (the `Command` type is imported from `prosemirror-state`). They operate on
->   `state` / `dispatch` **only**. They never take an `EditorView` parameter,
->   never call `view.focus()` / `view.dispatch`, and never touch the DOM. This
->   makes them unit-testable headless and composable with `prosemirror-commands`.
-> - **Query / dispatch parity.** Called without `dispatch`, a command is a pure
->   applicability test that returns `true` iff it would apply and mutates
->   nothing. Called with `dispatch`, it builds exactly one transaction,
->   dispatches it once, and returns `true`. It returns `false` (no dispatch) when
->   not applicable, regardless of `dispatch`.
-> - **Non-throwing.** On well-formed state over `metanormaSchema`, a command
->   never throws; failure is reported by returning `false`.
-> - **Transaction discipline.** One `state.tr`, dispatched once; a valid
->   resulting selection; `tr.scrollIntoView()` on these user-initiated commands;
->   active marks preserved across the structural change.
->
-> The `EditorView` / `view.focus()` concerns live entirely in the **toolbar
-> adapter** (in `prosemirror-editor`): each button's `run(view)` resolves any
-> needed argument (e.g. the clause `title` or a `targetType`), calls the pure
-> command as `command(view.state, view.dispatch, …)`, and then `view.focus()`.
-> No `*View` command overloads are exported from `editor-commands`.
+#### Command contract conformance
+
+These commands conform to the Command contract defined in
+`docs/EditorCommands.spec.md` §1.5. In particular:
+
+- **Pure / DOM-free.** Every command has the ProseMirror
+  `Command` shape `(state: EditorState, dispatch?: (tr: Transaction) => void) => boolean`
+  (the `Command` type is imported from `prosemirror-state`). They operate on
+  `state` / `dispatch` **only**. They never take an `EditorView` parameter,
+  never call `view.focus()` / `view.dispatch`, and never touch the DOM. This
+  makes them unit-testable headless and composable with `prosemirror-commands`.
+- **Query / dispatch parity.** Called without `dispatch`, a command is a pure
+  applicability test that returns `true` iff it would apply and mutates
+  nothing. Called with `dispatch`, it builds exactly one transaction,
+  dispatches it once, and returns `true`. It returns `false` (no dispatch) when
+  not applicable, regardless of `dispatch`.
+- **Non-throwing.** On well-formed state over `metanormaSchema`, a command
+  never throws; failure is reported by returning `false`.
+- **Transaction discipline.** One `state.tr`, dispatched once; a valid
+  resulting selection; `tr.scrollIntoView()` on these user-initiated commands;
+  active marks preserved across the structural change.
+
+The `EditorView` / `view.focus()` concerns live entirely in the **toolbar
+adapter** (in `prosemirror-editor`): each button's `run(view)` resolves any
+needed argument (e.g. the clause `title` or a `targetType`), calls the pure
+command as `command(view.state, view.dispatch, …)`, and then `view.focus()`.
+No `*View` command overloads are exported from `editor-commands`.
 
 **Schema coupling.** These commands are tightly bound to the Metanorma section
 vocabulary, so they resolve node types **by name through `state.schema`** (e.g.
@@ -295,8 +299,8 @@ import type { Command, EditorState, Transaction } from "prosemirror-state";
 import type { Node, NodeType, ResolvedPos } from "prosemirror-model";
 ```
 
-> No `prosemirror-view` import appears in this module — commands never reference
-> `EditorView`.
+No `prosemirror-view` import appears in this module — commands never reference
+`EditorView`.
 
 ### 5.1 Legality helper — `canWrapInClause`
 
@@ -364,14 +368,14 @@ export function parentAccepts(
 ): boolean;
 ```
 
-> **Why `contentMatch` / `validContent` and not an allow-list.** The content
-> model already encodes "(clause | block)*" vs "block+". Re-deriving legality
-> from the schema keeps the toolbar correct if the schema's content
-> expressions change, and avoids drift between the allow-list and the source of
-> truth. `NodeType.validContent(content)` answers "could this node legally hold
-> this exact fragment?" — ideal for Promote/Demote (which move real subtrees)
-> and for Set-type (which re-validates a node's existing children against a new
-> type).
+**Why `contentMatch` / `validContent` and not an allow-list.** The content
+model already encodes "(clause | block)*" vs "block+". Re-deriving legality
+from the schema keeps the toolbar correct if the schema's content
+expressions change, and avoids drift between the allow-list and the source of
+truth. `NodeType.validContent(content)` answers "could this node legally hold
+this exact fragment?" — ideal for Promote/Demote (which move real subtrees)
+and for Set-type (which re-validates a node's existing children against a new
+type).
 
 ### 5.2 `wrapInClause`
 
@@ -401,13 +405,13 @@ export function wrapInClause(
 ): boolean;
 ```
 
-> **No `wrapInClauseView` overload.** An earlier draft specified a
-> `wrapInClauseView(view: EditorView, title): void` adapter in this module. That
-> is a UI concern and is **not** exported from `editor-commands`: the toolbar
-> button's `run(view)` adapter (which lives in `prosemirror-editor`) resolves the
-> heading `title` per §7, calls `wrapInClause(view.state, view.dispatch, { title })`,
-> and then `view.focus()`. The pure command takes `title` as an ordinary optional
-> argument so no `EditorView` ever enters the command.
+**No `wrapInClauseView` overload.** An earlier draft specified a
+`wrapInClauseView(view: EditorView, title): void` adapter in this module. That
+is a UI concern and is **not** exported from `editor-commands`: the toolbar
+button's `run(view)` adapter (which lives in `prosemirror-editor`) resolves the
+heading `title` per §7, calls `wrapInClause(view.state, view.dispatch, { title })`,
+and then `view.focus()`. The pure command takes `title` as an ordinary optional
+argument so no `EditorView` ever enters the command.
 
 **Algorithm (`wrapInClause`):**
 
@@ -442,20 +446,20 @@ export function wrapInClause(
    mapped position inside the clause).
 7. `dispatch(tr.scrollIntoView())`; return `true`.
 
-> **Selection-shape handling.** Standard `tr.wrap` over the `NodeRange` from
-> `$from.blockRange($to)` correctly handles all in-section selection shapes:
-> - **Single block / collapsed cursor** — the one block containing the cursor
->   moves inside the new clause.
-> - **Multi-block range** — every block covered by the range moves inside the
->   new clause as siblings.
-> - **Partial-block (text) selection** — `wrap` operates at the block level, so
->   the **whole** paragraph (including unselected text) moves inside the clause.
->   This is correct: a paragraph cannot be split across a section boundary.
->
-> **Cross-section selections are disabled** (§5.1 step 5): `canWrapInClause`
-> returns `false` when `$from` and `$to` are in different section ancestors, so
-> `wrapInClause` never receives a cross-section range. No clamp or partial-wrap
-> fallback is provided.
+**Selection-shape handling.** Standard `tr.wrap` over the `NodeRange` from
+`$from.blockRange($to)` correctly handles all in-section selection shapes:
+- **Single block / collapsed cursor** — the one block containing the cursor
+  moves inside the new clause.
+- **Multi-block range** — every block covered by the range moves inside the
+  new clause as siblings.
+- **Partial-block (text) selection** — `wrap` operates at the block level, so
+  the **whole** paragraph (including unselected text) moves inside the clause.
+  This is correct: a paragraph cannot be split across a section boundary.
+
+**Cross-section selections are disabled** (§5.1 step 5): `canWrapInClause`
+returns `false` when `$from` and `$to` are in different section ancestors, so
+`wrapInClause` never receives a cross-section range. No clamp or partial-wrap
+fallback is provided.
 
 **Cursor placement.** The empty leading paragraph is where the cursor lands so
 the user can immediately type the clause body; the heading `title` is captured
@@ -503,28 +507,28 @@ export function demoteClause(state: EditorState, dispatch?: (tr: Transaction) =>
 4. Restore a selection inside the moved clause (map the old selection through
    the step mapping). `dispatch(tr.scrollIntoView())`; return `true`.
 
-> **Numbering.** `promoteClause` / `demoteClause` require **no `number`
-> handling**: in editor-produced documents `number` is always `null` (no command
-> sets it, no import path exists — §7). The commands simply carry the attr
-> through the node replacement untouched. `id` is always preserved on the moved
-> node.
->
-> **Forward-looking note.** If a future feature (e.g. a Metanorma XML import
-> mapping the Semantic XML `number=` override attribute into the ProseMirror
-> `number` attr) introduces non-null `number` values, promote/demote should
-> **clear `number` to `null`**: a stored number is a level-specific override that
-> no longer applies at the new level. See §7 for why numbering is a presentation
-> concern handled by the Metanorma pipeline, not the editor.
->
-> **Undo granularity.** Every section command (`wrapInClause`,
-> `promoteClause`, `demoteClause`, `setSectionType`) is a **single transaction**:
-> one command = one transaction = **one undo step**. A promote or demote moves
-> the clause (with its entire subtree) as one node replacement, so the user
-> presses Undo once to revert. No `addToHistory` meta is needed today. If a
-> future enhancement ever splits a structural change across multiple
-> transactions, it must coalesce them via
-> `tr.setMeta("addToHistory", false)` on all intermediate steps so the
-> one-undo-per-action invariant is preserved.
+#### Numbering (promote/demote)
+
+`promoteClause` / `demoteClause` require **no `number` handling**: in
+editor-produced documents `number` is always `null` (no command sets it, no
+import path exists — §7). The commands simply carry the attr through the node
+replacement untouched. `id` is always preserved on the moved node.
+
+**Forward-looking note.** If a future feature (e.g. a Metanorma XML import
+mapping the Semantic XML `number=` override attribute into the ProseMirror
+`number` attr) introduces non-null `number` values, promote/demote should
+**clear `number` to `null`**: a stored number is a level-specific override that
+no longer applies at the new level. See §7 for why numbering is a presentation
+concern handled by the Metanorma pipeline, not the editor.
+
+**Undo granularity.** Every section command (`wrapInClause`, `promoteClause`,
+`demoteClause`, `setSectionType`) is a **single transaction**: one command =
+one transaction = **one undo step**. A promote or demote moves the clause
+(with its entire subtree) as one node replacement, so the user presses Undo
+once to revert. No `addToHistory` meta is needed today. If a future
+enhancement ever splits a structural change across multiple transactions, it
+must coalesce them via `tr.setMeta("addToHistory", false)` on all
+intermediate steps so the one-undo-per-action invariant is preserved.
 
 ### 5.4 `setSectionType`
 
@@ -586,15 +590,15 @@ export function findNearestSectionOfType(
 These walk `$pos.depth → 1` via `$pos.node(d)`, returning the first match.
 `$pos.node(0)` (the doc) is never a section and is skipped.
 
-> **Location / visibility.** All four legality helpers (`canWrapInClause`,
-> `parentAccepts`, `nearestSectionAncestor`, `findNearestSectionOfType`) are pure
-> state-reading functions and live alongside the commands in
-> `pkg/editor-commands/commands/sections.ts`. They are **internal helpers**:
-> `canWrapInClause` is exposed because the toolbar's `isEnabled` selector calls it
-> directly, but the others (`parentAccepts`, `nearestSectionAncestor`,
-> `findNearestSectionOfType`) need not be part of the documented public API unless
-> a consumer requires them — they may be unexported or exported as utilities. None
-> of them take an `EditorView` or touch the DOM.
+**Location / visibility.** All four legality helpers (`canWrapInClause`,
+`parentAccepts`, `nearestSectionAncestor`, `findNearestSectionOfType`) are pure
+state-reading functions and live alongside the commands in
+`pkg/editor-commands/commands/sections.ts`. They are **internal helpers**:
+`canWrapInClause` is exposed because the toolbar's `isEnabled` selector calls it
+directly, but the others (`parentAccepts`, `nearestSectionAncestor`,
+`findNearestSectionOfType`) need not be part of the documented public API unless
+a consumer requires them — they may be unexported or exported as utilities. None
+of them take an `EditorView` or touch the DOM.
 
 ## 6. Active / enabled detection (UI wiring)
 
@@ -671,38 +675,40 @@ time** via the shared `generateId()` helper (a `crypto.randomUUID()`-based
 string), and `number` is left `null` on insert. All section commands leave
 `number` `null`.
 
-> **Numbering is not an editor concern.** Clause/section numbering is a
-> **presentation** concern, computed by the Metanorma pipeline during the
-> Semantic→Presentation XML conversion — specifically by IsoDoc's
-> `XrefGen::Sections` module (`lib/isodoc/xref/xref_sect_gen.rb`, mixed into
-> `IsoDoc::Xref`; [rdoc](https://www.rubydoc.info/gems/isodoc/2.9.3/IsoDoc/XrefGen/Sections)).
-> `clause_order` partitions the document into preface/main/annex/back;
-> `section_names`/`section_names1` produce dotted hierarchical body numbers
-> (`1`, `1.1`, `A.1`); `annex_names` produces letters (`A`, `B`); prefaces and
-> back-matter are unnumbered. The result is stored in an in-memory `@anchors`
-> hash keyed by element id — it is **not** written as a `number=` attribute on
-> the Semantic XML. A literal `number` attribute on `<clause>` in Semantic XML
-> is an override hint only (metanorma-standoc ≥ v1.4.1). See
-> [Auto-numbering](https://www.metanorma.org/author/basics/numbering/) and
-> [Sections](https://www.metanorma.org/author/topics/sections/).
->
-> **Consequence for direct-to-Presentation-XML consumers.** If a consumer
-> converts the editor's output directly to Presentation XML **without** running
-> the IsoDoc `XrefGen` pass (the numbering computation), clause numbering will
-> **not** be applied. The editor does not compensate for this: it emits `number`
-> `null` and relies on the downstream pipeline to compute numbers. (The
-> [LADL](https://metanorma.github.io/docs/) "Label Auto-assignment Definition
-> Language" spec that will eventually formalise this is still a draft, doc #112.)
->
-> Accordingly, the editor does not implement auto-numbering: `number` is left
-> `null` by every section command (insert, promote, demote, set-type). If a
-> future editor feature needs to *display* a number, it should be a read-only
-> decoration derived from a tree-walk over the live document, not a value
-> persisted on the node — but that is a separate, deferred feature.
+#### Numbering is not an editor concern
 
-> **Alternative (not adopted):** leave `id` as `null` and let a downstream
-> document pipeline assign ids. Rejected in favour of assigning at insertion
-> time for consistency across all node-insertion commands.
+Clause/section numbering is a **presentation** concern, computed by the
+Metanorma pipeline during the Semantic→Presentation XML conversion —
+specifically by IsoDoc's `XrefGen::Sections` module
+(`lib/isodoc/xref/xref_sect_gen.rb`, mixed into `IsoDoc::Xref`;
+[rdoc](https://www.rubydoc.info/gems/isodoc/2.9.3/IsoDoc/XrefGen/Sections)).
+`clause_order` partitions the document into preface/main/annex/back;
+`section_names`/`section_names1` produce dotted hierarchical body numbers
+(`1`, `1.1`, `A.1`); `annex_names` produces letters (`A`, `B`); prefaces and
+back-matter are unnumbered. The result is stored in an in-memory `@anchors`
+hash keyed by element id — it is **not** written as a `number=` attribute on
+the Semantic XML. A literal `number` attribute on `<clause>` in Semantic XML
+is an override hint only (metanorma-standoc ≥ v1.4.1). See
+[Auto-numbering](https://www.metanorma.org/author/basics/numbering/) and
+[Sections](https://www.metanorma.org/author/topics/sections/).
+
+**Consequence for direct-to-Presentation-XML consumers.** If a consumer
+converts the editor's output directly to Presentation XML **without** running
+the IsoDoc `XrefGen` pass (the numbering computation), clause numbering will
+**not** be applied. The editor does not compensate for this: it emits `number`
+`null` and relies on the downstream pipeline to compute numbers. (The
+[LADL](https://metanorma.github.io/docs/) "Label Auto-assignment Definition
+Language" spec that will eventually formalise this is still a draft, doc #112.)
+
+Accordingly, the editor does not implement auto-numbering: `number` is left
+`null` by every section command (insert, promote, demote, set-type). If a
+future editor feature needs to *display* a number, it should be a read-only
+decoration derived from a tree-walk over the live document, not a value
+persisted on the node — but that is a separate, deferred feature.
+
+**Alternative (not adopted):** leave `id` as `null` and let a downstream
+document pipeline assign ids. Rejected in favour of assigning at insertion
+time for consistency across all node-insertion commands.
 
 ## 8. CSS classes
 
@@ -747,19 +753,19 @@ the structural buttons add:
 - All structural buttons remain native `<button>` elements, so they are
   keyboard-focusable and operable via Enter / Space without extra code.
 
-> **Nesting depth and heading-level representation.** There is **no depth cap**:
-  the schema permits unbounded `clause`-within-`clause` nesting, and the toolbar
-  never disables Demote based on depth (Metanorma documents legitimately nest
-  beyond 6, e.g. annex sub-clauses; capping would reject valid documents).
-  Because HTML has only six heading elements (`<h1>`–`<h6>`), heading level is
-  conveyed via **`aria-level`** set to the clause's true nesting depth on the
-  rendered `<section>` element (computed from the node tree by a node view or
-  decoration, never stored on the node). `aria-level` accepts any positive
-  integer, so it remains accurate past level 6. A visual `<hN>` may optionally
-  be synthesised for display, clamped to `<h6>` past level 6, but `aria-level`
-  carries the true depth to assistive tech. Depth is **derived**, not stored:
-  it is recomputed whenever the clause's ancestors change (insert/promote/
-  demote), so no command needs to maintain it.
+**Nesting depth and heading-level representation.** There is **no depth cap**:
+the schema permits unbounded `clause`-within-`clause` nesting, and the toolbar
+never disables Demote based on depth (Metanorma documents legitimately nest
+beyond 6, e.g. annex sub-clauses; capping would reject valid documents).
+Because HTML has only six heading elements (`<h1>`–`<h6>`), heading level is
+conveyed via **`aria-level`** set to the clause's true nesting depth on the
+rendered `<section>` element (computed from the node tree by a node view or
+decoration, never stored on the node). `aria-level` accepts any positive
+integer, so it remains accurate past level 6. A visual `<hN>` may optionally
+be synthesised for display, clamped to `<h6>` past level 6, but `aria-level`
+carries the true depth to assistive tech. Depth is **derived**, not stored:
+it is recomputed whenever the clause's ancestors change (insert/promote/
+demote), so no command needs to maintain it.
 
 ## 10. Open questions / unknowns
 
@@ -793,10 +799,10 @@ export {
 //   parentAccepts, nearestSectionAncestor, findNearestSectionOfType
 ```
 
-> **No `wrapInClauseView` (or any `*View` symbol) is exported from
-> `editor-commands`.** View-holding adapters are a UI concern and live in
-> `prosemirror-editor`; the pure commands take `title` / `targetType` as ordinary
-> arguments so no `EditorView` enters the command layer.
+**No `wrapInClauseView` (or any `*View` symbol) is exported from
+`editor-commands`.** View-holding adapters are a UI concern and live in
+`prosemirror-editor`; the pure commands take `title` / `targetType` as ordinary
+arguments so no `EditorView` enters the command layer.
 
 **`pkg/prosemirror-editor/index.ts`** re-exports the commands from the
 commands package (so toolbar/keymap code can import everything from one place)
@@ -847,11 +853,11 @@ docs/AdvancedMetanormaToolbar/
   sections.md                     ← this document
 ```
 
-> The `commands/` directory does **not** exist under
-> `pkg/prosemirror-editor/` for these commands — section/clause command
-> logic lives in `pkg/editor-commands/commands/sections.ts`. Only view-holding
-> adapters (the button `run(view)` wrappers that call the pure command and then
-> `view.focus()`) belong in `prosemirror-editor`, alongside the toolbar component.
+The `commands/` directory does **not** exist under
+`pkg/prosemirror-editor/` for these commands — section/clause command
+logic lives in `pkg/editor-commands/commands/sections.ts`. Only view-holding
+adapters (the button `run(view)` wrappers that call the pure command and then
+`view.focus()`) belong in `prosemirror-editor`, alongside the toolbar component.
 
 ## 13. TypeScript constraints
 

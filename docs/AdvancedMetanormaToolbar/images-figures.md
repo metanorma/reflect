@@ -6,8 +6,8 @@ This document is the detailed implementation proposal for **image / figure
 insertion** in the `AdvancedMetanormaToolbar`. It addresses the single item
 deferred by `MetanormaToolbar.spec.md` §5.5:
 
-> **Images / figures** — require file upload or URL resolution and
-> `assertValidImageAttrs`.
+**Images / figures** — require file upload or URL resolution and
+`assertValidImageAttrs`.
 
 Inserting an image is unlike toggling a mark: it requires the user to supply a
 **source** — either a remote URL or a local file that must be turned into a
@@ -181,16 +181,16 @@ complete `figure > image`. An image-less (caption-only) figure is **not needed**
 for v1 and will not be added: the schema mandates `figure > image`, and the
 single button always produces that.
 
-> **Drag-and-drop / paste is out of scope.** Dropping or pasting an image
-> directly into the document is not supported in v1; it is future work that
-> would reuse `insertImage` via `handlePaste`/`handleDrop`. The toolbar button
-> is the sole image-entry surface for v1.
+**Drag-and-drop / paste is out of scope.** Dropping or pasting an image
+directly into the document is not supported in v1; it is future work that
+would reuse `insertImage` via `handlePaste`/`handleDrop`. The toolbar button
+is the sole image-entry surface for v1.
 
-> **The `title` (caption) attribute is not collected at insertion time.** The
-> dialog collects only `src` and `alt`; `figure.title` is left `null` and can
-> be edited later (e.g. via a node view or a future properties panel). Adding a
-> caption field to the insert dialog was considered and deferred to keep the
-> dialog lightweight.
+**The `title` (caption) attribute is not collected at insertion time.** The
+dialog collects only `src` and `alt`; `figure.title` is left `null` and can
+be edited later (e.g. via a node view or a future properties panel). Adding a
+caption field to the insert dialog was considered and deferred to keep the
+dialog lightweight.
 
 ## 5. Source resolution — the `ImageInsertDialog`
 
@@ -222,11 +222,11 @@ When the user types or pastes a URL into the Source URL field and commits:
    dispatching if `src` is empty/invalid — §6.1); on a `false` return the dialog
    surfaces an inline error (`aria-live`, §9).
 
-> **Minimal-v1 alternative.** If a full dialog is deferred, the URL path can be
-> collected with `window.prompt('Image URL:')` (and a second prompt for alt),
-> mirroring the base toolbar's link-URL prompt. The dialog proposed here is the
-> recommended shape because alt text materially affects accessibility and a
-> single `window.prompt` cannot collect both fields cleanly.
+**Minimal-v1 alternative.** If a full dialog is deferred, the URL path can be
+collected with `window.prompt('Image URL:')` (and a second prompt for alt),
+mirroring the base toolbar's link-URL prompt. The dialog proposed here is the
+recommended shape because alt text materially affects accessibility and a
+single `window.prompt` cannot collect both fields cleanly.
 
 **Upgrade hook.** Following the base toolbar's `onLinkPrompt` pattern
 (`MetanormaToolbar.spec.md` §6), the toolbar accepts an optional
@@ -273,25 +273,25 @@ reloads, so it is the happy path for the common "no server" case. `onImageUpload
 is the secondary option for host apps that prefer to persist images to storage
 and store a short URL instead of embedding bytes.
 
-> **Data-URL size handling.** Base64 embedding expands the payload by ~⅓, so
-> many images can produce a large document. Current versions of popular modern
-> browsers (Chrome, Safari, Firefox, Edge) do **not** impose a practical
-> `data:`-URL length cap for `img` rendering at typical document sizes, so this
-> is not an issue for normal use. If the generated `data:` URL exceeds a
-> browser-specific cap, `FileReader.readAsDataURL` / image load will fail; the
-> dialog must catch that failure and surface a **graceful error** (inline,
-> `aria-live`, §9), e.g. "This image is too large to embed — supply
-> `onImageUpload` to upload it instead." The dialog should not crash or insert a
-> broken node.
+**Data-URL size handling.** Base64 embedding expands the payload by ~⅓, so
+many images can produce a large document. Current versions of popular modern
+browsers (Chrome, Safari, Firefox, Edge) do **not** impose a practical
+`data:`-URL length cap for `img` rendering at typical document sizes, so this
+is not an issue for normal use. If the generated `data:` URL exceeds a
+browser-specific cap, `FileReader.readAsDataURL` / image load will fail; the
+dialog must catch that failure and surface a **graceful error** (inline,
+`aria-live`, §9), e.g. "This image is too large to embed — supply
+`onImageUpload` to upload it instead." The dialog should not crash or insert a
+broken node.
 
 The file path is asynchronous (both `readAsDataURL` and `onImageUpload` return
 promises), so the dialog's commit handler must `await` the resolution before
 dispatching; see §7.
 
-> **No `blob:` URLs.** Non-serializable `blob:` object URLs
-> (`URL.createObjectURL`) are **not supported**: they do not survive
-> serialization, so a reloaded or server-rendered document cannot resolve them.
-> The default `data:` URL path is the supported no-server strategy instead.
+**No `blob:` URLs.** Non-serializable `blob:` object URLs
+(`URL.createObjectURL`) are **not supported**: they do not survive
+serialization, so a reloaded or server-rendered document cannot resolve them.
+The default `data:` URL path is the supported no-server strategy instead.
 
 ## 6. The `insertImage` command
 
@@ -345,20 +345,20 @@ export function insertImage(
 ): boolean;
 ```
 
-> **Query/dispatch parity (EditorCommands §1.5(1)/(3)).** With `dispatch`
-> omitted, `insertImage(state)` returns `true` exactly when
-> `canInsertFigure(state)` returns `true`, and mutates nothing. The button's
-> `isEnabled` rule (§8.2) is therefore `canInsertFigure(state)`, and
-> `insertImage(state)` is its command-parity equivalent.
+**Query/dispatch parity (EditorCommands §1.5(1)/(3)).** With `dispatch`
+omitted, `insertImage(state)` returns `true` exactly when
+`canInsertFigure(state)` returns `true`, and mutates nothing. The button's
+`isEnabled` rule (§8.2) is therefore `canInsertFigure(state)`, and
+`insertImage(state)` is its command-parity equivalent.
 
-> **Factory form (EditorCommands §1.6.2).** Because the command resolves node
-> types through `state.schema` (the `Schema` instance on the passed
-> `EditorState`), it is already schema-parameterised: it works unchanged on a
-> composed schema as long as that schema has `figure` and `image` node types.
-> No separate `(schema) => Command` factory is required — the command binds
-> nothing to the `metanormaSchema` singleton at module load. (If a future
-> consumer needed to validate the schema shape at construction time, a factory
-> could be added; it is not needed for the Metanorma schema.)
+**Factory form (EditorCommands §1.6.2).** Because the command resolves node
+types through `state.schema` (the `Schema` instance on the passed
+`EditorState`), it is already schema-parameterised: it works unchanged on a
+composed schema as long as that schema has `figure` and `image` node types.
+No separate `(schema) => Command` factory is required — the command binds
+nothing to the `metanormaSchema` singleton at module load. (If a future
+consumer needed to validate the schema shape at construction time, a factory
+could be added; it is not needed for the Metanorma schema.)
 
 ### 6.2 Algorithm
 
@@ -482,21 +482,21 @@ export function insertImage(
 }
 ```
 
-> **Command contract compliance.** Note what is *absent*: no `EditorView`, no
-> `view.dispatch`, no `view.focus()`, no DOM. The command imports only
-> `EditorState`, `Transaction`, `Node` types (and the schema guard); it never
-> imports `prosemirror-view`. It returns `false` on every failure path without
-> throwing. The query form (`dispatch` omitted) is a pure applicability test
-> returning the same boolean as `canInsertFigure`.
+**Command contract compliance.** Note what is *absent*: no `EditorView`, no
+`view.dispatch`, no `view.focus()`, no DOM. The command imports only
+`EditorState`, `Transaction`, `Node` types (and the schema guard); it never
+imports `prosemirror-view`. It returns `false` on every failure path without
+throwing. The query form (`dispatch` omitted) is a pure applicability test
+returning the same boolean as `canInsertFigure`.
 
-> **Position arithmetic.** `figPos = tr.selection.from - figure.nodeSize` assumes
-> `replaceSelectionWith` leaves the selection immediately after the inserted
-> block, which holds for the common cursor-in-paragraph case. If the node lands
-> adjacent to rather than replacing a block, recompute `figPos` by resolving
-> `tr.doc.resolve(tr.selection.from)` and searching backward for the first node
-> whose `type.name === "figure"`, then `NodeSelection.create(tr.doc, pos)`. As
-> with `insertTable` (`tables.md` §8.3), prefer resolving over hard-coded offsets
-> in production.
+**Position arithmetic.** `figPos = tr.selection.from - figure.nodeSize` assumes
+`replaceSelectionWith` leaves the selection immediately after the inserted
+block, which holds for the common cursor-in-paragraph case. If the node lands
+adjacent to rather than replacing a block, recompute `figPos` by resolving
+`tr.doc.resolve(tr.selection.from)` and searching backward for the first node
+whose `type.name === "figure"`, then `NodeSelection.create(tr.doc, pos)`. As
+with `insertTable` (`tables.md` §8.3), prefer resolving over hard-coded offsets
+in production.
 
 ### 6.4 Why a `figure` wrapping the `image`
 

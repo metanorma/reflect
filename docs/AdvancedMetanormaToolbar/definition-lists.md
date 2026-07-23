@@ -6,8 +6,8 @@ This document is the detailed implementation proposal for **definition-list**
 support in the `AdvancedMetanormaToolbar`. It addresses the item flagged as
 "out of scope" in `docs/MetanormaToolbar.spec.md` §5.5:
 
-> **Definition lists** (`dl`/`dt`/`dd`) — multi-part structure that needs
-> dedicated insertion logic.
+**Definition lists** (`dl`/`dt`/`dd`) — multi-part structure that needs
+dedicated insertion logic.
 
 Definition lists are fundamentally different from the single-node operations
 (marks, `wrapIn` block wraps, `toggleList`) covered by the base toolbar. A
@@ -101,15 +101,15 @@ interface ToolbarButton {
 CSS classes reuse the `mn-toolbar` prefix; definition-list-specific modifiers
 are documented in §8.
 
-> **Packaging note.** The schema lives in `@metanorma/prosemirror-schema`. Per
-> the command contract (`docs/EditorCommands.spec.md` §1.1–§1.5), the **pure
-> command logic** lives in `@metanorma/editor-commands`
-> (`pkg/editor-commands/commands/definitionList.ts`): framework-agnostic,
-> DOM-free, operating on `EditorState`/`Transaction` only. The **keymap
-> plugin**, the `EditorView`-taking toolbar `run` adapter, and `view.focus()`
-> belong in `@metanorma/prosemirror-editor` (consistent with the base toolbar's
-> packaging split and §1.13 — keymap wiring lives outside the commands package).
-> `@metanorma/prosemirror-editor` re-exports the commands for toolbar/UI reuse.
+**Packaging note.** The schema lives in `@metanorma/prosemirror-schema`. Per
+the command contract (`docs/EditorCommands.spec.md` §1.1–§1.5), the **pure
+command logic** lives in `@metanorma/editor-commands`
+(`pkg/editor-commands/commands/definitionList.ts`): framework-agnostic,
+DOM-free, operating on `EditorState`/`Transaction` only. The **keymap
+plugin**, the `EditorView`-taking toolbar `run` adapter, and `view.focus()`
+belong in `@metanorma/prosemirror-editor` (consistent with the base toolbar's
+packaging split and §1.13 — keymap wiring lives outside the commands package).
+`@metanorma/prosemirror-editor` re-exports the commands for toolbar/UI reuse.
 
 ## 4. Buttons
 
@@ -165,15 +165,15 @@ Inside atom/inline-only nodes (`formula`, `floating_title`, `image`,
 `sourcecode`, a `dt`) the parent does not accept `block`, so the check
 correctly returns `false`.
 
-> **Note on nesting:** `dd` has content `block+`, so a `dl` is legal *inside*
-> a `dd` (nested definition lists). `dt` has content `inline*`, so a `dl` is
-> **not** legal inside a `dt`. The `canInsertBlock` check reflects this
-> naturally and needs no special-casing. The single entry path for a nested
-> `dl` is the existing `insertDefinitionList` command invoked with the cursor
-> inside a `dd`: the `dd`'s paragraph text promotes to the inner `dt` (per
-> §5.1's text-promotion behaviour), yielding a valid nested `dl`. No dedicated
-> `Tab`/`Shift-Tab` indent/outdent gesture is added (§6.3); nesting depth is
-> unconstrained by the editor in v1.
+**Note on nesting:** `dd` has content `block+`, so a `dl` is legal *inside*
+a `dd` (nested definition lists). `dt` has content `inline*`, so a `dl` is
+**not** legal inside a `dt`. The `canInsertBlock` check reflects this
+naturally and needs no special-casing. The single entry path for a nested
+`dl` is the existing `insertDefinitionList` command invoked with the cursor
+inside a `dd`: the `dd`'s paragraph text promotes to the inner `dt` (per
+§5.1's text-promotion behaviour), yielding a valid nested `dl`. No dedicated
+`Tab`/`Shift-Tab` indent/outdent gesture is added (§6.3); nesting depth is
+unconstrained by the editor in v1.
 
 ### 4.2 Button: Add term + description
 
@@ -213,22 +213,22 @@ The two commands are pure ProseMirror `Command` functions defined in
 `pkg/editor-commands/commands/definitionList.ts` (package
 `@metanorma/editor-commands`).
 
-> **Conformance to the Command contract** (`docs/EditorCommands.spec.md` §1.5).
-> Each command below:
-> - is a pure `(state: EditorState, dispatch?: (tr: Transaction) => void) => boolean` (the `Command` type, imported from `prosemirror-state`);
-> - takes **no `EditorView`** parameter, never calls `view.focus()`, `view.dispatch`, or touches the DOM — the `EditorView` appears **only** in the toolbar `run(view)` adapter in `@metanorma/prosemirror-editor` (§4.1, §4.2);
-> - honours **query/dispatch parity**: called without `dispatch` it returns `true` iff it would apply and mutates nothing; called with `dispatch` it dispatches exactly one transaction and returns `true`; returns `false` when not applicable regardless of `dispatch`;
-> - is **non-throwing** on well-formed state (returns `false` on failure);
-> - obeys **transaction discipline** (§1.7): one `state.tr`, dispatched once, with a valid resulting selection and `tr.scrollIntoView()` (these are user-initiated toolbar commands);
-> - preserves the `(dt dd)+` invariant in every dispatched transaction.
->
-> The commands operate on `state.schema` directly (resolving `dl`/`dt`/`dd` via
-> `state.schema.nodes.dl` etc.). They are therefore already schema-parameterised
-> per call — no separate `(schema) => Command` factory is required (decision per
-> §1.6.2: these commands only make sense for the exact Metanorma `dl`/`dt`/`dd`
-> vocabulary, so the direct-`state.schema` form is chosen over the factory form).
-> The `EditorView`, keymap wiring, and `view.focus()` concerns live in
-> `@metanorma/prosemirror-editor` (§6).
+**Conformance to the Command contract** (`docs/EditorCommands.spec.md` §1.5).
+Each command below:
+- is a pure `(state: EditorState, dispatch?: (tr: Transaction) => void) => boolean` (the `Command` type, imported from `prosemirror-state`);
+- takes **no `EditorView`** parameter, never calls `view.focus()`, `view.dispatch`, or touches the DOM — the `EditorView` appears **only** in the toolbar `run(view)` adapter in `@metanorma/prosemirror-editor` (§4.1, §4.2);
+- honours **query/dispatch parity**: called without `dispatch` it returns `true` iff it would apply and mutates nothing; called with `dispatch` it dispatches exactly one transaction and returns `true`; returns `false` when not applicable regardless of `dispatch`;
+- is **non-throwing** on well-formed state (returns `false` on failure);
+- obeys **transaction discipline** (§1.7): one `state.tr`, dispatched once, with a valid resulting selection and `tr.scrollIntoView()` (these are user-initiated toolbar commands);
+- preserves the `(dt dd)+` invariant in every dispatched transaction.
+
+The commands operate on `state.schema` directly (resolving `dl`/`dt`/`dd` via
+`state.schema.nodes.dl` etc.). They are therefore already schema-parameterised
+per call — no separate `(schema) => Command` factory is required (decision per
+§1.6.2: these commands only make sense for the exact Metanorma `dl`/`dt`/`dd`
+vocabulary, so the direct-`state.schema` form is chosen over the factory form).
+The `EditorView`, keymap wiring, and `view.focus()` concerns live in
+`@metanorma/prosemirror-editor` (§6).
 
 ### 5.1 `insertDefinitionList`
 
@@ -282,10 +282,10 @@ export function insertDefinitionList(state: EditorState, dispatch?: (tr: Transac
    const dlNode = dl.create({}, [termNode, descNode]);
    ```
 
-   > `inlineContentFromSelection` extracts the inline nodes (text + inline
-   > marks) of the selection's slice, dropping any block wrappers so the
-   > content is legal as `dt`'s `inline*` content. For an empty paragraph it
-   > returns `[]`.
+   `inlineContentFromSelection` extracts the inline nodes (text + inline
+   marks) of the selection's slice, dropping any block wrappers so the
+   content is legal as `dt`'s `inline*` content. For an empty paragraph it
+   returns `[]`.
 
 4. Replace the selection. If the selection covers block content (e.g. the user
    selected a paragraph), use `tr.replaceSelectionWith(dlNode)` when the
@@ -301,11 +301,11 @@ export function insertDefinitionList(state: EditorState, dispatch?: (tr: Transac
    tr.replaceRangeWith(start, end, dlNode);
    ```
 
-   > Implementation detail: `replaceRangeWith` is preferred over
-   > `replaceSelectionWith` here because it correctly handles replacing the
-   > enclosing block when the cursor sits in an empty paragraph (the common
-   > "cursor on a blank line" case). Validate the chosen primitive against the
-   > `(dt dd)+` constraint with an assertion before dispatch.
+   Implementation detail: `replaceRangeWith` is preferred over
+   `replaceSelectionWith` here because it correctly handles replacing the
+   enclosing block when the cursor sits in an empty paragraph (the common
+   "cursor on a blank line" case). Validate the chosen primitive against the
+   `(dt dd)+` constraint with an assertion before dispatch.
 
 5. Place the cursor inside the new `dt`. After insertion, resolve a position
    inside the `dt` and set a `TextSelection`:
@@ -326,27 +326,30 @@ export function insertDefinitionList(state: EditorState, dispatch?: (tr: Transac
    are fragile and should be derived from `tr.doc.resolve(...).parent`, not
    hard-coded.
 
-> **Cursor-management directive.** All `dt`/`dd` cursor arithmetic in
-> `insertDefinitionList`, `addDefinitionPair`, and the Enter/Backspace keymap
-> handlers **must** be derived from `tr.doc.resolve(pos)` assertions —
-> `parent`, `index()`, `childCount`, `after()` / `before()`, `nodeAt()` —
-> never from hardcoded numeric offsets. This is correct ProseMirror practice.
-> The specific positions the implementation derives from `ResolvedPos`:
-> - **"Am I in a `dt`/`dd`?"** — walk `$from` depths, compare
->   `node.type === schema.nodes.dl` (the `dl` ancestor) and inspect the
->   immediate child via `$from.index(depth)`. (This is how the keymap helpers
->   `ancestorDepth`, `isLastChild`, `pairTermIsEmpty` in §6 are described.)
-> - **"Position after the current pair"** (for `addDefinitionPair`) —
->   `ResolvedPos.after(depth)` at the `dl`-relative depth, not
->   `parentOffset + N`.
-> - **"Is this the last `dd`?"** — `$from.index(ddDepth) ===
->   $from.parent.childCount - 1`.
-> - **"Is the sibling `dt` empty?"** — resolve the pair, read
->   `dtNode.content.size === 0`.
->
-> This is **enforced by a test matrix** covering: insert at start/middle/end
-> of a `dl`; add-pair in the last `dd`; Enter exit on an empty term;
-> Backspace at a `dt` start; and a nested `dl`.
+#### Cursor-management directive
+
+All `dt`/`dd` cursor arithmetic in
+`insertDefinitionList`, `addDefinitionPair`, and the Enter/Backspace keymap
+handlers **must** be derived from `tr.doc.resolve(pos)` assertions —
+`parent`, `index()`, `childCount`, `after()` / `before()`, `nodeAt()` —
+never from hardcoded numeric offsets. This is correct ProseMirror practice.
+The specific positions the implementation derives from `ResolvedPos`:
+
+- **"Am I in a `dt`/`dd`?"** — walk `$from` depths, compare
+  `node.type === schema.nodes.dl` (the `dl` ancestor) and inspect the
+  immediate child via `$from.index(depth)`. (This is how the keymap helpers
+  `ancestorDepth`, `isLastChild`, `pairTermIsEmpty` in §6 are described.)
+- **"Position after the current pair"** (for `addDefinitionPair`) —
+  `ResolvedPos.after(depth)` at the `dl`-relative depth, not
+  `parentOffset + N`.
+- **"Is this the last `dd`?"** — `$from.index(ddDepth) ===
+  $from.parent.childCount - 1`.
+- **"Is the sibling `dt` empty?"** — resolve the pair, read
+  `dtNode.content.size === 0`.
+
+This is **enforced by a test matrix** covering: insert at start/middle/end
+of a `dl`; add-pair in the last `dd`; Enter exit on an empty term;
+Backspace at a `dt` start; and a nested `dl`.
 
 ### 5.2 `addDefinitionPair`
 
@@ -470,12 +473,12 @@ The last two rows are the key UX decisions: **Enter in the last dd adds a
 pair**, and **Enter in the last dd whose dt is empty exits the dl** (mirroring
 how most editors let you "press Enter on an empty line to leave the list").
 
-> **Empty-pair cleanup transaction.** The trailing empty `(dt, dd)` pair and the
-> paragraph insertion happen in one transaction so that pressing Undo once
-> restores the list to its pre-exit state (cursor back inside the empty pair).
-> `exitDefinitionList` must therefore issue a single `tr` that both deletes the
-> trailing pair *and* inserts the exit paragraph, rather than dispatching two
-> separate transactions or splitting the work across an undo-group boundary.
+**Empty-pair cleanup transaction.** The trailing empty `(dt, dd)` pair and the
+paragraph insertion happen in one transaction so that pressing Undo once
+restores the list to its pre-exit state (cursor back inside the empty pair).
+`exitDefinitionList` must therefore issue a single `tr` that both deletes the
+trailing pair *and* inserts the exit paragraph, rather than dispatching two
+separate transactions or splitting the work across an undo-group boundary.
 
 ```typescript
 // pkg/prosemirror-editor/plugins/definitionListKeymap.ts
@@ -716,6 +719,6 @@ pkg/prosemirror-editor/
                                 export definitionListKeymap (§11)
 ```
 
-> The `ToolbarButton` descriptors themselves (the objects satisfying the
-> interface in §3) live wherever the advanced toolbar assembles its button
-> list; only the commands and keymap are separately exported for reuse.
+The `ToolbarButton` descriptors themselves (the objects satisfying the
+interface in §3) live wherever the advanced toolbar assembles its button
+list; only the commands and keymap are separately exported for reuse.

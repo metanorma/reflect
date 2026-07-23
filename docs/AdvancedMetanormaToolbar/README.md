@@ -366,9 +366,9 @@ signature from §5.3.3. The shell renders `<ToolbarButtonView>` for each
 `ToolbarButtonEntry`. After this step, `MetanormaToolbar`'s render body is a
 single `<Toolbar …/>` call.
 
-> The `GROUP_ORDER` constant (`:311`) is **retired** — ordering now comes from
-> the `groups` array passed to `<Toolbar>`, so a hardcoded order is no longer
-> needed.
+The `GROUP_ORDER` constant (`:311`) is **retired** — ordering now comes from
+the `groups` array passed to `<Toolbar>`, so a hardcoded order is no longer
+needed.
 
 #### 5.5.5 Step 4 — Split `buildButtons()` into four group modules
 
@@ -582,10 +582,10 @@ so the base component's public type is unaffected; `AdvancedMetanormaToolbar`
 uses the widened `AdvancedToolbarGroup`. The `<Toolbar>` shell is generic over
 the id type (it only requires `string` ids), so it serves both without change.
 
-> **Reconciliation note:** where an individual feature doc shows its own
-> `export type ToolbarGroup = …` extension of the base union, treat those as
-> illustrative. The consolidated type above is the one to implement, and the
-> advanced group ids are fixed by the table in §5.4.
+**Reconciliation note:** where an individual feature doc shows its own
+`export type ToolbarGroup = …` extension of the base union, treat those as
+illustrative. The consolidated type above is the one to implement, and the
+advanced group ids are fixed by the table in §5.4.
 
 ### 5.9 Render order
 
@@ -784,11 +784,11 @@ import type { Command } from "prosemirror-state";
    `metanormaSchema`; reports failure by returning `false`.
 5. **Selection-aware.** Behaviour follows `state.selection`.
 
-> **Toolbar `run(view)` is an adapter, not a command.** The `ToolbarButton.run`
-> field receives an `EditorView` (§2.3), but it is *not* itself a command. It
-> must extract `view.state`/`view.dispatch`, delegate to a pure command, and
-> then call `view.focus()` if appropriate. The `EditorView` never crosses into
-> `@metanorma/editor-commands`.
+**Toolbar `run(view)` is an adapter, not a command.** The `ToolbarButton.run`
+field receives an `EditorView` (§2.3), but it is *not* itself a command. It
+must extract `view.state`/`view.dispatch`, delegate to a pure command, and
+then call `view.focus()` if appropriate. The `EditorView` never crosses into
+`@metanorma/editor-commands`.
 
 ### 6.3 Transaction discipline
 

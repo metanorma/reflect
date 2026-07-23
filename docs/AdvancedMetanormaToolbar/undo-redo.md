@@ -6,7 +6,7 @@ This document is the detailed implementation proposal for **undo and redo
 toolbar controls** — the last of the six feature areas that
 `MetanormaToolbar.spec.md` §5.5 defers as "out of scope":
 
-> **Undo / redo** — handled by ProseMirror history plugin, not the schema.
+**Undo / redo** — handled by ProseMirror history plugin, not the schema.
 
 The other five deferred areas (tables, images/figures, sections, reference
 marks, definition lists) are all **schema-bound** operations: they insert or
@@ -175,29 +175,29 @@ consumer can still append its own keymap (e.g. higher-priority bindings) or a
 second history-aware plugin. `reactKeys()` remains first, unchanged, preserving
 the existing ordering invariant.
 
-> **How consumers enable undo/redo:** pass `history: DEFAULT_HISTORY_OPTIONS`
-> (or a custom `HistoryOptions`) to `createInitialEditorState`. For
-> controlled-mode consumers that build their own `EditorState`, import
-> `history`, `undo`, `redo`, and `buildUndoRedoKeymap` from
-> `@metanorma/editor-commands` / `@metanorma/prosemirror-editor` and add them
-> to the plugin list manually.
+**How consumers enable undo/redo:** pass `history: DEFAULT_HISTORY_OPTIONS`
+(or a custom `HistoryOptions`) to `createInitialEditorState`. For
+controlled-mode consumers that build their own `EditorState`, import
+`history`, `undo`, `redo`, and `buildUndoRedoKeymap` from
+`@metanorma/editor-commands` / `@metanorma/prosemirror-editor` and add them
+to the plugin list manually.
 
-> **Collaborative editing: do NOT enable plain `history`.** Plain
-> `prosemirror-history` tracks undo branches by local transaction sequence and
-> does not account for remote transactions arriving between local ones, so Undo
-> can produce surprising results in a collaborative editing context. Consumers
-> using a collaboration framework (e.g. `prosemirror-collab`, y-prosemirror)
-> should leave `history` `false` (or omit it) and use the collaboration
-> framework's own undo mechanism (e.g. y-prosemirror's `UndoManager`) instead.
-> The toolbar buttons would then dispatch to that mechanism rather than the
-> `undo`/`redo` re-exported here. No collab-specific code is shipped with this
-> feature; the `history: false` opt-out (the default) is the intended collab
-> path.
+**Collaborative editing: do NOT enable plain `history`.** Plain
+`prosemirror-history` tracks undo branches by local transaction sequence and
+does not account for remote transactions arriving between local ones, so Undo
+can produce surprising results in a collaborative editing context. Consumers
+using a collaboration framework (e.g. `prosemirror-collab`, y-prosemirror)
+should leave `history` `false` (or omit it) and use the collaboration
+framework's own undo mechanism (e.g. y-prosemirror's `UndoManager`) instead.
+The toolbar buttons would then dispatch to that mechanism rather than the
+`undo`/`redo` re-exported here. No collab-specific code is shipped with this
+feature; the `history: false` opt-out (the default) is the intended collab
+path.
 
-> **Ordering note:** the keymap is appended immediately after `history()` and
-> before consumer plugins. If a consumer needs to override `Mod-z`, they can
-> prepend a higher-priority keymap via the `plugins` option, since
-> `prosemirror-keymap` evaluates plugins in reverse order.
+**Ordering note:** the keymap is appended immediately after `history()` and
+before consumer plugins. If a consumer needs to override `Mod-z`, they can
+prepend a higher-priority keymap via the `plugins` option, since
+`prosemirror-keymap` evaluates plugins in reverse order.
 
 ### 4.2 Keyboard shortcut coverage
 
@@ -336,11 +336,11 @@ returns focus to the editor (a click on the button blurs it). This matches the
 behaviour expected of every toolbar button and keeps subsequent keystrokes
 flowing into the editor.
 
-> **Note on `view.dispatch` and `noUncheckedIndexedAccess`:** none of the
-> prosemirror-history APIs return array-indexed values to the toolbar layer, so
-> no additional null-checking is required here. `undo`/`redo` return a
-> `boolean` (whether anything happened) which the button ignores — a disabled
-> button cannot be clicked, and the keymap ignores the return value.
+**Note on `view.dispatch` and `noUncheckedIndexedAccess`:** none of the
+prosemirror-history APIs return array-indexed values to the toolbar layer, so
+no additional null-checking is required here. `undo`/`redo` return a
+`boolean` (whether anything happened) which the button ignores — a disabled
+button cannot be clicked, and the keymap ignores the return value.
 
 ## 6. Active and enabled detection
 
@@ -410,17 +410,17 @@ export {
 export type { HistoryOptions } from "prosemirror-history";
 ```
 
-> **Conformance note.** `undo`/`redo` from `prosemirror-history` already satisfy
-> every clause of the Command contract in `EditorCommands.spec.md` §1.5: they
-> act as a pure applicability predicate when called without `dispatch`
-> (§1.5.1/§1.5.3), dispatch exactly one transaction when applicable (§1.5.2),
-> and never throw on well-formed state (§1.5.4). Because they are reused with
-> **no** project-specific adaptation, no wrapper, factory, or `…Command`
-> suffix is introduced — the re-export under the standard `undo`/`redo` names
-> is the whole of the editor-commands surface for this feature
-> (§1.10.2, §1.10.3). The `EditorView`/`view.focus()` and plugin/keymap-wiring
-> concerns belong to `@metanorma/prosemirror-editor` (§1.13), and are covered in
-> §4 and §5 above.
+**Conformance note.** `undo`/`redo` from `prosemirror-history` already satisfy
+every clause of the Command contract in `EditorCommands.spec.md` §1.5: they
+act as a pure applicability predicate when called without `dispatch`
+(§1.5.1/§1.5.3), dispatch exactly one transaction when applicable (§1.5.2),
+and never throw on well-formed state (§1.5.4). Because they are reused with
+**no** project-specific adaptation, no wrapper, factory, or `…Command`
+suffix is introduced — the re-export under the standard `undo`/`redo` names
+is the whole of the editor-commands surface for this feature
+(§1.10.2, §1.10.3). The `EditorView`/`view.focus()` and plugin/keymap-wiring
+concerns belong to `@metanorma/prosemirror-editor` (§1.13), and are covered in
+§4 and §5 above.
 
 The package barrel `pkg/editor-commands/index.ts` re-exports these in turn:
 
@@ -456,15 +456,15 @@ separately undoable, in which case it should call
 grouping. That is deferred to the relevant feature doc; this document takes no
 position beyond "default grouping is fine".
 
-> **Async-prompted transactions start a new group — and that is correct.** Some
-> sibling features (e.g. reference marks) collect attributes via an async dialog
-> before dispatching. Because the dialog takes longer than `newGroupDelay`
-> (500ms), the resulting transaction naturally starts a **new undo group**.
-> This is the desired behaviour: a command triggered via a dialog after a pause
-> is a discrete user action, not a continuation of prior typing. Force-grouping
-> it with the preceding edit would make Undo revert both the just-inserted node
-> *and* unrelated earlier text — surprising. No force-grouping is applied; the
-> default `newGroupDelay` behaviour is accepted.
+**Async-prompted transactions start a new group — and that is correct.** Some
+sibling features (e.g. reference marks) collect attributes via an async dialog
+before dispatching. Because the dialog takes longer than `newGroupDelay`
+(500ms), the resulting transaction naturally starts a **new undo group**.
+This is the desired behaviour: a command triggered via a dialog after a pause
+is a discrete user action, not a continuation of prior typing. Force-grouping
+it with the preceding edit would make Undo revert both the just-inserted node
+*and* unrelated earlier text — surprising. No force-grouping is applied; the
+default `newGroupDelay` behaviour is accepted.
 
 ## 8. Styling
 
@@ -546,12 +546,12 @@ Exact versions to be pinned to whatever the workspace resolves; the ranges
 above are the current `prosemirror-*` 1.x line compatible with the existing
 `prosemirror-state@^1.4.4` / `prosemirror-view@1.42.0`.
 
-> The editor package no longer needs a direct `prosemirror-history` dependency
-> for the commands/keymap path — it reaches `undo`/`redo` through
-> `@metanorma/editor-commands`. It still imports the `history` plugin factory
-> and `HistoryOptions` in `state.ts`; those are re-exported through
-> `@metanorma/editor-commands`, so `prosemirror-editor` can import everything
-> from the one workspace package.
+The editor package no longer needs a direct `prosemirror-history` dependency
+for the commands/keymap path — it reaches `undo`/`redo` through
+`@metanorma/editor-commands`. It still imports the `history` plugin factory
+and `HistoryOptions` in `state.ts`; those are re-exported through
+`@metanorma/editor-commands`, so `prosemirror-editor` can import everything
+from the one workspace package.
 
 ### 11.2 `index.ts` exports
 

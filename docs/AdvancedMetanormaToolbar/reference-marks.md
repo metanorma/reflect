@@ -6,9 +6,9 @@ This document is the detailed implementation proposal for the **six reference
 and semantic marks** that `MetanormaToolbar.spec.md` §5.5 defers as "out of
 scope":
 
-> **Reference marks** (`xref`, `eref`, `concept`, `bcp14`) plus the
-> `footnote_marker` and `stem` inline nodes — require target/ID resolution
-> beyond simple toggle.
+**Reference marks** (`xref`, `eref`, `concept`, `bcp14`) plus the
+`footnote_marker` and `stem` inline nodes — require target/ID resolution
+beyond simple toggle.
 
 The base `MetanormaToolbar` covers inline **formatting** marks (§5.1) and the
 `link` mark (§5.4), both of which are either attribute-free toggles or require
@@ -41,13 +41,13 @@ the six reference marks and the new `refs` toolbar group they introduce into
 | Popover/prompt hooks (UI) | `pkg/prosemirror-editor/AdvancedMetanormaToolbar.tsx` |
 | New toolbar group | `'refs'` |
 
-> **Layering.** The pure command logic lives in `@metanorma/editor-commands`,
-> the framework-agnostic, DOM-free command package defined in
-> [`EditorCommands.spec.md`](../EditorCommands.spec.md). Everything that touches
-> the `EditorView`, the DOM, async prompt hooks, or React — the toolbar
-> component, the attribute-collection popovers/menus, and the `on*Prompt`
-> upgrade hooks — stays in `@metanorma/prosemirror-editor`. The editor package
-> **re-exports** the commands for toolbar consumption; it does not define them.
+**Layering.** The pure command logic lives in `@metanorma/editor-commands`,
+the framework-agnostic, DOM-free command package defined in
+[`EditorCommands.spec.md`](../EditorCommands.spec.md). Everything that touches
+the `EditorView`, the DOM, async prompt hooks, or React — the toolbar
+component, the attribute-collection popovers/menus, and the `on*Prompt`
+upgrade hooks — stays in `@metanorma/prosemirror-editor`. The editor package
+**re-exports** the commands for toolbar consumption; it does not define them.
 
 Rationale, as in the base spec and `EditorCommands.spec.md` §1.8: the
 **command logic** is schema-bound (it resolves `MarkType`s through
@@ -57,16 +57,16 @@ so it composes with keymaps and is headless-testable. It therefore belongs in
 `@handlewithcare/react-prosemirror` context, the prompt hooks, and the popover
 UI *are* editor-bound and stay in `prosemirror-editor`.
 
-> **Conformance note.** `applyReferenceMark` and the six `toggle*` wrappers
-> conform to the Command contract (`EditorCommands.spec.md` §1.5): they are
-> `Command`-typed `(state, dispatch?, …) => boolean` functions; calling
-> without `dispatch` is a pure applicability probe that mutates nothing;
-> calling with `dispatch` builds and dispatches exactly one transaction and
-> returns `true`; they return `false` when inapplicable; and they never throw
-> on well-formed state. They never take an `EditorView`, never call
-> `view.focus()` / `view.dispatch`, and never touch the DOM. The
-> `EditorView`/async/prompt concerns live in the toolbar adapter in
-> `prosemirror-editor` (§6.3).
+**Conformance note.** `applyReferenceMark` and the six `toggle*` wrappers
+conform to the Command contract (`EditorCommands.spec.md` §1.5): they are
+`Command`-typed `(state, dispatch?, …) => boolean` functions; calling
+without `dispatch` is a pure applicability probe that mutates nothing;
+calling with `dispatch` builds and dispatches exactly one transaction and
+returns `true`; they return `false` when inapplicable; and they never throw
+on well-formed state. They never take an `EditorView`, never call
+`view.focus()` / `view.dispatch`, and never touch the DOM. The
+`EditorView`/async/prompt concerns live in the toolbar adapter in
+`prosemirror-editor` (§6.3).
 
 ## 3. Schema recap
 
@@ -82,24 +82,26 @@ forms (e.g. `footnote_entry`), not to these marks.
 | `concept` | `ref: null` | `<span class="concept" data-ref>` | Reference to a concept / designation in a concept store. |
 | `bcp14` | `type: null` | `<span class="bcp14" data-type>` | A BCP14 [BCP14] keyword (`MUST`, `SHOULD`, …). `type` is an open free-text string (any keyword, any language). |
 
-> **`footnote` and `stem` are inline atom nodes, not marks.** The schema
-> defines `footnote_marker` and `stem` as inline atom nodes (`content: ""`,
-> `group: "inline"`, `atom: true`). The toolbar inserts them as **nodes**
-> (node-insertion commands), not mark toggles:
-> - `footnote_marker` (attrs `{ id, target, data }`) mirrors Metanorma
->   Presentation XML's `<fn>` element — an inline element at the reference site
->   (not a text-wrapping mark). The `footnote` mark exists in the schema but is
->   unused by the toolbar. See §5.5.
-> - `stem` (attrs `{ asciimath, mathml, data }`) is an inline formula atom —
->   the math source lives in attrs, not as wrapped text. This makes host-
->   provided live math preview possible via node-view override (like block
->   `formula`). The former `stem` mark has been **removed** from the schema;
->   `stem` is now solely a node. See §5.6.
->
-> - `formula` — a **block-level** atom node for display equations (separate
->   from the inline `stem` node). Block formula insertion/editing is out of
->   scope for this document; it would belong in a future blocks/insert group.
->   A host can override `FormulaNodeView` for rendering or popover editing.
+#### footnote and stem are inline atom nodes, not marks
+
+The schema defines `footnote_marker` and `stem` as inline atom nodes (`content: ""`,
+`group: "inline"`, `atom: true`). The toolbar inserts them as **nodes**
+(node-insertion commands), not mark toggles:
+
+- `footnote_marker` (attrs `{ id, target, data }`) mirrors Metanorma
+  Presentation XML's `<fn>` element — an inline element at the reference site
+  (not a text-wrapping mark). The `footnote` mark exists in the schema but is
+  unused by the toolbar. See §5.5.
+- `stem` (attrs `{ asciimath, mathml, data }`) is an inline formula atom —
+  the math source lives in attrs, not as wrapped text. This makes host-
+  provided live math preview possible via node-view override (like block
+  `formula`). The former `stem` mark has been **removed** from the schema;
+  `stem` is now solely a node. See §5.6.
+
+- `formula` — a **block-level** atom node for display equations (separate
+  from the inline `stem` node). Block formula insertion/editing is out of
+  scope for this document; it would belong in a future blocks/insert group.
+  A host can override `FormulaNodeView` for rendering or popover editing.
 
 ## 4. Button-group overview
 
@@ -136,16 +138,16 @@ The default (no hook) implementations are deliberately minimal —
 replaced. The hooks make the toolbar usable out of the box while leaving the
 real UX to the host.
 
-> **UI/command boundary.** Attribute resolution — the xref target picker, the
-> eref cite picker, the concept picker, the bcp14 keyword prompt, footnote id
-> generation, the stem formula popover, and all the `on*Prompt` hooks — is a
-> **UI concern** and lives in `@metanorma/prosemirror-editor`
-> (the toolbar component). The pure commands in
-> `@metanorma/editor-commands` (§6) receive **already-resolved** attribute
-> values and never prompt, await, or touch the DOM. The toolbar's `run(view)`
-> adapter is the seam: it resolves the attribute through the hook, then calls
-> the command as `toggleXref(view.state, view.dispatch, target)` (and
-> `view.focus()` afterwards), as shown in §6.3.
+**UI/command boundary.** Attribute resolution — the xref target picker, the
+eref cite picker, the concept picker, the bcp14 keyword prompt, footnote id
+generation, the stem formula popover, and all the `on*Prompt` hooks — is a
+**UI concern** and lives in `@metanorma/prosemirror-editor`
+(the toolbar component). The pure commands in
+`@metanorma/editor-commands` (§6) receive **already-resolved** attribute
+values and never prompt, await, or touch the DOM. The toolbar's `run(view)`
+adapter is the seam: it resolves the attribute through the hook, then calls
+the command as `toggleXref(view.state, view.dispatch, target)` (and
+`view.focus()` afterwards), as shown in §6.3.
 
 ### 5.1 `xref` — target resolution
 
@@ -231,12 +233,12 @@ selection as a `bcp14 type="MUST"` span).
 readonly onBcp14Prompt?: (context: RefPromptContext) => Promise<string | null>;
 ```
 
-> **No enum, by design.** The schema's `type` attr is an open string; the
-> editor does not constrain it. BCP 14 (RFC 2119 / RFC 8174) defines a
-> canonical English keyword set, but the editor treats that as an authoring
-> convention, not a hard constraint — allowing keywords in any language and
-> deferring stricter validation (or a host-supplied curated menu) to future
-> work without a schema change.
+**No enum, by design.** The schema's `type` attr is an open string; the
+editor does not constrain it. BCP 14 (RFC 2119 / RFC 8174) defines a
+canonical English keyword set, but the editor treats that as an authoring
+convention, not a hard constraint — allowing keywords in any language and
+deferring stricter validation (or a host-supplied curated menu) to future
+work without a schema change.
 
 ### 5.5 `footnote` — `footnote_marker` node insertion
 
@@ -275,16 +277,16 @@ inserts a `footnote_marker` node at the cursor; its `target` attr points at a
 readonly onFootnotePrompt?: (context: RefPromptContext) => Promise<string | null>;
 ```
 
-> **Orphan / dangling-reference highlighting (future work).** Because removal
-> is independent, a `footnote_entry` can become an orphan (no
-> `footnote_marker` references it) and a `footnote_marker` can dangle (its
-> `target` has no entry). Highlighting these — via a generic reference-integrity
-> decoration plugin (a `Plugin` with a `decorations` state field that walks the
-> doc once per transaction) — is **deferred to a separate feature** spanning
-> `footnote_marker`, `xref`, and `concept` (all share the dangling-reference
-> shape). The editor already accepts arbitrary plugins via
-> `MetanormaProseMirror`'s `plugins` prop; the plugin is strictly additive and
-> non-blocking.
+**Orphan / dangling-reference highlighting (future work).** Because removal
+is independent, a `footnote_entry` can become an orphan (no
+`footnote_marker` references it) and a `footnote_marker` can dangle (its
+`target` has no entry). Highlighting these — via a generic reference-integrity
+decoration plugin (a `Plugin` with a `decorations` state field that walks the
+doc once per transaction) — is **deferred to a separate feature** spanning
+`footnote_marker`, `xref`, and `concept` (all share the dangling-reference
+shape). The editor already accepts arbitrary plugins via
+`MetanormaProseMirror`'s `plugins` prop; the plugin is strictly additive and
+non-blocking.
 
 ### 5.6 `stem` — inline formula node insertion
 
@@ -309,17 +311,17 @@ export interface StemResult {
 }
 ```
 
-> **No renderer is bundled.** v1 ships source-only (the popover collects
-> AsciiMath/MathML source; no live preview). A host can add rendering by
-> overriding the `stem` node view (and the block `FormulaNodeView`) with a
-> component that uses a math library (MathJax, KaTeX, MathLive, etc.). Future
-> work: embedding an interactive math field (e.g. MathLive's `<math-field>`)
-> directly in the editor for WYSIWYG inline editing.
->
-> **Block formulas** use the separate block-level `formula` node and are out of
-> scope for this button. Block formula editing can be provided by the host via
-> a popover on node selection (the same source/preview pattern), or
-> future WYSIWYG via an embedded interactive math field.
+**No renderer is bundled.** v1 ships source-only (the popover collects
+AsciiMath/MathML source; no live preview). A host can add rendering by
+overriding the `stem` node view (and the block `FormulaNodeView`) with a
+component that uses a math library (MathJax, KaTeX, MathLive, etc.). Future
+work: embedding an interactive math field (e.g. MathLive's `<math-field>`)
+directly in the editor for WYSIWYG inline editing.
+
+**Block formulas** use the separate block-level `formula` node and are out of
+scope for this button. Block formula editing can be provided by the host via
+a popover on node selection (the same source/preview pattern), or
+future WYSIWYG via an embedded interactive math field.
 
 ### 5.7 Shared prompt context
 
@@ -368,10 +370,10 @@ wrappers, all conforming to the ProseMirror `Command` contract
 - **Naming.** Named for the action (`toggleXref`, `applyReferenceMark`), not
   the trigger; no `Command` suffix (`EditorCommands.spec.md` §1.10.2).
 
-> The attribute-collection arguments below (`target`, `cite`, `ref`, `type`,
-> `id`, `source`) are **already-resolved** values — the toolbar obtains them
-> via the §5 prompt hooks before calling. The commands never prompt or
-> `await`.
+The attribute-collection arguments below (`target`, `cite`, `ref`, `type`,
+`id`, `source`) are **already-resolved** values — the toolbar obtains them
+via the §5 prompt hooks before calling. The commands never prompt or
+`await`.
 
 ### 6.1 Generic core
 
@@ -542,13 +544,13 @@ active at the selection calls the wrapper with a `null` value
 `applyReferenceMark`'s removal branch (§6.1 step 3) — mirroring the base `link`
 button's removal behaviour.
 
-> **Node toggle (`footnote_marker`, `stem`).** For inline atom nodes, clicking
-> while the node is selected (active) **deletes the node** from the document.
-> Deleting a `footnote_marker` never deletes its `footnote_entry` (§5.5).
+**Node toggle (`footnote_marker`, `stem`).** For inline atom nodes, clicking
+while the node is selected (active) **deletes the node** from the document.
+Deleting a `footnote_marker` never deletes its `footnote_entry` (§5.5).
 
-> **Implementation note:** `refMarkActive` for `bcp14` may optionally surface
-> the stored mark's `type` (the active keyword) for display; the minimum
-> requirement is presence.
+**Implementation note:** `refMarkActive` for `bcp14` may optionally surface
+the stored mark's `type` (the active keyword) for display; the minimum
+requirement is presence.
 
 ## 8. Styling
 
@@ -634,12 +636,12 @@ export type {
 export type { ToolbarGroup } from "./AdvancedMetanormaToolbar.js";
 ```
 
-> **Split rationale.** Commands are pure and schema-derived, so they originate
-> in `@metanorma/editor-commands`. The
-> `RefPromptContext` / `StemPromptContext` / `StemResult` types describe the
-> **attribute-resolution UI** (they carry `EditorState` for host pickers and
-> are consumed only by the `on*Prompt` hooks), so they stay in
-> `prosemirror-editor` alongside the toolbar component.
+**Split rationale.** Commands are pure and schema-derived, so they originate
+in `@metanorma/editor-commands`. The
+`RefPromptContext` / `StemPromptContext` / `StemResult` types describe the
+**attribute-resolution UI** (they carry `EditorState` for host pickers and
+are consumed only by the `on*Prompt` hooks), so they stay in
+`prosemirror-editor` alongside the toolbar component.
 
 `ToolbarGroup` is extended in `AdvancedMetanormaToolbar.tsx` to add
 `'refs'`:

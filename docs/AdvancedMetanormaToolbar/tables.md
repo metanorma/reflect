@@ -6,7 +6,7 @@ This document is the detailed implementation proposal for **table insertion** in
 the `AdvancedMetanormaToolbar`. It addresses the single item deferred by
 `MetanormaToolbar.spec.md` §5.5:
 
-> **Tables** — insertion requires row/column dimension selection UI.
+**Tables** — insertion requires row/column dimension selection UI.
 
 Inserting a table is structurally unlike toggling a mark or wrapping a block: it
 requires the user to choose a row and column count up front, and it must build a
@@ -133,12 +133,12 @@ export function InsertTableButton() {
 }
 ```
 
-> **Note on `ToolbarButton`.** The base descriptor's `run(view)` signature
-> cannot express "open a popover". This proposal therefore treats the table
-> button as a first-class React element rendered in its own toolbar slot,
-> reusing the same `.mn-toolbar-btn` classes for visual consistency but not the
-> literal `ToolbarButton` object. This is the minimal, non-invasive deviation
-> from the base toolbar contract; all other buttons remain `ToolbarButton`s.
+**Note on `ToolbarButton`.** The base descriptor's `run(view)` signature
+cannot express "open a popover". This proposal therefore treats the table
+button as a first-class React element rendered in its own toolbar slot,
+reusing the same `.mn-toolbar-btn` classes for visual consistency but not the
+literal `ToolbarButton` object. This is the minimal, non-invasive deviation
+from the base toolbar contract; all other buttons remain `ToolbarButton`s.
 
 ## 5. Row/column dimension selection UI — the grid picker
 
@@ -333,9 +333,9 @@ writes only through the supplied `dispatch`, and never imports `prosemirror-view
 or touches the DOM. The `EditorView` / `view.focus()` concerns live exclusively
 in the toolbar adapter in `@metanorma/prosemirror-editor` (§4, §5.2).
 
-> **Command vs. trigger.** Per the naming rule
-> (`docs/EditorCommands.spec.md` §1.10.2) the command is named for the action it
-> performs (`insertTable`), not for its UI trigger. There is no `Command` suffix.
+**Command vs. trigger.** Per the naming rule
+(`docs/EditorCommands.spec.md` §1.10.2) the command is named for the action it
+performs (`insertTable`), not for its UI trigger. There is no `Command` suffix.
 
 ### 8.1 Signature
 
@@ -404,15 +404,15 @@ referenceable by `xref`/`eref`. The command uses the shared `generateId()`
 helper from `@metanorma/editor-commands` (`util.ts`), which returns a
 `crypto.randomUUID()`-based string.
 
-> **Alternative (not adopted):** leave `id` as `null` and let a downstream
-> document pipeline assign ids. This was rejected in favour of assigning at
-> insertion time for consistency across all node-insertion commands (tables,
-> figures, sections, footnotes).
+**Alternative (not adopted):** leave `id` as `null` and let a downstream
+document pipeline assign ids. This was rejected in favour of assigning at
+insertion time for consistency across all node-insertion commands (tables,
+figures, sections, footnotes).
 
-> **The `title` (caption) attribute is not collected at insertion time.** The
-> table's `title` is left `null` and can be edited later (e.g. via a node view
-> or a future properties panel). Adding a caption prompt to the insert flow was
-> considered and deferred to keep the grid-picker interaction lightweight.
+**The `title` (caption) attribute is not collected at insertion time.** The
+table's `title` is left `null` and can be edited later (e.g. via a node view
+or a future properties panel). Adding a caption prompt to the insert flow was
+considered and deferred to keep the grid-picker interaction lightweight.
 
 ### 8.2 Algorithm
 
@@ -531,12 +531,12 @@ const onCommit = (view, r, c) => {
 };
 ```
 
-> **Position arithmetic.** `firstCellPos = startPos + 4` reflects four nested
-> "enter node" offsets: `table` (+1), `table_body` (+1), `table_row` (+1),
-> `table_cell` (+1). `TextSelection.near(..., 1)` resolves forward onto the
-> empty paragraph's content start and is robust to small offsets; prefer it over
-> hard-coded positions in production code. If `replaceSelectionWith` lands the
-> table adjacent to a block rather than replacing it, recompute `startPos` from
+**Position arithmetic.** `firstCellPos = startPos + 4` reflects four nested
+"enter node" offsets: `table` (+1), `table_body` (+1), `table_row` (+1),
+`table_cell` (+1). `TextSelection.near(..., 1)` resolves forward onto the
+empty paragraph's content start and is robust to small offsets; prefer it over
+hard-coded positions in production code. If `replaceSelectionWith` lands the
+table adjacent to a block rather than replacing it, recompute `startPos` from
   `tr.doc.resolve` by searching forward for the first `table_cell`.
 
 ### 8.4 Why a single `table_body`
