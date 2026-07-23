@@ -401,6 +401,23 @@ schema-agnostic.
 > perform. (Should a future variant need to *override* node names, it can be
 > added as an explicit factory without changing this command.)
 
+#### 8.1.2 ID assignment
+
+The `table` node is created with a **generated `id`** so it is immediately
+referenceable by `xref`/`eref`. The command uses the shared `generateId()`
+helper from `@metanorma/editor-commands` (`util.ts`), which returns a
+`crypto.randomUUID()`-based string.
+
+> **Alternative (not adopted):** leave `id` as `null` and let a downstream
+> document pipeline assign ids. This was rejected in favour of assigning at
+> insertion time for consistency across all node-insertion commands (tables,
+> figures, sections, footnotes).
+
+> **The `title` (caption) attribute is not collected at insertion time.** The
+> table's `title` is left `null` and can be edited later (e.g. via a node view
+> or a future properties panel). Adding a caption prompt to the insert flow was
+> considered and deferred to keep the grid-picker interaction lightweight.
+
 ### 8.2 Algorithm
 
 1. **Validate (and, if no `dispatch`, report).** Run the shared legality check
@@ -411,10 +428,10 @@ schema-agnostic.
    mutate anything (§1.5(1)).
 2. **Clamp dimensions.** `rows = clamp(rows ?? 1, 1, MAX_ROWS)`,
    `cols = clamp(cols ?? 1, 1, MAX_COLS)`.
-3. **Build the node tree** bottom-up using the schema node types resolved from
-   `state.schema` and `NodeType.create` / `node.create`. Every leaf cell contains
-   a single empty `paragraph` (a `block`, satisfying `table_cell`'s `block+`
-   content).
+  3. **Build the node tree** bottom-up using the schema node types resolved from
+     `state.schema` and `NodeType.create` / `node.create`. Every leaf cell contains
+     a single empty `paragraph` (a `block`, satisfying `table_cell`'s `block+`
+     content). The `table` node is created with a **generated `id`** (see §8.1.2).
 4. **Insert.** Replace the (possibly empty) selection with the `table` node via
    `tr.replaceSelectionWith(table)`. When the selection is empty and inside a
    paragraph, ProseMirror splits appropriately; when the parent is a block that
@@ -439,6 +456,7 @@ schema-agnostic.
 import type { EditorState, Transaction } from "prosemirror-state";
 import { TextSelection } from "prosemirror-state";
 import type { Node, Schema } from "prosemirror-model";
+import { generateId } from "../util.js";
 // NOTE: no `prosemirror-view` import — this command never touches EditorView/DOM.
 
 export const MAX_ROWS = 10;
@@ -465,10 +483,9 @@ function buildTable(schema: Schema, rows: number, cols: number): Node {
     return rowType.create(null, cells);
   });
 
-  const body = bodyType.create(null, rowNodes);
-  // table attrs { id, number, title, data } all default null/{};
-  // create() applies the defaults when `null` is passed.
-  return tableType.create(null, [body]);
+    const body = bodyType.create(null, rowNodes);
+    // table attrs: id is generated (§8.1.2), number/title default null, data defaults {}.
+    return tableType.create({ id: generateId() }, [body]);
 }
 
 export function insertTable(
@@ -565,11 +582,6 @@ These are genuine design decisions left for the implementer / product owner:
    (Note: `prosemirror-tables` is already referenced as future work in
    `MetanormaProseMirror.spec.md` and `schema.spec.md`; the custom command here
    is an interim that does not preclude a later migration.)
-6. **ID assignment.** `table` carries `id` (default `null`). Should insertion
-   assign a generated ID (for cross-referencing) or leave it `null` for the
-   document pipeline to fill? Current proposal leaves it `null`.
-7. **Title attribute.** `table` has a `title` attr. Should insertion prompt for
-   a caption/title, analogous to the base toolbar's link-URL prompt? Deferred.
 
 ## 10. Export changes
 

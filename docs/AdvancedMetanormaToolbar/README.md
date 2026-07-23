@@ -614,7 +614,7 @@ pkg/editor-commands/src/                  ← pure commands (no React, no DOM, n
     definitionList.ts                     ← insertDefinitionList, addDefinitionPair (+ helpers)         [new]
     toggleList.ts                         ← toggleList (pure Command)                                     [refactor: from prosemirror-editor]
     history.ts                            ← undo, redo (re-exports of prosemirror-history)               [new]
-  util.ts                                 ← chainCommands, shared predicates                              [new]
+  util.ts                                 ← chainCommands, generateId, shared predicates [new]
   schema.ts                               ← name-resolution helpers (NODE_NAMES / MARK_NAMES)             [new]
   index.ts                                ← public command exports                                        [new]
 
@@ -672,7 +672,7 @@ export {
 } from "./commands/definitionList.js";
 export { toggleList } from "./commands/toggleList.js";
 export { undo, redo } from "./commands/history.js";
-export { chainCommands } from "./util.js";
+export { chainCommands, generateId } from "./util.js";
 
 
 // ── pkg/prosemirror-editor/src/index.ts ── React editor + toolbar ──
@@ -685,10 +685,10 @@ export type { MetanormaToolbarProps, ToolbarGroup } from "./MetanormaToolbar.js"
 export { AdvancedMetanormaToolbar } from "./AdvancedMetanormaToolbar.js";
 export type { AdvancedMetanormaToolbarProps, AdvancedToolbarGroup } from "./AdvancedMetanormaToolbar.js";
 
-// Shared primitives (for consumers composing a custom toolbar)
-export { Toolbar } from "./toolbar/Toolbar.js";
-export type { ToolbarProps, ToolbarGroupDef, ToolbarEntry, ToolbarButton } from "./toolbar/types.js";
-export { baseGroups, buildAdvancedGroups } from "./toolbar/groups/index.js";
+// Shared primitives — internal for now (not exported from index.ts).
+// Consumers use the two assembler components below.
+// (Internals: toolbar/Toolbar.tsx, toolbar/ToolbarButtonView.tsx,
+//  toolbar/types.ts, toolbar/groups/index.ts.)
 
 // Stateful UI components (view adapters + popovers/dialogs)
 export { TableSizePicker } from "./toolbar/TableSizePicker.js";
@@ -717,26 +717,20 @@ export {
 
 ### 5.13 Potential further developments
 
-- **Should `<Toolbar>` be a public primitive?** Exposing it (§5.11) lets hosts
-  build fully custom toolbars from the registry, but expands the public API
-  surface. Alternatively keep it internal and expose only the two assembler
-  components.
-- **Stateful-control ergonomics.** The `kind: "control"` entry renders an
-  opaque `ReactNode`. Should controls instead implement a common
-  `ToolbarControlComponent` interface (e.g. with a uniform `disabled` contract)
-  so the shell can apply `.mn-toolbar-btn--disabled` consistently?
-- **Prop threading scale.** As more features gain prompt/upload hooks,
-  `AdvancedMetanormaToolbarProps` grows. Consider grouping callbacks under a
-  single `features?: { image?: …, refs?: … }` object, or letting hosts pass a
-  per-group props map.
-- **History default.** `undo-redo.md` proposes enabling the history plugin by
-  default in `createInitialEditorState`. That affects *all* editors, not just
-  those using the advanced toolbar — needs a decision on opt-in vs default-on
-  (see that doc's open questions).
 - **`floating_title` overlap.** The `sections` group inserts `clause` headings;
   the schema also has a standalone `floating_title` block node. Decide whether
   heading creation should ever produce a `floating_title` instead of a clause
   `title` attr (see `sections.md` open questions).
+
+> **Resolved decisions.** `<Toolbar>`, `ToolbarGroupDef`, and the group
+> registry are kept **internal** for now (not part of the public API surface
+> exported from `index.ts`); only the two assembler components
+> (`MetanormaToolbar`, `AdvancedMetanormaToolbar`) and their props/types are
+> exported. Stateful `control` entries render an opaque `ReactNode` for now (a
+> common `disabled`-contract interface may come later). Feature-callback
+> threading is done via direct props on `AdvancedMetanormaToolbarProps` for now
+> (a per-group props map may come later). History is **opt-in**, not
+> default-on (see `undo-redo.md` §4.1).
 
 ## 6. Command layering (alignment with `EditorCommands.spec.md`)
 

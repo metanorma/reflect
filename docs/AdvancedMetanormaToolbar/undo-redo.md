@@ -83,17 +83,17 @@ Two facts drive the whole design:
 
 ## 4. Plugin wiring
 
-### 4.1 Add `history()` to the default plugin list
+### 4.1 Enable `history()` as an opt-in
 
-The recommendation is to enable the history plugin **by default** in
-`createInitialEditorState`, so that undo/redo (both via keyboard and via the
-toolbar) works out of the box for every consumer of
-`@metanorma/prosemirror-editor`. A new `history` option configures it or turns
-it off for the rare consumer that wants to manage history itself (or use a
-collaboration-aware history; see §8).
+History is **not** added to the default plugin list. The existing
+`createInitialEditorState` (in `pkg/prosemirror-editor/src/state.ts`) builds
+the plugin list as `[reactKeys(), ...(opts.plugins ?? [])]` and remains
+unchanged by default. This avoids a surprising behaviour change for existing
+consumers (who would silently gain an undo stack and new keyboard bindings).
 
-Proposed new signature for `createInitialEditorState`
-(`pkg/prosemirror-editor/src/state.ts`):
+Consumers who want undo/redo opt in by passing the history plugin and keymap
+through the existing `plugins` option, or by setting the new `history` option
+on `createInitialEditorState`:
 
 ```typescript
 import { EditorState, type Plugin } from "prosemirror-state";
@@ -112,7 +112,7 @@ import type { MirrorDocument } from "./types.js";
  * Default history configuration: `newGroupDelay` of 500ms so that a burst of
  * typing (e.g. fast keystrokes, or a single drag-selection) collapses into one
  * undo step, matching conventional editor behaviour. `preserveItems` left at
- * its default (`false`).
+ * its default (`false`) — no feature currently depends on unreachable branches.
  */
 export const DEFAULT_HISTORY_OPTIONS: Readonly<HistoryOptions> = {
   newGroupDelay: 500,
@@ -140,19 +140,17 @@ export function createInitialEditorState(opts: {
   plugins?: readonly Plugin[];
   editable?: boolean;
   /**
-   * History plugin configuration.
-   * - `undefined` (default): history is enabled with DEFAULT_HISTORY_OPTIONS.
-   * - `HistoryOptions`: history enabled with the supplied config.
-   * - `false`: history is NOT added (consumer supplies its own, e.g. collab).
+   * History plugin configuration. Opt-in — history is NOT added by default.
+   * - `undefined` / `false` (default): history is NOT added.
+   * - `HistoryOptions`: history enabled with the supplied config, plus the
+   *   undo/redo keymap.
    */
   history?: HistoryOptions | false;
 }): EditorState {
-  const historyOpt = opts.history ?? DEFAULT_HISTORY_OPTIONS;
-
   const basePlugins: Plugin[] = [reactKeys()];
 
-  if (historyOpt !== false) {
-    basePlugins.push(history(historyOpt));
+  if (opts.history) {
+    basePlugins.push(history(opts.history));
     basePlugins.push(buildUndoRedoKeymap());
   }
 
@@ -164,10 +162,17 @@ export function createInitialEditorState(opts: {
 }
 ```
 
-`history()` always precedes consumer-supplied `plugins`, so a consumer can
-still append its own keymap (e.g. higher-priority bindings) or a second
-history-aware plugin. `reactKeys()` remains first, unchanged, preserving the
-existing ordering invariant.
+When enabled, `history()` always precedes consumer-supplied `plugins`, so a
+consumer can still append its own keymap (e.g. higher-priority bindings) or a
+second history-aware plugin. `reactKeys()` remains first, unchanged, preserving
+the existing ordering invariant.
+
+> **How consumers enable undo/redo:** pass `history: DEFAULT_HISTORY_OPTIONS`
+> (or a custom `HistoryOptions`) to `createInitialEditorState`. For
+> controlled-mode consumers that build their own `EditorState`, import
+> `history`, `undo`, `redo`, and `buildUndoRedoKeymap` from
+> `@metanorma/editor-commands` / `@metanorma/prosemirror-editor` and add them
+> to the plugin list manually.
 
 > **Ordering note:** the keymap is appended immediately after `history()` and
 > before consumer plugins. If a consumer needs to override `Mod-z`, they can
@@ -459,50 +464,36 @@ the baseline (base §9, README §2.5) with no extra work:
 
 Genuine unknowns to resolve before/while implementing:
 
-1. **History on by default vs. opt-in — backwards-compatibility.** Enabling
-   `history()` in `createInitialEditorState` changes the default plugin list
-   for *every* existing consumer of `@metanorma/prosemirror-editor`. For
-   controlled-mode consumers this is harmless (they own the state), but
-   uncontrolled consumers will silently gain an undo stack and new keymap
-   bindings. Is that an acceptable default change, or should history be opt-in
-   (`history: false` by default) for a release to avoid surprising existing
-   hosts? This is the single biggest decision in the document.
-2. **`HistoryOptions` defaults.** The proposed `newGroupDelay: 500` is the
+1. **`HistoryOptions` defaults.** The proposed `newGroupDelay: 500` is the
    conventional value (used by `prosemirror-example-setup`), but Metanorma
    editing may benefit from a different threshold (longer, to group more
    structural edits; or shorter, for finer-grained undo). Need to decide the
    shipped default and whether it is tunable per instance.
-3. **Expose a `history` prop on `MetanormaProseMirrorProps`?** §4.3 proposes
+2. **Expose a `history` prop on `MetanormaProseMirrorProps`?** §4.3 proposes
    it, but only the uncontrolled branch can honour it. Should controlled-mode
    consumers be given a helper (e.g. an exported `buildDefaultPlugins()` or a
    documented recipe) so they can construct a state with history without
    reaching into `prosemirror-history` themselves?
-4. **Collaboration / `prosemirror-collab` interaction.** If real-time
+3. **Collaboration / `prosemirror-collab` interaction.** If real-time
    collaboration is on the roadmap, plain `prosemirror-history` is known to
    interact poorly with collaborative editing (rebasing, undo across remote
-   changes). Should the `history: false` escape hatch be documented as the
+   changes). Should the opt-out (`no `history` option) be documented as the
    collab path now, or is a dedicated `collab-history` layer expected later?
-   This affects whether history should be default-on.
-5. **Should async transactions from other features group?** Some sibling
+4. **Should async transactions from other features group?** Some sibling
    features (reference marks) collect attributes via an async prompt before
    dispatching. If the prompt takes longer than `newGroupDelay`, the resulting
    transaction starts a new group — usually desirable. Confirm this is
    acceptable, or whether those flows should force-group.
-6. **Redo key cross-platform.** §4.2 binds both `Shift-Mod-z` and `Mod-y` to
+5. **Redo key cross-platform.** §4.2 binds both `Shift-Mod-z` and `Mod-y` to
    redo for portability. Confirm this does not collide with any host-level
    shortcut (some apps reserve `Mod-y` for "redo" already; others for replay).
    Also confirm there is no need for a mac-only `Mod-Shift-z` without `Mod-y`.
-7. **Mobile shortcut handling.** On touch devices there is no `Mod-z`. The
-   toolbar buttons cover mobile, but should a long-press or a mobile-specific
-   gesture be considered, or are the buttons sufficient? (Likely: buttons are
-   sufficient for v1.)
-8. **History depth / memory ceiling.** `prosemirror-history` keeps a bounded
-   history but it can grow for large documents. Should a max depth be exposed
-   (the library does not expose a depth cap directly — `preserveItems: false`
-   is the main lever)? Likely out of scope for v1, but worth a decision.
-9. **`preserveItems` default.** Left at the library default (`false`). Confirm
-   no feature depends on keeping unreachable history branches (none currently
-   appear to).
+
+> **Resolved decisions.** History is **opt-in**, not default-on (§4.1) —
+> existing consumers are unaffected unless they pass the `history` option.
+> Mobile relies on the toolbar buttons (sufficient for v1). History depth /
+> memory ceiling is out of scope for v1 (`preserveItems: false` is the only
+> lever; no feature depends on unreachable branches).
 
 ## 11. Export and package changes
 

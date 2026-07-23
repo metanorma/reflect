@@ -172,7 +172,7 @@ following rules:
 | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references`, `floating_title` | `id`, `number`, `title` | `SectionAttrs` (extends `BaseAttrs`) |
 | `preface`, `sections`, `bibliography` | `id`, `number` | `BaseAttrs` |
 | `formula` | `id`, `number`, `asciimath`, `mathml`, `math_text` | `FormulaAttrs` |
-| `figure` | `id`, `number`, `title`, `src`, `alt` | `FigureAttrs` |
+| `figure` | `id`, `number`, `title`, `src` | `FigureAttrs` |
 | `table` | `id`, `number`, `title` | `TableAttrs` |
 | `table_cell` | `colspan` (default `1`), `rowspan` (default `1`) | `TableCellAttrs` |
 | `image` | `src` (default `""`), `alt` | `ImageAttrs` (`src` required in TS → default `""` + runtime validation) |

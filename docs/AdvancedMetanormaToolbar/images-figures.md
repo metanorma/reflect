@@ -40,7 +40,7 @@ defined in `pkg/prosemirror-schema/src/nodes.ts` §8.6). The relevant fragment:
 
 | Node | Content | Group | Atom | Draggable | Attrs |
 |---|---|---|---|---|---|
-| `figure` | `(image \| block)*` | `block` | no | — | `id`, `number`, `title`, `src`, `alt` (all default `null`), plus `data` (default `{}`) |
+| `figure` | `(image \| block)*` | `block` | no | — | `id`, `number`, `title`, `src` (all default `null`), plus `data` (default `{}`) |
 | `image` | *(empty)* | **none** | yes | yes | `src` (default `""`), `alt` (default `null`), plus `data` (default `{}`) |
 
 Three consequences drive the entire design:
@@ -62,12 +62,13 @@ Three consequences drive the entire design:
    `assertValidImageAttrs` guard may be used internally, wrapped in a
    `try`/`catch` that converts the throw into a `false` return. This is exactly
    the concern the base spec's §5.5 anticipated.
-3. **`figure` itself also declares `src` and `alt`.** Both default `null` and are
-   **not** rendered by `figure`'s `toDOM` (which emits only `class="figure"` and
-   `data-id`). The rendered image attributes live on the `image` child. This
-   duplication is noted as an open question (§10); the command sets
-   `image.src`/`image.alt` and leaves `figure.src`/`figure.alt` at their `null`
-   defaults.
+3. **`figure` and `image` split attribute responsibility.** `figure` owns
+   `title` (the caption) and retains `src`; it has **no `alt`**. `image` owns
+   `alt` (the a11y text) and its own `src`; it has **no `title`**. There is
+   therefore **no duplicated `alt`** to mirror or ignore — the two nodes carry
+   disjoint caption/a11y attributes by design (§10 resolved decision). The
+   rendered image attributes (`src`, `alt`) live on the `image` child; `figure`
+   renders only `class="figure"` and `data-id`.
 
 The guard, exported from both `@metanorma/prosemirror-schema` and
 `@metanorma/prosemirror-editor`:
@@ -174,9 +175,15 @@ would be legal (`figure` content is `(image | block)*`, so an empty figure
 satisfies the `*`), but it would produce a figure with nothing to display and no
 way to add an image except by re-opening this very dialog. Since the toolbar is
 the only image-entry surface, the single "Insert image" button always emits a
-complete `figure > image`. If bare-figure insertion (e.g. for a figure that will
-hold only caption blocks) becomes a real need, it can be added later as a second
-button; it is deferred to §10.
+complete `figure > image`. An image-less (caption-only) figure is **not needed**
+for v1 and will not be added: the schema mandates `figure > image`, and the
+single button always produces that.
+
+> **The `title` (caption) attribute is not collected at insertion time.** The
+> dialog collects only `src` and `alt`; `figure.title` is left `null` and can
+> be edited later (e.g. via a node view or a future properties panel). Adding a
+> caption field to the insert dialog was considered and deferred to keep the
+> dialog lightweight.
 
 ## 5. Source resolution — the `ImageInsertDialog`
 
@@ -262,8 +269,15 @@ integration, but with an important caveat:
 > serialization: `node.toJSON()` stores the `blob:` string verbatim, and a
 > reloaded or server-rendered document cannot resolve it. Object URLs are
 > therefore appropriate only for ephemeral/local editing. Production deployments
-> should supply `onImageUpload` to persist images. Revoking the object URL when
-> the node is removed is tracked as an open question (§10).
+> should supply `onImageUpload` to persist images.
+>
+> **Object-URL leak.** `createObjectURL` should ideally be paired with
+> `revokeObjectURL` when the `image` node is removed, but ProseMirror gives no
+> "node removed" hook. v1 **accepts the leak**: object URLs live until page
+> unload. Note this can accumulate memory in a long-lived tab (e.g. a document
+> kept open for hours with many inserted then deleted images). A future cleanup
+> plugin — watching transactions for deleted `image` nodes whose `src` is a
+> `blob:` URL and revoking them — could bound the leak; deferred.
 
 The upload flow is asynchronous, so the dialog's commit handler must `await` the
 URL resolution before dispatching; see §7.
@@ -359,11 +373,14 @@ export function insertImage(
    If `false`, return `false`.
 5. **Build the node tree.** Resolve types through `state.schema` (NOT a captured
    schema singleton):
-   - `image = state.schema.nodes.image.create({ src, alt: attrs.alt ?? null })`
-     — the atom leaf carrying the rendered `src`/`alt`.
-   - `figure = state.schema.nodes.figure.create(null, [image])` — the block
-     wrapper; `null` applies the schema defaults for `id`/`number`/`title`/`src`/
-     `alt`/`data` (figure-level `src`/`alt` are deliberately left `null`, §2.3).
+     - `image = state.schema.nodes.image.create({ src, alt: attrs.alt ?? null })`
+       — the atom leaf carrying the rendered `src`/`alt`.
+     - `figure = state.schema.nodes.figure.create({ id: generateId() }, [image])`
+       — the block wrapper; the `figure` carries a **generated `id`** for
+       cross-referencing. `number`/`title`/`src`/`data` default to their
+       schema values (`figure` has no `alt` attribute — §2.3).
+       `generateId()` is the shared helper from `@metanorma/editor-commands`
+       (`util.ts`).
 6. **Insert.** `tr = state.tr.replaceSelectionWith(figure)`.
 7. **Select the figure.** Compute the figure's start position and set a valid
    `NodeSelection` on it, so the inserted image is visibly selected and the user
@@ -381,6 +398,7 @@ export function insertImage(
 import { NodeSelection, type EditorState, type Transaction } from "prosemirror-state";
 import type { Node } from "prosemirror-model";
 import { assertValidImageAttrs } from "@metanorma/prosemirror-schema";
+import { generateId } from "../util.js";
 
 export interface InsertImageAttrs {
   readonly src: string;
@@ -434,7 +452,9 @@ export function insertImage(
   const figureType = schema.nodes["figure"];
   if (!imageType || !figureType) return false;
   const image = imageType.create({ src, alt: attrs!.alt ?? null });
-  const figure = figureType.create(null, [image]);
+  // figure attrs: id is generated for cross-referencing (see §6.2 step 5);
+  // number/title/src/data default to their schema values (null/{}).
+  const figure = figureType.create({ id: generateId() }, [image]);
 
   // 5. Insert + select the figure. ONE transaction.
   const tr = state.tr.replaceSelectionWith(figure);
@@ -609,49 +629,38 @@ The `ImageInsertDialog` follows the WAI-ARIA **dialog** pattern.
 
 Genuine design decisions left for the implementer / product owner:
 
-1. **Bare `image` vs. always-wrapped `figure`.** The schema forces `image` to live
-   inside a `figure`. This proposal always emits `figure > image`. Is there ever
-   a need to insert an empty `figure` (no image) — e.g. a figure that holds only
-   caption blocks? If so, add a second button (deferred, §4.1).
-2. **`figure.src` / `figure.alt` duplication.** `figure` declares its own `src`
-   `alt` (both default `null`, both unrendered by `figure.toDOM`). Should
-   insertion also mirror `image.src`/`image.alt` onto the figure for consumers
-   that read figure-level attrs, or is that a legacy artefact to ignore? Current
-   proposal leaves them `null`.
-3. **Object-URL lifecycle.** `URL.createObjectURL` should be paired with
-   `URL.revokeObjectURL` when the node is removed, but ProseMirror gives no
-   direct "node removed" hook. Options: a plugin watching transactions for
-   deleted `image` nodes and revoking their `blob:` URLs; or accepting the leak
-   for local-only sessions. Unresolved.
-4. **`data:` URLs and size limits.** Embedding a file as a `data:` URL survives
+1. **`data:` URLs and size limits.** Embedding a file as a `data:` URL survives
    serialization but can produce very large documents (and some browsers cap
    `data:` URL length). Should the dialog offer data-URL embedding as a third,
    explicit strategy, or always prefer `onImageUpload`? Deferred.
-5. **Drag-and-drop / paste of images onto the editor.** Dropping a file or
-   pasting an image directly into the document (bypassing the dialog) is out of
-   scope here but is the natural complement. It would reuse `insertImage` plus
-   the same `onImageUpload`/object-URL resolution, wired through a
-   `prosemirror-view` `handlePaste` / `handleDrop` editor prop. Tracked as
-   future work.
-6. **Alt-text requirements.** Should the dialog **require** alt text for a11y
+2. **Alt-text requirements.** Should the dialog **require** alt text for a11y
    (with an explicit "decorative" checkbox that sets `alt=""`)? Current proposal
    makes alt optional. Needs an a11y policy decision.
-7. **Reusing `ImageNodeView` / `FigureNodeView` for attribute editing.** The
-   existing node views are display-only. Selecting an inserted figure and
-   reopening the dialog to edit `src`/`alt` would dispatch an
-   `attrs`-update transaction rather than a fresh insert. Should the same
-   command module export an `updateImageAttrs` helper for this? v1 is insert-
-   only; editing is deferred.
-8. **`title` (caption) attribute.** `figure` carries a `title` attr (default
-   `null`). Should the dialog also collect a caption/title at insertion time,
-   analogous to the base toolbar's link prompt? Deferred.
-9. **`id` assignment.** `figure` has `id` (default `null`). Should insertion
-   assign a generated ID for cross-referencing, or leave it `null` for the
-   document pipeline to fill? Current proposal leaves it `null`, matching
-   `insertTable`.
-10. **Placement relative to the current block.** As with tables, when the cursor
-    is mid-paragraph `replaceSelectionWith` splits and inserts in place. Should
-    there be an "insert after block" mode? Deferred (mirrors `tables.md` §9.2).
+3. **Placement relative to the current block.** As with tables, when the cursor
+   is mid-paragraph `replaceSelectionWith` splits and inserts in place. Should
+   there be an "insert after block" mode? Deferred (mirrors `tables.md` §9.2).
+
+> **Resolved decisions.** `id` is **generated at insertion time** via the
+> shared `generateId()` helper, for consistency with `insertTable` and section
+> commands. (The alternative — leaving `id` `null` for a downstream pipeline —
+> was rejected in favour of eager assignment.) The `title` (caption) attribute
+> is **not collected at insertion time** — left `null`, editable later. 
+> Drag-and-drop / paste of images directly into the document is out of scope
+> for this proposal (future work, would reuse `insertImage` via
+> `handlePaste`/`handleDrop`). Attribute editing of an existing figure via the
+> node views is insert-only for v1; an `updateImageAttrs` helper is deferred.
+> **Object-URL leak:** v1 accepts the leak (object URLs live until page unload);
+> a cleanup plugin to revoke `blob:` URLs on node removal is deferred.
+> **Bare `image` vs. always-wrapped `figure`:** no image-less figure is needed —
+> the schema mandates `figure > image`, and v1 always emits exactly that; no
+> second button.
+> **`figure`/`image` attribute split (no duplication).** Attributes are divided
+> by responsibility, with **no mirroring** between the two nodes: `figure` owns
+> `title` (the caption) but **no `alt`**; `image` owns `alt` (the a11y text) but
+> **no `title`**. `src` is left as-is (on both nodes, as declared in the schema).
+> The duplicated `figure.alt` attribute has therefore been **removed from the
+> schema** (`figure.src` is retained). Insertion sets `image.alt` and never
+> touches a figure-level `alt`; there is no longer a "mirror or ignore?" choice.
 
 ## 11. Export changes
 

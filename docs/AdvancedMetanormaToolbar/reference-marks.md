@@ -225,11 +225,17 @@ the menu *is* the prompt.
 Needs an `id` identifying a `footnote_entry` in the document's `footnotes`
 container. Two concerns:
 
-1. **Id generation.** The toolbar generates a fresh, unique id (proposed:
-  `"fn"` + a monotonic counter derived from the existing footnote ids in the
-  doc, or a `crypto.randomUUID()`-based slug; see §10 for the collision
-  strategy). The id is both stored on the mark (`data-id`) and used to
-  address the entry.
+1. **Id generation.** The toolbar generates a fresh, unique id using the
+  shared `generateId()` helper from `@metanorma/editor-commands` (`util.ts`),
+  a `crypto.randomUUID()`-based string. The id is both stored on the mark
+  (`data-id`) and used to address the entry. This is consistent with the
+  `generateId()` policy used by all node-insertion commands (tables, figures,
+  sections).
+
+  > **Alternative (not adopted):** a counter-based id (`"fn"` + monotonic
+  > integer) would be more human-readable but risks collisions and requires
+  > renumbering on serialize; rejected in favour of UUID-based ids for
+  > collision-freedom and immutability.
 2. **Footnote-content maintenance.** A meaningful footnote needs a
   `footnote_entry` body. The mark alone is a dangling reference. Proposed
   default behaviour: when the mark is applied, the toolbar also ensures a
@@ -545,26 +551,27 @@ Genuine unknowns to resolve before/while implementing:
    auto-create a placeholder entry (proposed), or is container maintenance a
    separate, explicit operation? Risk of dangling references if entries are
    edited/deleted independently of marks.
-6. **Footnote id uniqueness / collision strategy.** Proposed id generation
-   (`fn` + counter, or UUID) must avoid collisions with existing ids and stay
-   stable across re-edits. Need to decide: generated-and-immutable, or
-   renumbered on serialize?
-7. **Mark vs. `footnote_marker` node.** The schema offers both a `footnote`
+6. **Mark vs. `footnote_marker` node.** The schema offers both a `footnote`
    mark and an atom `footnote_marker` inline node. This spec proposes the
    **mark** for inline marking (consistent with the other five marks and
    editable inline), but the node form may be what render/serialize expects.
    Confirm which representation downstream tooling consumes.
-8. **`stem` rendering / preview.** A live preview needs a math renderer
+7. **`stem` rendering / preview.** A live preview needs a math renderer
    (AsciiMath / MathML). Is one available in the editor bundle, or is preview
    deferred to the host? Without it the popover is source-only.
-9. **Empty-selection behaviour.** For `bcp14`/`stem` (which require text),
+8. **Empty-selection behaviour.** For `bcp14`/`stem` (which require text),
    should an empty selection (a) disable the button, (b) insert placeholder
    text ("MUST", empty formula) and then mark it? Current proposal: `bcp14`
    inserts the keyword; `stem` inserts the typed source. Confirm.
-10. **`xref`/`eref`/`concept` on empty selection.** Allowing these as stored
-    marks for upcoming typing is convenient but can produce dangling marks if
-    the user moves away without typing. Decide whether to require a non-empty
-    selection for these too.
+9. **`xref`/`eref`/`concept` on empty selection.** Allowing these as stored
+   marks for upcoming typing is convenient but can produce dangling marks if
+   the user moves away without typing. Decide whether to require a non-empty
+   selection for these too.
+
+> **Resolved: footnote id generation.** Footnote ids are **generated at
+> insertion time** via the shared `generateId()` helper
+> (`crypto.randomUUID()`-based), for consistency with all other node-insertion
+> commands. Ids are immutable once generated (not renumbered on serialize).
 
 ## 11. Export changes
 

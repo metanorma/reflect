@@ -350,10 +350,12 @@ export function wrapInClause(
    wrap the single block containing the cursor. Derive a `NodeRange` via
    `$from.blockRange($to)`.
 3. Build the new clause:
-   `schema.nodes.clause.create({ title: opts?.title ?? null, id: null, number: null, data: {} }, [schema.nodes.paragraph.create()])`.
+   `schema.nodes.clause.create({ title: opts?.title ?? null, id: generateId(), number: null, data: {} }, [schema.nodes.paragraph.create()])`.
    The leading empty paragraph is the cursor landing site and ensures the
    clause is never empty (content `(clause | block)*` allows zero children, but
-   an empty clause is a poor editing target).
+   an empty clause is a poor editing target). The `id` is **generated at
+   insertion time** via the shared `generateId()` helper from
+   `@metanorma/editor-commands` (`util.ts`).
 4. Wrap the range with the clause using `tr.wrap(range, [{ type: clause, attrs }])`,
    **or**, when wrapping a collapsed cursor, insert the clause + paragraph via
    `tr.replaceSelectionWith` / a manual `ReplaceAroundStep` that preserves the
@@ -555,9 +557,14 @@ fallback hook, mirroring the base toolbar's `onLinkPrompt` pattern
    yields untitled clauses; suitable only if a downstream node view renders an
    editable title.
 
-`id` and `number` are **never** user input: `id` is assigned by tooling (a UUID
-or slug derived from title, per §8), and `number` is assigned by the numbering
-pass (§8). The commands leave both `null` on insert.
+`id` and `number` are **never** user input: `id` is **generated at insertion
+time** via the shared `generateId()` helper (a `crypto.randomUUID()`-based
+string), and `number` is assigned by a future numbering pass. The commands
+leave `number` `null` on insert.
+
+> **Alternative (not adopted):** leave `id` as `null` and let a downstream
+> document pipeline assign ids. Rejected in favour of assigning at insertion
+> time for consistency across all node-insertion commands.
 
 ## 8. CSS classes
 
@@ -628,11 +635,7 @@ These are genuine unresolved design questions, listed for review:
    all-types toolbar risks overwhelming users; conversion-only may be too
    indirect for `annex` (which has distinct semantics and is typically
    top-level in `bibliography`/appendix area).
-6. **`id` generation strategy.** UUID, slug-from-title, or opaque counter? Who
-   owns uniqueness / collision detection? The schema assigns `null` by
-   default; a policy must be chosen before ids are relied upon by cross
-   references (`xref`, `eref`).
-7. **Heading-level representation.** Section nodes render as
+6. **Heading-level representation.** Section nodes render as
    `<section class="mn-clause">` with no explicit `<hN>`; the `title` attr is
    the heading text but is not currently rendered as a heading element. How
    should heading level be represented for accessibility (ARIA `aria-level` on
@@ -644,16 +647,22 @@ These are genuine unresolved design questions, listed for review:
    clause `title`, a heading that floats outside the section hierarchy, or a
    distinct concept? Should "Insert clause" optionally produce a
    `floating_title` instead? Their relationship is unspecified.
-9. **Selection / content preservation during wrap & unwrap.** `wrapInClause`
+8. **Selection / content preservation during wrap & unwrap.** `wrapInClause`
    must preserve the selected block content inside the new clause and restore a
    sensible selection. For multi-block selections, partial-block selections,
    and selections spanning section boundaries, the exact step shape
    (`ReplaceAroundStep` vs `wrap` vs manual slice/insert) needs test cases.
    Cross-section selections in particular may be illegal to wrap in a single
    clause and must be handled (disable, or clamp to the innermost section).
-10. **Undo granularity.** Should promote/demote be a single undo step, and
-    should a multi-move (e.g. demote cascading children) be grouped via
-    `tr.setMeta("addToHistory", ...)` / a transaction group?
+9. **Undo granularity.** Should promote/demote be a single undo step, and
+   should a multi-move (e.g. demote cascading children) be grouped via
+   `tr.setMeta("addToHistory", ...)` / a transaction group?
+
+> **Resolved: `id` generation.** IDs are **generated at insertion time** via
+> the shared `generateId()` helper (`crypto.randomUUID()`-based, from
+> `@metanorma/editor-commands` `util.ts`), for consistency across all
+> node-insertion commands. (The alternative — leaving `id` `null` for a
+> downstream pipeline — was rejected.)
 
 ## 11. Export changes
 

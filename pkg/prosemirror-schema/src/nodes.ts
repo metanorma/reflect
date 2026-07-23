@@ -420,7 +420,6 @@ const mediaNodes: Record<string, NodeSpec> = {
       number: { default: null },
       title: { default: null },
       src: { default: null },
-      alt: { default: null },
       ...DATA_ATTR,
     },
     toDOM: (node) => {

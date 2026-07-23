@@ -564,18 +564,17 @@ not final decisions.
    Enter/Backspace navigation (§6) is delicate. A robust approach derives all
    positions from `tr.doc.resolve(...).parent` assertions rather than
    hard-coded offsets; this needs implementation-time validation and tests.
-7. **"Definition list properties" UI.** `dl`/`dt`/`dd` all carry a `data`
-   attribute (`DATA_ATTR`). Is there a need for an inspector/properties panel
-   to edit `data` (e.g. ids, classes) per definition list? Out of scope for
-   this proposal but noted for the future.
-8. **Backspace merge semantics across the dd→dt boundary.** `dd` is block,
+7. **Backspace merge semantics across the dd→dt boundary.** `dd` is block,
    `dt` is inline — merging text across them is lossy. Whether to merge, lift,
    or refuse is undecided; the spec recommends refusing to protect the
    invariant.
-9. **Empty-pair cleanup.** When exiting a dl by Enter-on-empty-term, the
+8. **Empty-pair cleanup.** When exiting a dl by Enter-on-empty-term, the
    trailing empty pair must be removed to keep `(dt dd)+` valid (an empty `dt`
    is schema-legal but undesirable). Confirm the cleanup transaction and its
    undo coalescing with the exit.
+
+> **Resolved decisions.** A "definition list properties" inspector for the
+> `data` attribute is out of scope for this proposal (noted for future work).
 
 ## 11. Export changes
 
