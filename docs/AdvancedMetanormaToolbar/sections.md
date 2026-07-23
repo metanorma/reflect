@@ -658,12 +658,6 @@ These are genuine unresolved design questions, listed for review:
    should a multi-move (e.g. demote cascading children) be grouped via
    `tr.setMeta("addToHistory", ...)` / a transaction group?
 
-> **Resolved: `id` generation.** IDs are **generated at insertion time** via
-> the shared `generateId()` helper (`crypto.randomUUID()`-based, from
-> `@metanorma/editor-commands` `util.ts`), for consistency across all
-> node-insertion commands. (The alternative — leaving `id` `null` for a
-> downstream pipeline — was rejected.)
-
 ## 11. Export changes
 
 Per the command contract (`EditorCommands.spec.md` §1.2, §1.10), the structural

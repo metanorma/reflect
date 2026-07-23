@@ -250,6 +250,7 @@ inserts a `footnote_marker` node at the cursor; its `target` attr points at a
    shared `generateId()` helper from `@metanorma/editor-commands` (`util.ts`),
    a `crypto.randomUUID()`-based string. This id is used for both the
    `footnote_entry` (its `id` attr) and the `footnote_marker`'s `target` attr.
+   Ids are immutable once generated — they are not renumbered on serialize.
 
 2. **Footnote-entry maintenance (hybrid).** A meaningful footnote needs a
    `footnote_entry` body. Creation uses a **hybrid** model in the footnote
@@ -530,7 +531,7 @@ function refMarkActive(state: EditorState, name: string): boolean {
 
 | Mark | Active | Enabled |
 |---|---|---|
-| `xref`, `eref`, `concept`, `bcp14` | `refMarkActive(state, name)` | selection inside an `inline`-content node (base §5.1). Empty selection allowed: the mark can be set as a stored mark for upcoming typing. |
+| `xref`, `eref`, `concept`, `bcp14` | `refMarkActive(state, name)` | selection inside an `inline`-content node (base §5.1). Empty selection allowed: the mark can be set as a stored mark for upcoming typing. The dangling-mark risk is negligible — ProseMirror clears stored marks on cursor movement, so they are transient, not persistent artifacts. |
 | `footnote_marker` (node) | selection is a `NodeSelection` on a `footnote_marker` node | inside inline content. Empty selection allowed (the node is inserted at the cursor). |
 | `stem` (node) | selection is a `NodeSelection` on a `stem` node | inside inline content. Empty selection allowed (the node is inserted at the cursor). |
 
@@ -585,57 +586,7 @@ base §9 (native `<button>` semantics for the trigger buttons):
 
 Genuine unknowns to resolve before/while implementing:
 
-(none remain — all questions resolved; see below.)
-
-> **Resolved: footnote id generation.** Footnote ids are **generated at
-> insertion time** via the shared `generateId()` helper
-> (`crypto.randomUUID()`-based), for consistency with all other node-insertion
-> commands. Ids are immutable once generated (not renumbered on serialize).
-> **Target picker data source:** the `xref` picker collects id + label from
-> id-bearing nodes by scanning `state.doc` (all section types, containers,
-> `floating_title`, `figure`, `table`, `formula`, `footnote_entry`,
-> `footnote_marker`). No separate "anchor" construct exists; ids are reliably
-> populated because all node-insertion commands generate them eagerly.
-> **Bibliography / `eref`:** the schema's `bibliography` is a generic container
-> with no typed entries or citation keys, so the editor cannot enumerate
-> `(key, title)` pairs from the doc. The `onErefPrompt` host hook (e.g. Relaton
-> integration) supplies the picker; free-text entry is the fallback.
-> **`bcp14` keyword:** `type` is an **open free-text string** (no enum). The
-> `BCP14_KEYWORDS` constant, `Bcp14Keyword` type, and `bcp14Keywords` prop are
-> **removed**; `bcp14` is a free-text-prompt mark (`onBcp14Prompt`) like
-> `xref`/`eref`/`concept`, allowing any keyword in any language. Stricter
-> validation or a curated menu is deferred to future work (no schema change
-> needed — the attr is already an open string).
-> **`concept` is document-internal:** `concept.ref` maps to the `target` of the
-> inner `<xref>` inside Metanorma Presentation XML's `<concept>` element — i.e.
-> an id pointing at a term-defining node (typically within `definitions`/
-> `terms`). The picker is therefore doc-anchored (same shape as `xref`), with
-> `onConceptPrompt` as the curated-picker upgrade hook. The schema has no
-> dedicated "term entry" node, so doc-anchored enumeration is coarse (lists
-> id-bearing clauses) until one is added.
-> **Footnote creation (hybrid):** the footnote dialog offers two paths —
-> **create new** (generate an `id`, atomically create a placeholder
-> `footnote_entry` + the `footnotes` container if absent, in the same
-> transaction as the mark) and **pick existing** (select an existing entry for
-> reuse). Deleting a mark **never** deletes its entry. Orphan / dangling
-> reference highlighting is deferred to a separate generic reference-integrity
-> decoration plugin spanning `footnote_marker`/`xref`/`concept`.
-> **Mark vs. `footnote_marker` node:** the toolbar uses the **`footnote_marker`
-> inline node** (not the `footnote` mark). The node directly mirrors Metanorma
-> Presentation XML's `<fn>` element — an inline element at the reference site,
-> not a text-wrapping mark. The `footnote` mark exists in the schema but is not
-> used by the toolbar. The command is `insertFootnoteMarker` (a node-insertion
-> command), not `toggleFootnote` (a mark toggle).
-> **`stem` is an inline node, not a mark:** the `stem` mark has been **removed**
-> from the schema; `stem` is now an inline atom node (attrs `asciimath`/`mathml`)
-> — the command is `insertStem` (node insertion). This makes host-provided live
-> math preview possible via node-view override (same as block `formula`). v1
-> ships source-only (no renderer bundled); a host can add rendering, or
-> future WYSIWYG via an embedded interactive math field (e.g. MathLive).
-> **Empty selection for marks:** `xref`/`eref`/`concept`/`bcp14` **allow empty
-> selection** (stored marks for upcoming typing) — matching the base `link`
-> button. The dangling-mark risk is negligible: ProseMirror clears stored marks
-> on cursor movement, so they are transient, not persistent artifacts.
+(none remain — all questions resolved.)
 
 ## 11. Export changes
 

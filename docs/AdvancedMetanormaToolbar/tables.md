@@ -41,7 +41,7 @@ Two consequences drive the design:
 
 1. **A `table` must contain at least one of** `table_head` / `table_body` /
    `table_foot`. This proposal inserts a single **`table_body`** by default (see
-   §7 open questions for whether the picker should also offer head/foot).
+   §8.4).
 2. **`table_cell` holds `block+`**, so every cell must be seeded with a valid
    block — an empty `paragraph`. A cell may never be empty in the document model.
 
@@ -556,38 +556,26 @@ separate **"change row type"** action converts a row to `table_head` or
 `table_foot` after the table exists (deferred to that feature). This keeps the
 insert path a pure size-pick and avoids overloading the picker.
 
+### 8.5 Why a custom command (not `prosemirror-tables`)
+
+The custom `insertTable.ts` command is kept; `prosemirror-tables` is **not**
+adopted. They are structurally incompatible: p-t assumes a flat
+`table > table_row+ > (table_cell | table_header)` shape and models headers as
+a distinct *cell type* (`table_header`, toggled cell-by-cell), whereas the
+Metanorma schema has section layers
+(`table > (table_head | table_body | table_foot)+ > table_row+`) and models
+headers as a *section container* (`table_head`). `TableMap` computes positions
+assuming rows are direct children of `table`, so the intermediate section
+nodes break it; adopting p-t would require flattening the schema or forking
+the library. The custom command is therefore the standing approach; it may
+grow (e.g. cell merge/split, row/column add-remove) as separate hand-rolled
+commands as Metanorma table-editing needs emerge.
+
 ## 9. Open questions / unknowns
 
 These are genuine design decisions left for the implementer / product owner:
 
-(none remain — all questions resolved; see below.)
-
-> **Resolved decisions.** `id` is **generated at insertion time** via the shared
-> `generateId()` helper (`crypto.randomUUID()`-based), for consistency with all
-> other node-insertion commands. **Head/body/foot sections:** the insert command
-> always emits a single `table_body`; head/foot are **not** chosen at insertion
-> time — a separate "change row type" action converts a row to `table_head` or
-> `table_foot` after the table exists (deferred to that feature). **Placement
-> relative to the current block:** insert **in place** (split the paragraph) —
-> the default `replaceSelectionWith` behaviour. No "insert after block" mode.
-> (Mirrors `images-figures.md` §10, resolved jointly.) **Multi-block selections:**
-> the button stays **disabled** for selections spanning multiple blocks (current
-> behaviour). Consuming selected content into the table is not supported in v1.
-> **Maximum grid size:** `MAX_ROWS`/`MAX_COLS` stay at **10 × 10** — sufficient
-> for the vast majority of tables. A "More…" numeric-input escape hatch for
-> larger grids is deferred to future work. **`prosemirror-tables`:** the custom
-> `insertTable.ts` command is kept; `prosemirror-tables` is **not** adopted.
-> They are structurally incompatible: p-t assumes a flat
-> `table > table_row+ > (table_cell | table_header)` shape and models headers as
-> a distinct *cell type* (`table_header`, toggled cell-by-cell), whereas the
-> Metanorma schema has section layers
-> (`table > (table_head | table_body | table_foot)+ > table_row+`) and models
-> headers as a *section container* (`table_head`). `TableMap` computes positions
-> assuming rows are direct children of `table`, so the intermediate section
-> nodes break it; adopting p-t would require flattening the schema or forking
-> the library. The custom command is therefore the standing approach; it may
-> grow (e.g. cell merge/split, row/column add-remove) as separate hand-rolled
-> commands as Metanorma table-editing needs emerge.
+(none remain — all questions resolved.)
 
 ## 10. Export changes
 

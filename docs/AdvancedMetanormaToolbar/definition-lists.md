@@ -52,7 +52,16 @@ Key consequences for the implementation:
    by ProseMirror. Any transaction that would produce two consecutive `dt`s,
    a `dd` without a preceding `dt`, or an empty `dl` is **rejected** by the
    schema (`Node.create` / `replaceWith` throws or `tr.doc` validation fails).
-   All commands and keybindings below must preserve this invariant.
+   All commands and keybindings below must preserve this invariant. This is
+   faithful to the upstream Metanorma model: the canonical StanDoc RelaxNG
+   content model for `dl` (`DlBody` in `lib/metanorma/validate/basicdoc.rng`)
+   is `<oneOrMore><group><ref name="dt"/><ref name="dd"/></group></oneOrMore>`
+   — the `<group>` makes the `(dt, dd)` pair the atomic repeating unit, with
+   neither element carrying a cardinality modifier, so multiple `dt` or
+   multiple `dd` per block are **upstream-forbidden**, not merely deferred.
+   (Plain HTML's `<dl>` does permit `(dt|dd)+`, but Metanorma deliberately
+   diverges.) A user wanting multiple paragraphs of description places several
+   blocks inside the single `dd` (which is `block+`).
 
 2. **`dt` is inline-only.** `dt` content is `inline*`, so the term holds text
    and inline marks **directly** — it is **not** wrapped in a `paragraph`.
@@ -159,7 +168,12 @@ correctly returns `false`.
 > **Note on nesting:** `dd` has content `block+`, so a `dl` is legal *inside*
 > a `dd` (nested definition lists). `dt` has content `inline*`, so a `dl` is
 > **not** legal inside a `dt`. The `canInsertBlock` check reflects this
-> naturally and needs no special-casing.
+> naturally and needs no special-casing. The single entry path for a nested
+> `dl` is the existing `insertDefinitionList` command invoked with the cursor
+> inside a `dd`: the `dd`'s paragraph text promotes to the inner `dt` (per
+> §5.1's text-promotion behaviour), yielding a valid nested `dl`. No dedicated
+> `Tab`/`Shift-Tab` indent/outdent gesture is added (§6.3); nesting depth is
+> unconstrained by the editor in v1.
 
 ### 4.2 Button: Add term + description
 
@@ -191,7 +205,7 @@ new `dt`.
   or a lone `dd` (without a preceding `dt`) violates `(dt dd)+`. The pair is
   the atomic unit of definition-list editing, so both controls operate on
   whole pairs. A future "split description" affordance (for multi-paragraph
-  `dd`) is listed as an open question (§9).
+  `dd`) is listed as an open question (§10).
 
 ## 5. Commands
 
@@ -237,24 +251,41 @@ export function insertDefinitionList(state: EditorState, dispatch?: (tr: Transac
 **Algorithm.**
 
 1. Read `schema = state.schema`, `$from = state.selection.$from` (the command receives `state`, not a `view`).
-2. Guard: if `!canInsertBlock(state)` return `false`.
-3. Build a valid subtree. Because `dt` is `inline*` (text directly, no
-   paragraph) and `dd` is `block+` (needs a paragraph child). Resolve types
-   through the schema instance (`state.schema.nodes`):
+2. Guard: if `!canInsertBlock(state)` return `false`. A multi-block selection
+   also returns `false` (the command does not attempt to fold several blocks
+   into a single inline `dt`; the button is disabled for such selections).
+3. **Promote the current paragraph's text into the `dt` (term)** rather than
+   discarding it. Because `dt` is `inline*` (text directly, no paragraph) and
+   `dd` is `block+` (needs a paragraph child), derive the term's inline content
+   from the selection slice, then build the pair via the shared helper
+   (`makePair`, §5.3). Behaviour by selection shape:
+   - **Collapsed cursor / selection within a single non-empty paragraph** — the
+     paragraph's text becomes the `dt` content; an empty `dd` (with an empty
+     paragraph placeholder, since `dd` is `block+`) is created below it; the
+     cursor lands at the start of the `dt`. This mirrors how ProseMirror's
+     `wrapIn` for bullet/ordered lists turns a paragraph into the first list
+     item instead of discarding its text.
+   - **Empty paragraph** — no text to carry; insert an empty pair; cursor in
+     the empty `dt`.
+   - **Multi-block selection** — handled in step 2 (`false`); not reached.
 
    ```typescript
-   import type { Node, ResolvedPos } from "prosemirror-model";
+   import type { Node } from "prosemirror-model";
    import { TextSelection } from "prosemirror-state";
-   import { Selection } from "prosemirror-state";
 
-   const { dl, dt, dd, paragraph } = state.schema.nodes;
+   const { dl, paragraph } = state.schema.nodes;
 
-   // dt holds inline content directly (no paragraph wrapper)
-   const termNode = dt.create({}, []);
-   // dd requires at least one block child — an empty paragraph
-   const descNode = dd.create({}, paragraph.create());
+   // Derive the term's inline content from the current paragraph's text.
+   // (An empty paragraph yields an empty fragment.)
+   const termContent = inlineContentFromSelection(state); // Node[] of text/inline
+   const [termNode, descNode] = makePair(state.schema, termContent);
    const dlNode = dl.create({}, [termNode, descNode]);
    ```
+
+   > `inlineContentFromSelection` extracts the inline nodes (text + inline
+   > marks) of the selection's slice, dropping any block wrappers so the
+   > content is legal as `dt`'s `inline*` content. For an empty paragraph it
+   > returns `[]`.
 
 4. Replace the selection. If the selection covers block content (e.g. the user
    selected a paragraph), use `tr.replaceSelectionWith(dlNode)` when the
@@ -295,6 +326,28 @@ export function insertDefinitionList(state: EditorState, dispatch?: (tr: Transac
    are fragile and should be derived from `tr.doc.resolve(...).parent`, not
    hard-coded.
 
+> **Cursor-management directive.** All `dt`/`dd` cursor arithmetic in
+> `insertDefinitionList`, `addDefinitionPair`, and the Enter/Backspace keymap
+> handlers **must** be derived from `tr.doc.resolve(pos)` assertions —
+> `parent`, `index()`, `childCount`, `after()` / `before()`, `nodeAt()` —
+> never from hardcoded numeric offsets. This is correct ProseMirror practice.
+> The specific positions the implementation derives from `ResolvedPos`:
+> - **"Am I in a `dt`/`dd`?"** — walk `$from` depths, compare
+>   `node.type === schema.nodes.dl` (the `dl` ancestor) and inspect the
+>   immediate child via `$from.index(depth)`. (This is how the keymap helpers
+>   `ancestorDepth`, `isLastChild`, `pairTermIsEmpty` in §6 are described.)
+> - **"Position after the current pair"** (for `addDefinitionPair`) —
+>   `ResolvedPos.after(depth)` at the `dl`-relative depth, not
+>   `parentOffset + N`.
+> - **"Is this the last `dd`?"** — `$from.index(ddDepth) ===
+>   $from.parent.childCount - 1`.
+> - **"Is the sibling `dt` empty?"** — resolve the pair, read
+>   `dtNode.content.size === 0`.
+>
+> This is **enforced by a test matrix** covering: insert at start/middle/end
+> of a `dl`; add-pair in the last `dd`; Enter exit on an empty term;
+> Backspace at a `dt` start; and a nested `dl`.
+
 ### 5.2 `addDefinitionPair`
 
 ```typescript
@@ -322,14 +375,11 @@ export function addDefinitionPair(state: EditorState, dispatch?: (tr: Transactio
    but after the current dd — exactly where a new `(dt, dd)` pair is legal,
    because the preceding `dd` satisfies the trailing-dd requirement of the
    previous pair and the new `dt` begins a new pair.
-4. Build the same pair used by `insertDefinitionList` (resolved via
-   `state.schema.nodes`):
+4. Build an empty pair via the shared helper (`makePair`, §5.3) —
+   `addDefinitionPair` always inserts an empty term:
 
    ```typescript
-   const { dt, dd, paragraph } = state.schema.nodes;
-   const termNode = dt.create({}, []);
-   const descNode = dd.create({}, paragraph.create());
-   const pairFragment = [termNode, descNode]; // a valid (dt dd) unit
+   const pairFragment = makePair(state.schema); // an empty (dt dd) unit
    ```
 
 5. Insert with `tr.insert(posAfter, pairFragment)`. Because we insert a
@@ -352,19 +402,35 @@ export function addDefinitionPair(state: EditorState, dispatch?: (tr: Transactio
 
 To avoid duplicating the subtree construction (and the inline-vs-block
 distinction) between the two commands, extract a private, pure helper that
-resolves types through the passed schema instance:
+resolves types through the passed schema instance. The builder accepts an
+optional `termContent` inline fragment so that `insertDefinitionList` can
+**promote the current paragraph's text into the `dt`** rather than discarding
+it (§5.1 step 3):
 
 ```typescript
 import type { Node, Schema } from "prosemirror-model";
 
-/** Build a fresh, valid (dt, dd) pair node array. Pure; schema-sourced. */
-function makePair(schema: Schema): readonly [Node, Node] {
+/**
+ * Build a valid (dt, dd) pair node array. When `termContent` is supplied, it
+ * becomes the dt's inline content (used by insertDefinitionList to carry the
+ * current paragraph's text into the term). Omit it for an empty term.
+ * Pure; schema-sourced.
+ */
+function makePair(
+  schema: Schema,
+  termContent?: readonly Node[] | null,
+): readonly [Node, Node] {
   const { dt, dd, paragraph } = schema.nodes;
-  return [dt.create({}, []), dd.create({}, paragraph.create())] as const;
+  return [
+    dt.create({}, termContent ?? []),
+    dd.create({}, paragraph.create()),
+  ] as const;
 }
 ```
 
-Both commands call `makePair(state.schema)` for their `[termNode, descNode]`.
+`insertDefinitionList` derives `termContent` from the selection's slice (see
+§5.1) and calls `makePair(state.schema, termNodes)`; `addDefinitionPair` always
+adds an empty pair, so it calls `makePair(state.schema)` (no `termContent`).
 
 ## 6. Editing behaviour (keymap)
 
@@ -400,10 +466,9 @@ lives in `@metanorma/prosemirror-editor`, **not** in the commands package:
 | In the **last** `dd` of the `dl` | **Add a new `(dt, dd)` pair** (via `addDefinitionPair`) and move cursor to the new `dt` | Grow the list |
 | In the last `dd` when the term of its pair is **empty** | **Exit the dl**: insert a new paragraph after the dl, move cursor there, and remove the now-empty trailing pair if needed to keep `(dt dd)+` valid | Escape hatch out of the list |
 
-The last two rows are the key UX decisions and are flagged as open questions
-in §9. The recommended default: **Enter in the last dd adds a pair**, and
-**Enter in the last dd whose dt is empty exits the dl** (mirroring how most
-editors let you "press Enter on an empty line to leave the list").
+The last two rows are the key UX decisions: **Enter in the last dd adds a
+pair**, and **Enter in the last dd whose dt is empty exits the dl** (mirroring
+how most editors let you "press Enter on an empty line to leave the list").
 
 ```typescript
 // pkg/prosemirror-editor/plugins/definitionListKeymap.ts
@@ -445,24 +510,32 @@ merging rather than default deletion, to avoid producing an invalid tree:
 
 | Cursor location | Backspace-at-start behaviour |
 |---|---|
-| Start of a `dt` (pair is not the first) | **No-op** (refuse — see §10). |
+| Start of a `dt` (pair is not the first) | **No-op** (refuse). |
 | Start of the **first** `dt` | **No-op** (refuse). |
 | Start of a `dd` | **No-op** (refuse). |
 
 The guiding rule: **never delete a `dt` or `dd` such that the remaining dl
 fails `(dt dd)+`.** Backspace at the start of any `dt` or `dd` is a uniform
 **no-op**: the keymap returns `false` (falls through to default, which
-ProseMirror also refuses because the result would violate `(dt dd)+`). See the
-"Backspace merge semantics" resolved decision in §10 for the rationale.
-Mid-text deletion within a `dt`/`dd`'s content is unaffected (normal text
-deletion); removing a whole pair is done by selecting it and deleting (the
-ranged case, handled separately to keep `(dt dd)+` valid).
+ProseMirror also refuses because the result would violate `(dt dd)+`). No
+cross-boundary text merge, no lift-to-paragraph conversion, and no special
+case for the first pair. **Rationale:** `dt` is `inline*` and `dd` is `block+`
+— they are *different content kinds*, so any merge across the `dd`→`dt` (or
+`dt`→`dd`) boundary is categorically lossy. Appending a term's inline text
+onto the end of the previous `dd` collapses the term into the description,
+destroying the term/description distinction the document model exists to
+express; appending a `dd`'s block content onto a `dt`'s inline content is
+schema-impossible without flattening blocks into inline. Mid-text deletion
+within a `dt`/`dd`'s content is unaffected (normal text deletion); removing a
+whole pair is done by selecting it and deleting (the ranged case, handled
+separately to keep `(dt dd)+` valid).
 
 ### 6.3 Tab / Shift-Tab
 
 **No special handling.** `Tab`/`Shift-Tab` are not bound by the
-definition-list keymap — see the "Nested definition lists" resolved decision in
-§10 (no dedicated indent/outdent or `dt`↔`dd` jump gesture in v1).
+definition-list keymap. Nesting a `dl` inside a `dd` **is allowed** (it is
+schema-permitted — `dd = block+` and `block` includes `dl`), but no dedicated
+indent/outdent or `dt`↔`dd` jump gesture is introduced in v1.
 
 ### 6.4 Arrow-key navigation
 
@@ -501,6 +574,32 @@ DOM), they live in `@metanorma/editor-commands` (`commands/definitionList.ts`,
 or a small sibling `definitionListUtils.ts`) and are imported by both the
 `run(view)` toolbar adapter in `@metanorma/prosemirror-editor` and the keymap
 plugin — no duplication.
+
+### 7.1 Interaction with existing list commands
+
+Definition-list nodes do not conflict with the existing `wrapIn`/`lift`/
+`toggleList` commands:
+
+- **No conflict with `dt`/`dd`.** `dt` and `dd` are **deliberately excluded
+  from the `block` group** (see `docs/schema.spec.md` §3.1 — the `block` row
+  states it "Deliberately excludes … `dt`, `dd`"). Because `wrapIn`/`lift`/
+  `toggleList` only ever target nodes in the `block` group, they can never
+  accidentally operate on a bare `dt` or `dd` — those nodes only ever appear
+  inside a `dl`. The `dl` itself is a `block`, so it is a legal (and the only
+  relevant) target. No defensive code is needed for the `dt`/`dd` case.
+- **`toggleList` is disabled inside a `dl`.** Although the ProseMirror schema's
+  `list_item.content = "block+"` makes wrapping a `dl` in a bullet/ordered
+  list *technically* legal, **upstream Metanorma forbids it**:
+  `basicdoc.rng`'s `LiBody` is
+  `<oneOrMore><ref name="paragraph-with-footnote" /></oneOrMore>` — paragraphs
+  only. A `dl` (or table, figure, etc.) inside a `ul`/`ol` would produce
+  **invalid StanDoc XML**. Therefore the toolbar's `toggleList` button is
+  **disabled when the selection is inside (or spans) a `dl`**; the
+  bullet/ordered list toggle cannot wrap a definition list. Pre-existing
+  documents containing such nesting still render — this is an authoring
+  constraint, not a render-time rejection. The implementer adds a guard to
+  `toggleList`'s enable predicate (or the button's `disabled` logic):
+  selection inside a `dl` → disabled.
 
 ## 8. Styling
 
@@ -545,135 +644,6 @@ not final decisions.
    trailing empty pair must be removed to keep `(dt dd)+` valid (an empty `dt`
    is schema-legal but undesirable). Confirm the cleanup transaction and its
    undo coalescing with the exit.
-
-> **Resolved decisions.** **Backspace merge semantics across the dd→dt
-> boundary** — resolved: Backspace at the start of **any** `dt` or `dd` is a
-> uniform **no-op** (the keymap returns `false`, falling through to default,
-> which ProseMirror also refuses because the result would violate `(dt dd)+`).
-> No cross-boundary text merge, no lift-to-paragraph conversion, no special
-> case for the first pair. **Rationale:** `dt` is `inline*` and `dd` is
-> `block+` — they are *different content kinds*, so any merge across the
-> `dd`→`dt` (or `dt`→`dd`) boundary is categorically lossy. Appending a term's
-> inline text onto the end of the previous `dd` collapses the term into the
-> description, destroying the term/description distinction the document model
-> exists to express; appending a `dd`'s block content onto a `dt`'s inline
-> content is schema-impossible without flattening blocks into inline. The
-> user's escape paths are the **Enter-on-empty-term exit** (see the first
-> resolved decision) and **explicit selection-based deletion** of a whole pair
-> (the ranged case, handled separately to keep `(dt dd)+` valid). **Mid-text
-> deletion within a `dt`/`dd`'s content is unaffected** — normal text deletion
-> applies. §6.2's Backspace-at-start table is updated to mark all three rows as
-> no-op. **Cursor management across dt/dd** — resolved as an
-> **implementation directive** (not a product choice): all `dt`/`dd` cursor
-> arithmetic in `insertDefinitionList`, `addDefinitionPair`, and the
-> Enter/Backspace keymap handlers **must** be derived from
-> `tr.doc.resolve(pos)` assertions — `parent`, `index()`, `childCount`,
-> `after()` / `before()`, `nodeAt()` — never from hardcoded numeric offsets.
-> This is correct ProseMirror practice; no design alternative is entertained.
-> The specific positions the implementation derives from `ResolvedPos`:
-> - **"Am I in a `dt`/`dd`?"** — walk `$from` depths, compare
->   `node.type === schema.nodes.dl` (the `dl` ancestor) and inspect the
->   immediate child via `$from.index(depth)`. (This is already how the keymap
->   helpers `ancestorDepth`, `isLastChild`, `pairTermIsEmpty` in §6 are
->   described.)
-> - **"Position after the current pair"** (for `addDefinitionPair`) —
->   `ResolvedPos.after(depth)` at the `dl`-relative depth, not
->   `parentOffset + N`.
-> - **"Is this the last `dd`?"** — `$from.index(ddDepth) ===
->   $from.parent.childCount - 1`.
-> - **"Is the sibling `dt` empty?"** — resolve the pair, read
->   `dtNode.content.size === 0`.
->
-> This is **enforced by a test matrix** covering: insert at start/middle/end of
-> a `dl`; add-pair in the last `dd`; Enter exit on an empty term; Backspace at
-> a `dt` start; and a nested `dl` (per the nested-list resolution). The question
-> is closed by committing to the resolution-based approach with that test
-> matrix.
-> **Interaction with existing list commands** —
-> resolved (two parts):
-> 1. **No conflict with `dt`/`dd`.** Confirmed structurally: `dt` and `dd` are
->    **deliberately excluded from the `block` group** (see `docs/schema.spec.md`
->    §3.1 — the `block` row states it "Deliberately excludes … `dt`, `dd`").
->    Because `wrapIn`/`lift`/`toggleList` only ever target nodes in the `block`
->    group, they can never accidentally operate on a bare `dt` or `dd` — those
->    nodes only ever appear inside a `dl`. The `dl` itself is a `block`, so it
->    is a legal (and the only relevant) target. No defensive code is needed for
->    the `dt`/`dd` case.
-> 2. **Do not allow wrapping a `dl` in a `list_item`.** Although the ProseMirror
->    schema's `list_item.content = "block+"` makes wrapping a `dl` in a
->    bullet/ordered list *technically* legal, **upstream Metanorma forbids it**:
->    `basicdoc.rng`'s `LiBody` is `<oneOrMore><ref name="paragraph-with-footnote"
->    /></oneOrMore>` — paragraphs only. A `dl` (or table, figure, etc.) inside a
->    `ul`/`ol` would produce **invalid StanDoc XML**. Therefore the toolbar's
->    `toggleList` button is **disabled when the selection is inside (or spans) a
->    `dl`**; the bullet/ordered list toggle cannot wrap a definition list.
->    Pre-existing documents containing such nesting still render — this is an
->    authoring constraint, not a render-time rejection.
->
-> The implementer adds a guard to `toggleList`'s enable predicate (or the
-> button's `disabled` logic): selection inside a `dl` → disabled.
-> **Nested definition lists** — resolved: creating a
-> nested `dl` **is allowed** (schema-permitted, see below), and **no special
-> `Tab`/`Shift-Tab` handling** is introduced for nesting. The single entry path
-> is the existing `insertDefinitionList` command invoked with the cursor inside
-> a `dd`: the `dd`'s paragraph text promotes to the inner `dt` (per the
-> "Converting an existing paragraph into a dl" resolution above), yielding a
-> valid nested `dl`; the nested `dl` gets its `id` generated at insertion time
-> via `generateId()`, consistent with every node-insertion command. No dedicated
-> indent/outdent gesture is added — nesting depth is unconstrained by the
-> editor in v1. **Schema basis:** nesting is permitted by the ISO document model
-> (`isodoc.rng`, the flagship flavor): `dd` content is
-> `<zeroOrMore><ref name="BasicBlock"/></zeroOrMore>`, and `BasicBlock` is a
-> `<choice>` that includes `dl` (alongside `table`, `formula`, `ol`, `ul`,
-> `figure`, etc.). The ProseMirror schema mirrors this — `dd = block+`, and the
-> `block` group includes `dl` (`docs/schema.spec.md` §3.1) — so a nested `dl`
-> round-trips through the editor. (Note: the minimal base model `basicdoc.rng`
-> is stricter — its `dd` allows only `paragraph-with-footnote` — so a document
-> round-tripped through a strict basicdoc pipeline would reject a nested `dl`,
-> but that is not the ISO authoring path.) The editor recognizes, renders, and
-> must not corrupt pre-existing nested `dl`s; the Enter/Backspace correctness
-> work (see the "Cursor management" open question) covers not breaking them.
-> **Converting an existing paragraph into a dl** —
-> resolved: the command **promotes the current paragraph's text into the `dt`
-> (term)** rather than discarding it. Behaviour by selection shape:
-> - **Collapsed cursor / selection within a single non-empty paragraph** — the
->   paragraph's text becomes the `dt` content; an empty `dd` (with an empty
->   paragraph placeholder, since `dd` is `block+`) is created below it; the
->   cursor lands at the start of the `dt`. This mirrors how ProseMirror's
->   `wrapIn` for bullet/ordered lists turns a paragraph into the first list
->   item instead of discarding its text.
-> - **Empty paragraph** — no text to carry; insert an empty pair (the prior
->   behaviour); cursor in the empty `dt`.
-> - **Multi-block selection** — the button is **disabled** (the command does
->   not attempt to fold several blocks into a single inline `dt`). This mirrors
->   the `tables.md` §9 decision ("button stays disabled for selections spanning
->   multiple blocks"), keeping the command single-purpose and avoiding
->   ambiguous "which block becomes the term?" semantics.
->
-> The implementer derives the term text from the selection's slice and feeds it
-> into `makePair(schema)` as the `dt` inline content.
-> **Multiple `dd` per `dt`** — confirmed: one `dt`
-> (term) and exactly one `dd` (description) per pair. This is **faithful to the
-> upstream Metanorma model**: the canonical StanDoc RelaxNG content model for
-> `dl` (`DlBody` in `lib/metanorma/validate/basicdoc.rng`) is
-> `<oneOrMore><group><ref name="dt"/><ref name="dd"/></group></oneOrMore>` — the
-> `<group>` makes the `(dt, dd)` pair the atomic repeating unit, with neither
-> element carrying a cardinality modifier, so multiple `dt` or multiple `dd`
-> per block are **upstream-forbidden**, not merely deferred. (Plain HTML's
-> `<dl>` does permit `(dt|dd)+`, but Metanorma deliberately diverges.) The
-> ProseMirror schema expression `dl = "(dt dd)+"`
-> (`pkg/prosemirror-schema/nodes.ts:342`) mirrors this exactly; no schema change
-> is warranted. A user wanting multiple paragraphs of description places several
-> blocks inside the single `dd` (which is `block+`). **Enter in the last `dd`:
-> exit vs. add pair** — the spec's recommended behaviour is adopted as-is: Enter
-> in a `dd` **adds a new pair** unless the sibling `dt` is empty, in which case
-> it **exits the list** (running the empty-pair cleanup, see the final open
-> question). No separate exit gesture (`Shift-Enter`/`Esc`) is introduced; `Esc`
-> still naturally blurs the editor and is not repurposed as a list-exit command.
-> This matches the "press Enter on empty to leave" pattern users expect from
-> bulleted/numbered lists, keeping the definition list consistent with
-> ProseMirror's own list behaviour. A "definition list properties" inspector for
-> the `data` attribute is out of scope for this proposal (noted for future work).
 
 ## 11. Export changes
 
@@ -724,7 +694,7 @@ Pure command logic lives in `@metanorma/editor-commands`; keymap wiring,
 pkg/editor-commands/
   commands/
     definitionList.ts        ← insertDefinitionList, addDefinitionPair,
-                                makePair(schema),
+                                makePair(schema, termContent?),
                                 inDefinitionList, canInsertBlock,
                                 jumpToSiblingDescription, exitDefinitionList
                                 (all pure: state/dispatch only, no EditorView/DOM)

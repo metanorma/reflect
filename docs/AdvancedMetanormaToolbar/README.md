@@ -722,16 +722,6 @@ export {
   heading creation should ever produce a `floating_title` instead of a clause
   `title` attr (see `sections.md` open questions).
 
-> **Resolved decisions.** `<Toolbar>`, `ToolbarGroupDef`, and the group
-> registry are kept **internal** for now (not part of the public API surface
-> exported from `index.ts`); only the two assembler components
-> (`MetanormaToolbar`, `AdvancedMetanormaToolbar`) and their props/types are
-> exported. Stateful `control` entries render an opaque `ReactNode` for now (a
-> common `disabled`-contract interface may come later). Feature-callback
-> threading is done via direct props on `AdvancedMetanormaToolbarProps` for now
-> (a per-group props map may come later). History is **opt-in**, not
-> default-on (see `undo-redo.md` §4.1).
-
 ## 6. Command layering (alignment with `EditorCommands.spec.md`)
 
 The feature documents in this directory each propose editor commands. Those

@@ -66,9 +66,9 @@ Three consequences drive the entire design:
    `title` (the caption) and retains `src`; it has **no `alt`**. `image` owns
    `alt` (the a11y text) and its own `src`; it has **no `title`**. There is
    therefore **no duplicated `alt`** to mirror or ignore — the two nodes carry
-   disjoint caption/a11y attributes by design (§10 resolved decision). The
-   rendered image attributes (`src`, `alt`) live on the `image` child; `figure`
-   renders only `class="figure"` and `data-id`.
+   disjoint caption/a11y attributes by design. The rendered image attributes
+   (`src`, `alt`) live on the `image` child; `figure` renders only
+   `class="figure"` and `data-id`.
 
 The guard, exported from both `@metanorma/prosemirror-schema` and
 `@metanorma/prosemirror-editor`:
@@ -86,8 +86,10 @@ export function assertValidImageAttrs(
 Existing node views — `ImageNodeView` (renders `<img src alt>` or a placeholder
 when `src === ""`) and `FigureNodeView` (renders `<figure class="figure">` with
 `contentDOMRef`) — already render these nodes once they exist in the document.
-This feature only **creates** them; it does not change the node views (see §10
-for whether to reuse them for attribute editing).
+This feature only **creates** them; it does not change the node views.
+(Reusing the node views for attribute editing of an existing figure is a
+plausible future enhancement; an `updateImageAttrs` helper is deferred. v1 is
+insert-only.)
 
 ## 3. Package and files
 
@@ -178,6 +180,11 @@ the only image-entry surface, the single "Insert image" button always emits a
 complete `figure > image`. An image-less (caption-only) figure is **not needed**
 for v1 and will not be added: the schema mandates `figure > image`, and the
 single button always produces that.
+
+> **Drag-and-drop / paste is out of scope.** Dropping or pasting an image
+> directly into the document is not supported in v1; it is future work that
+> would reuse `insertImage` via `handlePaste`/`handleDrop`. The toolbar button
+> is the sole image-entry surface for v1.
 
 > **The `title` (caption) attribute is not collected at insertion time.** The
 > dialog collects only `src` and `alt`; `figure.title` is left `null` and can
@@ -581,8 +588,8 @@ isActive: () => false;
 
 Image insertion is **not a toggle** — there is no "active" state, and the button
 is never rendered with `.mn-toolbar-btn--active`. (Selecting an existing figure
-to **edit** its `src`/`alt` via the same dialog is a plausible future enhancement,
-tracked in §10; v1 is insert-only.)
+to **edit** its `src`/`alt` via the same dialog is a plausible future
+enhancement; an `updateImageAttrs` helper is deferred. v1 is insert-only.)
 
 ### 8.2 Enabled
 
@@ -641,39 +648,7 @@ The `ImageInsertDialog` follows the WAI-ARIA **dialog** pattern.
 
 Genuine design decisions left for the implementer / product owner:
 
-(none remain — all questions resolved; see below.)
-
-> **Resolved decisions.** `id` is **generated at insertion time** via the
-> shared `generateId()` helper, for consistency with `insertTable` and section
-> commands. (The alternative — leaving `id` `null` for a downstream pipeline —
-> was rejected in favour of eager assignment.) The `title` (caption) attribute
-> is **not collected at insertion time** — left `null`, editable later. 
-> Drag-and-drop / paste of images directly into the document is out of scope
-> for this proposal (future work, would reuse `insertImage` via
-> `handlePaste`/`handleDrop`). Attribute editing of an existing figure via the
-> node views is insert-only for v1; an `updateImageAttrs` helper is deferred.
-> **File-path source strategies:** the default (no `onImageUpload`) is a
-> **serializable `data:` URL** via `FileReader.readAsDataURL` — the happy path,
-> no server required. `onImageUpload` is the **secondary** option for host apps
-> that prefer to persist images to storage. Non-serializable `blob:` object URLs
-> (`URL.createObjectURL`) are **not supported** (no leak to manage). If a
-> browser caps `data:`-URL length for an over-large image, the dialog surfaces a
-> graceful error rather than inserting a broken node.
-> **Bare `image` vs. always-wrapped `figure`:** no image-less figure is needed —
-> the schema mandates `figure > image`, and v1 always emits exactly that; no
-> second button.
-> **Alt text is optional.** The dialog does not require alt text; `image.alt`
-> defaults to `null` (no "decorative" checkbox, no enforced a11y prompt).
-> **Placement relative to the current block:** insert **in place** (split the
-> paragraph) — the default `replaceSelectionWith` behaviour. No "insert after
-> block" mode. (Mirrors `tables.md` §9, resolved jointly.)
-> **`figure`/`image` attribute split (no duplication).** Attributes are divided
-> by responsibility, with **no mirroring** between the two nodes: `figure` owns
-> `title` (the caption) but **no `alt`**; `image` owns `alt` (the a11y text) but
-> **no `title`**. `src` is left as-is (on both nodes, as declared in the schema).
-> The duplicated `figure.alt` attribute has therefore been **removed from the
-> schema** (`figure.src` is retained). Insertion sets `image.alt` and never
-> touches a figure-level `alt`; there is no longer a "mirror or ignore?" choice.
+(none remain — all questions resolved.)
 
 ## 11. Export changes
 

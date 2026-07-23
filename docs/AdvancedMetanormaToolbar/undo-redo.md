@@ -489,12 +489,6 @@ Genuine unknowns to resolve before/while implementing:
    shortcut (some apps reserve `Mod-y` for "redo" already; others for replay).
    Also confirm there is no need for a mac-only `Mod-Shift-z` without `Mod-y`.
 
-> **Resolved decisions.** History is **opt-in**, not default-on (§4.1) —
-> existing consumers are unaffected unless they pass the `history` option.
-> Mobile relies on the toolbar buttons (sufficient for v1). History depth /
-> memory ceiling is out of scope for v1 (`preserveItems: false` is the only
-> lever; no feature depends on unreachable branches).
-
 ## 11. Export and package changes
 
 ### 11.1 Runtime dependencies
