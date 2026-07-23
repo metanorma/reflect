@@ -109,14 +109,22 @@ import { metanormaSchema } from "@metanorma/prosemirror-schema";
 import type { MirrorDocument } from "./types.js";
 
 /**
- * Default history configuration: `newGroupDelay` of 500ms so that a burst of
- * typing (e.g. fast keystrokes, or a single drag-selection) collapses into one
- * undo step, matching conventional editor behaviour. `preserveItems` left at
- * its default (`false`) — no feature currently depends on unreachable branches.
+ * Default history configuration. `newGroupDelay` of 500ms — the conventional
+ * ProseMirror default (`prosemirror-example-setup`), retained because it is
+ * well-tested and familiar. It primarily affects character-level typing
+ * (rapid keystrokes collapse into one undo step); structural commands (section
+ * promote/demote, insert, change-type) are each a single transaction and
+ * therefore already one undo step regardless of the delay. `preserveItems`
+ * left at its default (`false`) — no feature currently depends on unreachable
+ * branches.
+ *
+ * Host apps may override the value by passing a custom `HistoryOptions` to
+ * `createInitialEditorState({ history: { newGroupDelay: … } })`.
  */
 export const DEFAULT_HISTORY_OPTIONS: Readonly<HistoryOptions> = {
   newGroupDelay: 500,
 };
+```
 
 /**
  * Build the undo/redo keymap plugin. `Mod` resolves to Cmd on macOS and Ctrl
@@ -174,6 +182,18 @@ the existing ordering invariant.
 > `@metanorma/editor-commands` / `@metanorma/prosemirror-editor` and add them
 > to the plugin list manually.
 
+> **Collaborative editing: do NOT enable plain `history`.** Plain
+> `prosemirror-history` tracks undo branches by local transaction sequence and
+> does not account for remote transactions arriving between local ones, so Undo
+> can produce surprising results in a collaborative editing context. Consumers
+> using a collaboration framework (e.g. `prosemirror-collab`, y-prosemirror)
+> should leave `history` `false` (or omit it) and use the collaboration
+> framework's own undo mechanism (e.g. y-prosemirror's `UndoManager`) instead.
+> The toolbar buttons would then dispatch to that mechanism rather than the
+> `undo`/`redo` re-exported here. No collab-specific code is shipped with this
+> feature; the `history: false` opt-out (the default) is the intended collab
+> path.
+
 > **Ordering note:** the keymap is appended immediately after `history()` and
 > before consumer plugins. If a consumer needs to override `Mod-z`, they can
 > prepend a higher-priority keymap via the `plugins` option, since
@@ -192,7 +212,12 @@ The keymap in §4.1 binds:
 Binding both `Shift-Mod-z` and `Mod-y` to `redo` makes the editor feel native
 on every platform without runtime platform detection. This mirrors what
 `prosemirror-example-setup`'s `buildKeymap` does and is the conventional
-ProseMirror setup.
+ProseMirror setup. `Mod-y` is the standard redo shortcut on Windows/Linux and a
+harmless redundant binding on macOS (recognised as redo by many apps); keeping
+it on all platforms avoids the need for platform detection. The keymap is
+scoped to the editor's focused `contenteditable`, so it does not interfere with
+host-level `Mod-y` bindings outside the editor (e.g. terminal "replay" or media
+shortcuts).
 
 ### 4.3 Exposing history opt-out on `MetanormaProseMirror`
 
@@ -233,6 +258,20 @@ const initialUncontrolledState = useMemo<EditorState>(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 ```
+
+In **controlled** mode the component cannot inject a plugin into the
+externally-owned `EditorState`, but the host does not need to depend on
+`prosemirror-history` directly: everything required to add history to an
+externally-owned state is exported from `@metanorma/prosemirror-editor` — the
+`history` plugin factory + `HistoryOptions` type (§7), plus
+`DEFAULT_HISTORY_OPTIONS` and `buildUndoRedoKeymap` (§11.2). A controlled
+consumer composes its plugin list as e.g.
+`[…itsPlugins, history(DEFAULT_HISTORY_OPTIONS), buildUndoRedoKeymap()]`. A
+separate `buildDefaultPlugins()` helper is deliberately **not** added: it would
+be redundant with `createInitialEditorState`, which already builds the full
+default plugin list and accepts `history`. A controlled consumer that wants the
+defaults can call `createInitialEditorState({ history: DEFAULT_HISTORY_OPTIONS })`
+and read `.plugins` off the result.
 
 ## 5. Buttons
 
@@ -417,6 +456,16 @@ separately undoable, in which case it should call
 grouping. That is deferred to the relevant feature doc; this document takes no
 position beyond "default grouping is fine".
 
+> **Async-prompted transactions start a new group — and that is correct.** Some
+> sibling features (e.g. reference marks) collect attributes via an async dialog
+> before dispatching. Because the dialog takes longer than `newGroupDelay`
+> (500ms), the resulting transaction naturally starts a **new undo group**.
+> This is the desired behaviour: a command triggered via a dialog after a pause
+> is a discrete user action, not a continuation of prior typing. Force-grouping
+> it with the preceding edit would make Undo revert both the just-inserted node
+> *and* unrelated earlier text — surprising. No force-grouping is applied; the
+> default `newGroupDelay` behaviour is accepted.
+
 ## 8. Styling
 
 Undo/redo are two plain buttons — there is no popover, picker, or custom
@@ -464,30 +513,7 @@ the baseline (base §9, README §2.5) with no extra work:
 
 Genuine unknowns to resolve before/while implementing:
 
-1. **`HistoryOptions` defaults.** The proposed `newGroupDelay: 500` is the
-   conventional value (used by `prosemirror-example-setup`), but Metanorma
-   editing may benefit from a different threshold (longer, to group more
-   structural edits; or shorter, for finer-grained undo). Need to decide the
-   shipped default and whether it is tunable per instance.
-2. **Expose a `history` prop on `MetanormaProseMirrorProps`?** §4.3 proposes
-   it, but only the uncontrolled branch can honour it. Should controlled-mode
-   consumers be given a helper (e.g. an exported `buildDefaultPlugins()` or a
-   documented recipe) so they can construct a state with history without
-   reaching into `prosemirror-history` themselves?
-3. **Collaboration / `prosemirror-collab` interaction.** If real-time
-   collaboration is on the roadmap, plain `prosemirror-history` is known to
-   interact poorly with collaborative editing (rebasing, undo across remote
-   changes). Should the opt-out (`no `history` option) be documented as the
-   collab path now, or is a dedicated `collab-history` layer expected later?
-4. **Should async transactions from other features group?** Some sibling
-   features (reference marks) collect attributes via an async prompt before
-   dispatching. If the prompt takes longer than `newGroupDelay`, the resulting
-   transaction starts a new group — usually desirable. Confirm this is
-   acceptable, or whether those flows should force-group.
-5. **Redo key cross-platform.** §4.2 binds both `Shift-Mod-z` and `Mod-y` to
-   redo for portability. Confirm this does not collide with any host-level
-   shortcut (some apps reserve `Mod-y` for "redo" already; others for replay).
-   Also confirm there is no need for a mac-only `Mod-Shift-z` without `Mod-y`.
+(none remain — all questions resolved.)
 
 ## 11. Export and package changes
 

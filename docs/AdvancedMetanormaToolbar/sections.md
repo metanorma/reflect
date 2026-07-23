@@ -75,13 +75,36 @@ block content but no child sections. Any "insert clause" / "demote" operation
 must be disabled when the insertion or demotion target is a leaf section or a
 `block`-only context.
 
+> **`floating_title` is a distinct concept, not a section.** The schema also
+> defines a `floating_title` block node (`group: "block"`, `atom: true`,
+> `content: ""`, `sectionAttrs()` — i.e. it carries `id`/`number`/`title`/`data`
+> but has no children). It renders as a non-`<section>` `<div class="floating-title">`
+> and is deliberately placed **outside the numbered section hierarchy** — per
+> [Metanorma's documentation](https://www.metanorma.org/author/topics/sections/),
+> "a floating title is a title that is placed outside the numbered hierarchy of
+> clauses … not uniquely referable like normal clauses." It is therefore **not**
+> an alternative to a clause `title` (which is the heading *of* a numbered
+> section node that participates in nesting and cross-referencing) but a
+> free-standing, unnumbered heading block.
+>
+> **Consequence for this toolbar:** the "Insert clause" split menu (§4.2) lists
+> only the ten `section`-group node types; it does **not** offer
+> `floating_title`, and the structural commands never produce one. Inserting a
+> `floating_title` is a *block-element* operation (it is in the `block` group,
+> like `paragraph`/`note`/`example`), not a structural-section operation. It is
+> **deferred to a future "block elements" toolbar group**; the sections feature
+> does not insert it.
+
 ### 2.3 Attributes
 
 - `title` — the clause **heading text**, user-facing. The toolbar may prompt for
   or default this on insert (§6).
 - `id` — stable identifier. **Tooling-assigned** (§8), never typed by the user.
 - `number` — display number ("3.2.1"). **Tooling-assigned**; the user does not
-  edit it (§8 open question: automatic vs manual numbering).
+  edit it. The editor does **not** implement auto-numbering; all section
+  commands leave `number` `null` (§7). Clause numbering is a presentation
+  concern handled by the Metanorma pipeline at Semantic→Presentation XML
+  conversion time, not by the editor (see "Numbering" note in §7).
 
 ## 3. Integration model
 
@@ -146,7 +169,13 @@ in button 4 (see §8 open question on scope). Wrap/unwrap of arbitrary section
 types beyond `clause` is deliberately left to "Change section type" + "Insert
 clause" composition.
 
-### 4.2 Button: Insert clause
+### 4.2 Button: Insert clause (+ section-type split menu)
+
+The **Insert clause** control is a **split button**: the primary click inserts
+the most common type, `clause`, in one action; a dropdown caret opens a menu of
+**all ten section types** for direct insertion of any other type.
+
+**Primary action (`clause`):**
 
 | Field | Value |
 |---|---|
@@ -154,14 +183,37 @@ clause" composition.
 | `label` | `clause` |
 | `title` | `"Insert clause (wrap selection in a new clause)"` |
 | `isActive` | `false` — insertion is not a toggle. (See note below.) |
-| `isEnabled` | `canWrapInClause(state)` (§5): the resolved selection's ancestor chain contains a container that permits a `clause` child. |
+| `isEnabled` | `canWrapInClause(state)` (§5.1): the resolved selection's ancestor chain contains a container that permits a `clause` child (or the doc-top-level fallback applies). |
 | `run` | Toolbar adapter calls `wrapInClause(view.state, view.dispatch, { title })` (§5.2), then `view.focus()`. Prompts for the heading `title` per §7, wraps the selection in a new `clause` (with a child paragraph), and places the cursor in that paragraph. |
+
+**Dropdown menu (other section types):**
+
+The dropdown caret opens a menu (`role="listbox"`, class
+`.mn-toolbar-section-menu`) listing **all ten section types** in a fixed order.
+The list contents never change — every type is always shown, so the menu is
+spatially predictable. Each entry is independently enabled or disabled based on
+legality at the current cursor position:
+
+- An entry is **enabled** when `parentAccepts(parent, type, index)` (§5.1) is
+  true for that section type — i.e. the current parent (or the auto-created
+  `sections` container, §5.1 doc-top-level fallback) can legally receive a
+  child of that type. The entry's `run` inserts a node of that type (same shape
+  as `wrapInClause`, parameterised by the chosen `NodeType`).
+- An entry is **disabled** (`disabled`, `aria-disabled="true"`) when that type
+  is not legal at the current position — greyed out but visible.
 
 > `isActive` is `false` because insertion is a one-shot command, not a state
 > toggle. (Conceivably one could mark it active when the immediate parent is
 > already a `clause` to hint "you are inside a clause", but that conflates
 > location with toggle state; the dedicated Promote/Demote/Change-type buttons
 > convey context instead.)
+
+> **Relationship to "Change section type" (§4.5).** The split-menu dropdown
+> *inserts a new* section node of the chosen type (in place, splitting the
+> current block). "Change section type" *converts the enclosing* section node
+> to the chosen type, preserving its children. They are complementary: insert
+> when you need a new section, convert when the section exists but has the
+> wrong type.
 
 ### 4.3 Button: Promote clause
 
@@ -276,9 +328,24 @@ export function canWrapInClause(state: EditorState): boolean;
    `parent.type.contentMatch.matchType(clauseType)`; if it returns a non-null
    `ContentMatch`, a `clause` is legal here. (For deeper ancestors, use the
    match at the boundary index — see the generalised helper below.)
-4. Return `true` if any reachable ancestor admits a clause; `false` otherwise.
-   Leaf sections (`abstract` etc.) have `content: "block+"`, so
-   `matchType(clause)` is `null` there → disabled.
+4. Return `true` if any reachable ancestor admits a clause.
+5. **Cross-section selection guard.** If the selection is non-collapsed and
+   `$from` and `$to` are in **different section ancestors** (i.e. the selection
+   spans a section boundary), return `false`. Wrapping a cross-section range in
+   a single clause would uproot content from one section into a new one nested
+   elsewhere — almost never the user's intent. The user should use
+   promote/demote or cut-and-paste for cross-section reorganisation.
+6. **Doc-top-level fallback.** If no ancestor admits a clause (step 4) and the
+   selection is not cross-section (step 5), but the `doc` does not yet contain
+   a `sections` container (or the cursor sits directly under `doc` between
+   containers), return `true` anyway: the wrap command will auto-create a
+   `sections` container (§5.2) and insert the clause into it. The insertion
+   position of the new container is fully determined by the `doc.content`
+   ordering constraint `(preface? sections? bibliography? footnotes?)`. Return
+   `false` only when a `sections` container already exists but the cursor is
+   not inside a section-bearing ancestor (e.g. inside `preface`/`bibliography`
+   at a position where a clause is not legal). Leaf sections (`abstract` etc.)
+   have `content: "block+"`, so `matchType(clause)` is `null` there → disabled.
 
 A more general form, used by Promote/Demote/Set-type, resolves the match at a
 specific parent + index:
@@ -356,15 +423,39 @@ export function wrapInClause(
    an empty clause is a poor editing target). The `id` is **generated at
    insertion time** via the shared `generateId()` helper from
    `@metanorma/editor-commands` (`util.ts`).
-4. Wrap the range with the clause using `tr.wrap(range, [{ type: clause, attrs }])`,
+4. **Doc-top-level fallback.** If the block range's parent is the `doc` (i.e.
+   no section-bearing ancestor exists) and no `sections` container is present
+   in the document, first insert a `sections` node at the schema-mandated
+   position (immediately after `preface` if present, otherwise at the start of
+   `doc`; before any `bibliography`/`footnotes`). If a `sections` container
+   already exists, target it as the insertion parent. Re-resolve the block
+   range inside the (possibly newly created) `sections` container. The
+   container creation, the wrap, and the selection move are all part of the
+   same transaction.
+5. Wrap the range with the clause using `tr.wrap(range, [{ type: clause, attrs }])`,
    **or**, when wrapping a collapsed cursor, insert the clause + paragraph via
    `tr.replaceSelectionWith` / a manual `ReplaceAroundStep` that preserves the
    surrounding block. (The exact step shape is an implementation detail; the
    invariant is: the original block content ends up as a child of the new
    clause, preceded by the empty paragraph.)
-5. Map the selection into the new paragraph (`TextSelection.near` on the
+6. Map the selection into the new paragraph (`TextSelection.near` on the
    mapped position inside the clause).
-6. `dispatch(tr.scrollIntoView())`; return `true`.
+7. `dispatch(tr.scrollIntoView())`; return `true`.
+
+> **Selection-shape handling.** Standard `tr.wrap` over the `NodeRange` from
+> `$from.blockRange($to)` correctly handles all in-section selection shapes:
+> - **Single block / collapsed cursor** — the one block containing the cursor
+>   moves inside the new clause.
+> - **Multi-block range** — every block covered by the range moves inside the
+>   new clause as siblings.
+> - **Partial-block (text) selection** — `wrap` operates at the block level, so
+>   the **whole** paragraph (including unselected text) moves inside the clause.
+>   This is correct: a paragraph cannot be split across a section boundary.
+>
+> **Cross-section selections are disabled** (§5.1 step 5): `canWrapInClause`
+> returns `false` when `$from` and `$to` are in different section ancestors, so
+> `wrapInClause` never receives a cross-section range. No clamp or partial-wrap
+> fallback is provided.
 
 **Cursor placement.** The empty leading paragraph is where the cursor lands so
 the user can immediately type the clause body; the heading `title` is captured
@@ -412,10 +503,28 @@ export function demoteClause(state: EditorState, dispatch?: (tr: Transaction) =>
 4. Restore a selection inside the moved clause (map the old selection through
    the step mapping). `dispatch(tr.scrollIntoView())`; return `true`.
 
-> **Numbering.** `promoteClause` / `demoteClause` do **not** recompute `number`
-> attributes — they preserve whatever was present (see §8 open question on
-> whether numbering should be recomputed automatically). `id` is always
-> preserved on the moved node.
+> **Numbering.** `promoteClause` / `demoteClause` require **no `number`
+> handling**: in editor-produced documents `number` is always `null` (no command
+> sets it, no import path exists — §7). The commands simply carry the attr
+> through the node replacement untouched. `id` is always preserved on the moved
+> node.
+>
+> **Forward-looking note.** If a future feature (e.g. a Metanorma XML import
+> mapping the Semantic XML `number=` override attribute into the ProseMirror
+> `number` attr) introduces non-null `number` values, promote/demote should
+> **clear `number` to `null`**: a stored number is a level-specific override that
+> no longer applies at the new level. See §7 for why numbering is a presentation
+> concern handled by the Metanorma pipeline, not the editor.
+>
+> **Undo granularity.** Every section command (`wrapInClause`,
+> `promoteClause`, `demoteClause`, `setSectionType`) is a **single transaction**:
+> one command = one transaction = **one undo step**. A promote or demote moves
+> the clause (with its entire subtree) as one node replacement, so the user
+> presses Undo once to revert. No `addToHistory` meta is needed today. If a
+> future enhancement ever splits a structural change across multiple
+> transactions, it must coalesce them via
+> `tr.setMeta("addToHistory", false)` on all intermediate steps so the
+> one-undo-per-action invariant is preserved.
 
 ### 5.4 `setSectionType`
 
@@ -559,8 +668,37 @@ fallback hook, mirroring the base toolbar's `onLinkPrompt` pattern
 
 `id` and `number` are **never** user input: `id` is **generated at insertion
 time** via the shared `generateId()` helper (a `crypto.randomUUID()`-based
-string), and `number` is assigned by a future numbering pass. The commands
-leave `number` `null` on insert.
+string), and `number` is left `null` on insert. All section commands leave
+`number` `null`.
+
+> **Numbering is not an editor concern.** Clause/section numbering is a
+> **presentation** concern, computed by the Metanorma pipeline during the
+> Semantic→Presentation XML conversion — specifically by IsoDoc's
+> `XrefGen::Sections` module (`lib/isodoc/xref/xref_sect_gen.rb`, mixed into
+> `IsoDoc::Xref`; [rdoc](https://www.rubydoc.info/gems/isodoc/2.9.3/IsoDoc/XrefGen/Sections)).
+> `clause_order` partitions the document into preface/main/annex/back;
+> `section_names`/`section_names1` produce dotted hierarchical body numbers
+> (`1`, `1.1`, `A.1`); `annex_names` produces letters (`A`, `B`); prefaces and
+> back-matter are unnumbered. The result is stored in an in-memory `@anchors`
+> hash keyed by element id — it is **not** written as a `number=` attribute on
+> the Semantic XML. A literal `number` attribute on `<clause>` in Semantic XML
+> is an override hint only (metanorma-standoc ≥ v1.4.1). See
+> [Auto-numbering](https://www.metanorma.org/author/basics/numbering/) and
+> [Sections](https://www.metanorma.org/author/topics/sections/).
+>
+> **Consequence for direct-to-Presentation-XML consumers.** If a consumer
+> converts the editor's output directly to Presentation XML **without** running
+> the IsoDoc `XrefGen` pass (the numbering computation), clause numbering will
+> **not** be applied. The editor does not compensate for this: it emits `number`
+> `null` and relies on the downstream pipeline to compute numbers. (The
+> [LADL](https://metanorma.github.io/docs/) "Label Auto-assignment Definition
+> Language" spec that will eventually formalise this is still a draft, doc #112.)
+>
+> Accordingly, the editor does not implement auto-numbering: `number` is left
+> `null` by every section command (insert, promote, demote, set-type). If a
+> future editor feature needs to *display* a number, it should be a read-only
+> decoration derived from a tree-walk over the live document, not a value
+> persisted on the node — but that is a separate, deferred feature.
 
 > **Alternative (not adopted):** leave `id` as `null` and let a downstream
 > document pipeline assign ids. Rejected in favour of assigning at insertion
@@ -574,7 +712,7 @@ and `mn-toolbar-divider` classes. Feature-specific additions for this group:
 | Class | Purpose |
 |---|---|
 | `.mn-toolbar-btn--sections` | Optional modifier marking buttons belonging to the `sections` group (for targeted styling / icon colour). |
-| `.mn-toolbar-section-menu` | The `<select>` or sub-menu used by "Change section type" to list legal target types. |
+| `.mn-toolbar-section-menu` | The `<select>` or sub-menu (`role="listbox"`) listing section node types. Shared by the §4.2 insert split-button dropdown and the §4.5 "Change section type" menu. |
 | `.mn-toolbar-heading-popover` | The popover `<div>` containing the heading `<input>` (§7 option 1). Anchored, with `role="dialog"`. |
 
 No new root or group-container classes are required beyond the base
@@ -585,8 +723,13 @@ No new root or group-container classes are required beyond the base
 In addition to the base toolbar guarantees (`MetanormaToolbar.spec.md` §9),
 the structural buttons add:
 
-- **Insert clause** — `aria-label="Insert clause"`, `aria-pressed="false"` (not
-  a toggle). When disabled, set `disabled` and `aria-disabled="true"`.
+- **Insert clause (+ split menu)** — primary button:
+  `aria-label="Insert clause"`, `aria-pressed="false"` (not a toggle). The
+  dropdown caret has `aria-haspopup="listbox"` / `aria-expanded`; the menu uses
+  `role="listbox"` with `role="option"` entries, keyboard-navigable via Arrow
+  keys, confirming with Enter and dismissing with Escape. Disabled entries
+  carry `aria-disabled="true"`. When the primary button itself is disabled, set
+  `disabled` and `aria-disabled="true"`.
 - **Promote / Demote** — `aria-label="Promote clause"` /
   `"Demote clause"`. Since they are one-shot actions (not toggles), they do not
   use `aria-pressed`; instead convey current applicability via
@@ -604,59 +747,25 @@ the structural buttons add:
 - All structural buttons remain native `<button>` elements, so they are
   keyboard-focusable and operable via Enter / Space without extra code.
 
+> **Nesting depth and heading-level representation.** There is **no depth cap**:
+  the schema permits unbounded `clause`-within-`clause` nesting, and the toolbar
+  never disables Demote based on depth (Metanorma documents legitimately nest
+  beyond 6, e.g. annex sub-clauses; capping would reject valid documents).
+  Because HTML has only six heading elements (`<h1>`–`<h6>`), heading level is
+  conveyed via **`aria-level`** set to the clause's true nesting depth on the
+  rendered `<section>` element (computed from the node tree by a node view or
+  decoration, never stored on the node). `aria-level` accepts any positive
+  integer, so it remains accurate past level 6. A visual `<hN>` may optionally
+  be synthesised for display, clamped to `<h6>` past level 6, but `aria-level`
+  carries the true depth to assistive tech. Depth is **derived**, not stored:
+  it is recomputed whenever the clause's ancestors change (insert/promote/
+  demote), so no command needs to maintain it.
+
 ## 10. Open questions / unknowns
 
 These are genuine unresolved design questions, listed for review:
 
-1. **Automatic vs manual clause numbering.** Should `number` be recomputed by
-   a plugin after every structural change (insert/promote/demote/set-type), or
-   left null until an explicit "renumber" action? Auto-numbering requires a
-   tree-walk numbering plugin (not yet specified). The commands currently leave
-   `number` null.
-2. **Maximum nesting depth.** The content expressions allow unbounded
-   `clause`-within-`clause` nesting. Should the toolbar impose a soft depth cap
-   (e.g. disable Demote past level 6) for readability / heading-level parity,
-   and if so, what is the cap? How is the heading level (`<h1>`–`<h6>` vs
-   ARIA `aria-level`) represented? (See also #7.)
-3. **Promote/demote and `number` preservation.** When a clause moves levels,
-   should its `number` be preserved as-is (current proposal), cleared to null,
-   or recomputed? Preserving a stale "3.2.1" after promoting to top level is
-   misleading; recomputing needs the numbering plugin (#1).
-4. **Behaviour at doc top-level.** `doc.content` is strictly
-   `(preface? sections? bibliography? footnotes?)`. "Insert clause" at the very
-   top of the document must therefore target the `sections` container (creating
-   one if absent), not the `doc` directly. What happens when the cursor is
-   between containers, or when `sections` does not yet exist? The wrap command
-   assumes a section-bearing ancestor; a top-of-document insert needs a
-   container-creation fallback path (unspecified).
-5. **Which section types to expose.** Should the toolbar offer inserts for all
-   ten section types, only `clause` (current proposal, with type conversion via
-   "Change section type"), or a curated subset (`clause`, `annex`, `terms`)? An
-   all-types toolbar risks overwhelming users; conversion-only may be too
-   indirect for `annex` (which has distinct semantics and is typically
-   top-level in `bibliography`/appendix area).
-6. **Heading-level representation.** Section nodes render as
-   `<section class="mn-clause">` with no explicit `<hN>`; the `title` attr is
-   the heading text but is not currently rendered as a heading element. How
-   should heading level be represented for accessibility (ARIA `aria-level` on
-   the section? a synthesised `<hN>` via a node view?) so that nesting depth is
-   conveyed to assistive tech?
-8. **Interaction with `floating_title`.** The schema has a `floating_title`
-   block node (atom, `sectionAttrs`, rendered as a non-`<section>`
-   `<div class="floating-title">`). Is a floating title an alternative to a
-   clause `title`, a heading that floats outside the section hierarchy, or a
-   distinct concept? Should "Insert clause" optionally produce a
-   `floating_title` instead? Their relationship is unspecified.
-8. **Selection / content preservation during wrap & unwrap.** `wrapInClause`
-   must preserve the selected block content inside the new clause and restore a
-   sensible selection. For multi-block selections, partial-block selections,
-   and selections spanning section boundaries, the exact step shape
-   (`ReplaceAroundStep` vs `wrap` vs manual slice/insert) needs test cases.
-   Cross-section selections in particular may be illegal to wrap in a single
-   clause and must be handled (disable, or clamp to the innermost section).
-9. **Undo granularity.** Should promote/demote be a single undo step, and
-   should a multi-move (e.g. demote cascading children) be grouped via
-   `tr.setMeta("addToHistory", ...)` / a transaction group?
+(none remain — all questions resolved.)
 
 ## 11. Export changes
 

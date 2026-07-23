@@ -355,10 +355,10 @@ export function insertImage(
 > types through `state.schema` (the `Schema` instance on the passed
 > `EditorState`), it is already schema-parameterised: it works unchanged on a
 > composed schema as long as that schema has `figure` and `image` node types.
-> **Decision: no separate `(schema) => Command` factory is required** — the
-> command binds nothing to the `metanormaSchema` singleton at module load. (If a
-> future consumer needed to validate the schema shape at construction time, a
-> factory could be added; it is not needed for the Metanorma schema.)
+> No separate `(schema) => Command` factory is required — the command binds
+> nothing to the `metanormaSchema` singleton at module load. (If a future
+> consumer needed to validate the schema shape at construction time, a factory
+> could be added; it is not needed for the Metanorma schema.)
 
 ### 6.2 Algorithm
 

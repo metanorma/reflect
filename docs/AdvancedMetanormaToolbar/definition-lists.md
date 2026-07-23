@@ -464,11 +464,18 @@ lives in `@metanorma/prosemirror-editor`, **not** in the commands package:
 | In a `dt` (term) | Move cursor to the start of **its** `dd` (do not insert anything) | User types the description |
 | In a `dd` (description) that is **not** the last node of the `dl` | Default behaviour (split block within dd, or move to next pair) | Normal block editing |
 | In the **last** `dd` of the `dl` | **Add a new `(dt, dd)` pair** (via `addDefinitionPair`) and move cursor to the new `dt` | Grow the list |
-| In the last `dd` when the term of its pair is **empty** | **Exit the dl**: insert a new paragraph after the dl, move cursor there, and remove the now-empty trailing pair if needed to keep `(dt dd)+` valid | Escape hatch out of the list |
+| In the last `dd` when the term of its pair is **empty** | **Exit the dl**: insert a new paragraph after the dl, move cursor there, and remove the now-empty trailing pair if needed to keep `(dt dd)+` valid — all as a **single transaction** | Escape hatch out of the list |
 
 The last two rows are the key UX decisions: **Enter in the last dd adds a
 pair**, and **Enter in the last dd whose dt is empty exits the dl** (mirroring
 how most editors let you "press Enter on an empty line to leave the list").
+
+> **Empty-pair cleanup transaction.** The trailing empty `(dt, dd)` pair and the
+> paragraph insertion happen in one transaction so that pressing Undo once
+> restores the list to its pre-exit state (cursor back inside the empty pair).
+> `exitDefinitionList` must therefore issue a single `tr` that both deletes the
+> trailing pair *and* inserts the exit paragraph, rather than dispatching two
+> separate transactions or splitting the work across an undo-group boundary.
 
 ```typescript
 // pkg/prosemirror-editor/plugins/definitionListKeymap.ts
@@ -640,10 +647,7 @@ a design decision left to the implementer.
 These are genuine unresolved points; the recommendations above are defaults,
 not final decisions.
 
-1. **Empty-pair cleanup.** When exiting a dl by Enter-on-empty-term, the
-   trailing empty pair must be removed to keep `(dt dd)+` valid (an empty `dt`
-   is schema-legal but undesirable). Confirm the cleanup transaction and its
-   undo coalescing with the exit.
+(none remain — all questions resolved.)
 
 ## 11. Export changes
 

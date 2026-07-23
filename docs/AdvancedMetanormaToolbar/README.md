@@ -98,7 +98,7 @@ proposed in these documents must:
 | [`tables.md`](./tables.md) | Table insertion with row/column dimension selection UI | "Tables" |
 | [`images-figures.md`](./images-figures.md) | Image/figure insertion, URL/upload, `assertValidImageAttrs` | "Images / figures" |
 | [`sections.md`](./sections.md) | Section/clause nesting structural operations | "Section / clause nesting" |
-| [`reference-marks.md`](./reference-marks.md) | `xref`, `eref`, `concept`, `bcp14`, `footnote`, `stem` marks | "Reference marks" |
+| [`reference-marks.md`](./reference-marks.md) | `xref`, `eref`, `concept`, `bcp14` marks + `footnote_marker`, `stem` inline nodes | "Reference marks" |
 | [`definition-lists.md`](./definition-lists.md) | `dl`/`dt`/`dd` insertion logic | "Definition lists" |
 | [`undo-redo.md`](./undo-redo.md) | Undo/redo via `prosemirror-history` | "Undo / redo" |
 
@@ -533,8 +533,12 @@ export interface AdvancedMetanormaToolbarProps {
   readonly onXrefPrompt?: () => Promise<string | null>;
   readonly onErefPrompt?: () => Promise<string | null>;
   readonly onConceptPrompt?: () => Promise<string | null>;
-  /** Allowed BCP14 keywords; defaults to a standard RFC 2119 list. */
-  readonly bcp14Keywords?: readonly string[];
+  /** Resolve a BCP14 keyword (free text). Default: window.prompt. */
+  readonly onBcp14Prompt?: () => Promise<string | null>;
+  /** Resolve a footnote entry id (optionally create). Default: generate. */
+  readonly onFootnotePrompt?: () => Promise<string | null>;
+  /** Resolve a stem formula (notation + source). Default: minimal popover. */
+  readonly onStemPrompt?: () => Promise<{ type: "asciimath" | "mathml"; source: string } | null>;
 
   // — history group (undo-redo.md) —
   readonly history?: HistoryOptions | false;
@@ -549,7 +553,9 @@ Prop coverage map:
 | `onImageUpload` | `imagesGroup` | `URL.createObjectURL` (local-only caveat) |
 | `onImagePrompt` | `imagesGroup` | built-in `ImageInsertDialog` |
 | `onXrefPrompt` / `onErefPrompt` / `onConceptPrompt` | `refsGroup` | `window.prompt` / doc-id picker |
-| `bcp14Keywords` | `refsGroup` (BCP14 menu) | `["MUST", …]` (RFC 2119) |
+| `onBcp14Prompt` | `refsGroup` (BCP14 keyword) | `window.prompt` (free text) |
+| `onFootnotePrompt` | `refsGroup` (footnote id) | generate id |
+| `onStemPrompt` | `refsGroup` (formula) | built-in stem popover |
 | `history` | `historyGroup` + editor state | enabled, `newGroupDelay: 500` |
 
 ### 5.8 Unified group-id type
@@ -610,7 +616,7 @@ pkg/editor-commands/                  ← pure commands (no React, no DOM, no Ed
     insertTable.ts                        ← insertTable(state, dispatch?, rows, cols), canInsertTable  [new]
     insertImage.ts                        ← insertImage(state, dispatch?, attrs), canInsertFigure      [new]
     sections.ts                           ← wrapInClause, promoteClause, demoteClause, setSectionType  [new]
-    referenceMarks.ts                     ← applyReferenceMark, toggleXref/Eref/Concept/Bcp14/Footnote/Stem  [new]
+    referenceMarks.ts                     ← applyReferenceMark, toggleXref/Eref/Concept/Bcp14, insertFootnoteMarker/insertStem  [new]
     definitionList.ts                     ← insertDefinitionList, addDefinitionPair (+ helpers)         [new]
     toggleList.ts                         ← toggleList (pure Command)                                     [refactor: from prosemirror-editor]
     history.ts                            ← undo, redo (re-exports of prosemirror-history)               [new]
@@ -665,7 +671,8 @@ export {
 } from "./commands/sections.js";
 export {
   applyReferenceMark,
-  toggleXref, toggleEref, toggleConcept, toggleBcp14, toggleFootnote, toggleStem,
+  toggleXref, toggleEref, toggleConcept, toggleBcp14,
+  insertFootnoteMarker, insertStem,
 } from "./commands/referenceMarks.js";
 export {
   insertDefinitionList, addDefinitionPair,
@@ -700,7 +707,8 @@ export {
   insertImage, canInsertFigure,
   wrapInClause, promoteClause, demoteClause, setSectionType,
   applyReferenceMark,
-  toggleXref, toggleEref, toggleConcept, toggleBcp14, toggleFootnote, toggleStem,
+  toggleXref, toggleEref, toggleConcept, toggleBcp14,
+  insertFootnoteMarker, insertStem,
   insertDefinitionList, addDefinitionPair,
   toggleList,
   undo, redo,
@@ -848,6 +856,6 @@ This satisfies `EditorCommands.spec.md` §1.8 (purity) without losing the UX:
 | `tables.md` | `insertTable(state, dispatch?, rows, cols)`; `canInsertTable(state)` is the predicate form | `TableSizePicker.tsx` (popover) + toolbar `run` adapter |
 | `images-figures.md` | `insertImage(state, dispatch?, attrs)`; `canInsertFigure(state)` predicate | `ImageInsertDialog.tsx` (URL/upload) + toolbar `run` adapter |
 | `sections.md` | `wrapInClause`, `promoteClause`, `demoteClause`, `setSectionType` (+ legality helpers) | toolbar `run` adapter (no view-taking overloads) |
-| `reference-marks.md` | `applyReferenceMark`, `toggleXref/Eref/Concept/Bcp14/Footnote/Stem` | per-mark popover/prompt UI + toolbar `run` adapter |
+| `reference-marks.md` | `applyReferenceMark`, `toggleXref/Eref/Concept/Bcp14`, `insertFootnoteMarker`, `insertStem` | per-mark popover/prompt UI + toolbar `run` adapter |
 | `definition-lists.md` | `insertDefinitionList`, `addDefinitionPair` (pure `Command` only; no `(view)` overload) | `definitionListKeymap.ts` plugin + toolbar `run` adapter |
 | `undo-redo.md` | `undo`, `redo` (re-exported from `prosemirror-history`, standard names) | toolbar `run` adapter; history plugin wiring in `state.ts` |

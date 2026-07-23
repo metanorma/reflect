@@ -389,19 +389,13 @@ defaults), but they are documented here as the deliberate initial state.
 schema instance is whatever the caller's `EditorState` carries, never a captured
 singleton. This satisfies `docs/EditorCommands.spec.md` §1.6.1 (resolve types by
 name through the schema instance) and is the simplest form that remains
-schema-agnostic.
-
-> **Decision: operate on `state.schema` directly, not a `(schema) => Command`
-> factory.** Table insertion is generic — it builds `table > table_body >
-> table_row > table_cell` and seeds an empty `paragraph` — and contains no
-> Metanorma-vocabulary-specific branching that would only ever apply to the
-> exact `metanormaSchema`. Because the command resolves node types from
-> `state.schema`, it is automatically reusable on any composed schema that
-> keeps those node names, without binding the `metanormaSchema` singleton. A
-> `createInsertTable(schema): Command` factory (§1.6.2) would add an indirection
-> with no benefit here, since there is no construction-time schema validation to
-> perform. (Should a future variant need to *override* node names, it can be
-> added as an explicit factory without changing this command.)
+schema-agnostic. Table insertion is generic — it builds `table > table_body >
+table_row > table_cell` and seeds an empty `paragraph` — and contains no
+Metanorma-vocabulary-specific branching that would only ever apply to the exact
+`metanormaSchema`. A `createInsertTable(schema): Command` factory (§1.6.2) would
+add an indirection with no benefit here, since there is no construction-time
+schema validation to perform. (Should a future variant need to *override* node
+names, it can be added as an explicit factory without changing this command.)
 
 #### 8.1.2 ID assignment
 
