@@ -4,6 +4,9 @@
  * Assembles the single ProseMirror `Schema` whose node/mark vocabulary,
  * content model, attributes, and DOM serialization rules mirror the
  * Metanorma Mirror document model.
+ *
+ * Section references (e.g. §11, §3.1) throughout this package refer to
+ * `docs/schema.spec.md`, unless otherwise specified.
  */
 
 import { Schema } from "prosemirror-model";
