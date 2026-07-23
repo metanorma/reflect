@@ -26,7 +26,7 @@ to every document in this directory unless a document states otherwise.
 |---|---|
 | Package | `@metanorma/prosemirror-editor` (toolbar, UI, view adapters); commands in `@metanorma/editor-commands` |
 | Schema package | `@metanorma/prosemirror-schema` |
-| Source root | `pkg/prosemirror-editor/src/` (UI); `pkg/editor-commands/src/` (pure commands) |
+| Source root | `pkg/prosemirror-editor/` (UI); `pkg/editor-commands/` (pure commands) |
 | Toolbar stylesheet | `toolbar.css` (class prefix `mn-toolbar`) |
 | Commands package | `@metanorma/editor-commands` — see §6 |
 
@@ -106,7 +106,7 @@ proposed in these documents must:
 
 All features target the single `metanormaSchema` exported from
 `@metanorma/prosemirror-schema`. Key node and mark definitions relevant across
-features are summarized below; consult `pkg/prosemirror-schema/src/nodes.ts`
+features are summarized below; consult `pkg/prosemirror-schema/nodes.ts`
 and `marks.ts` for full specs.
 
 ### 4.1 Groups
@@ -140,7 +140,7 @@ it**, and the refactor of the existing `MetanormaToolbar` needed to get there.
 ### 5.1 Current state of `MetanormaToolbar`
 
 `MetanormaToolbar` **is implemented** at
-`pkg/prosemirror-editor/src/MetanormaToolbar.tsx`. It is a self-contained
+`pkg/prosemirror-editor/MetanormaToolbar.tsx`. It is a self-contained
 monolith with no `toolbar/` directory, no group registry, and no extension
 seam. Concretely, the current implementation contains:
 
@@ -336,7 +336,7 @@ target module, preserving behaviour.
 
 #### 5.5.2 Step 1 — Extract shared types to `toolbar/types.ts`
 
-Create `pkg/prosemirror-editor/src/toolbar/types.ts`. Move into it:
+Create `pkg/prosemirror-editor/toolbar/types.ts`. Move into it:
 
 | Symbol | Current location | Target |
 |---|---|---|
@@ -351,7 +351,7 @@ No behaviour change.
 #### 5.5.3 Step 2 — Extract `ToolbarButtonView` to `toolbar/ToolbarButtonView.tsx`
 
 Move the `ToolbarButtonView` function component (`MetanormaToolbar.tsx:283`)
-verbatim into `pkg/prosemirror-editor/src/toolbar/ToolbarButtonView.tsx`, make
+verbatim into `pkg/prosemirror-editor/toolbar/ToolbarButtonView.tsx`, make
 it an **exported** module, and import it back into `MetanormaToolbar.tsx`. Its
 `useEditorStateSelector` / `useEditorEventCallback` wiring and CSS class logic
 move with it unchanged.
@@ -361,7 +361,7 @@ move with it unchanged.
 Move the render-body logic currently inlined in `MetanormaToolbar` (`:343`:
 the group iteration, the `GROUP_ORDER`-driven loop, the divider insertion, and
 the `visibleGroups` filtering) into a new generic `<Toolbar>` component
-(`pkg/prosemirror-editor/src/toolbar/Toolbar.tsx`) with the `ToolbarProps`
+(`pkg/prosemirror-editor/toolbar/Toolbar.tsx`) with the `ToolbarProps`
 signature from §5.3.3. The shell renders `<ToolbarButtonView>` for each
 `ToolbarButtonEntry`. After this step, `MetanormaToolbar`'s render body is a
 single `<Toolbar …/>` call.
@@ -605,7 +605,7 @@ codebase; items marked **[refactor]** are created by the §5.5 refactor; items
 marked **[new]** are advanced-feature additions.
 
 ```
-pkg/editor-commands/src/                  ← pure commands (no React, no DOM, no EditorView)
+pkg/editor-commands/                  ← pure commands (no React, no DOM, no EditorView)
   commands/
     insertTable.ts                        ← insertTable(state, dispatch?, rows, cols), canInsertTable  [new]
     insertImage.ts                        ← insertImage(state, dispatch?, attrs), canInsertFigure      [new]
@@ -618,7 +618,7 @@ pkg/editor-commands/src/                  ← pure commands (no React, no DOM, n
   schema.ts                               ← name-resolution helpers (NODE_NAMES / MARK_NAMES)             [new]
   index.ts                                ← public command exports                                        [new]
 
-pkg/prosemirror-editor/src/
+pkg/prosemirror-editor/
   toolbar/
     types.ts                              ← ToolbarButton, ToolbarEntry, ToolbarGroupDef,                 [refactor: extracted from MetanormaToolbar.tsx]
                                           ←   BaseToolbarGroup, AdvancedToolbarGroup
@@ -654,7 +654,7 @@ through `@metanorma/prosemirror-editor` for one-stop toolbar imports. This
 supersedes the per-document export proposals, which are consolidated here.
 
 ```typescript
-// ── pkg/editor-commands/src/index.ts ── pure commands (no React, no DOM) ──
+// ── pkg/editor-commands/index.ts ── pure commands (no React, no DOM) ──
 
 // Each command conforms to Command = (state, dispatch?) => boolean
 // (or (schema) => Command factory form — see §6).
@@ -675,7 +675,7 @@ export { undo, redo } from "./commands/history.js";
 export { chainCommands, generateId } from "./util.js";
 
 
-// ── pkg/prosemirror-editor/src/index.ts ── React editor + toolbar ──
+// ── pkg/prosemirror-editor/index.ts ── React editor + toolbar ──
 
 // Base toolbar (unchanged public surface from MetanormaToolbar.spec.md)
 export { MetanormaToolbar } from "./MetanormaToolbar.js";
@@ -758,8 +758,8 @@ Command logic is split across two packages by responsibility:
 
 | Concern | Package | What lives here |
 |---|---|---|
-| **Pure command logic** | `@metanorma/editor-commands` (`pkg/editor-commands/src/commands/`) | `(state, dispatch?) => boolean` functions; schema-coupling helpers; predicates; the `chainCommands` combinator. |
-| **View adapters & UI** | `@metanorma/prosemirror-editor` (`pkg/prosemirror-editor/src/`) | The toolbar `run(view)` callbacks that extract `view.state`/`view.dispatch`, call a pure command, then optionally `view.focus()`; popover/dialog components; keymap plugins. |
+| **Pure command logic** | `@metanorma/editor-commands` (`pkg/editor-commands/commands/`) | `(state, dispatch?) => boolean` functions; schema-coupling helpers; predicates; the `chainCommands` combinator. |
+| **View adapters & UI** | `@metanorma/prosemirror-editor` (`pkg/prosemirror-editor/`) | The toolbar `run(view)` callbacks that extract `view.state`/`view.dispatch`, call a pure command, then optionally `view.focus()`; popover/dialog components; keymap plugins. |
 
 **No pure command imports `prosemirror-view`, `React`, or touches the DOM.**
 This guarantees every command is headless-testable

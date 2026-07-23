@@ -36,7 +36,7 @@ specific additions are defined here.
 ## 2. Scope and schema recap
 
 Both media nodes come from `@metanorma/prosemirror-schema` (`metanormaSchema`,
-defined in `pkg/prosemirror-schema/src/nodes.ts` §8.6). The relevant fragment:
+defined in `pkg/prosemirror-schema/nodes.ts` §8.6). The relevant fragment:
 
 | Node | Content | Group | Atom | Draggable | Attrs |
 |---|---|---|---|---|---|
@@ -94,12 +94,12 @@ for whether to reuse them for attribute editing).
 | Aspect | Value |
 |---|---|
 | Command-logic package | `@metanorma/editor-commands` |
-| Command module | `pkg/editor-commands/src/commands/insertImage.ts` (pure command logic) |
+| Command module | `pkg/editor-commands/commands/insertImage.ts` (pure command logic) |
 | Editor package (consumer) | `@metanorma/prosemirror-editor` — re-exports `insertImage`/`canInsertFigure` (§11) |
-| Dialog / adapter component | `pkg/prosemirror-editor/src/ImageInsertDialog.tsx` (`InsertImageButton` + dialog; owns `EditorView`, async, DOM) |
-| Dialog styles | `pkg/prosemirror-editor/src/image-dialog.css` (imported side-effect) |
-| Public barrel (editor) | `pkg/prosemirror-editor/src/index.ts` (re-exports — §11) |
-| Public barrel (commands) | `pkg/editor-commands/src/index.ts` (command exports — §11) |
+| Dialog / adapter component | `pkg/prosemirror-editor/ImageInsertDialog.tsx` (`InsertImageButton` + dialog; owns `EditorView`, async, DOM) |
+| Dialog styles | `pkg/prosemirror-editor/image-dialog.css` (imported side-effect) |
+| Public barrel (editor) | `pkg/prosemirror-editor/index.ts` (re-exports — §11) |
+| Public barrel (commands) | `pkg/editor-commands/index.ts` (command exports — §11) |
 | Schema source | `@metanorma/prosemirror-schema` (`metanormaSchema`, `assertValidImageAttrs`) |
 
 The split follows the `@metanorma/editor-commands` Command contract
@@ -134,7 +134,7 @@ minimal, non-invasive deviation, reusing the same `.mn-toolbar-btn` classes for
 visual consistency.
 
 ```tsx
-// pkg/prosemirror-editor/src/ImageInsertDialog.tsx (excerpt)
+// pkg/prosemirror-editor/ImageInsertDialog.tsx (excerpt)
 export function InsertImageButton({
   onImageUpload,
 }: {
@@ -193,7 +193,7 @@ pieces of input and resolves them to a single `src` URL plus an optional `alt`:
 | Field | Control | Required | Purpose |
 |---|---|---|---|
 | Source URL | `<input type="url" name="src">` | one of URL/file | **URL path** (§5.1) — a remote or absolute image URL typed or pasted. |
-| Image file | `<input type="file" accept="image/*">` | one of URL/file | **Upload path** (§5.2) — a local file turned into a URL. |
+| Image file | `<input type="file" accept="image/*">` | one of URL/file | **File path** (§5.2) — a local file embedded as a serializable `data:` URL (default), or uploaded via `onImageUpload`. |
 | Alt text | `<input type="text" name="alt">` | no | Accessibility text, stored on the `image` node. |
 
 Exactly one source is required: a non-empty URL **or** a chosen file. Alt text is
@@ -239,52 +239,56 @@ dispatches `insertImage(view.state, view.dispatch, { src, alt })` with that
 `onImagePrompt` is absent, the built-in `ImageInsertDialog` is used. The
 `Promise`/async concerns stay in the adapter; the pure command is synchronous.
 
-### 5.2 Upload path
+### 5.2 File path
 
 When the user selects a local file via the hidden `<input type="file">`, the file
-must be turned into a URL before it can become `image.src`. Two resolution
+must be turned into a `src` value before it can become `image.src`. Two
 strategies, selected by whether the host app supplies an upload callback:
 
 ```typescript
 /**
  * Optional upload handler. Given a selected File, upload it (e.g. to object
- * storage) and resolve to its resulting URL. When omitted, the dialog falls
- * back to an object URL (local-only — see caveat below).
+ * storage) and resolve to its resulting URL. When omitted, the dialog defaults
+ * to a serializable `data:` URL (no server required).
  */
 export type OnImageUpload = (file: File) => Promise<string>;
 ```
 
 | Strategy | When used | Produces | Survives serialization? |
 |---|---|---|---|
-| **`onImageUpload(file)`** | Host app supplies the callback | a real URL (`https://…`) returned by the host | **Yes** — the URL is durable. |
-| **Object URL** (`URL.createObjectURL(file)`) | No `onImageUpload` supplied (default) | a `blob:` URL valid for the page lifetime | **No** — see caveat. |
-| **Data URL** (`FileReader.readAsDataURL`) | not used by default; noted as an option | a `data:` URL embedding the file bytes | Yes, but bloats the document; subject to size limits. |
+| **Data URL** (`FileReader.readAsDataURL`) | No `onImageUpload` supplied (**default**) | a `data:` URL embedding the file bytes as base64 | **Yes** — serializes cleanly; no server required. |
+| **`onImageUpload(file)`** | Host app supplies the callback (**secondary**) | a real URL (`https://…`) returned by the host | **Yes** — the URL is durable. |
 
 The dialog's default behaviour, when `onImageUpload` is absent, is
-`URL.createObjectURL(file)`. This makes local-only editing work with zero host
-integration, but with an important caveat:
+`FileReader.readAsDataURL(file)` — a **`data:` URL**. This makes local-only
+editing work with zero host integration **and** survives serialization across
+reloads, so it is the happy path for the common "no server" case. `onImageUpload`
+is the secondary option for host apps that prefer to persist images to storage
+and store a short URL instead of embedding bytes.
 
-> **Object-URL caveat.** A `blob:` URL is tied to the document/session that
-> created it. It renders fine in the live editor, but it does **not** survive
-> serialization: `node.toJSON()` stores the `blob:` string verbatim, and a
-> reloaded or server-rendered document cannot resolve it. Object URLs are
-> therefore appropriate only for ephemeral/local editing. Production deployments
-> should supply `onImageUpload` to persist images.
->
-> **Object-URL leak.** `createObjectURL` should ideally be paired with
-> `revokeObjectURL` when the `image` node is removed, but ProseMirror gives no
-> "node removed" hook. v1 **accepts the leak**: object URLs live until page
-> unload. Note this can accumulate memory in a long-lived tab (e.g. a document
-> kept open for hours with many inserted then deleted images). A future cleanup
-> plugin — watching transactions for deleted `image` nodes whose `src` is a
-> `blob:` URL and revoking them — could bound the leak; deferred.
+> **Data-URL size handling.** Base64 embedding expands the payload by ~⅓, so
+> many images can produce a large document. Current versions of popular modern
+> browsers (Chrome, Safari, Firefox, Edge) do **not** impose a practical
+> `data:`-URL length cap for `img` rendering at typical document sizes, so this
+> is not an issue for normal use. If the generated `data:` URL exceeds a
+> browser-specific cap, `FileReader.readAsDataURL` / image load will fail; the
+> dialog must catch that failure and surface a **graceful error** (inline,
+> `aria-live`, §9), e.g. "This image is too large to embed — supply
+> `onImageUpload` to upload it instead." The dialog should not crash or insert a
+> broken node.
 
-The upload flow is asynchronous, so the dialog's commit handler must `await` the
-URL resolution before dispatching; see §7.
+The file path is asynchronous (both `readAsDataURL` and `onImageUpload` return
+promises), so the dialog's commit handler must `await` the resolution before
+dispatching; see §7.
+
+> **No `blob:` URLs.** Non-serializable `blob:` object URLs
+> (`URL.createObjectURL`) are **not supported**: they do not survive
+> serialization, so a reloaded or server-rendered document cannot resolve them.
+> The default `data:` URL path is the supported no-server strategy instead.
 
 ## 6. The `insertImage` command
 
-Lives in `pkg/editor-commands/src/commands/insertImage.ts` — the
+Lives in `pkg/editor-commands/commands/insertImage.ts` — the
 `@metanorma/editor-commands` package. It conforms to the Command contract
 (`EditorCommands.spec.md` §1.5): it is a pure `(state, dispatch?) => boolean`
 function — **no `EditorView`, no DOM, non-throwing**. The `EditorView`, async
@@ -393,7 +397,7 @@ export function insertImage(
 ### 6.3 Example implementation
 
 ```typescript
-// pkg/editor-commands/src/commands/insertImage.ts
+// pkg/editor-commands/commands/insertImage.ts
 // @metanorma/editor-commands — PURE command logic. No EditorView, no DOM.
 import { NodeSelection, type EditorState, type Transaction } from "prosemirror-state";
 import type { Node } from "prosemirror-model";
@@ -500,12 +504,13 @@ bare-`image` insertion path is offered.
 
 All async/`Promise`/`File` work is **UI-only** and lives in the toolbar adapter
 (`ImageInsertDialog.tsx` in `@metanorma/prosemirror-editor`); the pure command
-(§6) is synchronous. URL entry is synchronous, but **upload is asynchronous**,
-and even URL entry via the `onImagePrompt` hook returns a `Promise`. The
-**adapter** resolves the source to a `src` string first, then calls the
-synchronous pure command with resolved `{ src, alt }`. The dispatch must
-therefore happen **after** the source resolves, against an editor state that may
-have changed during the wait. Three rules make this safe:
+(§6) is synchronous. URL entry is synchronous, but the **file path is
+asynchronous** (both `data:`-URL generation and `onImageUpload`), and even URL
+entry via the `onImagePrompt` hook returns a `Promise`. The **adapter** resolves
+the source to a `src` string first, then calls the synchronous pure command with
+resolved `{ src, alt }`. The dispatch must therefore happen **after** the source
+resolves, against an editor state that may have changed during the wait. Three
+rules make this safe:
 
 1. **Capture no state; use the live `view`.** `useEditorEventCallback` always
    invokes its callback with the **current** `EditorView`. The callback must read
@@ -524,7 +529,7 @@ have changed during the wait. Three rules make this safe:
    touches focus.
 
 ```tsx
-// pkg/prosemirror-editor/src/ImageInsertDialog.tsx (commit handler)
+// pkg/prosemirror-editor/ImageInsertDialog.tsx (commit handler)
 // The ADAPTER owns EditorView, async, and DOM. The pure command owns none.
 import { insertImage } from "@metanorma/editor-commands"; // re-exported through editor pkg
 
@@ -541,10 +546,17 @@ const dispatchInsert = useEditorEventCallback(
 async function onCommit(file: File | null, url: string, alt: string): Promise<void> {
   // Async source resolution happens here in the UI layer, BEFORE the command.
   let src: string | null = null;
-  if (file !== null) {
-    src = onImageUpload ? await onImageUpload(file) : URL.createObjectURL(file);
-  } else if (url.trim() !== "") {
-    src = url.trim();
+  try {
+    if (file !== null) {
+      src = onImageUpload ? await onImageUpload(file) : await readAsDataURL(file);
+    } else if (url.trim() !== "") {
+      src = url.trim();
+    }
+  } catch {
+    // data: URL generation or upload failed (e.g. image too large to embed).
+    // Surface a graceful inline error; do NOT insert a broken node.
+    showError("Could not read this image. Try a smaller image or supply onImageUpload.");
+    return;
   }
   if (src === null) return;            // nothing to insert
   await dispatchInsert(src, alt.trim() === "" ? null : alt);
@@ -552,7 +564,7 @@ async function onCommit(file: File | null, url: string, alt: string): Promise<vo
 ```
 
 The boundary is thus: the adapter resolves `src`/`alt` (async, `File`,
-`URL.createObjectURL`, `onImageUpload`) and holds the `EditorView`; the pure
+`FileReader.readAsDataURL`, `onImageUpload`) and holds the `EditorView`; the pure
 command takes already-resolved `{ src, alt }` plus `view.state`/`view.dispatch`
 and performs the synchronous, non-throwing, schema-aware insert. The
 `EditorView` reference is always current, and the transaction is built and
@@ -615,7 +627,7 @@ The `ImageInsertDialog` follows the WAI-ARIA **dialog** pattern.
 |---|---|
 | `Tab` / `Shift+Tab` | Move focus between the dialog controls (URL → file → alt → commit → cancel). |
 | `Enter` | On the commit control: submit the dialog (resolve source, dispatch `insertImage`). Inside a text field: submit only when the field has a value, otherwise default form behaviour. |
-| `Escape` | Cancel: close the dialog without inserting; discard any in-flight object URL. |
+| `Escape` | Cancel: close the dialog without inserting; discard any in-flight `data:`-URL generation or upload. |
 | Click outside the dialog | Cancel (same as `Escape`). |
 
 ### 9.3 Focus management
@@ -629,16 +641,7 @@ The `ImageInsertDialog` follows the WAI-ARIA **dialog** pattern.
 
 Genuine design decisions left for the implementer / product owner:
 
-1. **`data:` URLs and size limits.** Embedding a file as a `data:` URL survives
-   serialization but can produce very large documents (and some browsers cap
-   `data:` URL length). Should the dialog offer data-URL embedding as a third,
-   explicit strategy, or always prefer `onImageUpload`? Deferred.
-2. **Alt-text requirements.** Should the dialog **require** alt text for a11y
-   (with an explicit "decorative" checkbox that sets `alt=""`)? Current proposal
-   makes alt optional. Needs an a11y policy decision.
-3. **Placement relative to the current block.** As with tables, when the cursor
-   is mid-paragraph `replaceSelectionWith` splits and inserts in place. Should
-   there be an "insert after block" mode? Deferred (mirrors `tables.md` §9.2).
+(none remain — all questions resolved; see below.)
 
 > **Resolved decisions.** `id` is **generated at insertion time** via the
 > shared `generateId()` helper, for consistency with `insertTable` and section
@@ -649,11 +652,21 @@ Genuine design decisions left for the implementer / product owner:
 > for this proposal (future work, would reuse `insertImage` via
 > `handlePaste`/`handleDrop`). Attribute editing of an existing figure via the
 > node views is insert-only for v1; an `updateImageAttrs` helper is deferred.
-> **Object-URL leak:** v1 accepts the leak (object URLs live until page unload);
-> a cleanup plugin to revoke `blob:` URLs on node removal is deferred.
+> **File-path source strategies:** the default (no `onImageUpload`) is a
+> **serializable `data:` URL** via `FileReader.readAsDataURL` — the happy path,
+> no server required. `onImageUpload` is the **secondary** option for host apps
+> that prefer to persist images to storage. Non-serializable `blob:` object URLs
+> (`URL.createObjectURL`) are **not supported** (no leak to manage). If a
+> browser caps `data:`-URL length for an over-large image, the dialog surfaces a
+> graceful error rather than inserting a broken node.
 > **Bare `image` vs. always-wrapped `figure`:** no image-less figure is needed —
 > the schema mandates `figure > image`, and v1 always emits exactly that; no
 > second button.
+> **Alt text is optional.** The dialog does not require alt text; `image.alt`
+> defaults to `null` (no "decorative" checkbox, no enforced a11y prompt).
+> **Placement relative to the current block:** insert **in place** (split the
+> paragraph) — the default `replaceSelectionWith` behaviour. No "insert after
+> block" mode. (Mirrors `tables.md` §9, resolved jointly.)
 > **`figure`/`image` attribute split (no duplication).** Attributes are divided
 > by responsibility, with **no mirroring** between the two nodes: `figure` owns
 > `title` (the caption) but **no `alt`**; `image` owns `alt` (the a11y text) but
@@ -667,14 +680,14 @@ Genuine design decisions left for the implementer / product owner:
 The pure command lives in `@metanorma/editor-commands` and is re-exported by the
 editor package.
 
-**`pkg/editor-commands/src/index.ts`** must add:
+**`pkg/editor-commands/index.ts`** must add:
 
 ```typescript
 export { insertImage, canInsertFigure } from "./commands/insertImage.js";
 export type { InsertImageAttrs } from "./commands/insertImage.js";
 ```
 
-**`pkg/prosemirror-editor/src/index.ts`** must add (re-export the command +
+**`pkg/prosemirror-editor/index.ts`** must add (re-export the command +
 export the UI adapter):
 
 ```typescript
@@ -722,12 +735,12 @@ matching the base toolbar's `toolbar.css` convention and `tables.md`'s
 ## 13. File-structure summary
 
 ```
-pkg/editor-commands/src/                 ← PURE command logic (no EditorView/DOM)
+pkg/editor-commands/                 ← PURE command logic (no EditorView/DOM)
   commands/
     insertImage.ts                       ← insertImage command, canInsertFigure, InsertImageAttrs
   index.ts                               ← export insertImage, canInsertFigure, InsertImageAttrs (§11)
 
-pkg/prosemirror-editor/src/              ← UI adapter layer (EditorView/async/DOM live here)
+pkg/prosemirror-editor/              ← UI adapter layer (EditorView/async/DOM live here)
   ImageInsertDialog.tsx                  ← dialog + InsertImageButton component
   image-dialog.css                       ← dialog styles (side-effect import)
   index.ts                               ← re-export command from @metanorma/editor-commands; export UI (§11)

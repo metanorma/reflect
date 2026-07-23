@@ -1,5 +1,5 @@
 /**
- * Node specifications — the 42-node `nodes` map passed to `new Schema` (§8).
+ * Node specifications — the 43-node `nodes` map passed to `new Schema` (§8).
  *
  * Order follows the group order in §3.1. `text` is declared explicitly with
  * `group: "inline"` so that `inline*` content expressions resolve.
@@ -491,28 +491,60 @@ const footnoteNodes: Record<string, NodeSpec> = {
       },
     ],
   },
-  footnote_marker: {
-    content: "",
-    group: INLINE_GROUP,
-    inline: true,
-    atom: true,
-    attrs: { id: { default: null }, target: { default: null }, ...DATA_ATTR },
-    toDOM: (node) => {
-      const attrs: Record<string, string> = { class: "footnote-marker" };
-      const target = node.attrs["target"] as string | null;
-      if (target !== null) {
-        attrs["data-target"] = target;
-      }
-      return ["sup", attrs, 0];
-    },
-    parseDOM: [
-      {
-        tag: "sup.footnote-marker",
-        getAttrs: (el) => ({ target: el.getAttribute("data-target") }),
+    footnote_marker: {
+      content: "",
+      group: INLINE_GROUP,
+      inline: true,
+      atom: true,
+      attrs: { id: { default: null }, target: { default: null }, ...DATA_ATTR },
+      toDOM: (node) => {
+        const attrs: Record<string, string> = { class: "footnote-marker" };
+        const target = node.attrs["target"] as string | null;
+        if (target !== null) {
+          attrs["data-target"] = target;
+        }
+        return ["sup", attrs, 0];
       },
-    ],
-  },
-};
+      parseDOM: [
+        {
+          tag: "sup.footnote-marker",
+          getAttrs: (el) => ({ target: el.getAttribute("data-target") }),
+        },
+      ],
+    },
+    stem: {
+      content: "",
+      group: INLINE_GROUP,
+      inline: true,
+      atom: true,
+      attrs: {
+        asciimath: { default: null },
+        mathml: { default: null },
+        ...DATA_ATTR,
+      },
+      toDOM: (node) => {
+        const attrs: Record<string, string> = { class: "stem" };
+        const asciimath = node.attrs["asciimath"] as string | null;
+        const mathml = node.attrs["mathml"] as string | null;
+        if (asciimath !== null) {
+          attrs["data-asciimath"] = asciimath;
+        }
+        if (mathml !== null) {
+          attrs["data-mathml"] = mathml;
+        }
+        return ["span", attrs];
+      },
+      parseDOM: [
+        {
+          tag: "span.stem",
+          getAttrs: (el) => ({
+            asciimath: el.getAttribute("data-asciimath"),
+            mathml: el.getAttribute("data-mathml"),
+          }),
+        },
+      ],
+    },
+  };
 
 // ---------------------------------------------------------------------------
 // 8. Leaf inline nodes (§8.8)
@@ -538,7 +570,7 @@ const leafInlineNodes: Record<string, NodeSpec> = {
 // ---------------------------------------------------------------------------
 
 /**
- * The 42 node specs, in §3.1 group order.
+ * The 43 node specs, in §3.1 group order.
  *
  * Exposed for consumers that compose a modified schema.
  */

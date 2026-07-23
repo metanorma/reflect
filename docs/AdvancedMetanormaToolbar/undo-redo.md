@@ -31,12 +31,12 @@ undo/redo and the new `history` toolbar group it introduces into
 
 | Aspect | Value |
 |---|---|
-| Command module | `pkg/editor-commands/src/commands/history.ts` (`@metanorma/editor-commands`) |
-| Toolbar component | `pkg/prosemirror-editor/src/AdvancedMetanormaToolbar.tsx` |
-| Plugin wiring | `pkg/prosemirror-editor/src/state.ts` (`createInitialEditorState`) |
-| Button adapters / keymap | `pkg/prosemirror-editor/src/` |
-| Commands re-exported from | `@metanorma/editor-commands` (package barrel `pkg/editor-commands/src/index.ts`) |
-| Editor re-exports | `pkg/prosemirror-editor/src/index.ts` |
+| Command module | `pkg/editor-commands/commands/history.ts` (`@metanorma/editor-commands`) |
+| Toolbar component | `pkg/prosemirror-editor/AdvancedMetanormaToolbar.tsx` |
+| Plugin wiring | `pkg/prosemirror-editor/state.ts` (`createInitialEditorState`) |
+| Button adapters / keymap | `pkg/prosemirror-editor/` |
+| Commands re-exported from | `@metanorma/editor-commands` (package barrel `pkg/editor-commands/index.ts`) |
+| Editor re-exports | `pkg/prosemirror-editor/index.ts` |
 | New toolbar group | `'history'` |
 | New runtime deps | `prosemirror-history`, `prosemirror-keymap` |
 
@@ -67,7 +67,7 @@ package, not by the schema or the core state module. The relevant exports are:
 Two facts drive the whole design:
 
 1. **The history plugin must be explicitly added.** Today
-   `createInitialEditorState` (in `pkg/prosemirror-editor/src/state.ts`) builds
+   `createInitialEditorState` (in `pkg/prosemirror-editor/state.ts`) builds
    the plugin list as `[reactKeys(), ...(opts.plugins ?? [])]`. History is not
    present, so `undo`/`redo` are no-ops and `undoDepth`/`redoDepth` are always
    `0`. Enabling undo/redo is therefore primarily a change to that plugin list.
@@ -86,7 +86,7 @@ Two facts drive the whole design:
 ### 4.1 Enable `history()` as an opt-in
 
 History is **not** added to the default plugin list. The existing
-`createInitialEditorState` (in `pkg/prosemirror-editor/src/state.ts`) builds
+`createInitialEditorState` (in `pkg/prosemirror-editor/state.ts`) builds
 the plugin list as `[reactKeys(), ...(opts.plugins ?? [])]` and remains
 unchanged by default. This avoids a surprising behaviour change for existing
 consumers (who would silently gain an undo stack and new keyboard bindings).
@@ -196,7 +196,7 @@ ProseMirror setup.
 
 ### 4.3 Exposing history opt-out on `MetanormaProseMirror`
 
-`MetanormaProseMirror` (in `pkg/prosemirror-editor/src/MetanormaProseMirror.tsx`)
+`MetanormaProseMirror` (in `pkg/prosemirror-editor/MetanormaProseMirror.tsx`)
 threads its `plugins` / `defaultDoc` options into `createInitialEditorState`
 only in the **uncontrolled** branch. To make the new `history` option
 reachable from the component surface, add a corresponding prop and forward it
@@ -355,7 +355,7 @@ package therefore simply re-exports `undo`/`redo` (and the `undoDepth`/
 that the rest of this document consumes):
 
 ```typescript
-// pkg/editor-commands/src/commands/history.ts
+// pkg/editor-commands/commands/history.ts
 /**
  * Undo/redo are re-exported unchanged from prosemirror-history under their
  * standard names (EditorCommands §1.10.3). They already conform to the Command
@@ -383,10 +383,10 @@ export type { HistoryOptions } from "prosemirror-history";
 > concerns belong to `@metanorma/prosemirror-editor` (§1.13), and are covered in
 > §4 and §5 above.
 
-The package barrel `pkg/editor-commands/src/index.ts` re-exports these in turn:
+The package barrel `pkg/editor-commands/index.ts` re-exports these in turn:
 
 ```typescript
-// pkg/editor-commands/src/index.ts
+// pkg/editor-commands/index.ts
 export { undo, redo, undoDepth, redoDepth, history } from "./commands/history.js";
 export type { HistoryOptions } from "./commands/history.js";
 ```
@@ -536,13 +536,13 @@ above are the current `prosemirror-*` 1.x line compatible with the existing
 ### 11.2 `index.ts` exports
 
 The command symbols originate in `@metanorma/editor-commands`.
-`pkg/editor-commands/src/index.ts` re-exports `undo`, `redo`, `undoDepth`,
+`pkg/editor-commands/index.ts` re-exports `undo`, `redo`, `undoDepth`,
 `redoDepth`, and the `history` plugin factory + `HistoryOptions` type (see §7).
-The editor barrel `pkg/prosemirror-editor/src/index.ts` re-exports them in turn
+The editor barrel `pkg/prosemirror-editor/index.ts` re-exports them in turn
 so that consumers can depend only on `@metanorma/prosemirror-editor`:
 
 ```typescript
-// pkg/prosemirror-editor/src/index.ts
+// pkg/prosemirror-editor/index.ts
 // History commands — re-exported through @metanorma/editor-commands (§7).
 export {
   undo,
@@ -598,7 +598,7 @@ export type ToolbarGroup =
 ## 12. File structure summary
 
 ```
-pkg/editor-commands/src/
+pkg/editor-commands/
   commands/
     history.ts                      ← re-export { undo, redo, undoDepth,
                                     │   redoDepth, history } from
@@ -607,7 +607,7 @@ pkg/editor-commands/src/
                                     │   …Command suffix (EditorCommands §1.10.3)
   index.ts                          ← re-export the above from ./commands/history.js
 
-pkg/prosemirror-editor/src/
+pkg/prosemirror-editor/
   state.ts                          ← add history() + keymap to default plugins;
                                     │   new history? option, buildUndoRedoKeymap,
                                     │   DEFAULT_HISTORY_OPTIONS; imports undo/redo

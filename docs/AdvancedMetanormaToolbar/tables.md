@@ -25,7 +25,7 @@ additions are defined here.
 ## 2. Scope and schema recap
 
 All table nodes come from `@metanorma/prosemirror-schema`
-(`metanormaSchema`, defined in `pkg/prosemirror-schema/src/nodes.ts` §8.5). The
+(`metanormaSchema`, defined in `pkg/prosemirror-schema/nodes.ts` §8.5). The
 relevant fragment:
 
 | Node | Content | Group | Attrs |
@@ -56,11 +56,11 @@ it carries a `title`; the other five table nodes carry only `...DATA_ATTR`.
 |---|---|
 | Commands package | `@metanorma/editor-commands` (command logic, DOM-free) |
 | Editor package | `@metanorma/prosemirror-editor` (React mount + toolbar adapter) |
-| Command module | `pkg/editor-commands/src/commands/insertTable.ts` |
-| Popover / adapter component | `pkg/prosemirror-editor/src/TableSizePicker.tsx` (`InsertTableButton` + grid picker) |
-| Picker styles | `pkg/prosemirror-editor/src/table-picker.css` (imported side-effect) |
-| Commands barrel | `pkg/editor-commands/src/index.ts` (export `insertTable`, `canInsertTable`, `MAX_ROWS`, `MAX_COLS` — §10) |
-| Editor barrel | `pkg/prosemirror-editor/src/index.ts` (re-export the command; export `InsertTableButton` — §10) |
+| Command module | `pkg/editor-commands/commands/insertTable.ts` |
+| Popover / adapter component | `pkg/prosemirror-editor/TableSizePicker.tsx` (`InsertTableButton` + grid picker) |
+| Picker styles | `pkg/prosemirror-editor/table-picker.css` (imported side-effect) |
+| Commands barrel | `pkg/editor-commands/index.ts` (export `insertTable`, `canInsertTable`, `MAX_ROWS`, `MAX_COLS` — §10) |
+| Editor barrel | `pkg/prosemirror-editor/index.ts` (re-export the command; export `InsertTableButton` — §10) |
 | Schema source | `@metanorma/prosemirror-schema` (`metanormaSchema`, `DATA_ATTR`) |
 
 The pure `insertTable` command lives in the `@metanorma/editor-commands` package,
@@ -95,7 +95,7 @@ component that owns the picker's open state and renders the `ToolbarButton`
 visuals (`.mn-toolbar-btn` and modifiers) plus the popover. Concretely:
 
 ```tsx
-// pkg/prosemirror-editor/src/TableSizePicker.tsx (excerpt)
+// pkg/prosemirror-editor/TableSizePicker.tsx (excerpt)
 import { insertTable } from "@metanorma/editor-commands";
 import { canInsertTable } from "@metanorma/editor-commands";
 
@@ -149,7 +149,9 @@ interaction model used by Google Docs / Notion table insertion.
 ### 5.1 Layout
 
 A square cell grid of fixed maximum size `MAX_ROWS × MAX_COLS`
-(proposed default **10 × 10**; see §7). Each picker cell is a clickable tile.
+(decided default **10 × 10** — sufficient for the vast majority of tables; a
+"More…" numeric-input option for larger grids is deferred to future work).
+Each picker cell is a clickable tile.
 Below the grid, a live readout shows the highlighted dimensions, e.g.
 `3 × 4`.
 
@@ -270,11 +272,11 @@ adding/removing rows — is out of scope; this feature only inserts.)
 The button is enabled when the selection is a legal insertion site for a
 `block`-group node **and** is not already inside a table cell (we do not support
 nesting tables in this schema). The predicate lives in
-`pkg/editor-commands/src/commands/insertTable.ts` (alongside `insertTable`) and
+`pkg/editor-commands/commands/insertTable.ts` (alongside `insertTable`) and
 is the single legality check shared by the query and dispatch paths (see §8.1).
 
 ```typescript
-// pkg/editor-commands/src/commands/insertTable.ts
+// pkg/editor-commands/commands/insertTable.ts
 import type { EditorState } from "prosemirror-state";
 
 /** True when a table may be inserted at the current selection. */
@@ -324,7 +326,7 @@ Notes on the strict-tsconfig constraints in play:
 
 ## 8. The `insertTable` command
 
-Lives in `pkg/editor-commands/src/commands/insertTable.ts` and conforms to the
+Lives in `pkg/editor-commands/commands/insertTable.ts` and conforms to the
 `@metanorma/editor-commands` `Command` contract
 (`docs/EditorCommands.spec.md` §1.5). It is **pure**: it reads `EditorState`,
 writes only through the supplied `dispatch`, and never imports `prosemirror-view`
@@ -338,7 +340,7 @@ in the toolbar adapter in `@metanorma/prosemirror-editor` (§4, §5.2).
 ### 8.1 Signature
 
 ```typescript
-// pkg/editor-commands/src/commands/insertTable.ts
+// pkg/editor-commands/commands/insertTable.ts
 import type { EditorState, Transaction } from "prosemirror-state";
 import type { Node } from "prosemirror-model";
 
@@ -452,7 +454,7 @@ helper from `@metanorma/editor-commands` (`util.ts`), which returns a
 ### 8.3 Example implementation
 
 ```typescript
-// pkg/editor-commands/src/commands/insertTable.ts
+// pkg/editor-commands/commands/insertTable.ts
 import type { EditorState, Transaction } from "prosemirror-state";
 import { TextSelection } from "prosemirror-state";
 import type { Node, Schema } from "prosemirror-model";
@@ -525,7 +527,7 @@ The adapter that drives it (in `@metanorma/prosemirror-editor`) is the **only**
 place an `EditorView` appears:
 
 ```typescript
-// pkg/prosemirror-editor/src/TableSizePicker.tsx (adapter excerpt)
+// pkg/prosemirror-editor/TableSizePicker.tsx (adapter excerpt)
 import { insertTable } from "@metanorma/editor-commands";
 
 // inside InsertTableButton's commit handler (useEditorEventCallback):
@@ -549,39 +551,43 @@ The schema requires `table` to contain at least one of
 `table_head | table_body | table_foot`. For the v1 dimension picker the user
 selects only size, not section role, so the command emits a single
 `table_body`. This yields a valid, renderable table (`<table><tbody>…`) with no
-header/footer. Adding head/foot is deferred to §9.
+header/footer. Head/foot sections are not chosen at insertion time; instead, a
+separate **"change row type"** action converts a row to `table_head` or
+`table_foot` after the table exists (deferred to that feature). This keeps the
+insert path a pure size-pick and avoids overloading the picker.
 
 ## 9. Open questions / unknowns
 
 These are genuine design decisions left for the implementer / product owner:
 
-1. **Head / body / foot selection.** Should the picker (or a follow-up dialog)
-   let the user mark the first row as `table_head` and/or the last as
-   `table_foot`? The current proposal emits `table_body` only. Metanorma
-   documents often require a header row, so this may be a near-term need.
-2. **Placement relative to the current block.** When the cursor is mid-
-   paragraph, should the table split the paragraph (insert in place), or be
-   placed after the current block? `replaceSelectionWith` with an empty
-   selection inserts in place; a "insert after block" mode would need
-   `tr.insert` at the block boundary.
-3. **Selections spanning multiple blocks.** §7.2 currently *disables* the
-   button for multi-block selections. Should a range selection instead be
-   *replaced* by the table (consuming the selected content), as some editors do?
-4. **Maximum grid size.** `MAX_ROWS`/`MAX_COLS` are proposed at `10`. Is that
-   enough? Larger grids cost picker screen real estate; an alternative is a
-   fixed small grid (e.g. 8×8) plus a "More…" option that opens a numeric input
-   for arbitrary dimensions.
-5. **Reuse of `prosemirror-tables`.** The schema's table nodes are structurally
-   compatible with the `prosemirror-tables` extension, which would provide
-   row/column add-remove, cell merge/split, column resize, and a robust
-   `insertTable` command out of the box. Should the editor adopt
-   `prosemirror-tables` (adding the dependency and its keymap/plugins) rather
-   than hand-rolling `insertTable.ts` (in `@metanorma/editor-commands`)? This is
-   the largest architectural fork: the custom command is schema-light and
-   dependency-free, but `prosemirror-tables` gives far richer editing later.
-   (Note: `prosemirror-tables` is already referenced as future work in
-   `MetanormaProseMirror.spec.md` and `schema.spec.md`; the custom command here
-   is an interim that does not preclude a later migration.)
+(none remain — all questions resolved; see below.)
+
+> **Resolved decisions.** `id` is **generated at insertion time** via the shared
+> `generateId()` helper (`crypto.randomUUID()`-based), for consistency with all
+> other node-insertion commands. **Head/body/foot sections:** the insert command
+> always emits a single `table_body`; head/foot are **not** chosen at insertion
+> time — a separate "change row type" action converts a row to `table_head` or
+> `table_foot` after the table exists (deferred to that feature). **Placement
+> relative to the current block:** insert **in place** (split the paragraph) —
+> the default `replaceSelectionWith` behaviour. No "insert after block" mode.
+> (Mirrors `images-figures.md` §10, resolved jointly.) **Multi-block selections:**
+> the button stays **disabled** for selections spanning multiple blocks (current
+> behaviour). Consuming selected content into the table is not supported in v1.
+> **Maximum grid size:** `MAX_ROWS`/`MAX_COLS` stay at **10 × 10** — sufficient
+> for the vast majority of tables. A "More…" numeric-input escape hatch for
+> larger grids is deferred to future work. **`prosemirror-tables`:** the custom
+> `insertTable.ts` command is kept; `prosemirror-tables` is **not** adopted.
+> They are structurally incompatible: p-t assumes a flat
+> `table > table_row+ > (table_cell | table_header)` shape and models headers as
+> a distinct *cell type* (`table_header`, toggled cell-by-cell), whereas the
+> Metanorma schema has section layers
+> (`table > (table_head | table_body | table_foot)+ > table_row+`) and models
+> headers as a *section container* (`table_head`). `TableMap` computes positions
+> assuming rows are direct children of `table`, so the intermediate section
+> nodes break it; adopting p-t would require flattening the schema or forking
+> the library. The custom command is therefore the standing approach; it may
+> grow (e.g. cell merge/split, row/column add-remove) as separate hand-rolled
+> commands as Metanorma table-editing needs emerge.
 
 ## 10. Export changes
 
@@ -589,14 +595,14 @@ The pure command is **defined** in `@metanorma/editor-commands` and
 **re-exported** by `@metanorma/prosemirror-editor`; the popover/adapter component
 is defined in `prosemirror-editor`.
 
-`pkg/editor-commands/src/index.ts` must add (command logic — values, not
+`pkg/editor-commands/index.ts` must add (command logic — values, not
 type-only):
 
 ```typescript
 export { insertTable, canInsertTable, MAX_ROWS, MAX_COLS } from "./commands/insertTable.js";
 ```
 
-`pkg/prosemirror-editor/src/index.ts` must add — a **re-export** of the command
+`pkg/prosemirror-editor/index.ts` must add — a **re-export** of the command
 from `@metanorma/editor-commands` (so toolbar/keymap consumers can import from
 one place), plus the adapter component from this package:
 
@@ -621,12 +627,12 @@ export type { InsertTableButtonProps } from "./TableSizePicker.js";
 ## 11. File-structure summary
 
 ```
-pkg/editor-commands/src/                  ← pure command logic (no React, no DOM)
+pkg/editor-commands/                  ← pure command logic (no React, no DOM)
   commands/
     insertTable.ts                        ← insertTable command, canInsertTable, buildTable
   index.ts                                ← export insertTable, canInsertTable, MAX_ROWS, MAX_COLS (§10)
 
-pkg/prosemirror-editor/src/               ← React mount + toolbar adapter (the EditorView layer)
+pkg/prosemirror-editor/               ← React mount + toolbar adapter (the EditorView layer)
   TableSizePicker.tsx                     ← grid popover + InsertTableButton adapter component
   table-picker.css                        ← picker styles (side-effect import)
   index.ts                                ← re-export command from @metanorma/editor-commands;

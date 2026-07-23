@@ -39,12 +39,11 @@ A new workspace package, distinct from the ignored `pkg/schema`:
 pkg/prosemirror-schema/
 ├── package.json          ← name: "@metanorma/prosemirror-schema"
 ├── tsconfig.json         ← extends ../../tsconfig.json
-└── src/
-    ├── index.ts          ← public exports (§11)
-    ├── nodes.ts          ← nodeSpec map (§8)
-    ├── marks.ts          ← markSpec map (§9)
-    ├── attrs.ts          ← shared attribute helpers (§6)
-    └── groups.ts         ← group-name constants
+├── index.ts              ← public exports (§11)
+├── nodes.ts              ← nodeSpec map (§8)
+├── marks.ts              ← markSpec map (§9)
+├── attrs.ts              ← shared attribute helpers (§6)
+└── groups.ts             ← group-name constants
 ```
 
 > The implementer may choose a different package path, but the **public
@@ -83,7 +82,7 @@ schema- definition time (`toDOM`/`parseDOM` describe structure only).
 ### 3.2 Mark types (16)
 
 `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`,
-`strike`, `smallcap`, `link`, `xref`, `eref`, `footnote`, `stem`, `concept`,
+`strike`, `smallcap`, `link`, `xref`, `eref`, `footnote`, `concept`,
 `bcp14`, `span`.
 
 ---
@@ -122,6 +121,7 @@ not prescribe content expressions). Three groups are introduced:
 | `admonition` | `block+` | Container; `type` attr classifies it. |
 | `sourcecode` | `text*` | Raw text content (a `code_block`-style node). |
 | `formula` | *(empty)* | Atom leaf; math in attrs. |
+| `stem` | *(empty)* | Inline atom leaf; inline-formula math in attrs (`asciimath`/`mathml`). |
 | `bullet_list` | `list_item+` | |
 | `ordered_list` | `list_item+` | |
 | `list_item` | `block+` | At least one block (conventionally a paragraph). |
@@ -172,6 +172,7 @@ following rules:
 | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references`, `floating_title` | `id`, `number`, `title` | `SectionAttrs` (extends `BaseAttrs`) |
 | `preface`, `sections`, `bibliography` | `id`, `number` | `BaseAttrs` |
 | `formula` | `id`, `number`, `asciimath`, `mathml`, `math_text` | `FormulaAttrs` |
+| `stem` | `asciimath`, `mathml` | open |
 | `figure` | `id`, `number`, `title`, `src` | `FigureAttrs` |
 | `table` | `id`, `number`, `title` | `TableAttrs` |
 | `table_cell` | `colspan` (default `1`), `rowspan` (default `1`) | `TableCellAttrs` |
@@ -196,7 +197,6 @@ following rules:
 | `xref` | `target` | `XrefMarkAttrs` |
 | `eref` | `cite` | open — the external citation key |
 | `footnote` | `id` | open — references `footnote_entry.id` |
-| `stem` | `type` | open — `"asciimath"` / `"mathml"` |
 | `concept` | `ref` | open — concept reference |
 | `bcp14` | `type` | open — BCP 14 keyword (e.g. `"MUST"`) |
 | `span` | `class` | open — generic span class |
@@ -209,7 +209,7 @@ following rules:
 | Mark | `inclusive` | Notes |
 |---|---|---|
 | `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`, `strike`, `smallcap` | `true` (default) | Formatting continues while typing. |
-| `link`, `xref`, `eref`, `footnote`, `stem`, `concept`, `bcp14`, `span` | `false` | Reference/semantic marks do **not** extend on typing. |
+| `link`, `xref`, `eref`, `footnote`, `concept`, `bcp14`, `span` | `false` | Reference/semantic marks do **not** extend on typing. |
 
 `code` is modelled as **non-exclusive** (it may co-exist with other marks) to
 match the open mark model of `types.ts`; no `excludes` is set on any mark.
@@ -274,6 +274,7 @@ function sectionToDOM(cls: string) {
 | `admonition` | `block+` | `["div", {class: `admonition ${type}`, "data-type": type}, 0]` (function) | `[{tag: "div.admonition", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
 | `sourcecode` | `text*` | `["pre", {class: `language-${language}`}, ["code", 0]]` (function) | `[{tag: "pre", getAttrs: el => ({ language: /language-(\S+)/.exec(el.className)?.[1] ?? null })}]` |
 | `formula` | *(empty)* atom | `["div", {class: "formula", "data-asciimath": asciimath, "data-mathml": mathml, "data-number": number}, 0]` (function) | `[{tag: "div.formula", getAttrs: el => ({ asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml"), number: el.getAttribute("data-number") })}]` |
+| `stem` | *(empty)* inline atom | `["span", {class: "stem", "data-asciimath": asciimath, "data-mathml": mathml}]` (function; no content slot) | `[{tag: "span.stem", getAttrs: el => ({ asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml") })}]` |
 | `floating_title` | *(empty)* atom, `group: "block"` | `["div", {class: "floating-title", "data-id": id}, title ?? ""]` (function) | `[{tag: ".floating-title", getAttrs: el => ({ title: el.textContent, id: el.getAttribute("data-id") })}]` |
 
 ### 8.4 List nodes
@@ -350,13 +351,12 @@ with the mark tag and `0` (content hole), and `parseDOM` uses the tag.
 | `xref` | `target` | `["a", {class: "xref", "data-target": target}, 0]` (function) | `[{tag: "a.xref", getAttrs: el => ({ target: el.getAttribute("data-target") })}]` |
 | `eref` | `cite` | `["cite", {class: "eref", "data-cite": cite}, 0]` (function) | `[{tag: "cite.eref", getAttrs: el => ({ cite: el.getAttribute("data-cite") })}]` |
 | `footnote` | `id` | `["sup", {class: "footnote", "data-id": id}, 0]` (function) | `[{tag: "sup.footnote", getAttrs: el => ({ id: el.getAttribute("data-id") })}]` |
-| `stem` | `type` | `["span", {class: "stem", "data-type": type}, 0]` (function) | `[{tag: "span.stem", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
 | `concept` | `ref` | `["span", {class: "concept", "data-ref": ref}, 0]` (function) | `[{tag: "span.concept", getAttrs: el => ({ ref: el.getAttribute("data-ref") })}]` |
 | `bcp14` | `type` | `["span", {class: "bcp14", "data-type": type}, 0]` (function) | `[{tag: "span.bcp14", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
 | `span` | `class` | `["span", {class}, 0]` (function) | `[{tag: "span[data-class]", getAttrs: el => ({ class: el.getAttribute("data-class") }), priority: 1}]` |
 
 > **`span` parse priority.** The generic `span` mark parses with low priority
-> (`priority: 1`) so that the more specific `span.smallcap` / `span.stem` /
+> (`priority: 1`) so that the more specific `span.smallcap` /
 > `span.concept` / `span.bcp14` rules win during HTML ingestion.
 
 ---
@@ -381,7 +381,7 @@ in §3 for readability.
 
 ---
 
-## 11. Public API (`src/index.ts`)
+## 11. Public API (`index.ts`)
 
 ```ts
 import type { Schema, NodeSpec, MarkSpec } from "prosemirror-model";

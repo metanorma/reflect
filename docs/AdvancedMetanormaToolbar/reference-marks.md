@@ -6,16 +6,18 @@ This document is the detailed implementation proposal for the **six reference
 and semantic marks** that `MetanormaToolbar.spec.md` §5.5 defers as "out of
 scope":
 
-> **Reference marks** (`xref`, `eref`, `concept`, `bcp14`, `footnote`,
-> `stem`) — require target/ID resolution beyond simple toggle.
+> **Reference marks** (`xref`, `eref`, `concept`, `bcp14`) plus the
+> `footnote_marker` and `stem` inline nodes — require target/ID resolution
+> beyond simple toggle.
 
 The base `MetanormaToolbar` covers inline **formatting** marks (§5.1) and the
 `link` mark (§5.4), both of which are either attribute-free toggles or require
-a single URL. The six marks in scope here are different: they are all
+a single URL. The six buttons in scope here are different: four are
 `inclusive: false` semantic marks whose meaningfulness depends on a
 **resolved attribute** — a cross-reference target, a citation key, a concept
-ref, a BCP14 keyword from a fixed enum, a footnote id, or a formula type —
-plus, in some cases, inline **content** (formula text). A bare
+ref, or a BCP14 keyword (free text) — plus two inline atom nodes
+(`footnote_marker`, requiring an entry id; and `stem`, requiring formula
+source). In some
 `toggleMark(type)` with no attributes produces a semantically empty span, so
 each button must **collect an attribute before applying**, modelled on the
 base spec's `onLinkPrompt` upgrade hook.
@@ -32,11 +34,11 @@ the six reference marks and the new `refs` toolbar group they introduce into
 
 | Aspect | Value |
 |---|---|
-| Command logic | `@metanorma/editor-commands` — `pkg/editor-commands/src/commands/referenceMarks.ts` |
-| Toolbar component | `pkg/prosemirror-editor/src/AdvancedMetanormaToolbar.tsx` |
-| Popover/menu UI | `pkg/prosemirror-editor/src/reference-marks.css` (imported side-effect) |
-| Commands re-exported from | `@metanorma/prosemirror-editor` (`pkg/prosemirror-editor/src/index.ts`) |
-| Popover/prompt hooks (UI) | `pkg/prosemirror-editor/src/AdvancedMetanormaToolbar.tsx` |
+| Command logic | `@metanorma/editor-commands` — `pkg/editor-commands/commands/referenceMarks.ts` |
+| Toolbar component | `pkg/prosemirror-editor/AdvancedMetanormaToolbar.tsx` |
+| Popover/menu UI | `pkg/prosemirror-editor/reference-marks.css` (imported side-effect) |
+| Commands re-exported from | `@metanorma/prosemirror-editor` (`pkg/prosemirror-editor/index.ts`) |
+| Popover/prompt hooks (UI) | `pkg/prosemirror-editor/AdvancedMetanormaToolbar.tsx` |
 | New toolbar group | `'refs'` |
 
 > **Layering.** The pure command logic lives in `@metanorma/editor-commands`,
@@ -78,36 +80,43 @@ forms (e.g. `footnote_entry`), not to these marks.
 | `xref` | `target: null` | `<a class="xref" data-target>` | Cross-reference to an anchor / element id elsewhere in the document. |
 | `eref` | `cite: null` | `<cite class="eref" data-cite>` | Bibliographic reference — cites a `bibliography` entry by key. |
 | `concept` | `ref: null` | `<span class="concept" data-ref>` | Reference to a concept / designation in a concept store. |
-| `bcp14` | `type: null` | `<span class="bcp14" data-type>` | A BCP14 [BCP14] keywords keyword (`MUST`, `SHOULD`, …). `type` is constrained to a fixed, configurable enum. |
-| `footnote` | `id: null` | `<sup class="footnote" data-id>` | Inline footnote-reference marker; `id` points at a `footnote_entry`. |
-| `stem` | `type: null` | `<span class="stem" data-type>` | Inline formula. `type` is the source notation, e.g. `"asciimath"` or `"mathml"`. |
+| `bcp14` | `type: null` | `<span class="bcp14" data-type>` | A BCP14 [BCP14] keyword (`MUST`, `SHOULD`, …). `type` is an open free-text string (any keyword, any language). |
 
-> **Mark vs. node — context, not duplication.** The schema also defines:
-> - `footnote_marker` — an inline **node** (`content: ""`, `group: "inline"`,
->   `atom: true`, attrs `{ id, target, data }`), and container nodes
->   `footnotes` / `footnote_entry`. The mark-based `footnote` mark and the
->   node-based `footnote_marker` are **two representations** of a footnote
->   reference; §4.5 / §10 discuss which the toolbar targets.
-> - `formula` — a **block-level** node for display equations. The `stem`
->   **mark** is the *inline* counterpart; this document covers only the mark
->   form. Block formulas are out of scope here and would belong in a future
->   blocks/insert group.
+> **`footnote` and `stem` are inline atom nodes, not marks.** The schema
+> defines `footnote_marker` and `stem` as inline atom nodes (`content: ""`,
+> `group: "inline"`, `atom: true`). The toolbar inserts them as **nodes**
+> (node-insertion commands), not mark toggles:
+> - `footnote_marker` (attrs `{ id, target, data }`) mirrors Metanorma
+>   Presentation XML's `<fn>` element — an inline element at the reference site
+>   (not a text-wrapping mark). The `footnote` mark exists in the schema but is
+>   unused by the toolbar. See §5.5.
+> - `stem` (attrs `{ asciimath, mathml, data }`) is an inline formula atom —
+>   the math source lives in attrs, not as wrapped text. This makes host-
+>   provided live math preview possible via node-view override (like block
+>   `formula`). The former `stem` mark has been **removed** from the schema;
+>   `stem` is now solely a node. See §5.6.
+>
+> - `formula` — a **block-level** atom node for display equations (separate
+>   from the inline `stem` node). Block formula insertion/editing is out of
+>   scope for this document; it would belong in a future blocks/insert group.
+>   A host can override `FormulaNodeView` for rendering or popover editing.
 
 ## 4. Button-group overview
 
-A new toolbar group `'refs'` is rendered after `'link'`. It contains one
-button per mark. Unlike the marks group, several of these buttons open a
-**popover or menu** to collect their attribute rather than firing an
-immediate toggle.
+A new toolbar group `'refs'` is rendered after `'link''. It contains one
+button per reference mark (four marks: `xref`, `eref`, `concept`, `bcp14`)
+plus two node-insertion buttons (`footnote_marker` §5.5, `stem` §5.6). Unlike
+the marks group, several of these buttons open a **popover** to collect their
+attribute rather than firing an immediate toggle.
 
 | Button | Label | Title (ARIA) | Key attr to collect | Input UI |
 |---|---|---|---|---|
 | Cross-reference | `↗` | "Insert cross-reference" | `target` (anchor/id) | target picker or free-text input |
 | Bibliographic ref | `📕` | "Insert bibliographic reference" | `cite` (citation key) | bibliography picker or free-text input |
 | Concept | `💡` | "Insert concept reference" | `ref` (concept id) | concept picker or free-text input |
-| BCP14 keyword | `MUST` | "Insert BCP14 keyword" | `type` (enum) | dropdown / menu of keywords |
-| Footnote | `⁺` | "Insert footnote" | `id` (footnote id) | generated; optional edit |
-| Inline formula | `∑` | "Insert inline formula" | `type` + content | formula-edit popover |
+| BCP14 keyword | `MUST` | "Insert BCP14 keyword" | `type` (free text) | free-text input (keyword prompt) |
+| Footnote | `⁺` | "Insert footnote" | `target` (footnote entry id) | dialog: create new entry or pick existing (§5.5) |
+| Inline formula | `∑` | "Insert inline formula" | `asciimath`/`mathml` (node attrs) | formula-edit popover (§5.6) |
 
 All buttons follow the `ToolbarButton` descriptor from base §5 (reproduced in
 the context for this document). Active detection, enabled detection, and the
@@ -128,7 +137,7 @@ replaced. The hooks make the toolbar usable out of the box while leaving the
 real UX to the host.
 
 > **UI/command boundary.** Attribute resolution — the xref target picker, the
-> eref cite picker, the concept picker, the bcp14 keyword menu, footnote id
+> eref cite picker, the concept picker, the bcp14 keyword prompt, footnote id
 > generation, the stem formula popover, and all the `on*Prompt` hooks — is a
 > **UI concern** and lives in `@metanorma/prosemirror-editor`
 > (the toolbar component). The pure commands in
@@ -144,10 +153,18 @@ Needs a `target`: the anchor/id of another element in the document. Three
 tiers of resolution, best available wins:
 
 1. **Doc-anchored picker (preferred).** A popover listing candidate targets.
-   The simplest source is the set of ids already present in the document,
-   harvested by scanning `state.doc` for nodes/attrs carrying an `id` (the
-   `baseAttrs()` `id` field is present on most block nodes). Each entry shows
-   a readable label (node text or heading) and its id.
+   The source is the set of ids already present in the document, harvested by
+   scanning `state.doc` for id-bearing nodes. The `id` attribute is present on
+   all section types (`clause`, `annex`, `foreword`, `introduction`,
+   `acknowledgements`, `terms`, `definitions`, `references` — via
+   `sectionAttrs()`), the containers (`preface`, `sections`, `bibliography` —
+   via `baseAttrs()`), `floating_title`, `figure`, `table`, `formula`,
+   `footnote_entry`, and `footnote_marker`. Since IDs are **generated at
+   insertion time** by all node-insertion commands (the established convention),
+   these `id` values are reliably populated in any document created by this
+   editor — there is no separate "anchor" construct. Each entry shows a
+   readable label (the `title` attr for sections/floating_title, or node text)
+   and its id.
 2. **Free-text input (fallback).** A `window.prompt('Cross-reference target
    id:')` when no picker is available or the host declines to supply one.
 3. **Upgrade hook.**
@@ -159,11 +176,18 @@ readonly onXrefPrompt?: (context: RefPromptContext) => Promise<string | null>;
 
 ### 5.2 `eref` — citation-key resolution
 
-Needs a `cite`: the bibliographic key of a `bibliography` entry. The schema
-places `bibliography` as an optional top-level child
-(`content: "(preface? sections? bibliography? footnotes?)"`), so the picker
-walks `state.doc` for the `bibliography` node and enumerates its entries,
-offering `(key, title)` pairs. Fallback is free-text entry of the raw key.
+Needs a `cite`: the bibliographic key of a `bibliography` entry. The schema's
+`bibliography` node has content `(section | block)*` — it is a generic
+container, **not** a structured list of typed bibliography entries carrying a
+citation-key attribute. The editor therefore cannot enumerate `(key, title)`
+pairs from the document alone. Resolution is:
+
+1. **Host-supplied hook (preferred).** `onErefPrompt` returns a citation key
+   (free-text `string`) — hosts use it to integrate with a bibliographic data
+   source (e.g. Relaton) and present a rich `(key, title)` picker. The hook
+   owns all data-source concerns; the editor only stores the resolved key.
+2. **Free-text input (fallback).** A `window.prompt('Citation key:')` when no
+   hook is supplied.
 
 ```typescript
 /** Resolve an eref citation key. Default: window.prompt. Return null to cancel. */
@@ -172,94 +196,108 @@ readonly onErefPrompt?: (context: RefPromptContext) => Promise<string | null>;
 
 ### 5.3 `concept` — concept-ref resolution
 
-Needs a `ref`: a concept id in a concept store. Unlike `xref`/`eref`, the
-target is usually **external** to the document (a terminology/concept
-database), so a doc scan is not useful. Default is free-text; hosts supply a
-concept-store picker via the hook.
+Needs a `ref`: the id of a node that defines the concept (typically a clause or
+block within a `definitions` or `terms` section). Unlike `eref`, `concept.ref`
+is a **document-internal** target — it maps to the `target` of the inner
+`<xref>` inside Metanorma Presentation XML's `<concept>` element. Resolution is
+therefore the same shape as `xref` (§5.1):
+
+1. **Doc-anchored picker (preferred).** Scan `state.doc` for id-bearing nodes,
+   emphasising those inside `definitions`/`terms` sections (where term-definition
+   clauses live). Because the schema has no dedicated "term entry" node, the
+   picker lists id-bearing clauses/blocks — coarse but functional.
+2. **Free-text input (fallback).** A `window.prompt('Concept id:')` when no
+   picker is available.
+3. **Upgrade hook.** `onConceptPrompt` lets the host supply a curated picker
+   (e.g. only term-definition entries, with proper labels).
 
 ```typescript
 /** Resolve a concept ref. Default: window.prompt. Return null to cancel. */
 readonly onConceptPrompt?: (context: RefPromptContext) => Promise<string | null>;
 ```
 
-### 5.4 `bcp14` — fixed enum keyword
+### 5.4 `bcp14` — free-text keyword
 
-Needs a `type` drawn from a **fixed enum** of BCP14 keywords. There is no
-free-text path: the value must be one of the allowed keywords. The button
-opens a dropdown/menu listing them; selecting one applies the mark with that
-`type`, typically **wrapping the currently-selected text** in the keyword
-(e.g. selecting `MUST` from the menu marks the selection as a `bcp14`
-`type="MUST"` span). With an empty selection, the menu may optionally insert
-the keyword text and then mark it (see §10 open question).
-
-Proposed default enum (must be **configurable** — see §10):
+Needs a `type`: a BCP14 keyword (e.g. `MUST`, `SHOULD NOT`). The `type`
+attribute is an **open free-text string** — the editor imposes no enum; the
+author types any keyword, in any language. The button opens a free-text prompt
+(`window.prompt('BCP14 keyword:')` by default), mirroring `xref`/`eref`/
+`concept`; on commit it applies the mark with the typed `type`, typically
+**wrapping the currently-selected text** (e.g. typing `MUST` marks the
+selection as a `bcp14 type="MUST"` span).
 
 ```typescript
-export const BCP14_KEYWORDS = [
-  "MUST",
-  "MUST NOT",
-  "SHALL",
-  "SHALL NOT",
-  "SHOULD",
-  "SHOULD NOT",
-  "RECOMMENDED",
-  "NOT RECOMMENDED",
-  "MAY",
-  "OPTIONAL",
-] as const;
-export type Bcp14Keyword = (typeof BCP14_KEYWORDS)[number];
+/** Resolve a bcp14 keyword. Default: window.prompt. Return null to cancel. */
+readonly onBcp14Prompt?: (context: RefPromptContext) => Promise<string | null>;
 ```
 
-The enum is passed as a prop so localisations / subsets can override it:
+> **No enum, by design.** The schema's `type` attr is an open string; the
+> editor does not constrain it. BCP 14 (RFC 2119 / RFC 8174) defines a
+> canonical English keyword set, but the editor treats that as an authoring
+> convention, not a hard constraint — allowing keywords in any language and
+> deferring stricter validation (or a host-supplied curated menu) to future
+> work without a schema change.
 
-```typescript
-/** Override the default BCP14 keyword list. */
-readonly bcp14Keywords?: readonly Bcp14Keyword[];
-```
+### 5.5 `footnote` — `footnote_marker` node insertion
 
-Because the value set is closed, `bcp14` has **no `onBcp14Prompt` hook** —
-the menu *is* the prompt.
-
-### 5.5 `footnote` — id generation
-
-Needs an `id` identifying a `footnote_entry` in the document's `footnotes`
-container. Two concerns:
+Unlike the other reference marks, footnote insertion uses the
+**`footnote_marker` inline atom node** (not the `footnote` mark), because it
+mirrors Metanorma Presentation XML's inline `<fn>` element (§3). The command
+inserts a `footnote_marker` node at the cursor; its `target` attr points at a
+`footnote_entry`'s `id`, and its own `id` enables backlinks.
 
 1. **Id generation.** The toolbar generates a fresh, unique id using the
-  shared `generateId()` helper from `@metanorma/editor-commands` (`util.ts`),
-  a `crypto.randomUUID()`-based string. The id is both stored on the mark
-  (`data-id`) and used to address the entry. This is consistent with the
-  `generateId()` policy used by all node-insertion commands (tables, figures,
-  sections).
+   shared `generateId()` helper from `@metanorma/editor-commands` (`util.ts`),
+   a `crypto.randomUUID()`-based string. This id is used for both the
+   `footnote_entry` (its `id` attr) and the `footnote_marker`'s `target` attr.
 
-  > **Alternative (not adopted):** a counter-based id (`"fn"` + monotonic
-  > integer) would be more human-readable but risks collisions and requires
-  > renumbering on serialize; rejected in favour of UUID-based ids for
-  > collision-freedom and immutability.
-2. **Footnote-content maintenance.** A meaningful footnote needs a
-  `footnote_entry` body. The mark alone is a dangling reference. Proposed
-  default behaviour: when the mark is applied, the toolbar also ensures a
-  matching `footnote_entry` exists in the `footnotes` container (creating one
-  with placeholder text if absent). The hook lets a host take over content
-  authoring.
+2. **Footnote-entry maintenance (hybrid).** A meaningful footnote needs a
+   `footnote_entry` body. Creation uses a **hybrid** model in the footnote
+   dialog:
+   - **Primary — create new.** Generate a fresh `id` (above), and in the *same
+     transaction* as inserting the `footnote_marker` node, create a placeholder
+     `footnote_entry` (empty content) in the `footnotes` container — creating
+     the container too if it does not yet exist. The user authors the entry
+     content afterward. This is the common case (write prose → insert
+     footnote → fill in content).
+   - **Secondary — pick existing.** When `footnote_entry`s already exist, the
+     dialog offers a picker to select one, so the same footnote can be
+     referenced from multiple `footnote_marker`s (reuse) without duplicating
+     entries.
+   - **Removal is independent.** Deleting a `footnote_marker` node **never**
+     deletes its entry (the entry may hold authored content and/or be
+     referenced by other markers). This avoids lossy undo and multi-reference
+     hazards.
 
 ```typescript
-/** Resolve a footnote id and (optionally) create its entry. Default: generate. */
+/** Resolve a footnote entry id and (optionally) create its entry. Default: generate. */
 readonly onFootnotePrompt?: (context: RefPromptContext) => Promise<string | null>;
 ```
 
-### 5.6 `stem` — type + inline formula content
+> **Orphan / dangling-reference highlighting (future work).** Because removal
+> is independent, a `footnote_entry` can become an orphan (no
+> `footnote_marker` references it) and a `footnote_marker` can dangle (its
+> `target` has no entry). Highlighting these — via a generic reference-integrity
+> decoration plugin (a `Plugin` with a `decorations` state field that walks the
+> doc once per transaction) — is **deferred to a separate feature** spanning
+> `footnote_marker`, `xref`, and `concept` (all share the dangling-reference
+> shape). The editor already accepts arbitrary plugins via
+> `MetanormaProseMirror`'s `plugins` prop; the plugin is strictly additive and
+> non-blocking.
 
-Needs a `type` (the source notation, e.g. `"asciimath"` / `"mathml"`) **and**
-the formula **content** itself (the mark wraps the formula text). This is the
-only reference mark where both an attribute *and* user-typed content matter,
-so the default UI is a small **formula-edit popover**: a notation selector
-(`asciimath` / `mathml`) plus a text area, with an optional live preview.
-Applying it inserts/types the formula text and wraps it in a `stem` mark
-carrying the chosen `type`.
+### 5.6 `stem` — inline formula node insertion
+
+`stem` is an **inline atom node** (not a mark), with attrs `asciimath` and
+`mathml` storing the formula source. The math source lives in the node's attrs,
+not as wrapped text — this makes host-provided live math preview possible via
+node-view override (the same mechanism as block `formula`). The default UI is a
+small **formula-edit popover**: a notation selector (`asciimath` / `mathml`)
+plus a text area for the source, with an optional live preview (if the host
+supplies a renderer). On commit, a `stem` node is inserted at the cursor with
+the chosen notation attr set.
 
 ```typescript
-/** Resolve a stem formula (type + source). Default: minimal popover. Return null to cancel. */
+/** Resolve a stem formula (notation + source). Default: minimal popover. Return null to cancel. */
 readonly onStemPrompt?: (context: StemPromptContext) => Promise<StemResult | null>;
 ```
 
@@ -270,8 +308,17 @@ export interface StemResult {
 }
 ```
 
-> **Block formulas** use the separate `formula` **node** and are not covered
-> by this mark-based button.
+> **No renderer is bundled.** v1 ships source-only (the popover collects
+> AsciiMath/MathML source; no live preview). A host can add rendering by
+> overriding the `stem` node view (and the block `FormulaNodeView`) with a
+> component that uses a math library (MathJax, KaTeX, MathLive, etc.). Future
+> work: embedding an interactive math field (e.g. MathLive's `<math-field>`)
+> directly in the editor for WYSIWYG inline editing.
+>
+> **Block formulas** use the separate block-level `formula` node and are out of
+> scope for this button. Block formula editing can be provided by the host via
+> a popover on node selection (the same source/preview pattern), or
+> future WYSIWYG via an embedded interactive math field.
 
 ### 5.7 Shared prompt context
 
@@ -296,7 +343,7 @@ export interface StemPromptContext extends RefPromptContext {
 ## 6. Command helpers
 
 Pure command logic, defined in `@metanorma/editor-commands` at
-`pkg/editor-commands/src/commands/referenceMarks.ts`, and **re-exported** by
+`pkg/editor-commands/commands/referenceMarks.ts`, and **re-exported** by
 `@metanorma/prosemirror-editor` (§11). A generic core command plus per-mark
 wrappers, all conforming to the ProseMirror `Command` contract
 (`EditorCommands.spec.md` §1.5): each is `(state, dispatch?, …) => boolean`.
@@ -338,7 +385,7 @@ import type { Attrs, Command, EditorState, MarkType, Transaction } from "prosemi
  * - Otherwise adds the mark with `attrs` over the selection range, first
  *   removing any existing mark of the same type so the new attrs replace it.
  *
- * Marks that require content to attach to (bcp14, stem, footnote) should be
+ * Marks that require content to attach to (bcp14) should be
  * gated on a non-empty selection by the caller (or by the wrapper).
  *
  * Conforms to the Command contract (EditorCommands.spec.md §1.5):
@@ -403,16 +450,25 @@ export function toggleConcept(
 export function toggleBcp14(
   state: EditorState,
   dispatch?: (tr: Transaction) => void,
-  type: Bcp14Keyword | null,
+  type: string | null,
 ): boolean;
 
-export function toggleFootnote(
+/**
+ * Insert a `footnote_marker` inline node at the selection, optionally creating
+ * a `footnote_entry` (and `footnotes` container) in the same transaction.
+ * This is a node-insertion command, NOT a mark toggle (§5.5).
+ */
+export function insertFootnoteMarker(
   state: EditorState,
   dispatch?: (tr: Transaction) => void,
-  id: string | null,
+  target: string,
 ): boolean;
 
-export function toggleStem(
+/**
+ * Insert a `stem` inline atom node at the selection with the given formula
+ * source. This is a node-insertion command, NOT a mark toggle (§5.6).
+ */
+export function insertStem(
   state: EditorState,
   dispatch?: (tr: Transaction) => void,
   type: "asciimath" | "mathml",
@@ -420,12 +476,13 @@ export function toggleStem(
 ): boolean;
 ```
 
-`toggleXref`/`toggleEref`/`toggleConcept` delegate to `applyReferenceMark`
-with their key attr. `toggleBcp14` validates that `type` is a member of the
-configured enum before applying. `toggleStem` first ensures the selection
-contains the formula `source` text (inserting/replacing as needed), then
-applies the mark. `toggleFootnote` additionally ensures a `footnote_entry`
-exists for `id` (§5.5) within the same transaction.
+`toggleXref`/`toggleEref`/`toggleConcept`/`toggleBcp14` delegate to
+`applyReferenceMark` with their key attr (a free-text string for `bcp14`).
+`insertStem` inserts a `stem` inline atom node with the formula source stored
+in the `asciimath` or `mathml` attr (§5.6). `insertFootnoteMarker` inserts the
+`footnote_marker` inline node and, in the same transaction, ensures a
+`footnote_entry` exists for `target` (§5.5) — creating the `footnotes`
+container and a placeholder entry if absent.
 
 ### 6.3 Toolbar-side dispatch
 
@@ -473,34 +530,36 @@ function refMarkActive(state: EditorState, name: string): boolean {
 
 | Mark | Active | Enabled |
 |---|---|---|
-| `xref`, `eref`, `concept` | `refMarkActive(state, name)` | selection inside an `inline`-content node (base §5.1). Empty selection allowed: the mark can be set as a stored mark for upcoming typing. |
-| `bcp14` | `refMarkActive(state, "bcp14")` | inside inline content **and** selection non-empty (a BCP14 keyword must attach to text). |
-| `footnote` | `refMarkActive(state, "footnote")` | inside inline content. Empty selection allowed (marker-style insertion). |
-| `stem` | `refMarkActive(state, "stem")` | inside inline content **and** selection non-empty, or the popover is about to insert content. |
+| `xref`, `eref`, `concept`, `bcp14` | `refMarkActive(state, name)` | selection inside an `inline`-content node (base §5.1). Empty selection allowed: the mark can be set as a stored mark for upcoming typing. |
+| `footnote_marker` (node) | selection is a `NodeSelection` on a `footnote_marker` node | inside inline content. Empty selection allowed (the node is inserted at the cursor). |
+| `stem` (node) | selection is a `NodeSelection` on a `stem` node | inside inline content. Empty selection allowed (the node is inserted at the cursor). |
 
-**Toggle semantics (click while active removes).** For every mark, clicking
-the button when the mark is already active at the selection calls the wrapper
-with a `null` value (`toggleXref(state, dispatch, null)`, etc.), which routes
-through `applyReferenceMark`'s removal branch (§6.1 step 3) — mirroring the
-base `link` button's removal behaviour.
+**Toggle semantics (click while active removes).** For the four marks
+(`xref`/`eref`/`concept`/`bcp14`), clicking the button when the mark is already
+active at the selection calls the wrapper with a `null` value
+(`toggleXref(state, dispatch, null)`, etc.), which routes through
+`applyReferenceMark`'s removal branch (§6.1 step 3) — mirroring the base `link`
+button's removal behaviour.
 
-> **Implementation note:** `refMarkActive` for `bcp14` may optionally compare
-> the stored mark's `type` against the menu's current selection, so a button
-> can show *which* keyword is active. The minimum requirement is presence.
+> **Node toggle (`footnote_marker`, `stem`).** For inline atom nodes, clicking
+> while the node is selected (active) **deletes the node** from the document.
+> Deleting a `footnote_marker` never deletes its `footnote_entry` (§5.5).
+
+> **Implementation note:** `refMarkActive` for `bcp14` may optionally surface
+> the stored mark's `type` (the active keyword) for display; the minimum
+> requirement is presence.
 
 ## 8. Styling
 
 Follows base §8 conventions: plain CSS side-effect import, `mn-toolbar`
 prefix. The attribute-collection UI (a `prosemirror-editor` concern, §5)
-introduces new classes in `pkg/prosemirror-editor/src/reference-marks.css`:
+introduces new classes in `pkg/prosemirror-editor/reference-marks.css`:
 
 ```
-.mn-toolbar-popover             /* floating container for xref/eref/concept/stem input */
+.mn-toolbar-popover             /* floating container for xref/eref/concept/stem/bcp14 input */
   .mn-toolbar-popover__input    /* text <input>/<textarea> */
   .mn-toolbar-popover__list     /* picker <ul> (targets, bib entries, concepts) */
   .mn-toolbar-popover__item     /* picker <li>/button */
-.mn-toolbar-menu                /* inline menu for bcp14 keywords (role="listbox") */
-  .mn-toolbar-menu__option      /* keyword <button> */
 ```
 
 Minimum behaviour: popovers/menus anchor below their triggering button,
@@ -512,71 +571,76 @@ custom properties from the base stylesheet.
 The attribute-collection UI is the main a11y surface. Requirements beyond
 base §9 (native `<button>` semantics for the trigger buttons):
 
-- **Popovers** (`xref`, `eref`, `concept`, `stem`) use `role="dialog"`,
+- **Popovers** (`xref`, `eref`, `concept`, `stem`, `bcp14`) use `role="dialog"`,
   `aria-modal="false"`, and `aria-labelledby` pointing at the trigger's
   `title`. They trap focus into the input on open and restore focus to the
   trigger on close.
-- **The BCP14 menu** uses `role="listbox"` with `role="option"` children and
-  `aria-activedescendant` tracking; arrow keys move between keywords, `Enter`
-  selects, `Escape` cancels.
-- **Escape** cancels any open popover/menu and dispatches no transaction
+- **Escape** cancels any open popover and dispatches no transaction
   (consistent with a `null` hook result).
 - Each picker list item exposes its label as accessible name and its id/key
   via `data-*` for host styling without relying on `title`.
-- `aria-haspopup` is set on trigger buttons that open a popover/menu
-  (`menu` for BCP14, `dialog` for the others).
+- `aria-haspopup="dialog"` is set on trigger buttons that open a popover.
 
 ## 10. Open questions / unknowns
 
 Genuine unknowns to resolve before/while implementing:
 
-1. **Target/anchor picker data source.** Does anything in the doc expose a
-   list of valid `target` ids? The proposed approach scans `state.doc` for
-   `id` attributes (present via `baseAttrs()` on most blocks) — but this
-   assumes ids are authored/populated. Need to confirm which node types
-   actually carry a non-null `id`, and whether anchors exist as a distinct
-   construct.
-2. **Bibliography enumeration for `eref`.** The schema allows a `bibliography`
-   node; need to confirm its entry node type and how a citation key is stored
-   on each entry, so the picker can list `(key, title)` pairs.
-3. **BCP14 enum source & configurability.** The list in §5.4 is a proposed
-   default. Confirm the authoritative keyword set, and whether non-English
-   localisations need different tokens (i18n). Decide whether `bcp14Keywords`
-   is a per-instance prop or a schema-level constant.
-4. **`concept` store.** Where do concept refs resolve to? If purely external,
-   the default free-text prompt may be the only realistic option and the hook
-   is mandatory for a good UX.
-5. **Footnote content authoring.** The mark references a `footnote_entry`, but
-   who maintains the `footnotes` container? Should applying a footnote mark
-   auto-create a placeholder entry (proposed), or is container maintenance a
-   separate, explicit operation? Risk of dangling references if entries are
-   edited/deleted independently of marks.
-6. **Mark vs. `footnote_marker` node.** The schema offers both a `footnote`
-   mark and an atom `footnote_marker` inline node. This spec proposes the
-   **mark** for inline marking (consistent with the other five marks and
-   editable inline), but the node form may be what render/serialize expects.
-   Confirm which representation downstream tooling consumes.
-7. **`stem` rendering / preview.** A live preview needs a math renderer
-   (AsciiMath / MathML). Is one available in the editor bundle, or is preview
-   deferred to the host? Without it the popover is source-only.
-8. **Empty-selection behaviour.** For `bcp14`/`stem` (which require text),
-   should an empty selection (a) disable the button, (b) insert placeholder
-   text ("MUST", empty formula) and then mark it? Current proposal: `bcp14`
-   inserts the keyword; `stem` inserts the typed source. Confirm.
-9. **`xref`/`eref`/`concept` on empty selection.** Allowing these as stored
-   marks for upcoming typing is convenient but can produce dangling marks if
-   the user moves away without typing. Decide whether to require a non-empty
-   selection for these too.
+(none remain — all questions resolved; see below.)
 
 > **Resolved: footnote id generation.** Footnote ids are **generated at
 > insertion time** via the shared `generateId()` helper
 > (`crypto.randomUUID()`-based), for consistency with all other node-insertion
 > commands. Ids are immutable once generated (not renumbered on serialize).
+> **Target picker data source:** the `xref` picker collects id + label from
+> id-bearing nodes by scanning `state.doc` (all section types, containers,
+> `floating_title`, `figure`, `table`, `formula`, `footnote_entry`,
+> `footnote_marker`). No separate "anchor" construct exists; ids are reliably
+> populated because all node-insertion commands generate them eagerly.
+> **Bibliography / `eref`:** the schema's `bibliography` is a generic container
+> with no typed entries or citation keys, so the editor cannot enumerate
+> `(key, title)` pairs from the doc. The `onErefPrompt` host hook (e.g. Relaton
+> integration) supplies the picker; free-text entry is the fallback.
+> **`bcp14` keyword:** `type` is an **open free-text string** (no enum). The
+> `BCP14_KEYWORDS` constant, `Bcp14Keyword` type, and `bcp14Keywords` prop are
+> **removed**; `bcp14` is a free-text-prompt mark (`onBcp14Prompt`) like
+> `xref`/`eref`/`concept`, allowing any keyword in any language. Stricter
+> validation or a curated menu is deferred to future work (no schema change
+> needed — the attr is already an open string).
+> **`concept` is document-internal:** `concept.ref` maps to the `target` of the
+> inner `<xref>` inside Metanorma Presentation XML's `<concept>` element — i.e.
+> an id pointing at a term-defining node (typically within `definitions`/
+> `terms`). The picker is therefore doc-anchored (same shape as `xref`), with
+> `onConceptPrompt` as the curated-picker upgrade hook. The schema has no
+> dedicated "term entry" node, so doc-anchored enumeration is coarse (lists
+> id-bearing clauses) until one is added.
+> **Footnote creation (hybrid):** the footnote dialog offers two paths —
+> **create new** (generate an `id`, atomically create a placeholder
+> `footnote_entry` + the `footnotes` container if absent, in the same
+> transaction as the mark) and **pick existing** (select an existing entry for
+> reuse). Deleting a mark **never** deletes its entry. Orphan / dangling
+> reference highlighting is deferred to a separate generic reference-integrity
+> decoration plugin spanning `footnote_marker`/`xref`/`concept`.
+> **Mark vs. `footnote_marker` node:** the toolbar uses the **`footnote_marker`
+> inline node** (not the `footnote` mark). The node directly mirrors Metanorma
+> Presentation XML's `<fn>` element — an inline element at the reference site,
+> not a text-wrapping mark. The `footnote` mark exists in the schema but is not
+> used by the toolbar. The command is `insertFootnoteMarker` (a node-insertion
+> command), not `toggleFootnote` (a mark toggle).
+> **`stem` is an inline node, not a mark:** the `stem` mark has been **removed**
+> from the schema; `stem` is now an inline atom node (attrs `asciimath`/`mathml`)
+> — the command is `insertStem` (node insertion). This makes host-provided live
+> math preview possible via node-view override (same as block `formula`). v1
+> ships source-only (no renderer bundled); a host can add rendering, or
+> future WYSIWYG via an embedded interactive math field (e.g. MathLive).
+> **Empty selection for marks:** `xref`/`eref`/`concept`/`bcp14` **allow empty
+> selection** (stored marks for upcoming typing) — matching the base `link`
+> button. The dangling-mark risk is negligible: ProseMirror clears stored marks
+> on cursor movement, so they are transient, not persistent artifacts.
 
 ## 11. Export changes
 
 The commands are **defined and exported** from
-`@metanorma/editor-commands`. Its `pkg/editor-commands/src/index.ts` adds:
+`@metanorma/editor-commands`. Its `pkg/editor-commands/index.ts` adds:
 
 ```typescript
 // Command helpers (pure logic; Command contract, EditorCommands.spec.md §1.5)
@@ -586,20 +650,14 @@ export {
   toggleEref,
   toggleConcept,
   toggleBcp14,
-  toggleFootnote,
-  toggleStem,
-} from "./commands/referenceMarks.js";
-
-// Reference-mark constants and types
-export { BCP14_KEYWORDS } from "./commands/referenceMarks.js";
-export type {
-  Bcp14Keyword,
+  insertFootnoteMarker,
+  insertStem,
 } from "./commands/referenceMarks.js";
 ```
 
 `@metanorma/prosemirror-editor` **re-exports** them (so toolbar code can
 import all editor APIs from one package) via
-`pkg/prosemirror-editor/src/index.ts`:
+`pkg/prosemirror-editor/index.ts`:
 
 ```typescript
 // Re-export pure reference-mark commands from @metanorma/editor-commands
@@ -609,11 +667,9 @@ export {
   toggleEref,
   toggleConcept,
   toggleBcp14,
-  toggleFootnote,
-  toggleStem,
-  BCP14_KEYWORDS,
+  insertFootnoteMarker,
+  insertStem,
 } from "@metanorma/editor-commands";
-export type { Bcp14Keyword } from "@metanorma/editor-commands";
 
 // UI-only types: the prompt/picker context objects live with the toolbar UI
 // in prosemirror-editor, not in the commands package.
@@ -627,8 +683,8 @@ export type {
 export type { ToolbarGroup } from "./AdvancedMetanormaToolbar.js";
 ```
 
-> **Split rationale.** Commands and the `BCP14_KEYWORDS` enum are pure and
-> schema-derived, so they originate in `@metanorma/editor-commands`. The
+> **Split rationale.** Commands are pure and schema-derived, so they originate
+> in `@metanorma/editor-commands`. The
 > `RefPromptContext` / `StemPromptContext` / `StemResult` types describe the
 > **attribute-resolution UI** (they carry `EditorState` for host pickers and
 > are consumed only by the `on*Prompt` hooks), so they stay in
@@ -649,17 +705,16 @@ export type ToolbarGroup =
 ## 12. File structure summary
 
 ```
-pkg/editor-commands/src/                         ← PURE command logic (no React, no DOM)
+pkg/editor-commands/                         ← PURE command logic (no React, no DOM)
   commands/
-    referenceMarks.ts                            ← applyReferenceMark + six toggle wrappers,
-                                                 │   BCP14_KEYWORDS, Bcp14Keyword
+    referenceMarks.ts                            ← applyReferenceMark + six toggle wrappers
   index.ts                                       ← exports the commands above
 
-pkg/prosemirror-editor/src/                      ← UI + EditorView concerns
+pkg/prosemirror-editor/                      ← UI + EditorView concerns
   AdvancedMetanormaToolbar.tsx                   ← extended toolbar; adds 'refs' group,
-                                                 │   on*Prompt hooks, popover/menu UI,
+                                                 │   on*Prompt hooks, popover UI,
                                                  │   RefPromptContext / StemPromptContext / StemResult
-  reference-marks.css                            ← popover/menu styles for attribute collection
+  reference-marks.css                            ← popover styles for attribute collection
   index.ts                                       ← re-exports commands from @metanorma/editor-commands;
                                                    exports UI types + ToolbarGroup
 ```
@@ -678,10 +733,10 @@ All new code follows the project tsconfig (`strict`,
   (`./commands/referenceMarks.js` within `editor-commands`; `@metanorma/editor-commands`
   is a workspace package specifier, no extension).
 - Optional hook props use `?` syntax, never an explicit `undefined`.
-- Handle `null` from `noUncheckedIndexedAccess`: e.g. array access into
-  `BCP14_KEYWORDS` and `mark.attrs[key]` lookups must be null-checked.
+- Handle `null`/`undefined` from `noUncheckedIndexedAccess`: e.g.
+  `mark.attrs[key]` lookups must be null-checked.
 - Mark-type resolution goes through `state.schema.marks.X` (returns
   `MarkType | undefined` under `noUncheckedIndexedAccess`); the wrappers
   null-check and return `false` if the mark is absent from the schema.
-- All exported types (`Bcp14Keyword`, `RefPromptContext`,
+- All exported types (`RefPromptContext`,
   `StemPromptContext`, `StemResult`) are exported alongside their values.

@@ -66,11 +66,10 @@ A new workspace package, sibling to the schema and editor packages:
 pkg/editor-commands/
 ├── package.json          ← name: "@metanorma/editor-commands"
 ├── tsconfig.json         ← extends ../../tsconfig.json
-└── src/
-    ├── index.ts          ← public exports (defined in later sections)
-    ├── schema.ts         ← schema-coupling helpers: name resolution, shared context (defined in later sections)
-    ├── util.ts           ← shared command utilities: chain, predicates (defined in later sections)
-    └── commands/         ← individual command modules (reserved for later sections)
+├── index.ts              ← public exports (defined in later sections)
+├── schema.ts             ← schema-coupling helpers: name resolution, shared context (defined in later sections)
+├── util.ts               ← shared command utilities: chain, predicates (defined in later sections)
+└── commands/             ← individual command modules (reserved for later sections)
 ```
 
 > The package path and name are **decisions, not constraints.** The recommended
@@ -150,7 +149,7 @@ Commands must not hard-code node/mark lookups with unverified string literals.
 Node and mark types are resolved from a `Schema` instance using names drawn from
 the exported `NODE_NAMES` / `MARK_NAMES` constants, e.g.
 `state.schema.nodes.list_item`. For reference equality and clarity, the package
-keeps a shared, lazily-captured schema context in `src/schema.ts` (§1.3) defaulting
+keeps a shared, lazily-captured schema context in `schema.ts` (§1.3) defaulting
 to `metanormaSchema`.
 
 #### 1.6.2 Schema-parameterized where reuse matters
@@ -235,7 +234,7 @@ When a command dispatches, the transaction it produces obeys:
    reimplementing. Custom logic is added **only** where §1.6 requires.
 2. **Chaining.** Multi-step key bindings (e.g. "try A, else B, else C") are
    expressed with a chaining combinator. The package provides/re-exports a
-   `chainCommands`-style helper in `src/util.ts` that runs commands in order and
+   `chainCommands`-style helper in `util.ts` that runs commands in order and
    returns at the first one that applies. Callers compose command sequences with
    it; commands themselves stay single-purpose.
 3. **No hidden ordering.** A command does not internally invoke sibling commands
@@ -244,7 +243,7 @@ When a command dispatches, the transaction it produces obeys:
 
 ---
 
-### 1.10 Public API conventions (`src/index.ts`)
+### 1.10 Public API conventions (`index.ts`)
 
 1. **Every exported symbol is a `Command`** (or a `(schema) => Command` factory,
    per §1.6.2). No non-command helpers are part of the public API unless explicitly
@@ -256,7 +255,7 @@ When a command dispatches, the transaction it produces obeys:
    under their standard names so consumers can import all commands from one
    package. Adapted/custom commands use Metanorma-specific names where they
    differ in behaviour from the upstream namesake.
-4. **Schema helpers.** `src/schema.ts` may export small internal helpers (e.g.
+4. **Schema helpers.** `schema.ts` may export small internal helpers (e.g.
    `nodeAt`, `isInside`) but these are not part of the documented public API
    unless listed here.
 
@@ -310,7 +309,7 @@ satisfy; per-command criteria are added in later sections.
 8. **Headless.** The package's test suite runs under Node with no DOM
    (`jsdom`/`@testing-library` are **not** required for command tests).
 9. **No React / no `prosemirror-view`.** The package declares neither as a
-   dependency; importing either from `src/` fails the compile.
+   dependency; importing either from the package fails the compile.
 10. **Valid selection after dispatch.** For every dispatching fixture, the
     resulting transaction's selection resolves without error on `tr.doc`.
 

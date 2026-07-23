@@ -50,19 +50,18 @@ A new workspace package, sibling to `pkg/prosemirror-schema` and `pkg/editor-gui
 pkg/prosemirror-editor/
 ├── package.json          ← name: "@metanorma/prosemirror-editor"
 ├── tsconfig.json         ← extends ../../tsconfig.json
-└── src/
-    ├── index.ts          ← public exports (§11)
-    ├── MetanormaProseMirror.tsx   ← main component (§5)
-    ├── nodeViews/
-    │   ├── index.ts               ← nodeViewComponents map (§7.1)
-    │   ├── ImageNodeView.tsx
-    │   ├── FigureNodeView.tsx
-    │   ├── FormulaNodeView.tsx
-    │   ├── FloatingTitleNodeView.tsx
-    │   └── SourcecodeNodeView.tsx
-    ├── types.ts          ← `MirrorDocument` JSON type (§6.1)
-    ├── state.ts          ← `createInitialEditorState` + `DEFAULT_MIRROR_DOC` (§6.2)
-    └── style.css         ← editor + node-view styling (§9)
+├── index.ts              ← public exports (§11)
+├── MetanormaProseMirror.tsx   ← main component (§5)
+├── nodeViews/
+│   ├── index.ts               ← nodeViewComponents map (§7.1)
+│   ├── ImageNodeView.tsx
+│   ├── FigureNodeView.tsx
+│   ├── FormulaNodeView.tsx
+│   ├── FloatingTitleNodeView.tsx
+│   └── SourcecodeNodeView.tsx
+├── types.ts              ← `MirrorDocument` JSON type (§6.1)
+├── state.ts              ← `createInitialEditorState` + `DEFAULT_MIRROR_DOC` (§6.2)
+└── style.css             ← editor + node-view styling (§9)
 ```
 
 > The implementer may choose a different package path, but the **public exports**
@@ -405,7 +404,7 @@ provides the mount point.
 
 ---
 
-## 11. Public API (`src/index.ts`)
+## 11. Public API (`index.ts`)
 
 ```ts
 import type { EditorState } from "prosemirror-state";

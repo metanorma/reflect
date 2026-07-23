@@ -1,5 +1,5 @@
 /**
- * Mark specifications — the 16-mark `marks` map passed to `new Schema` (§9).
+ * Mark specifications — the 15-mark `marks` map passed to `new Schema` (§9).
  *
  * Formatting marks (§9.1) keep the default `inclusive: true`; reference /
  * semantic marks (§9.2) set `inclusive: false` (§7).
@@ -150,25 +150,7 @@ const referenceMarks: Record<string, MarkSpec> = {
       },
     ],
   },
-  stem: {
-    inclusive: false,
-    attrs: { type: { default: null }, ...DATA_ATTR },
-    toDOM: (mark) => {
-      const attrs: Record<string, string> = { class: "stem" };
-      const type = markAttr(mark, "type");
-      if (type !== null) {
-        attrs["data-type"] = type;
-      }
-      return ["span", attrs, 0];
-    },
-    parseDOM: [
-      {
-        tag: "span.stem",
-        getAttrs: (el) => ({ type: el.getAttribute("data-type") }),
-      },
-    ],
-  },
-  concept: {
+    concept: {
     inclusive: false,
     attrs: { ref: { default: null }, ...DATA_ATTR },
     toDOM: (mark) => {
@@ -215,8 +197,8 @@ const referenceMarks: Record<string, MarkSpec> = {
       }
       return ["span", attrs, 0];
     },
-    // §9.2: low priority so span.smallcap / span.stem / span.concept /
-    // span.bcp14 win during HTML ingestion.
+      // §9.2: low priority so span.smallcap / span.concept /
+      // span.bcp14 win during HTML ingestion.
     parseDOM: [
       {
         tag: "span[data-class]",
@@ -232,7 +214,7 @@ const referenceMarks: Record<string, MarkSpec> = {
 // ---------------------------------------------------------------------------
 
 /**
- * The 16 mark specs, in §3.2 order.
+ * The 15 mark specs, in §3.2 order.
  *
  * Exposed for consumers that compose a modified schema.
  */

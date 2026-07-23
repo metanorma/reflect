@@ -19,9 +19,9 @@ host application's `onStateChange` handler.
 | Aspect | Value |
 |---|---|
 | Defined in | `@metanorma/prosemirror-editor` |
-| Source file | `pkg/prosemirror-editor/src/MetanormaToolbar.tsx` |
-| Stylesheet | `pkg/prosemirror-editor/src/toolbar.css` (imported side-effect) |
-| Exported from | `pkg/prosemirror-editor/src/index.ts` |
+| Source file | `pkg/prosemirror-editor/MetanormaToolbar.tsx` |
+| Stylesheet | `pkg/prosemirror-editor/toolbar.css` (imported side-effect) |
+| Exported from | `pkg/prosemirror-editor/index.ts` |
 | Import name | `MetanormaToolbar` |
 
 Rationale: the toolbar is schema-bound (it references specific `MarkType`
@@ -197,7 +197,7 @@ export function toggleList(
 ): boolean;
 ```
 
-Defined in `pkg/prosemirror-editor/src/commands/toggleList.ts`.
+Defined in `pkg/prosemirror-editor/commands/toggleList.ts`.
 
 **Active detection:** a list button is active when
 `state.selection.$from.node(-2)?.type === listType` (the list wraps
@@ -340,7 +340,7 @@ Each `<button>` element:
 
 ## 10. Export changes
 
-`pkg/prosemirror-editor/src/index.ts` must add:
+`pkg/prosemirror-editor/index.ts` must add:
 
 ```typescript
 export { MetanormaToolbar } from "./MetanormaToolbar.js";
@@ -351,7 +351,7 @@ export { toggleList } from "./commands/toggleList.js";
 ## 11. File structure summary
 
 ```
-pkg/prosemirror-editor/src/
+pkg/prosemirror-editor/
   MetanormaToolbar.tsx              ← toolbar component
   toolbar.css                       ← toolbar styles
   commands/

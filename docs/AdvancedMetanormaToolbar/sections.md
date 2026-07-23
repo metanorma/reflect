@@ -25,9 +25,9 @@ prefix (`mn-toolbar`), and TypeScript constraints defined in
 
 ## 2. Schema recap
 
-All node references below are from `pkg/prosemirror-schema/src/nodes.ts`. The
+All node references below are from `pkg/prosemirror-schema/nodes.ts`. The
 group constants (`BLOCK_GROUP = "block"`, `SECTION_GROUP = "section"`) are from
-`pkg/prosemirror-schema/src/groups.ts`.
+`pkg/prosemirror-schema/groups.ts`.
 
 ### 2.1 Structural containers
 
@@ -199,7 +199,7 @@ clause" composition.
 ## 5. Commands
 
 The structural command logic lives in the **`@metanorma/editor-commands`**
-package, at `pkg/editor-commands/src/commands/sections.ts` — **not** in
+package, at `pkg/editor-commands/commands/sections.ts` — **not** in
 `pkg/prosemirror-editor`. The editor package (`@metanorma/prosemirror-editor`)
 re-exports them; the toolbar component and its view-holding adapters stay in
 `prosemirror-editor`. See §11 (exports) and §12 (file structure).
@@ -480,7 +480,7 @@ These walk `$pos.depth → 1` via `$pos.node(d)`, returning the first match.
 > **Location / visibility.** All four legality helpers (`canWrapInClause`,
 > `parentAccepts`, `nearestSectionAncestor`, `findNearestSectionOfType`) are pure
 > state-reading functions and live alongside the commands in
-> `pkg/editor-commands/src/commands/sections.ts`. They are **internal helpers**:
+> `pkg/editor-commands/commands/sections.ts`. They are **internal helpers**:
 > `canWrapInClause` is exposed because the toolbar's `isEnabled` selector calls it
 > directly, but the others (`parentAccepts`, `nearestSectionAncestor`,
 > `findNearestSectionOfType`) need not be part of the documented public API unless
@@ -672,7 +672,7 @@ commands are defined in and exported from **`@metanorma/editor-commands`**, and
 consumers. The toolbar component and its view-holding adapters stay in
 `prosemirror-editor`.
 
-**`pkg/editor-commands/src/index.ts`** adds:
+**`pkg/editor-commands/index.ts`** adds:
 
 ```typescript
 // Structural (section/clause nesting) commands — Command contract §1.5.
@@ -695,7 +695,7 @@ export {
 > `prosemirror-editor`; the pure commands take `title` / `targetType` as ordinary
 > arguments so no `EditorView` enters the command layer.
 
-**`pkg/prosemirror-editor/src/index.ts`** re-exports the commands from the
+**`pkg/prosemirror-editor/index.ts`** re-exports the commands from the
 commands package (so toolbar/keymap code can import everything from one place)
 and adds the section-group type. (Note: the base spec's `toggleList` command is
 similarly sourced from `@metanorma/editor-commands` and re-exported here.)
@@ -727,13 +727,13 @@ component, its view-holding adapters, and the re-exports live in
 `@metanorma/prosemirror-editor`.
 
 ```
-pkg/editor-commands/src/
+pkg/editor-commands/
   commands/
     sections.ts                   ← structural commands + legality helpers (§5)
   index.ts                        ← exports wrapInClause, promoteClause,
                                     demoteClause, setSectionType, canWrapInClause
 
-pkg/prosemirror-editor/src/
+pkg/prosemirror-editor/
   MetanormaToolbar.tsx            ← base toolbar (existing spec; gains 'sections' group)
   AdvancedMetanormaToolbar.tsx    ← advanced toolbar (this document), if separated
   toolbar.css                     ← shared styles; add --sections modifiers (§8)
@@ -745,8 +745,8 @@ docs/AdvancedMetanormaToolbar/
 ```
 
 > The `commands/` directory does **not** exist under
-> `pkg/prosemirror-editor/src/` for these commands — section/clause command
-> logic lives in `pkg/editor-commands/src/commands/sections.ts`. Only view-holding
+> `pkg/prosemirror-editor/` for these commands — section/clause command
+> logic lives in `pkg/editor-commands/commands/sections.ts`. Only view-holding
 > adapters (the button `run(view)` wrappers that call the pure command and then
 > `view.focus()`) belong in `prosemirror-editor`, alongside the toolbar component.
 
@@ -754,7 +754,7 @@ docs/AdvancedMetanormaToolbar/
 
 The project tsconfig enforces `strict`, `exactOptionalPropertyTypes`,
 `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, `module: node16` (per
-project memory). All new code in `pkg/editor-commands/src/commands/sections.ts`
+project memory). All new code in `pkg/editor-commands/commands/sections.ts`
 (the command logic) and the toolbar component in `prosemirror-editor` must:
 
 - Use `import type` for type-only imports (`Command`, `EditorState`,

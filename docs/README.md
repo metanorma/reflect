@@ -38,7 +38,7 @@ document model — 42 node types and 16 mark types.
 | 8 | [Node specifications](./schema.spec.md#8-node-specifications) |
 | 9 | [Mark specifications](./schema.spec.md#9-mark-specifications) |
 | 10 | [Schema assembly](./schema.spec.md#10-schema-assembly) |
-| 11 | [Public API (`src/index.ts`)](./schema.spec.md#11-public-api-srcindexts) |
+| 11 | [Public API (`index.ts`)](./schema.spec.md#11-public-api-index-ts) |
 | 12 | [JSON round-trip (`MirrorNode` compatibility)](./schema.spec.md#12-json-round-trip-mirrornode-compatibility) |
 | 13 | [TypeScript constraints](./schema.spec.md#13-typescript-constraints) |
 | 14 | [Acceptance criteria](./schema.spec.md#14-acceptance-criteria) |
@@ -68,7 +68,7 @@ module — it does not ship commands, keymaps, or input rules.
 | 8 | [Mark views](./MetanormaProseMirror.spec.md#8-mark-views) |
 | 9 | [Styling (`style.css`)](./MetanormaProseMirror.spec.md#9-styling-stylecss) |
 | 10 | [Hooks available to children](./MetanormaProseMirror.spec.md#10-hooks-available-to-children) |
-| 11 | [Public API (`src/index.ts`)](./MetanormaProseMirror.spec.md#11-public-api-srcindexts) |
+| 11 | [Public API (`index.ts`)](./MetanormaProseMirror.spec.md#11-public-api-index-ts) |
 | 12 | [TypeScript constraints](./MetanormaProseMirror.spec.md#12-typescript-constraints) |
 | 13 | [Acceptance criteria](./MetanormaProseMirror.spec.md#13-acceptance-criteria) |
 | 14 | [Out of scope (v1)](./MetanormaProseMirror.spec.md#14-out-of-scope-v1) |

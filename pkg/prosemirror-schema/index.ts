@@ -36,7 +36,7 @@ export { metanormaMarks } from "./marks.js";
 // ---------------------------------------------------------------------------
 
 /**
- * The 42 node names, in §3.1 group order. The authoritative list that the
+ * The 43 node names, in §3.1 group order. The authoritative list that the
  * schema's `nodes` map must contain exactly.
  */
 export const NODE_NAMES: readonly string[] = [
@@ -56,20 +56,22 @@ export const NODE_NAMES: readonly string[] = [
   "figure", "image",
   // FOOTNOTE_TYPES (3)
   "footnotes", "footnote_marker", "footnote_entry",
+  // INLINE_ATOM_TYPES (1)
+  "stem",
   // LEAF_TYPES (3)
   "text", "soft_break", "floating_title",
 ];
 
 /**
- * The 16 mark names, in §3.2 order. The authoritative list that the schema's
+ * The 15 mark names, in §3.2 order. The authoritative list that the schema's
  * `marks` map must contain exactly.
  */
 export const MARK_NAMES: readonly string[] = [
   // Formatting marks (8)
   "emphasis", "strong", "subscript", "superscript", "code",
   "underline", "strike", "smallcap",
-  // Reference / semantic marks (8)
-  "link", "xref", "eref", "footnote", "stem", "concept", "bcp14", "span",
+  // Reference / semantic marks (7)
+  "link", "xref", "eref", "footnote", "concept", "bcp14", "span",
 ];
 
 // ---------------------------------------------------------------------------
