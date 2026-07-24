@@ -560,11 +560,11 @@ These are genuine design decisions left for the implementer / product owner:
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/prosemirror-editor`; see the consolidated export listing in
-README §5.11. This feature adds no feature-specific export notes.
+README §5.6. This feature adds no feature-specific export notes.
 
 ## 11. File-structure summary
 
-See the consolidated file-structure listing in README §5.10. The packages
+See the consolidated file-structure listing in README §5.5. The packages
 touched by this feature are `@metanorma/editor-commands` (pure command logic)
 and `@metanorma/prosemirror-editor` (React mount + toolbar adapter).
 

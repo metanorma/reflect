@@ -646,9 +646,9 @@ not final decisions.
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/prosemirror-editor`; see the consolidated export listing
-in README §5.11. This feature adds no feature-specific export notes.
+in README §5.6. This feature adds no feature-specific export notes.
 
 ## 12. File structure summary
 
-See the consolidated file-structure summary in README §5.10. This feature
+See the consolidated file-structure summary in README §5.5. This feature
 adds no feature-specific structure notes.

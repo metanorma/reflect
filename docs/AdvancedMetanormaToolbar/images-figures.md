@@ -635,7 +635,7 @@ Genuine design decisions left for the implementer / product owner:
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/prosemirror-editor`; see the consolidated export listing in
-README §5.11. This feature adds no feature-specific export notes.
+README §5.6. This feature adds no feature-specific export notes.
 
 ## 12. CSS classes
 
@@ -667,7 +667,7 @@ matching the base toolbar's `toolbar.css` convention and `tables.md`'s
 
 ## 13. File-structure summary
 
-See the consolidated file-structure summary in README §5.10. This feature adds
+See the consolidated file-structure summary in README §5.5. This feature adds
 no feature-specific structure notes.
 
 ## 14. TypeScript constraints

@@ -510,7 +510,7 @@ Genuine unknowns to resolve before/while implementing:
 ## 11. Export and package changes
 
 The consolidated `index.ts` export listing for both packages lives in
-README §5.11; this section records only the **undo-redo-specific** additions
+README §5.6; this section records only the **undo-redo-specific** additions
 not captured there.
 
 ### 11.1 Runtime dependencies
@@ -552,7 +552,7 @@ from the one workspace package.
 ### 11.2 Undo-redo-specific exports
 
 Beyond the re-exported `undo`/`redo`/`undoDepth`/`redoDepth`/`history`/
-`HistoryOptions` (README §5.11), the editor package surface gains three
+`HistoryOptions` (README §5.6), the editor package surface gains three
 **undo-redo-specific** symbols that have no analogue in the other features:
 
 ```typescript
@@ -601,7 +601,7 @@ export type ToolbarGroup =
 
 ## 12. File structure summary
 
-See the consolidated file-structure summary in README §5.10. This feature adds
+See the consolidated file-structure summary in README §5.5. This feature adds
 no feature-specific structure notes.
 
 ## 13. TypeScript constraints

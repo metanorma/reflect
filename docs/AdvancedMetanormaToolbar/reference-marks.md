@@ -582,7 +582,7 @@ Genuine unknowns to resolve before/while implementing:
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/prosemirror-editor`; see the consolidated export listing in
-README §5.11. The feature-specific export notes below are not covered by that
+README §5.6. The feature-specific export notes below are not covered by that
 listing.
 
 `@metanorma/prosemirror-editor` also exports the **UI-only types** that describe
@@ -621,7 +621,7 @@ export type ToolbarGroup =
 
 ## 12. File structure summary
 
-See the consolidated file-structure summary in README §5.10. This feature adds
+See the consolidated file-structure summary in README §5.5. This feature adds
 no feature-specific structure notes.
 
 ## 13. TypeScript constraints
