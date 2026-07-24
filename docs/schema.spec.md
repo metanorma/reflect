@@ -11,7 +11,8 @@ this document supersedes them as the source of truth for the schema.
 (commit on `main` at the time of writing). Every node name, mark name, and
 attribute in this schema is derived directly from that file's exported
 constants (`MARK_TYPES`, `STRUCTURAL_TYPES`, `SECTION_TYPES`, `BLOCK_TYPES`,
-`LIST_TYPES`, `TABLE_TYPES`, `MEDIA_TYPES`, `FOOTNOTE_TYPES`, `LEAF_TYPES`)
+`LIST_TYPES`, `TABLE_TYPES`, `MEDIA_TYPES`, `FOOTNOTE_TYPES`,
+`INLINE_ATOM_TYPES`, `LEAF_TYPES`)
 and its attribute interfaces (`NodeAttrsByType`, `MarkAttrsByType`, `BaseAttrs`).
 
 ---
@@ -242,11 +243,12 @@ All section nodes share `toDOM`/`parseDOM` shape (a `<section>` whose class is
 
 ```ts
 function sectionToDOM(cls: string) {
-  return (node: Node) => ["section", {
-    class: cls,
-    "data-id": node.attrs.id ?? undefined,
-    "data-number": node.attrs.number ?? undefined,
-  }, 0] as DOMOutputSpec;
+  return (node: Node) => {
+    const attrs: Record<string, string> = { class: cls };
+    if (node.attrs.id !== null) attrs["data-id"] = node.attrs.id;
+    if (node.attrs.number !== null) attrs["data-number"] = node.attrs.number;
+    return ["section", attrs, 0] as DOMOutputSpec;
+  };
 }
 // parseDOM: [{ tag: `section.${cls}`, getAttrs(el) { return { id: el.getAttribute("data-id"), number: el.getAttribute("data-number") } } }]
 ```
@@ -274,17 +276,22 @@ function sectionToDOM(cls: string) {
 | `quote` | `block+` | `["blockquote", 0]` | `[{tag: "blockquote"}]` |
 | `review` | `block+` | `["div", {class: "review"}, 0]` | `[{tag: "div.review"}]` |
 | `admonition` | `block+` | `["div", {class: `admonition ${type}`, "data-type": type}, 0]` (function) | `[{tag: "div.admonition", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
-| `sourcecode` | `text*` | `["pre", {class: `language-${language}`}, ["code", 0]]` (function) | `[{tag: "pre", getAttrs: el => ({ language: /language-(\S+)/.exec(el.className)?.[1] ?? null })}]` |
-| `formula` | *(empty)* atom | `["div", {class: "formula", "data-asciimath": asciimath, "data-mathml": mathml, "data-number": number}, 0]` (function) | `[{tag: "div.formula", getAttrs: el => ({ asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml"), number: el.getAttribute("data-number") })}]` |
-| `stem` | *(empty)* inline atom | `["span", {class: "stem", "data-asciimath": asciimath, "data-mathml": mathml}]` (function; no content slot) | `[{tag: "span.stem", getAttrs: el => ({ asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml") })}]` |
+| `sourcecode` | `text*`, `code: true` | `["pre", {class: `language-${language}`}, ["code", 0]]` (function) | `[{tag: "pre", getAttrs: el => ({ language: /language-(\S+)/.exec(el.className)?.[1] ?? null })}]` |
+| `formula` | *(empty)* atom | `["div", {class: "formula", "data-asciimath": asciimath, "data-mathml": mathml, "data-number": number}]` (function; no content slot) | `[{tag: "div.formula", getAttrs: el => ({ asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml"), number: el.getAttribute("data-number") })}]` |
 | `floating_title` | *(empty)* atom, `group: "block"` | `["div", {class: "floating-title", "data-id": id}, title ?? ""]` (function) | `[{tag: ".floating-title", getAttrs: el => ({ title: el.textContent, id: el.getAttribute("data-id") })}]` |
+
+> **`sourcecode.code: true`.** The `sourcecode` node spec sets `code: true`, the
+> ProseMirror convention marking a textblock as a code block. This is what makes
+> `EditorState`'s code-context detection (`isInCode`) and the stock code-newline
+> command work inside `sourcecode`; the editor-commands package relies on it
+> (`EditorCommands.spec.md` §1.6.3).
 
 ### 8.4 List nodes
 
 | Node | `group` | `content` | `toDOM` | `parseDOM` |
 |---|---|---|---|---|
 | `bullet_list` | `block` | `list_item+` | `["ul", 0]` | `[{tag: "ul"}]` |
-| `ordered_list` | `block` | `list_item+` | `["ol", {start: order > 1 ? order : undefined}, 0]` (function) | `[{tag: "ol", getAttrs: el => ({ order: el.hasAttribute("start") ? Number(el.getAttribute("start")) : 1 })}]` |
+| `ordered_list` | `block` | `list_item+` | `["ol", attrs, 0]` where `attrs` contains `start` only when `order > 1` (function) | `[{tag: "ol", getAttrs: el => ({ order: el.hasAttribute("start") ? Number(el.getAttribute("start")) : 1 })}]` |
 | `list_item` | — | `block+` | `["li", 0]` | `[{tag: "li"}]` |
 | `dl` | `block` | `(dt dd)+` | `["dl", 0]` | `[{tag: "dl"}]` |
 | `dt` | — | `inline*` | `["dt", 0]` | `[{tag: "dt"}]` |
@@ -316,7 +323,7 @@ function sectionToDOM(cls: string) {
 |---|---|---|---|---|
 | `footnotes` | `footnote_entry+` | no | `["section", {class: "footnotes"}, 0]` | `[{tag: "section.footnotes"}, {tag: "ol.footnotes"}]` |
 | `footnote_entry` | `block+` | no | `["div", {class: "footnote-entry", "data-id": id, "data-number": number}, 0]` (function) | `[{tag: ".footnote-entry", getAttrs: el => ({ id: el.getAttribute("data-id"), number: el.getAttribute("data-number") })}]` |
-| `footnote_marker` | *(empty)* | **yes** (`group: "inline"`, `inline: true`, atom) | `["sup", {class: "footnote-marker", "data-target": target}, 0]` (function) | `[{tag: "sup.footnote-marker", getAttrs: el => ({ target: el.getAttribute("data-target") })}]` |
+| `footnote_marker` | *(empty)* | **yes** (`group: "inline"`, `inline: true`, atom) | `["sup", {class: "footnote-marker", "data-target": target}]` (function; no content slot) | `[{tag: "sup.footnote-marker", getAttrs: el => ({ target: el.getAttribute("data-target") })}]` |
 
 ### 8.8 Leaf inline nodes
 
@@ -324,6 +331,7 @@ function sectionToDOM(cls: string) {
 |---|---|---|---|
 | `text` | `inline` | *(built-in)* | *(built-in)* |
 | `soft_break` | `inline`, `inline: true`, `atom: true` | `["br"]` | `[{tag: "br"}]` |
+| `stem` | `inline`, `inline: true`, `atom: true` | `["span", {class: "stem", "data-asciimath": asciimath, "data-mathml": mathml}]` (function; no content slot) | `[{tag: "span.stem", getAttrs: el => ({ asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml") })}]` |
 
 ---
 
@@ -485,7 +493,7 @@ For sanity checks and editor bootstrap:
           "type": "clause",
           "attrs": { "id": "_document_container", "title": null },
           "content": [
-            { "type": "paragraph", "content": [{ "type": "text", "text": "" }] }
+            { "type": "paragraph" }
           ]
         }
       ]
@@ -493,6 +501,9 @@ For sanity checks and editor bootstrap:
   ]
 }
 ```
+
+An empty `paragraph` (no child `text` node) is used: `nodeFromJSON` fills it
+with an empty text node as needed, producing an empty editable paragraph.
 
 This satisfies `doc.content` = `(preface? sections? bibliography? footnotes?)`.
 

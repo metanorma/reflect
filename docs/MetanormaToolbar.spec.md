@@ -242,8 +242,8 @@ The following are intentionally excluded from this specification:
   `assertValidImageAttrs`.
 - **Section / clause nesting** — structural operations that affect the
   document tree at the `sections` / `clause` level.
-- **Reference marks** (`xref`, `eref`, `concept`, `bcp14`, `footnote`,
-  `stem`) — require target/ID resolution beyond simple toggle.
+- **Reference marks** (`xref`, `eref`, `concept`, `bcp14`, `footnote`) and the
+  `stem` inline atom node — require target/ID resolution beyond simple toggle.
 - **Definition lists** (`dl`/`dt`/`dd`) — multi-part structure that needs
   dedicated insertion logic.
 - **Undo / redo** — handled by ProseMirror history plugin, not the schema.

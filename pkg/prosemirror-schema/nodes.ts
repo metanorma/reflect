@@ -249,7 +249,7 @@ const blockNodes: Record<string, NodeSpec> = {
       if (number !== null) {
         attrs["data-number"] = number;
       }
-      return ["div", attrs, 0];
+      return ["div", attrs];
     },
     parseDOM: [
       {
@@ -503,7 +503,7 @@ const footnoteNodes: Record<string, NodeSpec> = {
         if (target !== null) {
           attrs["data-target"] = target;
         }
-        return ["sup", attrs, 0];
+        return ["sup", attrs];
       },
       parseDOM: [
         {
