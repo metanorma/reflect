@@ -4,7 +4,7 @@ This spec defines the ProseMirror schema module. Ignore the preexisting
 `pkg/schema` subpackage and any prior ProseMirror usage in this repository —
 this document supersedes them as the source of truth for the schema.
 
-**Spec version:** 1
+**Spec version:** 2
 
 **Source of truth for the document model:**
 `src/types.ts` of [`metanorma/metanorma-mirror-js`](https://github.com/metanorma/metanorma-mirror-js/blob/main/src/types.ts)
@@ -30,6 +30,21 @@ content model, attributes, and DOM serialization rules faithfully mirror the
    `Node.toJSON()` (lossless round-trip for every typed attribute).
 3. Provide `toDOM` / `parseDOM` so documents can be rendered to HTML and parsed
    back from HTML without information loss for the round-tripped attributes.
+
+### 1.1 Coverage and convertibility to Metanorma XML
+
+The schema covers a **subset** of the Metanorma document model, not all of it —
+a complex Metanorma document is generally *not* representable in this schema,
+and a lossless Metanorma-XML → ProseMirror → Metanorma-XML round-trip is **not**
+a goal. What the schema *does* guarantee is **unambiguous convertibility**: any
+document the editor can produce under this schema must convert to valid
+Metanorma Presentation XML without the converter having to guess between
+competing representations of the same fact (no dual source of truth). Attribute
+and element names in the schema need not match the XML names — a dedicated
+converter performs those renames and structural reshapes. Where a Presentation
+XML value is required but cannot be derived from anything the editor models
+(e.g. `mimetype`, `reviewer`, `depth`), the converter may **invent** a default,
+but such invention is a schema limitation, surfaced in §17.
 
 ---
 
@@ -123,8 +138,8 @@ not prescribe content expressions). Three groups are introduced:
 | `note`, `example`, `quote`, `review` | `block+` | Container blocks. |
 | `admonition` | `block+` | Container; `type` attr classifies it. |
 | `sourcecode` | `text*` | Raw text content (a `code_block`-style node). |
-| `formula` | *(empty)* | Atom leaf; math in attrs. |
-| `stem` | *(empty)* | Inline atom leaf; inline-formula math in attrs (`asciimath`/`mathml`). |
+| `formula` | *(empty)* | Atom leaf; math in `asciimath` attr (when `type="asciimath"`) or `mathml` attr (when `type="mathml"`). |
+| `stem` | *(empty)* | Inline atom leaf; inline-formula math in `asciimath`/`mathml` attr, selected by the `type` attr. |
 | `bullet_list` | `list_item+` | |
 | `ordered_list` | `list_item+` | |
 | `list_item` | `block+` | At least one block (conventionally a paragraph). |
@@ -174,9 +189,9 @@ following rules:
 |---|---|---|
 | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references`, `floating_title` | `id`, `number`, `title` | `SectionAttrs` (extends `BaseAttrs`) |
 | `preface`, `sections`, `bibliography` | `id`, `number` | `BaseAttrs` |
-| `formula` | `id`, `number`, `asciimath`, `mathml`, `math_text` | `FormulaAttrs` |
-| `stem` | `asciimath`, `mathml` | open |
-| `figure` | `id`, `number`, `title`, `src` | `FigureAttrs` |
+| `formula` | `id`, `number`, `type` (enum `asciimath` \| `mathml`, default `"asciimath"`), `asciimath`, `mathml` | `FormulaAttrs` |
+| `stem` | `type` (enum `asciimath` \| `mathml`, default `"asciimath"`), `asciimath`, `mathml` | open |
+| `figure` | `id`, `number`, `title` | `FigureAttrs` (the `src` attr is dropped — `src` lives only on the `image` child, avoiding a dual source of truth; see §17.1) |
 | `table` | `id`, `number`, `title` | `TableAttrs` |
 | `table_cell` | `colspan` (default `1`), `rowspan` (default `1`) | `TableCellAttrs` |
 | `image` | `src` (default `""`), `alt` | `ImageAttrs` (`src` required in TS → default `""` + runtime validation) |
@@ -277,7 +292,7 @@ function sectionToDOM(cls: string) {
 | `review` | `block+` | `["div", {class: "review"}, 0]` | `[{tag: "div.review"}]` |
 | `admonition` | `block+` | `["div", {class: `admonition ${type}`, "data-type": type}, 0]` (function) | `[{tag: "div.admonition", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
 | `sourcecode` | `text*`, `code: true` | `["pre", {class: `language-${language}`}, ["code", 0]]` (function) | `[{tag: "pre", getAttrs: el => ({ language: /language-(\S+)/.exec(el.className)?.[1] ?? null })}]` |
-| `formula` | *(empty)* atom | `["div", {class: "formula", "data-asciimath": asciimath, "data-mathml": mathml, "data-number": number}]` (function; no content slot) | `[{tag: "div.formula", getAttrs: el => ({ asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml"), number: el.getAttribute("data-number") })}]` |
+| `formula` | *(empty)* atom | `["div", {class: "formula", "data-type": type, "data-asciimath": asciimath, "data-mathml": mathml, "data-number": number}]` (function; no content slot; only the encoding selected by `type` is authoritative — see §17.2) | `[{tag: "div.formula", getAttrs: el => ({ type: el.getAttribute("data-type") ?? "asciimath", asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml"), number: el.getAttribute("data-number") })}]` |
 | `floating_title` | *(empty)* atom, `group: "block"` | `["div", {class: "floating-title", "data-id": id}, title ?? ""]` (function) | `[{tag: ".floating-title", getAttrs: el => ({ title: el.textContent, id: el.getAttribute("data-id") })}]` |
 
 > **`sourcecode.code: true`.** The `sourcecode` node spec sets `code: true`, the
@@ -331,7 +346,7 @@ function sectionToDOM(cls: string) {
 |---|---|---|---|
 | `text` | `inline` | *(built-in)* | *(built-in)* |
 | `soft_break` | `inline`, `inline: true`, `atom: true` | `["br"]` | `[{tag: "br"}]` |
-| `stem` | `inline`, `inline: true`, `atom: true` | `["span", {class: "stem", "data-asciimath": asciimath, "data-mathml": mathml}]` (function; no content slot) | `[{tag: "span.stem", getAttrs: el => ({ asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml") })}]` |
+| `stem` | `inline`, `inline: true`, `atom: true` | `["span", {class: "stem", "data-type": type, "data-asciimath": asciimath, "data-mathml": mathml}]` (function; no content slot; only the encoding selected by `type` is authoritative) | `[{tag: "span.stem", getAttrs: el => ({ type: el.getAttribute("data-type") ?? "asciimath", asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml") })}]` |
 
 ---
 
@@ -522,3 +537,84 @@ Deferred and **not** required by this spec:
 - Enforcing `footnote_marker.target` ↔ `footnote_entry.id` referential integrity
   (the schema captures the ids; cross-validation is a higher-layer concern).
 - Restricting `code` mark exclusivity (§7).
+
+---
+
+## 17. Conversion to Metanorma Presentation XML
+
+As stated in §1.1, this schema covers a **subset** of the Metanorma document
+model. It is designed for **unambiguous convertibility**: every document the
+editor can produce must map to a single, well-defined Metanorma Presentation XML
+structure. A dedicated converter performs attribute/element renames and
+structural reshapes (e.g. `cite` → `citeas`, `href` → `target`, `number` →
+`reference`, a title attribute → a `<title>`/`<name>` child element, the
+doc-level `footnotes`/`footnote_entry`/`footnote_marker` split → a single inline
+`<fn>` with body). Name and shape differences are **not** incompatibilities.
+
+Two dual-source-of-truth issues are resolved in this spec so that conversion is
+unambiguous:
+
+### 17.1 `src` lives only on `image` (not `figure`)
+
+`figure` no longer carries a `src` attribute (§6.1). The image source is stored
+exactly once, on the `image` child of the figure. This removes the previous
+ambiguity where `figure.src` and `figure > image.src` could disagree with no
+way to decide which is authoritative. A figure's image is always its `image`
+child node.
+
+### 17.2 `formula` / `stem` carry a `type` discriminator
+
+Both `formula` and `stem` now declare a `type` attribute (enum: `"asciimath"` |
+`"mathml"`, default `"asciimath"`). The `type` selects which encoding is
+**authoritative** for conversion; the converter emits only that encoding
+(Metanorma `<stem type="AsciiMath">` or `<stem type="MathML">` carries a single
+encoding). The non-selected attribute may still be populated for editor-side
+preview but is **ignored on export**. This removes the previous ambiguity where
+parallel, simultaneously-populated `asciimath` and `mathml` attributes had no
+defined winner.
+
+### 17.3 Values the converter must invent (schema coverage gaps)
+
+The following Metanorma Presentation XML values are **required** (or commonly
+expected) but have **no typed slot** in this schema, so a converter must
+synthesise a default on export. These are accepted limitations of the covered
+subset, not ambiguities:
+
+| XML target | Required? | Converter strategy |
+|---|---|---|
+| `<image mimetype="…">` | required | Infer from `src` `data:`-URL MIME prefix, else from filename extension, else a fallback constant. |
+| `<image id="…">` | required | Synthesise a content GUID (the editor does not model `id` on `image`). |
+| `<floating-title depth="…">` | required | Derive from heading level context, else a constant default. |
+| `<review reviewer="…">` | required | Default placeholder (the editor does not model `reviewer`). |
+| `<eref citeas="…">`, `<link target="…">`, `<fn reference="…">` | required | Direct rename of the editor attr (`cite`, `href`, `number`). |
+
+### 17.4 Features not represented (dropped on import)
+
+The following Metanorma features exist in the covered element families but have
+**no representation** in this schema, so a Presentation-XML → editor import
+**drops** them (and export cannot recreate them). Each is a known coverage gap:
+
+| Feature | XML location | Status |
+|---|---|---|
+| Sourcecode callouts, annotations, `<name>` caption, line numbering (`linenums`) | `<sourcecode>` | dropped — schema models raw code text only |
+| Table key/legend, table notes, column widths (`colgroup`), source citation | `<table>` | dropped — schema models head/body/foot rows only |
+| Row-header cells (`<th>` inside `<tbody>`) | `<tr>` | dropped — single `table_cell` type; only header rows (via `table_head`/`<thead>`) are distinguished |
+| List numbering style (`<ol type="…">`: roman/arabic/…) | `<ol>` | dropped — schema models `start` only |
+| Cell alignment (`align`, `valign`) | `<td>`/`<th>` | dropped |
+| Ordered-list `start`, section/block `obligation`, `unnumbered`, `inline-header`, `number` override | various | carried via the `data` catch-all if present on import; not typed or editable |
+| Rich inline markup inside titles/captions | `<title>`, `<name>` | flattened to plain text — the typed `title` attr is a string |
+
+### 17.5 Over-permissive content (coerced on export)
+
+The schema's content expressions are intentionally **looser** than Metanorma XML
+so the editor is ergonomic. A converter must normalise these on export (this is
+coercion, not ambiguity — there is a single valid target):
+
+- `table` permits head-only / multiple bodies; XML requires exactly one
+  `<tbody>` (with optional `thead`/`tfoot`).
+- `note`/`example`/`quote`/`review`/`admonition`/`dd` allow `block+`; XML
+  restricts their bodies to paragraphs (with footnote) plus a limited subset.
+- `abstract`/`foreword`/`introduction`/`acknowledgements` use `block+`; XML
+  models them as `Content-Section` (`block*, clause*`) — the converter
+  serialises their block children as paragraphs/clauses as appropriate.
+
