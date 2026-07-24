@@ -1,7 +1,7 @@
 # AdvancedMetanormaToolbar — Feature Specifications
 
 **Spec version:** 1
-**Spec dependencies:** [`../MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) v1, [`../EditorCommands.spec.md`](../EditorCommands.spec.md) v1
+**Spec dependencies:** [`../MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) v2, [`../EditorCommands.spec.md`](../EditorCommands.spec.md) v1
 
 This directory contains the feature specifications for **`AdvancedMetanormaToolbar`**,
 an extended version of the `MetanormaToolbar` component specified in
@@ -14,6 +14,15 @@ hyperlink operations. Its §5.5 ("Out of scope") enumerates six feature areas
 that are intentionally deferred. `AdvancedMetanormaToolbar` is the component
 that picks up exactly those six areas — it does **not** rehash the contents of
 `MetanormaToolbar.spec.md`.
+
+As of `MetanormaToolbar.spec.md` v2, the base component is a **thin assembler**
+over a set of shared toolbar primitives — a generic `<Toolbar>` shell, a
+`<ToolbarButtonView>` renderer, a `baseGroups` registry, and supporting types
+(base spec §10). `AdvancedMetanormaToolbar` composes with that architecture by
+appending its own groups after the four base groups, reusing the shell and
+rendering primitives without duplication. The base spec also owns the
+migration narrative for bringing a legacy monolith into that shape (base spec
+§11); this spec does not reiterate that material.
 
 Each document in this directory specifies one of the deferred feature areas
 with a concrete implementation proposal and a list of open questions.
@@ -133,367 +142,35 @@ image insertion paths (see `images-figures.md`).
 
 ## 5. Composition with `MetanormaToolbar`
 
-`AdvancedMetanormaToolbar` is a **superset** of `MetanormaToolbar`: it must
-render every group the base toolbar renders (§5.1–5.4 of
-`MetanormaToolbar.spec.md`: `marks`, `blocks`, `lists`, `link`) **plus** the
-six advanced groups specified in this directory. This section defines the
-target architecture for sharing the base functionality **without duplicating
-it**, and the refactor of the existing `MetanormaToolbar` needed to get there.
+`AdvancedMetanormaToolbar` is a **superset** of `MetanormaToolbar`: it renders
+every group the base toolbar renders (the `marks`, `blocks`, `lists`, and
+`link` groups from `MetanormaToolbar.spec.md` §5.1–5.4) **plus** the six
+advanced groups specified in this directory.
 
-### 5.1 Current state of `MetanormaToolbar`
+`MetanormaToolbar.spec.md` v2 already specifies the shared architecture that
+makes this possible — the `<Toolbar>` shell, `<ToolbarButtonView>`, the
+`ToolbarButton` / `ToolbarEntry` / `ToolbarGroupDef` types, and the
+`baseGroups` registry live in `pkg/prosemirror-editor/toolbar/` (base spec §10).
+This section defines only how `AdvancedMetanormaToolbar` **extends** that
+architecture: which advanced groups it adds, the props it accepts, the
+widened group-id type, and the file / export surface for the advanced
+additions. It does not re-specify the shared primitives — consult base spec §10
+for those.
 
-`MetanormaToolbar` **is implemented** at
-`pkg/prosemirror-editor/MetanormaToolbar.tsx`. It is a self-contained
-monolith with no `toolbar/` directory, no group registry, and no extension
-seam. Concretely, the current implementation contains:
+### 5.1 Composition model
 
-| Current location (in `MetanormaToolbar.tsx`) | What it is | Visibility |
-|---|---|---|
-| `ToolbarButton` interface | The button descriptor (`key/label/title/isActive/isEnabled/run`) | **private** — not exported |
-| `ToolbarButtonView` function component | Renders one button; subscribes to state; dispatches via `useEditorEventCallback` | **private** — not exported |
-| `buildButtons()` factory | Builds all four groups' descriptors in one function, returns `Record<ToolbarGroup, readonly ToolbarButton[]>` | private |
-| `GROUP_ORDER` constant | Hardcoded `["marks","blocks","lists","link"]` ordering | private |
-| Predicates (`activeMarkTypes`, `isInlineContext`, `isBlockContext`, `isMarkActive`, `isListActive`, `isBlockWrapActive`) | State-reading predicate functions | private |
-| `requireMark` / `requireNode` | Schema name-resolution guards | private |
-| `defaultLinkPrompt` | `window.prompt` fallback for the link group | private |
-| Render body | Inlined group iteration, divider insertion, `visibleGroups` filtering | private |
-
-The `commands/` directory contains only `toggleList.ts`, whose signature is
-`toggleList(view: EditorView, listType): boolean` — it takes an `EditorView`
-and dispatches (see §5.5.7).
-
-**Consequence:** the sharing architecture in §5.2–5.4 below describes the
-*target* shape, not the current shape. Achieving it requires refactoring the
-existing monolith — the subject of the refactor plan in §5.5.
-
-### 5.2 Target architecture: shared shell + group registry
-
-The refactor moves `MetanormaToolbar` toward a three-layer structure so that
-`AdvancedMetanormaToolbar` can reuse the base groups without duplication:
-
-1. **Rendering primitives** (shared by both toolbars) — a generic `<Toolbar>`
-   shell that renders an ordered list of *groups*, and a `<ToolbarButtonView>`
-   that renders a single `ToolbarButton` descriptor with its
-   active/enabled/dispatch wiring.
-2. **Group definitions** (data + stateful controls) — one module per group.
-   Base groups live alongside advanced groups; each exports a `ToolbarGroupDef`.
-3. **Thin assembler components** — `MetanormaToolbar` and
-   `AdvancedMetanormaToolbar` each just select *which* groups to pass to the
-   shared `<Toolbar>` shell.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  <Toolbar groups={[…]} visibleGroups={…} className={…} />   │  ← shared shell
-│   renders each group (divider between), delegates entries   │
-└─────────────────────────────────────────────────────────────┘
-              ▲                                    ▲
-              │ groups = baseGroups                │ groups = [...baseGroups, ...advanced]
-              │                                    │
-   ┌──────────┴──────────┐              ┌──────────┴──────────────┐
-   │  MetanormaToolbar   │              │ AdvancedMetanormaToolbar│
-   │  (thin assembler)   │              │  (thin assembler)       │
-   └─────────────────────┘              └─────────────────────────┘
-```
-
-The base groups array is **literally the same object** passed to both, so the
-base functionality is shared by construction.
-
-### 5.3 Shared primitives (target)
-
-#### 5.3.1 Entry model
-
-Most toolbar controls are plain data (`ToolbarButton`, currently a private
-interface in `MetanormaToolbar.tsx:61` — the refactor promotes it to an
-exported type in `toolbar/types.ts`). A few advanced controls are inherently
-**stateful** — the table grid-picker popover (`tables.md`), the image insert
-dialog (`images-figures.md`), and the reference-mark popovers
-(`reference-marks.md`) — and cannot be expressed by a single `run(view)`
-callback. The entry model accommodates both:
+The advanced component is a thin assembler over the same `<Toolbar>` shell the
+base component uses (base spec §10.4). It spreads the four base groups
+(produced by the shared `baseGroups` factory, base spec §10.6) followed by the
+six advanced groups (produced by `buildAdvancedGroups`, §5.1.2 below), and
+passes the combined array to `<Toolbar>`:
 
 ```typescript
-import type { ComponentType, ReactNode } from "react";
-import type { ToolbarButton } from "./types.js";
-
-/** A plain data-driven button (marks, lists, link, undo/redo, sections, …). */
-export interface ToolbarButtonEntry {
-  readonly kind: "button";
-  readonly descriptor: ToolbarButton;
-}
-
-/**
- * A stateful control rendered in place of a button
- * (table grid picker, image dialog, reference-mark popover).
- * The component owns its own hooks and popover/dialog state.
- */
-export interface ToolbarControlEntry {
-  readonly kind: "control";
-  readonly render: () => ReactNode;
-}
-
-export type ToolbarEntry = ToolbarButtonEntry | ToolbarControlEntry;
-```
-
-`<ToolbarButtonView>` (currently private in `MetanormaToolbar.tsx:283` — the
-refactor extracts it to `toolbar/ToolbarButtonView.tsx`) subscribes to
-`useEditorStateSelector` for active/enabled state and dispatches via
-`useEditorEventCallback` — exactly the wiring it has today. A `control` entry
-renders its own React node (which internally uses the same hooks).
-
-#### 5.3.2 Group definition
-
-```typescript
-/** One visually grouped cluster of entries, separated by dividers. */
-export interface ToolbarGroupDef {
-  /** Stable id used for `visibleGroups` toggling and React keys. */
-  readonly id: string;
-  /** Accessible label for the group container (`aria-label`). */
-  readonly label: string;
-  readonly entries: readonly ToolbarEntry[];
-}
-```
-
-#### 5.3.3 The shared `<Toolbar>` shell
-
-```typescript
-export interface ToolbarProps {
-  /** Ordered group definitions to render, left-to-right. */
-  readonly groups: readonly ToolbarGroupDef[];
-  /** Hide entire groups by id. Omitted ids default to visible. */
-  readonly visibleGroups?: Readonly<Record<string, boolean>>;
-  /** Root class. Defaults to "mn-toolbar". */
-  readonly className?: string;
-}
-```
-
-The shell iterates `groups`, skips any whose `visibleGroups[id] === false`,
-and inserts a `.mn-toolbar-divider` between visible groups — the logic
-currently inlined in `MetanormaToolbar`'s render body. For each entry
-it renders `<ToolbarButtonView>` (for `kind: "button"`) or the control's node
-(for `kind: "control"`). It reuses the `mn-toolbar*` CSS classes from
-`MetanormaToolbar.spec.md` §8 unchanged.
-
-### 5.4 Group registry (target)
-
-Each group is defined in its own module under `toolbar/groups/`:
-
-| Module | Group id | Layer | Spec source |
-|---|---|---|---|
-| `marksGroup.tsx` | `marks` | base | `MetanormaToolbar.spec.md` §5.1 |
-| `blocksGroup.tsx` | `blocks` | base | §5.2 |
-| `listsGroup.tsx` | `lists` | base | §5.3 |
-| `linkGroup.tsx` | `link` | base | §5.4 |
-| `tablesGroup.tsx` | `tables` | advanced | `tables.md` |
-| `imagesGroup.tsx` | `images` | advanced | `images-figures.md` |
-| `sectionsGroup.tsx` | `sections` | advanced | `sections.md` |
-| `refsGroup.tsx` | `refs` | advanced | `reference-marks.md` |
-| `definitionListGroup.tsx` | `dl` | advanced | `definition-lists.md` |
-| `historyGroup.tsx` | `history` | advanced | `undo-redo.md` |
-
-A barrel (`toolbar/groups/index.ts`) exports two assemblers:
-
-```typescript
-/** The four base groups — identical for both toolbars. */
-export const baseGroups: readonly ToolbarGroupDef[] = [
-  marksGroup, blocksGroup, listsGroup, linkGroup,
-];
-
-/** Factory: builds the advanced groups, threading feature-specific props. */
-export function buildAdvancedGroups(
-  opts: AdvancedFeatureOptions,
-): readonly ToolbarGroupDef[] {
-  return [
-    refsGroup(opts),        // after 'link' — cross-references
-    sectionsGroup(opts),
-    definitionListGroup(),
-    tablesGroup(),
-    imagesGroup(opts),      // needs onImageUpload / onImagePrompt
-    historyGroup(opts),     // rightmost, per undo-redo.md
-  ];
-}
-```
-
-The **base groups carry no external props** (they are static descriptors over
-`metanormaSchema`), so they are shared as a single constant. The **advanced
-groups are produced by a factory** because several need feature-specific
-callbacks (see §5.7).
-
-### 5.5 `MetanormaToolbar` refactor plan
-
-The refactor transforms the existing monolith (`MetanormaToolbar.tsx`) into
-the target architecture of §5.2–5.4. It is organised as a sequence of
-extraction steps. Each step moves code that **already exists** today into its
-target module, preserving behaviour.
-
-#### 5.5.1 Design goals of the refactor
-
-- **No duplication.** The mark/block/list/link button definitions and the
-  rendering machinery must exist in exactly one place, used by both toolbars.
-- **No behavioural divergence.** Clicking *Bold* in `AdvancedMetanormaToolbar`
-  must dispatch the identical `toggleMark(schema.marks.strong)` command, with
-  the identical active/enabled detection, as in `MetanormaToolbar`. The
-  refactor must not change any user-visible behaviour of the base toolbar.
-- **Additive only.** Advanced features are *new groups* appended after the base
-  groups; they must not alter base-group behaviour.
-- **Public API preserved.** `MetanormaToolbar`, `MetanormaToolbarProps`, and
-  `ToolbarGroup` keep their names and shapes; only *new* symbols are exported.
-
-#### 5.5.2 Step 1 — Extract shared types to `toolbar/types.ts`
-
-Create `pkg/prosemirror-editor/toolbar/types.ts`. Move into it:
-
-| Symbol | Current location | Target |
-|---|---|---|
-| `ToolbarButton` interface | `MetanormaToolbar.tsx:61` (private) | `toolbar/types.ts` (**exported**) |
-| `ToolbarEntry`, `ToolbarButtonEntry`, `ToolbarControlEntry` | new | `toolbar/types.ts` (§5.3.1) |
-| `ToolbarGroupDef` | new | `toolbar/types.ts` (§5.3.2) |
-| `ToolbarProps` | new | `toolbar/types.ts` (§5.3.3) |
-
-`MetanormaToolbar.tsx` then imports `ToolbarButton` from `./toolbar/types.js`.
-No behaviour change.
-
-#### 5.5.3 Step 2 — Extract `ToolbarButtonView` to `toolbar/ToolbarButtonView.tsx`
-
-Move the `ToolbarButtonView` function component (`MetanormaToolbar.tsx:283`)
-verbatim into `pkg/prosemirror-editor/toolbar/ToolbarButtonView.tsx`, make
-it an **exported** module, and import it back into `MetanormaToolbar.tsx`. Its
-`useEditorStateSelector` / `useEditorEventCallback` wiring and CSS class logic
-move with it unchanged.
-
-#### 5.5.4 Step 3 — Extract the `<Toolbar>` shell to `toolbar/Toolbar.tsx`
-
-Move the render-body logic currently inlined in `MetanormaToolbar`
-(the group iteration, the `GROUP_ORDER`-driven loop, the divider insertion, and
-the `visibleGroups` filtering) into a new generic `<Toolbar>` component
-(`pkg/prosemirror-editor/toolbar/Toolbar.tsx`) with the `ToolbarProps`
-signature from §5.3.3. The shell renders `<ToolbarButtonView>` for each
-`ToolbarButtonEntry`. After this step, `MetanormaToolbar`'s render body is a
-single `<Toolbar …/>` call.
-
-The `GROUP_ORDER` constant is **retired** — ordering now comes from
-the `groups` array passed to `<Toolbar>`, so a hardcoded order is no longer
-needed.
-
-#### 5.5.5 Step 4 — Split `buildButtons()` into four group modules
-
-The current `buildButtons()` factory builds all four groups in one
-function. Split it into one module per group under `toolbar/groups/`:
-
-| Target module | Extracted from `buildButtons()` | Predicates it absorbs |
-|---|---|---|
-| `marksGroup.tsx` | the `markSpecs` array + mark-button loop | `activeMarkTypes`, `isMarkActive`, `isInlineContext` |
-| `blocksGroup.tsx` | the `blockSpecs` array + block-button loop | `isBlockWrapActive`, `isBlockContext` |
-| `listsGroup.tsx` | the `listSpecs` array + list-button loop | `isListActive` |
-| `linkGroup.tsx` | the `link` button + `defaultLinkPrompt` | (uses `isMarkActive`, `isInlineContext`) |
-
-Each module exports a `ToolbarGroupDef`. Shared predicates used by more than
-one group (`isInlineContext`, `isBlockContext`, `isMarkActive`,
-`activeMarkTypes`) move to a small `toolbar/predicates.ts` (or
-`toolbar/types.ts`) and are imported by the group modules. The
-`requireMark`/`requireNode` schema guards move alongside them.
-
-The link group is parameterised by the prompt callback: `linkGroup` becomes a
-factory `(onLinkPrompt) => ToolbarGroupDef` so it can read the latest prop —
-the current code achieves this via a ref + lazy getter; the extracted
-module preserves that pattern.
-
-#### 5.5.6 Step 5 — Create `baseGroups` and reduce `MetanormaToolbar` to an assembler
-
-Create `toolbar/groups/index.ts` exporting the `baseGroups` constant (§5.4).
-Then reduce `MetanormaToolbar.tsx` to the thin assembler:
-
-```typescript
-// MetanormaToolbar.tsx — refactored (public API unchanged)
-export function MetanormaToolbar({
-  visibleGroups, className, onLinkPrompt,
-}: MetanormaToolbarProps): React.JSX.Element {
-  const linkGroup = useMemo(
-    () => makeLinkGroup(onLinkPrompt ?? defaultLinkPrompt),
-    [onLinkPrompt],
-  );
-  const groups = useMemo(
-    () => [marksGroup, blocksGroup, listsGroup, linkGroup],
-    [linkGroup],
-  );
-  return (
-    <Toolbar
-      groups={groups}
-      visibleGroups={visibleGroups}
-      className={className}
-    />
-  );
-}
-```
-
-After this step the public surface (`MetanormaToolbar`, `MetanormaToolbarProps`,
-`ToolbarGroup`) is unchanged, but the internals are shared primitives.
-
-#### 5.5.7 Step 6 — Refactor `toggleList` to the command contract
-
-The existing `toggleList(view: EditorView, listType): boolean`
-(`commands/toggleList.ts:51`) takes an `EditorView` and dispatches up to two
-transactions (the cross-list-type case lifts then wraps in separate
-dispatches). This violates the command contract of §6 and
-`EditorCommands.spec.md` §1.5/§1.7. The refactor rewrites it to:
-
-```typescript
-export function toggleList(
-  state: EditorState,
-  dispatch?: (tr: Transaction) => void,
-  listType?: NodeType,
-): boolean;
-```
-
-— pure `(state, dispatch?)`, single transaction (compose the lift+wrap into one
-`state.tr`), no `EditorView`. The lists group's `run(view)` adapter then calls
-`toggleList(view.state, view.dispatch, listType)` and `view.focus()`. (Per §6,
-the pure command ultimately lives in `@metanorma/editor-commands`; the toolbar
-adapter stays in `prosemirror-editor`.)
-
-#### 5.5.8 Behavioural invariants the refactor must preserve
-
-These are testable properties that must hold before and after the refactor:
-
-1. **Same buttons.** The base toolbar renders the identical set of buttons
-   (same labels, titles, keys, order) as today.
-2. **Same active/enabled logic.** Each button's `isActive`/`isEnabled` returns
-   the same boolean for the same `EditorState`.
-3. **Same dispatch.** Each button's `run` dispatches the same command against
-   the same state.
-4. **Same DOM/CSS.** The rendered HTML and class names (`mn-toolbar*`) are
-   unchanged.
-5. **Same public API.** `MetanormaToolbar`, `MetanormaToolbarProps`,
-   `ToolbarGroup`, and `toggleList` remain exported under those names.
-
-### 5.6 The two assembler components (target)
-
-With the primitives and registry in place after the refactor, both components
-become thin:
-
-```typescript
-// MetanormaToolbar.tsx — refactored; public API unchanged
-export function MetanormaToolbar({
-  visibleGroups, className, onLinkPrompt,
-}: MetanormaToolbarProps): React.JSX.Element {
-  const groups = useMemo(
-    () => baseGroups(onLinkPrompt ?? defaultLinkPrompt),
-    [onLinkPrompt],
-  );
-  return (
-    <Toolbar
-      groups={groups}
-      visibleGroups={visibleGroups}
-      className={className}
-    />
-  );
-}
-```
-
-```typescript
-// AdvancedMetanormaToolbar.tsx — new
+// AdvancedMetanormaToolbar.tsx
 export function AdvancedMetanormaToolbar({
   visibleGroups, className, onLinkPrompt, ...featureOpts,
 }: AdvancedMetanormaToolbarProps): React.JSX.Element {
-  const base = useMemo(() => baseGroups(onLinkPrompt), [onLinkPrompt]);
+  const base = useMemo(() => baseGroups(onLinkPrompt ?? defaultLinkPrompt), [onLinkPrompt]);
   const advanced = useMemo(
     () => buildAdvancedGroups(featureOpts),
     [featureOpts],
@@ -513,7 +190,54 @@ The base functionality is shared — `baseGroups` and `<Toolbar>` are the very
 same modules used by `MetanormaToolbar`. There is no second copy of the
 mark/block/list/link logic.
 
-### 5.7 `AdvancedMetanormaToolbarProps`
+#### 5.1.1 Advanced group modules
+
+Each advanced group is defined in its own module under `toolbar/groups/`,
+alongside the four base group modules:
+
+| Module | Group id | Spec source |
+|---|---|---|
+| `tablesGroup.tsx` | `tables` | [`tables.md`](./tables.md) |
+| `imagesGroup.tsx` | `images` | [`images-figures.md`](./images-figures.md) |
+| `sectionsGroup.tsx` | `sections` | [`sections.md`](./sections.md) |
+| `refsGroup.tsx` | `refs` | [`reference-marks.md`](./reference-marks.md) |
+| `definitionListGroup.tsx` | `dl` | [`definition-lists.md`](./definition-lists.md) |
+| `historyGroup.tsx` | `history` | [`undo-redo.md`](./undo-redo.md) |
+
+The four base group modules (`marksGroup`, `blocksGroup`, `listsGroup`,
+`linkGroup`) are specified by `MetanormaToolbar.spec.md` §10.6 and are not
+repeated here.
+
+#### 5.1.2 The `buildAdvancedGroups` factory
+
+A barrel (`toolbar/groups/index.ts`) exports the shared `baseGroups` factory
+(base spec §10.6) alongside a `buildAdvancedGroups` factory that produces the
+six advanced groups:
+
+```typescript
+/** Factory: builds the advanced groups, threading feature-specific props. */
+export function buildAdvancedGroups(
+  opts: AdvancedFeatureOptions,
+): readonly ToolbarGroupDef[] {
+  return [
+    refsGroup(opts),        // after 'link' — cross-references
+    sectionsGroup(opts),
+    definitionListGroup(),
+    tablesGroup(),
+    imagesGroup(opts),      // needs onImageUpload / onImagePrompt
+    historyGroup(opts),     // rightmost, per undo-redo.md
+  ];
+}
+```
+
+The advanced groups are produced by a factory (unlike the static base groups)
+because several need feature-specific callbacks (see §5.2). Three of the six
+advanced groups contain **stateful** controls (`tables`, `images`, `refs`) that
+use the `ToolbarControlEntry` variant of `ToolbarEntry` (base spec §10.2); the
+other three (`sections`, `dl`, `history`) contain only plain
+`ToolbarButtonEntry` buttons.
+
+### 5.2 `AdvancedMetanormaToolbarProps`
 
 The advanced component accepts everything the base does, plus the
 feature-specific hooks called out across this directory. Each hook threads to
@@ -561,15 +285,14 @@ Prop coverage map:
 | `onStemPrompt` | `refsGroup` (formula) | built-in stem popover |
 | `history` | `historyGroup` + editor state | enabled, `newGroupDelay: 500` |
 
-### 5.8 Unified group-id type
+### 5.3 Group-id types
 
-The base spec defines a closed `ToolbarGroup` union (`'marks' | 'blocks' |
-'lists' | 'link'`). Several feature docs each independently *extended* that
-union with only their own addition. This section **supersedes** those
-per-document extensions with a single authoritative type:
+`MetanormaToolbar.spec.md` §10.7 defines `BaseToolbarGroup` (the four base
+ids) and notes that the `<Toolbar>` shell is generic over `string` ids. The
+advanced component widens that union with its own six ids:
 
 ```typescript
-/** Base group ids (from MetanormaToolbar.spec.md). */
+/** Base group ids (from MetanormaToolbar.spec.md §10.7). */
 export type BaseToolbarGroup = "marks" | "blocks" | "lists" | "link";
 
 /** Advanced group ids (one per document in this directory). */
@@ -580,17 +303,12 @@ export type AdvancedToolbarGroupId =
 export type AdvancedToolbarGroup = BaseToolbarGroup | AdvancedToolbarGroupId;
 ```
 
-`MetanormaToolbar` keeps its narrower `ToolbarGroup` (= `BaseToolbarGroup`)
-so the base component's public type is unaffected; `AdvancedMetanormaToolbar`
-uses the widened `AdvancedToolbarGroup`. The `<Toolbar>` shell is generic over
-the id type (it only requires `string` ids), so it serves both without change.
+`MetanormaToolbar` keeps its narrower `ToolbarGroup` (= `BaseToolbarGroup`,
+base spec §4.2) so the base component's public type is unaffected;
+`AdvancedMetanormaToolbar` uses the widened `AdvancedToolbarGroup`. The
+advanced group ids are fixed by the table in §5.1.1.
 
-**Reconciliation note:** where an individual feature doc shows its own
-`export type ToolbarGroup = …` extension of the base union, treat those as
-illustrative. The consolidated type above is the one to implement, and the
-advanced group ids are fixed by the table in §5.4.
-
-### 5.9 Render order
+### 5.4 Render order
 
 Left-to-right (dividers between groups):
 
@@ -604,63 +322,59 @@ marks · blocks · lists · link · refs · sections · dl · tables · images �
 - The order is just the default `groups` array; hosts can reorder by passing a
   custom `groups` prop directly to `<Toolbar>` if a lower-level API is exposed.
 
-### 5.10 File structure (consolidated)
+### 5.5 File structure (advanced additions)
 
 Pure command logic lives in `@metanorma/editor-commands`; the React toolbar,
 view adapters, popovers, and keymap plugins live in `@metanorma/prosemirror-editor`.
 This split mirrors the layering rule in `docs/EditorCommands.spec.md` §1.2–1.3
-(see §6 below). Items marked **[exists]** are present in the current
-codebase; items marked **[refactor]** are created by the §5.5 refactor; items
-marked **[new]** are advanced-feature additions.
+(see §6 below). The listing below covers **only the advanced additions**; the
+shared toolbar primitives (`toolbar/types.ts`, `toolbar/Toolbar.tsx`,
+`toolbar/ToolbarButtonView.tsx`, `toolbar/predicates.ts`, the four base group
+modules, `MetanormaToolbar.tsx`) are specified by `MetanormaToolbar.spec.md`
+§13.
 
 ```
 pkg/editor-commands/                  ← pure commands (no React, no DOM, no EditorView)
   commands/
-    insertTable.ts                        ← insertTable(state, dispatch?, rows, cols), canInsertTable  [new]
-    insertImage.ts                        ← insertImage(state, dispatch?, attrs), canInsertFigure      [new]
-    sections.ts                           ← wrapInClause, promoteClause, demoteClause, setSectionType  [new]
-    referenceMarks.ts                     ← applyReferenceMark, toggleXref/Eref/Concept/Bcp14, insertFootnoteMarker/insertStem  [new]
-    definitionList.ts                     ← insertDefinitionList, addDefinitionPair (+ helpers)         [new]
-    toggleList.ts                         ← toggleList (pure Command)                                     [refactor: from prosemirror-editor]
-    history.ts                            ← undo, redo (re-exports of prosemirror-history)               [new]
-  util.ts                                 ← chainCommands, generateId, shared predicates [new]
-  schema.ts                               ← name-resolution helpers (NODE_NAMES / MARK_NAMES)             [new]
-  index.ts                                ← public command exports                                        [new]
+    insertTable.ts                        ← insertTable(state, dispatch?, rows, cols), canInsertTable
+    insertImage.ts                        ← insertImage(state, dispatch?, attrs), canInsertFigure
+    sections.ts                           ← wrapInClause, promoteClause, demoteClause, setSectionType
+    referenceMarks.ts                     ← applyReferenceMark, toggleXref/Eref/Concept/Bcp14, insertFootnoteMarker/insertStem
+    definitionList.ts                     ← insertDefinitionList, addDefinitionPair (+ helpers)
+    history.ts                            ← undo, redo (re-exports of prosemirror-history)
+  util.ts                                 ← chainCommands, generateId, shared predicates
+  schema.ts                               ← name-resolution helpers (NODE_NAMES / MARK_NAMES)
+  index.ts                                ← public command exports
 
 pkg/prosemirror-editor/
   toolbar/
-    types.ts                              ← ToolbarButton, ToolbarEntry, ToolbarGroupDef,                 [refactor: extracted from MetanormaToolbar.tsx]
-                                          ←   BaseToolbarGroup, AdvancedToolbarGroup
-    Toolbar.tsx                           ← shared shell (renders groups + dividers)                      [refactor: extracted from MetanormaToolbar.tsx render body]
-    ToolbarButtonView.tsx                 ← renders one ToolbarButton descriptor                          [refactor: extracted from MetanormaToolbar.tsx:283]
-    predicates.ts                         ← shared state predicates + requireMark/requireNode             [refactor: extracted from MetanormaToolbar.tsx]
     groups/
-      marksGroup.tsx                      ← base group                                                    [refactor: extracted from buildButtons()]
-      blocksGroup.tsx                     ← base group                                                    [refactor]
-      listsGroup.tsx                      ← base group                                                    [refactor]
-      linkGroup.tsx                       ← base group (parameterised by onLinkPrompt)                    [refactor]
-      tablesGroup.tsx                     ← stateful: TableSizePicker + view adapter                      [new]
-      imagesGroup.tsx                     ← stateful: ImageInsertDialog + view adapter                    [new]
-      sectionsGroup.tsx                   ← view adapter over editor-commands                             [new]
-      refsGroup.tsx                       ← stateful: popovers + view adapter                             [new]
-      definitionListGroup.tsx             ← view adapter over editor-commands                             [new]
-      historyGroup.tsx                    ← view adapter over editor-commands                             [new]
-      index.ts                            ← baseGroups, buildAdvancedGroups                               [refactor + new]
-    TableSizePicker.tsx                   ← grid-picker popover UI                                        [new]
-    ImageInsertDialog.tsx                 ← URL/upload dialog UI                                          [new]
+      tablesGroup.tsx                     ← stateful: TableSizePicker + view adapter
+      imagesGroup.tsx                     ← stateful: ImageInsertDialog + view adapter
+      sectionsGroup.tsx                   ← view adapter over editor-commands
+      refsGroup.tsx                       ← stateful: popovers + view adapter
+      definitionListGroup.tsx             ← view adapter over editor-commands
+      historyGroup.tsx                    ← view adapter over editor-commands
+      index.ts                            ← buildAdvancedGroups (+ baseGroups re-export from base spec)
+    TableSizePicker.tsx                   ← grid-picker popover UI
+    ImageInsertDialog.tsx                 ← URL/upload dialog UI
   plugins/
-    definitionListKeymap.ts               ← Enter/Backspace keymap (UI-layer plugin)                      [new]
-  MetanormaToolbar.tsx                    ← thin assembler (was monolith)                                 [refactor: §5.5]
-  AdvancedMetanormaToolbar.tsx            ← thin assembler                                                [new]
-  toolbar.css                             ← shared styles (mn-toolbar*)                                   [exists]
-  index.ts                                ← re-exports commands + UI components (§5.11)                    [refactor: add exports]
+    definitionListKeymap.ts               ← Enter/Backspace keymap (UI-layer plugin)
+  AdvancedMetanormaToolbar.tsx            ← thin assembler
+  index.ts                                ← re-exports advanced commands + UI components (§5.6)
 ```
 
-### 5.11 Export changes (consolidated)
+> The `toggleList` command already lives in `@metanorma/editor-commands` per
+> base spec §5.3; it is listed in the consolidated export map in §5.6 for
+> one-stop-import convenience.
+
+### 5.6 Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
-through `@metanorma/prosemirror-editor` for one-stop toolbar imports. This
-supersedes the per-document export proposals, which are consolidated here.
+through `@metanorma/prosemirror-editor` for one-stop toolbar imports. The
+listing below covers **only the advanced additions**; the base exports
+(`MetanormaToolbar`, `MetanormaToolbarProps`, `ToolbarGroup`, `toggleList`)
+are specified by `MetanormaToolbar.spec.md` §12.
 
 ```typescript
 // ── pkg/editor-commands/index.ts ── pure commands (no React, no DOM) ──
@@ -687,18 +401,9 @@ export { chainCommands, generateId } from "./util.js";
 
 // ── pkg/prosemirror-editor/index.ts ── React editor + toolbar ──
 
-// Base toolbar (unchanged public surface from MetanormaToolbar.spec.md)
-export { MetanormaToolbar } from "./MetanormaToolbar.js";
-export type { MetanormaToolbarProps, ToolbarGroup } from "./MetanormaToolbar.js";
-
 // Advanced toolbar
 export { AdvancedMetanormaToolbar } from "./AdvancedMetanormaToolbar.js";
 export type { AdvancedMetanormaToolbarProps, AdvancedToolbarGroup } from "./AdvancedMetanormaToolbar.js";
-
-// Shared primitives — internal for now (not exported from index.ts).
-// Consumers use the two assembler components below.
-// (Internals: toolbar/Toolbar.tsx, toolbar/ToolbarButtonView.tsx,
-//  toolbar/types.ts, toolbar/groups/index.ts.)
 
 // Stateful UI components (view adapters + popovers/dialogs)
 export { TableSizePicker } from "./toolbar/TableSizePicker.js";
@@ -718,15 +423,21 @@ export {
 } from "@metanorma/editor-commands";
 ```
 
-### 5.12 Alternatives considered
+The shared toolbar internals — `toolbar/Toolbar.tsx`,
+`toolbar/ToolbarButtonView.tsx`, `toolbar/types.ts`, `toolbar/predicates.ts`,
+and the group modules — are intentionally internal (not exported from
+`index.ts`), consistent with base spec §12. Consumers use the two assembler
+components.
+
+### 5.7 Alternatives considered
 
 | Approach | Verdict |
 |---|---|
 | **A. `AdvancedMetanormaToolbar` renders `<MetanormaToolbar />` then appends groups** | ✗ Rejected. Produces two `.mn-toolbar` roots (double border/padding), two independent `visibleGroups` props that can't span the whole, and no way to interleave/reorder base and advanced groups. Also can't share a single ordered group list. |
 | **B. Copy the base groups into the advanced component** | ✗ Rejected. Violates the no-duplication goal; mark/list/link logic would drift between the two components. |
-| **C. Shared shell + group registry (§5.2), via the §5.5 refactor** | ✓ **Recommended.** Base groups and the rendering machinery live once; both components are thin assemblers. The existing `MetanormaToolbar` monolith is refactored (§5.5) to extract its primitives into shared modules; its public API is preserved throughout. |
+| **C. Shared shell + group registry (§5.1)** | ✓ **Recommended.** Base groups and the rendering machinery live once (base spec §10); both components are thin assemblers over the same `<Toolbar>` shell. |
 
-### 5.13 Potential further developments
+### 5.8 Potential further developments
 
 - **`floating_title` insertion.** The `sections` group inserts only the ten
   `section`-group node types; the standalone `floating_title` block node (an
@@ -824,7 +535,7 @@ When a command dispatches, its single transaction obeys
   §1.10.2.
 - No redundant `Command` suffix (`undo`, not `undoCommand`).
 - Pure commands export from `@metanorma/editor-commands`; the editor package
-  re-exports them for convenience (§5.11).
+  re-exports them for convenience (§5.6).
 
 ### 6.6 Async and stateful controls
 
