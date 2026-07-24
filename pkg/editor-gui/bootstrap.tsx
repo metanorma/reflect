@@ -1,3 +1,12 @@
+/**
+ * `editor-gui` — browser entry point (integration / demo harness).
+ *
+ * This package has **no governing spec**. It mounts the editor stack
+ * (`@metanorma/prosemirror-editor`) into the page, wiring `MetanormaProseMirror`
+ * and `MetanormaToolbar` to a default document for manual inspection. Bundled by
+ * `build-gui.mjs` (esbuild) into `dist/`.
+ */
+
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { StrictMode } from 'react';

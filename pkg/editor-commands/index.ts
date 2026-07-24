@@ -1,6 +1,11 @@
 /**
  * Public API for `@metanorma/editor-commands` (spec §1.10).
  *
+ * Implements [`docs/EditorCommands.spec.md`](../../docs/EditorCommands.spec.md)
+ * **v1** — schema-aware ProseMirror editor commands for the Metanorma document
+ * model (Command contract, transaction discipline, and the command inventory:
+ * §2 Enter-key commands and §3 `toggleList`).
+ *
  * Exports the Enter-feature commands (spec §2.7), the `chainCommands`
  * combinator (spec §1.9.2), and the `metanormaSchema` re-export for consumer
  * convenience.

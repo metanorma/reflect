@@ -1,6 +1,13 @@
 /**
  * Public API for `@metanorma/prosemirror-editor` (§11).
  *
+ * Implements two specs, both at **v2**:
+ *  - [`docs/MetanormaProseMirror.spec.md`](../../docs/MetanormaProseMirror.spec.md)
+ *    — the `MetanormaProseMirror` React editor component (§5), editor-state
+ *    factory, and React node-view components.
+ *  - [`docs/MetanormaToolbar.spec.md`](../../docs/MetanormaToolbar.spec.md)
+ *    — the schema-bound `MetanormaToolbar` (§1, §3) and its button groups.
+ *
  * Exports the main editor component, the editor-local document type, the
  * editor-state factory, re-exports from the schema package, and the individual
  * node-view components for consumers composing a custom map.
