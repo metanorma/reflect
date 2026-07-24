@@ -116,7 +116,7 @@ and `marks.ts` for full specs.
 
 | Group constant | Value | Members (excerpt) |
 |---|---|---|
-| `INLINE_GROUP` | `"inline"` | `text`, `footnote_marker` |
+| `INLINE_GROUP` | `"inline"` | `text`, `footnote_marker`, `stem` |
 | `BLOCK_GROUP` | `"block"` | `paragraph`, `note`, `example`, `sourcecode`, `formula`, `quote`, `review`, `floating_title`, lists, `dl`, table nodes, `figure` |
 | `SECTION_GROUP` | `"section"` | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` |
 

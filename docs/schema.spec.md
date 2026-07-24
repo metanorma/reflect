@@ -63,7 +63,7 @@ schema- definition time (`toDOM`/`parseDOM` describe structure only).
 
 ## 3. Vocabulary (derived from `types.ts`)
 
-### 3.1 Node types (42)
+### 3.1 Node types (43)
 
 | Group constant | Members |
 |---|---|
@@ -74,13 +74,14 @@ schema- definition time (`toDOM`/`parseDOM` describe structure only).
 | `TABLE_TYPES` (6) | `table`, `table_head`, `table_body`, `table_foot`, `table_row`, `table_cell` |
 | `MEDIA_TYPES` (2) | `figure`, `image` |
 | `FOOTNOTE_TYPES` (3) | `footnotes`, `footnote_marker`, `footnote_entry` |
+| `INLINE_ATOM_TYPES` (1) | `stem` |
 | `LEAF_TYPES` (3) | `text`, `soft_break`, `floating_title` |
 
 > `floating_title` is listed in `LEAF_TYPES` but carries `SectionAttrs` in
 > `NodeAttrsByType`. It is modelled as a **block leaf** whose visible text lives
 > in its `title` attribute (§8.4).
 
-### 3.2 Mark types (16)
+### 3.2 Mark types (15)
 
 `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`,
 `strike`, `smallcap`, `link`, `xref`, `eref`, `footnote`, `concept`,
@@ -96,7 +97,7 @@ not prescribe content expressions). Three groups are introduced:
 
 | PM group | Members | Notes |
 |---|---|---|
-| `inline` | `text`, `soft_break`, `footnote_marker` | Inline content of paragraphs / terms. |
+| `inline` | `text`, `soft_break`, `footnote_marker`, `stem` | Inline content of paragraphs / terms. |
 | `block` | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `bullet_list`, `ordered_list`, `dl`, `table`, `figure`, `floating_title` | General block-level children of sections, list items, cells, etc. Deliberately **excludes** `image`, `list_item`, `dt`, `dd`, `table_*` parts, and `footnote_entry` (contextual only). |
 | `section` | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` | Nestable section nodes. |
 
@@ -375,8 +376,8 @@ export const metanormaSchema = new Schema({
 });
 ```
 
-`nodes` **must** contain exactly the 42 names in §3.1 (including `text`, which
-ProseMirror requires). `marks` **must** contain exactly the 16 names in §3.2.
+`nodes` **must** contain exactly the 43 names in §3.1 (including `text`, which
+ProseMirror requires). `marks` **must** contain exactly the 15 names in §3.2.
 The spec order is not semantically significant but should follow the group order
 in §3 for readability.
 
@@ -395,8 +396,8 @@ export const metanormaNodes: Record<string, NodeSpec>;
 export const metanormaMarks: Record<string, MarkSpec>;
 
 /** Convenience lookups derived from the schema. */
-export const NODE_NAMES: readonly string[];   // 42 entries, in §3.1 order
-export const MARK_NAMES: readonly string[];   // 16 entries, in §3.2 order
+export const NODE_NAMES: readonly string[];   // 43 entries, in §3.1 order
+export const MARK_NAMES: readonly string[];   // 15 entries, in §3.2 order
 
 /** Runtime guard for image insertion (§6.1). */
 export function assertValidImageAttrs(attrs: { src?: unknown }): asserts attrs is { src: string };
@@ -417,7 +418,7 @@ reduces to:
 2. **`toJSON`** of a node loaded from a `MirrorDocument` reproduces the same
    `type`, the same typed attribute values, and the same extra keys (via
    `data`). `marks`, `content`, and `text` round-trip identically.
-3. The 42 node names and 16 mark names in the schema are **exactly** the
+3. The 43 node names and 15 mark names in the schema are **exactly** the
    members of the `MirrorNodeType` union and `MirrorMarkType` constant.
 
 > Because `data` is itself a JSON object, deeply nested extra attributes survive
@@ -447,8 +448,8 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 
 1. `yarn workspace @metanorma/prosemirror-schema compile` succeeds with **zero**
    TypeScript errors under the repo tsconfig.
-2. `metanormaSchema.spec.nodes` contains **exactly** the 42 names in §3.1 and
-   `metanormaSchema.spec.marks` contains **exactly** the 16 names in §3.2
+2. `metanormaSchema.spec.nodes` contains **exactly** the 43 names in §3.1 and
+   `metanormaSchema.spec.marks` contains **exactly** the 15 names in §3.2
    (asserted by a unit test against `NODE_NAMES` / `MARK_NAMES`).
 3. For every node type `T` with a typed attribute interface, constructing
    `metanormaSchema.nodeFromJSON({ type: T, attrs: {...all typed fields...} })`
@@ -463,8 +464,8 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 7. `image` is **not** a member of the `block` group; `figure` is the only block
    whose content expression mentions `image`.
 8. `table_cell` parses both `<td>` and `<th>`; `colspan`/`rowspan` default to 1.
-9. `soft_break` and `footnote_marker` are inline atoms (`inline: true`,
-   `atom: true`, `group: "inline"`); both may appear inside `paragraph`.
+9. `soft_break`, `footnote_marker`, and `stem` are inline atoms (`inline: true`,
+   `atom: true`, `group: "inline"`); all three may appear inside `paragraph`.
 10. `assertValidImageAttrs({ src: "" })` throws; `assertValidImageAttrs({ src: "x.png" })` does not.
 
 ---

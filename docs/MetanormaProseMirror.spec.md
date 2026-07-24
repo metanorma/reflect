@@ -27,7 +27,7 @@ Provide a single, reusable React component — `MetanormaProseMirror` — that:
 
 1. Mounts a ProseMirror editor driven by `metanormaSchema`
    (`@metanorma/prosemirror-schema`), so the editable document vocabulary is
-   **exactly** the 42 node types and 16 mark types of `schema.spec.md` §3.
+   **exactly** the 43 node types and 15 mark types of `schema.spec.md` §3.
 2. Renders the editor through React using
    `@handlewithcare/react-prosemirror@3.2.7` (the `ProseMirror` +
    `ProseMirrorDoc` components, the `reactKeys` plugin, and the React node-view
@@ -368,7 +368,7 @@ and `text`. The component must not register node views for these by default.
 
 ## 8. Mark views
 
-No mark-view components are registered by default. All 16 marks render via the
+No mark-view components are registered by default. All 15 marks render via the
 schema's `toDOM` (schema §9). Consumers may pass `markViewComponents` through
 `editorProps` if needed; this is not part of the default contract.
 
@@ -478,8 +478,8 @@ Inherits the root `tsconfig.json` (`strict`, `exactOptionalPropertyTypes`,
 2. **Compile.** `yarn workspace @metanorma/prosemirror-editor compile` succeeds
    with **zero** TypeScript errors under the repo tsconfig.
 3. **Schema bound.** The editor state's `schema` is reference-equal to
-   `metanormaSchema`, and `state.schema.spec.nodes` contains exactly the 42 names
-   from `NODE_NAMES` and `state.schema.spec.marks` the 16 from `MARK_NAMES`.
+   `metanormaSchema`, and `state.schema.spec.nodes` contains exactly the 43 names
+   from `NODE_NAMES` and `state.schema.spec.marks` the 15 from `MARK_NAMES`.
 4. **`reactKeys` present.** The initial state's plugin set includes a
    `reactKeys` plugin (its key is `"reactKeys"`); constructing state via
    `createInitialEditorState({})` does not throw and yields an editable doc from

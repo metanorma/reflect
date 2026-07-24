@@ -62,9 +62,11 @@ These commands conform to the Command contract (README §6.2;
 
 ## 3. Schema recap
 
-All six are **marks**, all `inclusive: false`, all carrying `...DATA_ATTR`
-(`{ data: { default: {} } }`) in addition to the key attribute listed below.
-`baseAttrs()` (the `{ id, number, data }` shape) applies to the **node**
+Four are **marks** (`inclusive: false`, carrying `...DATA_ATTR`), and two
+(`footnote_marker`, `stem`) are inline atom **nodes** (see
+`#### footnote and stem are inline atom nodes, not marks` below). The marks
+carry `{ data: { default: {} } }` in addition to the key attribute listed
+below. `baseAttrs()` (the `{ id, number, data }` shape) applies to the **node**
 forms (e.g. `footnote_entry`), not to these marks.
 
 | Mark | Key attr (default) | `toDOM` element | Semantic purpose |

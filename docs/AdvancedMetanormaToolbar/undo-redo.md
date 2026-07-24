@@ -234,7 +234,8 @@ export interface MetanormaProseMirrorProps {
 
   /**
    * History configuration forwarded to createInitialEditorState (uncontrolled
-   * mode only). `undefined` enables default history; `false` disables it.
+   * mode only). `undefined` / `false` (default): history is NOT added.
+   * A `HistoryOptions` value enables history with the supplied config.
    * In controlled mode this is ignored — the host controls the plugin list.
    */
   readonly history?: HistoryOptions | false;
