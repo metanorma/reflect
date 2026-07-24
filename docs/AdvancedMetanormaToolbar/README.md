@@ -1,6 +1,7 @@
 # AdvancedMetanormaToolbar — Feature Specifications
 
 **Spec version:** 1
+**Spec dependencies:** [`../MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) v1, [`../EditorCommands.spec.md`](../EditorCommands.spec.md) v1
 
 This directory contains the feature specifications for **`AdvancedMetanormaToolbar`**,
 an extended version of the `MetanormaToolbar` component specified in

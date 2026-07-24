@@ -6,6 +6,7 @@ for the Metanorma Mirror document model. It is the command-logic companion to
 `MetanormaProseMirror` editor mount ([`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md)).
 
 **Spec version:** 1
+**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v1, [`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) v1
 
 > **Scope of this document.** This revision specifies only the **general,
 > cross-cutting aspects** of command implementation — the contract every command
