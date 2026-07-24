@@ -100,8 +100,8 @@ does not insert it.
 ### 2.3 Attributes
 
 - `title` — the clause **heading text**, user-facing. The toolbar may prompt for
-  or default this on insert (§6).
-- `id` — stable identifier. **Tooling-assigned** (§8), never typed by the user.
+  or default this on insert (§7).
+- `id` — stable identifier. **Tooling-assigned** (§7), never typed by the user.
 - `number` — display number ("3.2.1"). **Tooling-assigned**; the user does not
   edit it. The editor does **not** implement auto-numbering; all section
   commands leave `number` `null` (§7). Clause numbering is a presentation
@@ -167,7 +167,7 @@ structural transformation (identity change at a fixed location) and lets the
 user migrate a `clause` into a `terms` / `references` block without retyping
 content. The ten raw section types are **not** each given a dedicated insert
 button — that would balloon the toolbar; instead type conversion is centralised
-in button 4 (see §8 open question on scope). Wrap/unwrap of arbitrary section
+in button 4 (see §10 open question on scope). Wrap/unwrap of arbitrary section
 types beyond `clause` is deliberately left to "Change section type" + "Insert
 clause" composition.
 
@@ -260,47 +260,9 @@ re-exports them; the toolbar component and its view-holding adapters stay in
 
 #### Command contract conformance
 
-These commands conform to the Command contract defined in
-`docs/EditorCommands.spec.md` §1.5. In particular:
-
-- **Pure / DOM-free.** Every command has the ProseMirror
-  `Command` shape `(state: EditorState, dispatch?: (tr: Transaction) => void) => boolean`
-  (the `Command` type is imported from `prosemirror-state`). They operate on
-  `state` / `dispatch` **only**. They never take an `EditorView` parameter,
-  never call `view.focus()` / `view.dispatch`, and never touch the DOM. This
-  makes them unit-testable headless and composable with `prosemirror-commands`.
-- **Query / dispatch parity.** Called without `dispatch`, a command is a pure
-  applicability test that returns `true` iff it would apply and mutates
-  nothing. Called with `dispatch`, it builds exactly one transaction,
-  dispatches it once, and returns `true`. It returns `false` (no dispatch) when
-  not applicable, regardless of `dispatch`.
-- **Non-throwing.** On well-formed state over `metanormaSchema`, a command
-  never throws; failure is reported by returning `false`.
-- **Transaction discipline.** One `state.tr`, dispatched once; a valid
-  resulting selection; `tr.scrollIntoView()` on these user-initiated commands;
-  active marks preserved across the structural change.
-
-The `EditorView` / `view.focus()` concerns live entirely in the **toolbar
-adapter** (in `prosemirror-editor`): each button's `run(view)` resolves any
-needed argument (e.g. the clause `title` or a `targetType`), calls the pure
-command as `command(view.state, view.dispatch, …)`, and then `view.focus()`.
-No `*View` command overloads are exported from `editor-commands`.
-
-**Schema coupling.** These commands are tightly bound to the Metanorma section
-vocabulary, so they resolve node types **by name through `state.schema`** (e.g.
-`state.schema.nodes.clause`) rather than binding the `metanormaSchema` singleton.
-Operating on `state.schema` is simplest and keeps the commands correct on a
-composed schema without a `(schema) => Command` factory. A factory form is
-therefore **not** required for these section/clause commands (see
-`EditorCommands.spec.md` §1.6.2).
-
-```typescript
-import type { Command, EditorState, Transaction } from "prosemirror-state";
-import type { Node, NodeType, ResolvedPos } from "prosemirror-model";
-```
-
-No `prosemirror-view` import appears in this module — commands never reference
-`EditorView`.
+These commands conform to the Command contract (README §6.2;
+`EditorCommands.spec.md` §1.5). Commands resolve node types through
+`state.schema` per README §6.4; no `(schema) => Command` factory is required.
 
 ### 5.1 Legality helper — `canWrapInClause`
 
@@ -385,18 +347,9 @@ type).
  * contains a leading empty `paragraph`, then place the selection in that
  * paragraph. The heading `title` attribute is set from `opts.title`
  * (defaulting to null / empty — see §7). `id` and `number` are left null
- * (tooling-assigned).
- *
- * Conforms to the Command contract (EditorCommands.spec.md §1.5):
- * - Without `dispatch`: pure applicability test — returns true iff
- *   `canWrapInClause(state)`, mutates nothing.
- * - With `dispatch`: dispatches exactly one transaction (wrap + leading
- *   paragraph + selection move + `scrollIntoView`) and returns true.
- * - Returns false (no dispatch) when not applicable. Never throws.
- *
- * The `title` is threaded as a plain optional argument — not via a view
- * wrapper. The toolbar adapter (in prosemirror-editor) obtains the title
- * (§7) and calls `wrapInClause(view.state, view.dispatch, { title })`.
+ * (tooling-assigned). Conforms to the Command contract (README §6.2;
+ * EditorCommands.spec.md §1.5); the `title` is threaded as a plain optional
+ * argument — not via a view wrapper.
  */
 export function wrapInClause(
   state: EditorState,
@@ -463,7 +416,7 @@ fallback is provided.
 
 **Cursor placement.** The empty leading paragraph is where the cursor lands so
 the user can immediately type the clause body; the heading `title` is captured
-separately (§6) and written to the attribute, not into the paragraph.
+separately (§7) and written to the attribute, not into the paragraph.
 
 ### 5.3 `promoteClause` / `demoteClause`
 
@@ -726,32 +679,25 @@ No new root or group-container classes are required beyond the base
 
 ## 9. Accessibility
 
-In addition to the base toolbar guarantees (`MetanormaToolbar.spec.md` §9),
-the structural buttons add:
+Feature-specific accessibility additions beyond the baseline (README §2.5 /
+`MetanormaToolbar.spec.md` §9):
 
-- **Insert clause (+ split menu)** — primary button:
-  `aria-label="Insert clause"`, `aria-pressed="false"` (not a toggle). The
-  dropdown caret has `aria-haspopup="listbox"` / `aria-expanded`; the menu uses
+- **Insert clause (+ split menu)** — the dropdown caret has
+  `aria-haspopup="listbox"` / `aria-expanded`; the menu uses
   `role="listbox"` with `role="option"` entries, keyboard-navigable via Arrow
   keys, confirming with Enter and dismissing with Escape. Disabled entries
-  carry `aria-disabled="true"`. When the primary button itself is disabled, set
-  `disabled` and `aria-disabled="true"`.
-- **Promote / Demote** — `aria-label="Promote clause"` /
-  `"Demote clause"`. Since they are one-shot actions (not toggles), they do not
-  use `aria-pressed`; instead convey current applicability via
-  `disabled` / `aria-disabled`. An `aria-describedby` can point at a hidden
-  live region announcing the current nesting depth (e.g. "Clause at level 2").
-- **Change section type** — the triggering button has
-  `aria-haspopup="listbox"` / `aria-expanded`; the menu uses
-  `role="listbox"` with `role="option"` entries, keyboard-navigable via
-  Arrow keys, confirming with Enter and dismissing with Escape.
+  carry `aria-disabled="true"`.
+- **Change section type** — same listbox pattern as the insert split menu:
+  `aria-haspopup="listbox"` / `aria-expanded`; `role="listbox"` with
+  `role="option"` entries, keyboard-navigable via Arrow keys, confirming with
+  Enter and dismissing with Escape.
+- **Promote / Demote** — `aria-describedby` can point at a hidden live region
+  announcing the current nesting depth (e.g. "Clause at level 2").
 - **Heading popover (§7 option 1)** — `role="dialog"`,
   `aria-modal="false"` (non-blocking), `aria-label="Clause heading"`. Focus
   moves to the `<input>` on open and returns to the Insert-clause button on
   close. The `<input>` has an associated `<label>` ("Heading text"). Enter
   confirms, Escape cancels.
-- All structural buttons remain native `<button>` elements, so they are
-  keyboard-focusable and operable via Enter / Space without extra code.
 
 **Nesting depth and heading-level representation.** There is **no depth cap**:
 the schema permits unbounded `clause`-within-`clause` nesting, and the toolbar
@@ -775,89 +721,14 @@ These are genuine unresolved design questions, listed for review:
 
 ## 11. Export changes
 
-Per the command contract (`EditorCommands.spec.md` §1.2, §1.10), the structural
-commands are defined in and exported from **`@metanorma/editor-commands`**, and
-`@metanorma/prosemirror-editor` **re-exports** them for toolbar/keymap
-consumers. The toolbar component and its view-holding adapters stay in
-`prosemirror-editor`.
-
-**`pkg/editor-commands/index.ts`** adds:
-
-```typescript
-// Structural (section/clause nesting) commands — Command contract §1.5.
-// Pure: (state, dispatch?, ...) => boolean; no EditorView, no DOM.
-export {
-  wrapInClause,
-  promoteClause,
-  demoteClause,
-  setSectionType,
-  canWrapInClause,        // exposed for toolbar isEnabled selector
-} from "./commands/sections.js";
-
-// Internal helpers (exported only as needed; not part of documented public API
-// unless a consumer requires them — see §5.5):
-//   parentAccepts, nearestSectionAncestor, findNearestSectionOfType
-```
-
-**No `wrapInClauseView` (or any `*View` symbol) is exported from
-`editor-commands`.** View-holding adapters are a UI concern and live in
-`prosemirror-editor`; the pure commands take `title` / `targetType` as ordinary
-arguments so no `EditorView` enters the command layer.
-
-**`pkg/prosemirror-editor/index.ts`** re-exports the commands from the
-commands package (so toolbar/keymap code can import everything from one place)
-and adds the section-group type. (Note: the base spec's `toggleList` command is
-similarly sourced from `@metanorma/editor-commands` and re-exported here.)
-
-```typescript
-// Re-export structural commands from @metanorma/editor-commands.
-export {
-  wrapInClause,
-  promoteClause,
-  demoteClause,
-  setSectionType,
-  canWrapInClause,
-} from "@metanorma/editor-commands";
-```
-
-If the advanced toolbar lives in a separate component (e.g.
-`AdvancedMetanormaToolbar.tsx`) rather than extending `MetanormaToolbar.tsx`,
-add:
-
-```typescript
-export { AdvancedMetanormaToolbar } from "./AdvancedMetanormaToolbar.js";
-export type { AdvancedMetanormaToolbarProps } from "./AdvancedMetanormaToolbar.js";
-```
+Pure commands are exported from `@metanorma/editor-commands` and re-exported
+through `@metanorma/prosemirror-editor`; see the consolidated export listing
+in README §5.11. This feature adds no feature-specific export notes.
 
 ## 12. File structure summary
 
-The structural command logic lives in `@metanorma/editor-commands`; the toolbar
-component, its view-holding adapters, and the re-exports live in
-`@metanorma/prosemirror-editor`.
-
-```
-pkg/editor-commands/
-  commands/
-    sections.ts                   ← structural commands + legality helpers (§5)
-  index.ts                        ← exports wrapInClause, promoteClause,
-                                    demoteClause, setSectionType, canWrapInClause
-
-pkg/prosemirror-editor/
-  MetanormaToolbar.tsx            ← base toolbar (existing spec; gains 'sections' group)
-  AdvancedMetanormaToolbar.tsx    ← advanced toolbar (this document), if separated
-  toolbar.css                     ← shared styles; add --sections modifiers (§8)
-  index.ts                        ← re-export commands from @metanorma/editor-commands;
-                                    export AdvancedMetanormaToolbar (§11)
-
-docs/AdvancedMetanormaToolbar/
-  sections.md                     ← this document
-```
-
-The `commands/` directory does **not** exist under
-`pkg/prosemirror-editor/` for these commands — section/clause command
-logic lives in `pkg/editor-commands/commands/sections.ts`. Only view-holding
-adapters (the button `run(view)` wrappers that call the pure command and then
-`view.focus()`) belong in `prosemirror-editor`, alongside the toolbar component.
+See the consolidated file-structure summary in README §5.10. This feature adds
+no feature-specific structure notes.
 
 ## 13. TypeScript constraints
 

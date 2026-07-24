@@ -127,8 +127,8 @@ selection, and places the cursor in the `dt` so the user can type the term.
 | `key` | `"insert-definition-list"` |
 | `label` | `"Def list"` (rendered as `≡` or "DL" — see §8 icon note) |
 | `title` | `"Insert definition list"` |
-| `isActive` | `true` when selection is inside a `dl` (see §5) |
-| `isEnabled` | `true` when the selection's parent accepts `block` content and `dl` is not already an ancestor at the immediate block level (see §5) |
+| `isActive` | `true` when selection is inside a `dl` (see §7) |
+| `isEnabled` | `true` when the selection's parent accepts `block` content and `dl` is not already an ancestor at the immediate block level (see §7) |
 | `run` | `run(view)` adapter: calls `insertDefinitionList(view.state, view.dispatch)` then `view.focus()` — see §5 |
 
 **Active detection.** A definition list is active when the selection is inside
@@ -187,7 +187,7 @@ new `dt`.
 | `label` | `"+ term"` |
 | `title` | `"Add term and description"` |
 | `isActive` | `false` (this is an insert action, not a toggle) |
-| `isEnabled` | `true` when selection is inside a `dl` (see §5) |
+| `isEnabled` | `true` when selection is inside a `dl` (see §7) |
 | `run` | `run(view)` adapter: calls `addDefinitionPair(view.state, view.dispatch)` then `view.focus()` — see §5 |
 
 ### 4.3 Justification of the button set
@@ -213,22 +213,12 @@ The two commands are pure ProseMirror `Command` functions defined in
 `pkg/editor-commands/commands/definitionList.ts` (package
 `@metanorma/editor-commands`).
 
-**Conformance to the Command contract** (`docs/EditorCommands.spec.md` §1.5).
-Each command below:
-- is a pure `(state: EditorState, dispatch?: (tr: Transaction) => void) => boolean` (the `Command` type, imported from `prosemirror-state`);
-- takes **no `EditorView`** parameter, never calls `view.focus()`, `view.dispatch`, or touches the DOM — the `EditorView` appears **only** in the toolbar `run(view)` adapter in `@metanorma/prosemirror-editor` (§4.1, §4.2);
-- honours **query/dispatch parity**: called without `dispatch` it returns `true` iff it would apply and mutates nothing; called with `dispatch` it dispatches exactly one transaction and returns `true`; returns `false` when not applicable regardless of `dispatch`;
-- is **non-throwing** on well-formed state (returns `false` on failure);
-- obeys **transaction discipline** (§1.7): one `state.tr`, dispatched once, with a valid resulting selection and `tr.scrollIntoView()` (these are user-initiated toolbar commands);
-- preserves the `(dt dd)+` invariant in every dispatched transaction.
+These commands conform to the Command contract (README §6.2;
+`EditorCommands.spec.md` §1.5). **Feature-specific addition:** every dispatched
+transaction preserves the `(dt dd)+` invariant.
 
-The commands operate on `state.schema` directly (resolving `dl`/`dt`/`dd` via
-`state.schema.nodes.dl` etc.). They are therefore already schema-parameterised
-per call — no separate `(schema) => Command` factory is required (decision per
-§1.6.2: these commands only make sense for the exact Metanorma `dl`/`dt`/`dd`
-vocabulary, so the direct-`state.schema` form is chosen over the factory form).
-The `EditorView`, keymap wiring, and `view.focus()` concerns live in
-`@metanorma/prosemirror-editor` (§6).
+Commands resolve node types through `state.schema` per README §6.4; no
+`(schema) => Command` factory is required.
 
 ### 5.1 `insertDefinitionList`
 
@@ -240,10 +230,7 @@ import type { Command } from "prosemirror-state";
  * Insert a new definition list (one dt + dd pair) at the current selection,
  * replacing any selected block content with the pair. Leaves the cursor in
  * the (empty) term so the user can type the term immediately.
- *
- * Pure `Command` (no EditorView). Query/dispatch parity holds: without
- * dispatch it is an applicability test; with dispatch it builds one
- * transaction. Non-throwing; preserves `(dt dd)+`.
+ * Preserves `(dt dd)+`.
  */
 export function insertDefinitionList(state: EditorState, dispatch?: (tr: Transaction) => void): boolean;
 ```
@@ -359,10 +346,7 @@ Backspace at a `dt` start; and a nested `dl`.
  * selection. The pair is inserted immediately after the pair whose dd
  * currently contains the selection (or appended at the end of the dl if the
  * cursor is in the final dd). Cursor is moved into the new dt.
- *
- * Pure `Command` (no EditorView). Query/dispatch parity holds; non-throwing.
- * Returns false (dispatching nothing) if the selection is not inside a dl.
- * Preserves `(dt dd)+`.
+ * Returns false if the selection is not inside a dl. Preserves `(dt dd)+`.
  */
 export function addDefinitionPair(state: EditorState, dispatch?: (tr: Transaction) => void): boolean;
 ```
@@ -591,7 +575,7 @@ Definition-list nodes do not conflict with the existing `wrapIn`/`lift`/
 `toggleList` commands:
 
 - **No conflict with `dt`/`dd`.** `dt` and `dd` are **deliberately excluded
-  from the `block` group** (see `docs/schema.spec.md` §3.1 — the `block` row
+  from the `block` group** (see `docs/schema.spec.md` §4 — the `block` row
   states it "Deliberately excludes … `dt`, `dd`"). Because `wrapIn`/`lift`/
   `toggleList` only ever target nodes in the `block` group, they can never
   accidentally operate on a bare `dt` or `dd` — those nodes only ever appear
@@ -633,17 +617,17 @@ a design decision left to the implementer.
 
 ## 9. Accessibility
 
-- The toolbar buttons expose `aria-pressed` (for the insert button, reflecting
-  "inside a dl") and `aria-label` / `title` per §4. The "add pair" button is
-  an action (not a toggle) so it carries `aria-label` only.
-- `disabled` is set when `isEnabled` is `false`.
+Feature-specific accessibility additions beyond the baseline (README §2.5 /
+`MetanormaToolbar.spec.md` §9):
+
 - `dl`/`dt`/`dd` serialize to native HTML elements, which carry **implicit
   ARIA semantics** (description list / term / description). No additional
   `role` attributes are needed; do not override them.
-- Keyboard users reach the term/description via normal cursor movement and the
-  Enter navigation defined in §6. Ensure the Enter keymap does not trap focus
-  inside the list — the "exit dl" rule (§6.1 last row) is the escape route and
-  must be testable with keyboard-only navigation.
+- The insert button exposes `aria-pressed` reflecting the "inside a dl"
+  state.
+- Ensure the Enter keymap (§6) does not trap focus inside the list — the
+  "exit dl" rule (§6.1 last row) is the escape route and must be testable
+  with keyboard-only navigation.
 
 ## 10. Open questions / unknowns
 
@@ -654,71 +638,11 @@ not final decisions.
 
 ## 11. Export changes
 
-The pure commands are exported from `@metanorma/editor-commands`
-(`pkg/editor-commands/index.ts`) — there is exactly **one** form per
-command, the pure `(state, dispatch?) => boolean`:
-
-```typescript
-// pkg/editor-commands/index.ts
-export {
-  insertDefinitionList,
-  addDefinitionPair,
-} from "./commands/definitionList.js";
-
-// Pure, state-reading helpers shared with the keymap (recommended):
-export {
-  inDefinitionList,
-  canInsertBlock,
-  jumpToSiblingDescription,
-  exitDefinitionList,
-} from "./commands/definitionList.js";
-```
-
-`@metanorma/prosemirror-editor` **re-exports** the commands (so the toolbar
-and other consumers can import them from the editor package) and exports the
-keymap plugin, which lives in the editor package:
-
-```typescript
-// pkg/prosemirror-editor/index.ts
-export {
-  insertDefinitionList,
-  addDefinitionPair,
-} from "@metanorma/editor-commands";
-export { definitionListKeymap } from "./plugins/definitionListKeymap.js";
-```
-
-The `run(view)` toolbar adapter (which calls `insertDefinitionList(view.state,
-view.dispatch)` then `view.focus()`) is the **only** place an `EditorView`
-appears; it lives in `@metanorma/prosemirror-editor`, not in
-`@metanorma/editor-commands`.
+Pure commands are exported from `@metanorma/editor-commands` and re-exported
+through `@metanorma/prosemirror-editor`; see the consolidated export listing
+in README §5.11. This feature adds no feature-specific export notes.
 
 ## 12. File structure summary
 
-Pure command logic lives in `@metanorma/editor-commands`; keymap wiring,
-`EditorView` adapters, and UI live in `@metanorma/prosemirror-editor`:
-
-```
-pkg/editor-commands/
-  commands/
-    definitionList.ts        ← insertDefinitionList, addDefinitionPair,
-                                makePair(schema, termContent?),
-                                inDefinitionList, canInsertBlock,
-                                jumpToSiblingDescription, exitDefinitionList
-                                (all pure: state/dispatch only, no EditorView/DOM)
-  index.ts                   ← re-export the commands + helpers (§11)
-
-pkg/prosemirror-editor/
-  plugins/
-    definitionListKeymap.ts  ← Enter/Backspace (and optional Tab/arrows)
-                                keymap Plugin; imports the pure commands
-                                from @metanorma/editor-commands
-  AdvancedMetanormaToolbar.tsx ← (or within the toolbar group config)
-                                registers the two ToolbarButton descriptors;
-                                holds the run(view) adapter (view.focus() here)
-  index.ts                   ← re-export commands from editor-commands;
-                                export definitionListKeymap (§11)
-```
-
-The `ToolbarButton` descriptors themselves (the objects satisfying the
-interface in §3) live wherever the advanced toolbar assembles its button
-list; only the commands and keymap are separately exported for reuse.
+See the consolidated file-structure summary in README §5.10. This feature
+adds no feature-specific structure notes.

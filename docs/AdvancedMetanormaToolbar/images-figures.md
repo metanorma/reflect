@@ -20,11 +20,10 @@ insert it. The runtime guard `assertValidImageAttrs` gates the first part.
 This document therefore specifies three coupled deliverables — an **"Insert
 image" button** that opens a source-resolution dialog, the **`ImageInsertDialog`**
 itself (URL field + file picker + alt text), and an **`insertImage` command**
-that validates the resolved `src` **non-throwingly**, materialises the
+that validates the resolved `src`, materialises the
 `figure > image` subtree, and selects it. Per the `@metanorma/editor-commands`
 Command contract (`EditorCommands.spec.md` §1.5), the command is split cleanly
-from the UI: the **pure command** (no `EditorView`/DOM, non-throwing, synchronous)
-lives in `@metanorma/editor-commands`; the **button + dialog adapter**
+from the UI: the **pure command** (no `EditorView`/DOM, synchronous) lives in `@metanorma/editor-commands`; the **button + dialog adapter**
 (`EditorView`, async upload/URL resolution, focus) live in
 `@metanorma/prosemirror-editor`.
 
@@ -56,12 +55,9 @@ Three consequences drive the entire design:
    marks `src` as required, the schema uses `""` as the placeholder default and
    pushes the real requirement to a **runtime guard**, `assertValidImageAttrs`,
    which throws when `src` is missing or empty. The pure `insertImage` command
-   (§6) must enforce this requirement before creating the node — but it must do
-   so **non-throwingly**: it validates `src` and returns `false` if invalid
-   (EditorCommands §1.5(4)), never throwing out of the command. The throwing
-   `assertValidImageAttrs` guard may be used internally, wrapped in a
-   `try`/`catch` that converts the throw into a `false` return. This is exactly
-   the concern the base spec's §5.5 anticipated.
+   (§6) enforces this requirement before creating the node by validating `src`
+   and returning `false` if invalid (§6.2 step 3). This is exactly the concern
+   the base spec's §5.5 anticipated.
 3. **`figure` and `image` split attribute responsibility.** `figure` owns
    `title` (the caption) and retains `src`; it has **no `alt`**. `image` owns
    `alt` (the a11y text) and its own `src`; it has **no `title`**. There is
@@ -106,7 +102,7 @@ insert-only.)
 
 The split follows the `@metanorma/editor-commands` Command contract
 (`EditorCommands.spec.md` §1.5): **pure command logic** — schema-coupled,
-non-throwing, no `EditorView`, no DOM — lives in `@metanorma/editor-commands`.
+no `EditorView`, no DOM — lives in `@metanorma/editor-commands`.
 The **toolbar adapter** (`InsertImageButton` + `ImageInsertDialog`) lives in
 `@metanorma/prosemirror-editor`; it owns the React state, the `EditorView`,
 and the async URL/upload resolution. The adapter resolves a `src` first, then
@@ -206,8 +202,8 @@ pieces of input and resolves them to a single `src` URL plus an optional `alt`:
 Exactly one source is required: a non-empty URL **or** a chosen file. Alt text is
 optional (the `image.alt` attr defaults to `null`). The dialog does not itself
 validate the URL beyond non-emptiness; the pure `insertImage` command performs
-the authoritative, **non-throwing** `src` validation (returns `false` if invalid
-— §6.1, EditorCommands §1.5(4)).
+the authoritative `src` validation (returns `false` if invalid — §6.1,
+EditorCommands §1.5(4)).
 
 ### 5.1 URL path
 
@@ -218,7 +214,7 @@ When the user types or pastes a URL into the Source URL field and commits:
    then dispatches `insertImage(view.state, view.dispatch, { src, alt })` via
    `useEditorEventCallback` (§7). The `EditorView`/`dispatch` are held in the
    adapter, never in the pure command.
-3. The pure command validates `src` non-throwingly (returns `false` without
+3. The pure command validates `src` (returns `false` without
    dispatching if `src` is empty/invalid — §6.1); on a `false` return the dialog
    surfaces an inline error (`aria-live`, §9).
 
@@ -298,7 +294,7 @@ The default `data:` URL path is the supported no-server strategy instead.
 Lives in `pkg/editor-commands/commands/insertImage.ts` — the
 `@metanorma/editor-commands` package. It conforms to the Command contract
 (`EditorCommands.spec.md` §1.5): it is a pure `(state, dispatch?) => boolean`
-function — **no `EditorView`, no DOM, non-throwing**. The `EditorView`, async
+function — **no `EditorView`, no DOM**. The `EditorView`, async
 URL/upload resolution, and focus management concerns live only in the toolbar
 adapter in `@metanorma/prosemirror-editor` (§4, §7). The command takes
 **already-resolved** `{ src, alt }` and is synchronous.
@@ -325,15 +321,10 @@ export function canInsertFigure(state: EditorState): boolean;
 /**
  * Insert a `figure > image` at the current selection and select the figure.
  *
- * Conforms to the @metanorma/editor-commands Command contract
- * (EditorCommands.spec.md §1.5):
- *  - Query form: `insertImage(state)` (no `dispatch`) returns the SAME boolean
- *    as `canInsertFigure(state)` and mutates nothing.
- *  - Dispatch form: `insertImage(state, dispatch, attrs)` validates `src`
- *    NON-THROWINGLY (returns `false` if missing/empty — §1.5(4)), builds a
- *    `figure > image`, sets a valid NodeSelection, scrollIntoView(), dispatches
- *    exactly ONE transaction, returns `true`.
- *  - Returns `false` when not applicable, regardless of dispatch.
+ * Conforms to the @metanorma/editor-commands Command contract (README §6.2;
+ * EditorCommands.spec.md §1.5). Feature-specific: `src` is validated via the
+ * `assertValidImageAttrs` guard (returns `false` if missing/empty); the query
+ * form (`dispatch` omitted) returns the same boolean as `canInsertFigure(state)`.
  *
  * @returns `true` iff a transaction was dispatched; `false` if `src` was
  *          invalid or insertion was not legal at the current selection.
@@ -351,14 +342,9 @@ omitted, `insertImage(state)` returns `true` exactly when
 `isEnabled` rule (§8.2) is therefore `canInsertFigure(state)`, and
 `insertImage(state)` is its command-parity equivalent.
 
-**Factory form (EditorCommands §1.6.2).** Because the command resolves node
-types through `state.schema` (the `Schema` instance on the passed
-`EditorState`), it is already schema-parameterised: it works unchanged on a
-composed schema as long as that schema has `figure` and `image` node types.
-No separate `(schema) => Command` factory is required — the command binds
-nothing to the `metanormaSchema` singleton at module load. (If a future
-consumer needed to validate the schema shape at construction time, a factory
-could be added; it is not needed for the Metanorma schema.)
+**Factory form (EditorCommands §1.6.2).** The command resolves node types
+through `state.schema` per README §6.4; no `(schema) => Command` factory is
+required.
 
 ### 6.2 Algorithm
 
@@ -371,11 +357,10 @@ could be added; it is not needed for the Metanorma schema.)
 3. **Validate `src` (non-throwing).** The throwing guard
    `assertValidImageAttrs({ src: attrs?.src })` is wrapped in a `try`/`catch`;
    on throw (or if `attrs`/`src` is missing/empty), return `false` without
-   dispatching. This satisfies EditorCommands §1.5(4) (non-throwing): the
-   command itself never throws on well-formed state. (An equivalent non-throwing
-   inline check — `typeof src === "string" && src !== ""` — may be used instead;
-   either way the command is non-throwing.) The assert also narrows `src` to
-   `string` for the type system.
+   dispatching. This satisfies EditorCommands §1.5(4): the command never throws
+   on well-formed state. (An equivalent inline check —
+   `typeof src === "string" && src !== ""` — may be used instead.) The assert
+   also narrows `src` to `string` for the type system.
 4. **Re-check legality against `state`.** Because the adapter may have resolved
    the source asynchronously, the selection may have moved since the button was
    clicked — this check runs against the **current** `state` passed in (the
@@ -389,7 +374,7 @@ could be added; it is not needed for the Metanorma schema.)
      - `figure = state.schema.nodes.figure.create({ id: generateId() }, [image])`
        — the block wrapper; the `figure` carries a **generated `id`** for
        cross-referencing. `number`/`title`/`src`/`data` default to their
-       schema values (`figure` has no `alt` attribute — §2.3).
+        schema values (`figure` has no `alt` attribute — §2).
        `generateId()` is the shared helper from `@metanorma/editor-commands`
        (`util.ts`).
 6. **Insert.** `tr = state.tr.replaceSelectionWith(figure)`.
@@ -445,15 +430,13 @@ export function insertImage(
   // 2. Query form: no dispatch ⇒ pure predicate, mutate nothing.
   if (!dispatch) return true;
 
-  // 3. Validate src NON-THROWINGLY (EditorCommands §1.5(4)). The throwing
-  //    assertValidImageAttrs is wrapped so the command never throws on
-  //    well-formed state; it returns false instead.
+  // 3. Validate src via the throwing guard, wrapped to return false (§6.2 step 3).
   let src: string;
   try {
     assertValidImageAttrs({ src: attrs?.src });
     src = attrs!.src; // narrowed by the assert above
   } catch {
-    return false; // src missing / empty / wrong type — non-throwing failure
+    return false; // src missing / empty / wrong type
   }
 
   // 4. Build figure > image, resolving types through state.schema (not a
@@ -482,12 +465,8 @@ export function insertImage(
 }
 ```
 
-**Command contract compliance.** Note what is *absent*: no `EditorView`, no
-`view.dispatch`, no `view.focus()`, no DOM. The command imports only
-`EditorState`, `Transaction`, `Node` types (and the schema guard); it never
-imports `prosemirror-view`. It returns `false` on every failure path without
-throwing. The query form (`dispatch` omitted) is a pure applicability test
-returning the same boolean as `canInsertFigure`.
+**Command contract compliance.** The command conforms to the Command contract
+(README §6.2; `EditorCommands.spec.md` §1.5).
 
 **Position arithmetic.** `figPos = tr.selection.from - figure.nodeSize` assumes
 `replaceSelectionWith` leaves the selection immediately after the inserted
@@ -504,7 +483,7 @@ Because `image` is ungrouped and appears in no content expression except
 `figure`'s, it cannot be placed directly into any block container. The command
 therefore always emits the two-node `figure > image` subtree. The `image`
 carries the rendered `src`/`alt`; the `figure` is the block the document model
-(and the `FigureNodeView`) expects. This matches §2.1 and is the sole reason no
+(and the `FigureNodeView`) expects. This matches §2 and is the sole reason no
 bare-`image` insertion path is offered.
 
 ## 7. The async dispatch pattern
@@ -573,7 +552,7 @@ async function onCommit(file: File | null, url: string, alt: string): Promise<vo
 The boundary is thus: the adapter resolves `src`/`alt` (async, `File`,
 `FileReader.readAsDataURL`, `onImageUpload`) and holds the `EditorView`; the pure
 command takes already-resolved `{ src, alt }` plus `view.state`/`view.dispatch`
-and performs the synchronous, non-throwing, schema-aware insert. The
+and performs the synchronous, schema-aware insert. The
 `EditorView` reference is always current, and the transaction is built and
 dispatched from the live `view.state` inside `insertImage` at the moment the
 resolved `src` is available.
@@ -615,7 +594,9 @@ Notes on the strict-tsconfig constraints in play:
 
 ## 9. Accessibility
 
-The `ImageInsertDialog` follows the WAI-ARIA **dialog** pattern.
+Feature-specific accessibility additions beyond the baseline
+(README §2.5 / `MetanormaToolbar.spec.md` §9). The `ImageInsertDialog` follows
+the WAI-ARIA **dialog** pattern:
 
 ### 9.1 Roles and labels
 
@@ -652,32 +633,9 @@ Genuine design decisions left for the implementer / product owner:
 
 ## 11. Export changes
 
-The pure command lives in `@metanorma/editor-commands` and is re-exported by the
-editor package.
-
-**`pkg/editor-commands/index.ts`** must add:
-
-```typescript
-export { insertImage, canInsertFigure } from "./commands/insertImage.js";
-export type { InsertImageAttrs } from "./commands/insertImage.js";
-```
-
-**`pkg/prosemirror-editor/index.ts`** must add (re-export the command +
-export the UI adapter):
-
-```typescript
-export { insertImage, canInsertFigure } from "@metanorma/editor-commands";
-export type { InsertImageAttrs } from "@metanorma/editor-commands";
-export { InsertImageButton } from "./ImageInsertDialog.js";
-export type { OnImageUpload, OnImagePrompt } from "./ImageInsertDialog.js";
-```
-
-`assertValidImageAttrs` is **already** re-exported from the editor package (from
-`@metanorma/prosemirror-schema`), so no change is needed for the guard itself;
-the pure command imports it directly from `@metanorma/prosemirror-schema` as the
-source of truth. The editor package (`@metanorma/prosemirror-editor`) must add
-`@metanorma/editor-commands` as a `workspace:^` dependency so it can re-export
-the command.
+Pure commands are exported from `@metanorma/editor-commands` and re-exported
+through `@metanorma/prosemirror-editor`; see the consolidated export listing in
+README §5.11. This feature adds no feature-specific export notes.
 
 ## 12. CSS classes
 
@@ -709,17 +667,8 @@ matching the base toolbar's `toolbar.css` convention and `tables.md`'s
 
 ## 13. File-structure summary
 
-```
-pkg/editor-commands/                 ← PURE command logic (no EditorView/DOM)
-  commands/
-    insertImage.ts                       ← insertImage command, canInsertFigure, InsertImageAttrs
-  index.ts                               ← export insertImage, canInsertFigure, InsertImageAttrs (§11)
-
-pkg/prosemirror-editor/              ← UI adapter layer (EditorView/async/DOM live here)
-  ImageInsertDialog.tsx                  ← dialog + InsertImageButton component
-  image-dialog.css                       ← dialog styles (side-effect import)
-  index.ts                               ← re-export command from @metanorma/editor-commands; export UI (§11)
-```
+See the consolidated file-structure summary in README §5.10. This feature adds
+no feature-specific structure notes.
 
 ## 14. TypeScript constraints
 

@@ -157,7 +157,7 @@ seam. Concretely, the current implementation contains:
 
 The `commands/` directory contains only `toggleList.ts`, whose signature is
 `toggleList(view: EditorView, listType): boolean` — it takes an `EditorView`
-and dispatches (see §5.12).
+and dispatches (see §5.5.7).
 
 **Consequence:** the sharing architecture in §5.2–5.4 below describes the
 *target* shape, not the current shape. Achieving it requires refactoring the
@@ -550,7 +550,7 @@ Prop coverage map:
 | Prop | Consumed by | Default |
 |---|---|---|
 | `onLinkPrompt` | `linkGroup` (upgrades `window.prompt`) | `window.prompt` |
-| `onImageUpload` | `imagesGroup` | `URL.createObjectURL` (local-only caveat) |
+| `onImageUpload` | `imagesGroup` | none (absent ⇒ `FileReader.readAsDataURL` data: URL) |
 | `onImagePrompt` | `imagesGroup` | built-in `ImageInsertDialog` |
 | `onXrefPrompt` / `onErefPrompt` / `onConceptPrompt` | `refsGroup` | `window.prompt` / doc-id picker |
 | `onBcp14Prompt` | `refsGroup` (BCP14 keyword) | `window.prompt` (free text) |
@@ -725,10 +725,11 @@ export {
 
 ### 5.13 Potential further developments
 
-- **`floating_title` overlap.** The `sections` group inserts `clause` headings;
-  the schema also has a standalone `floating_title` block node. Decide whether
-  heading creation should ever produce a `floating_title` instead of a clause
-  `title` attr (see `sections.md` open questions).
+- **`floating_title` insertion.** The `sections` group inserts only the ten
+  `section`-group node types; the standalone `floating_title` block node (an
+  unnumbered heading outside the section hierarchy) is not inserted by any
+  current toolbar group. It is deferred to a future "block elements" toolbar
+  group (see `sections.md` §2.2).
 
 ## 6. Command layering (alignment with `EditorCommands.spec.md`)
 
@@ -820,7 +821,7 @@ When a command dispatches, its single transaction obeys
   §1.10.2.
 - No redundant `Command` suffix (`undo`, not `undoCommand`).
 - Pure commands export from `@metanorma/editor-commands`; the editor package
-  re-exports them for convenience (§5.10).
+  re-exports them for convenience (§5.11).
 
 ### 6.6 Async and stateful controls
 

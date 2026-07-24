@@ -1,10 +1,12 @@
 # Metanorma Mirror — Documentation Index
 
 This directory holds the functional and component specifications for the
-Metanorma Mirror rich-text editing stack. The three specs below describe a
+Metanorma Mirror rich-text editing stack. The core specs below describe a
 layered architecture: a **schema** (data model) is consumed by an **editor
 component** (React + ProseMirror), which in turn hosts a **toolbar** (user
-operations). Each spec links to the others; the dependency flows downward.
+operations). Each spec links to the others; the dependency flows downward. The
+[`AdvancedMetanormaToolbar/`](./AdvancedMetanormaToolbar/README.md) directory
+extends the toolbar with six advanced feature areas.
 
 ```
 schema.spec.md            ← source of truth for the document model

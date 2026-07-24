@@ -57,16 +57,8 @@ so it composes with keymaps and is headless-testable. It therefore belongs in
 `@handlewithcare/react-prosemirror` context, the prompt hooks, and the popover
 UI *are* editor-bound and stay in `prosemirror-editor`.
 
-**Conformance note.** `applyReferenceMark` and the six `toggle*` wrappers
-conform to the Command contract (`EditorCommands.spec.md` §1.5): they are
-`Command`-typed `(state, dispatch?, …) => boolean` functions; calling
-without `dispatch` is a pure applicability probe that mutates nothing;
-calling with `dispatch` builds and dispatches exactly one transaction and
-returns `true`; they return `false` when inapplicable; and they never throw
-on well-formed state. They never take an `EditorView`, never call
-`view.focus()` / `view.dispatch`, and never touch the DOM. The
-`EditorView`/async/prompt concerns live in the toolbar adapter in
-`prosemirror-editor` (§6.3).
+These commands conform to the Command contract (README §6.2;
+`EditorCommands.spec.md` §1.5).
 
 ## 3. Schema recap
 
@@ -359,14 +351,8 @@ wrappers, all conforming to the ProseMirror `Command` contract
   `dispatch`.
 - **Non-throwing.** No command throws on a well-formed `EditorState`; on
   failure it returns `false`.
-- **Schema coupling.** These are mark-toggling commands operating on
-  `state.schema`. They resolve mark types by name through the schema instance
-  at call time (`state.schema.marks.xref`, `…marks.eref`, …), so **no
-  separate `(schema) => Command` factory is needed** — the mark type is read
-  from the state passed in at invocation, not captured over a schema
-  singleton. This is the §1.6.2 exception ("the command only makes sense for
-  the exact Metanorma schema"); the decision is to use the plain-`Command`
-  form.
+- **Schema coupling.** Commands resolve node types through `state.schema` per
+  README §6.4; no `(schema) => Command` factory is required.
 - **Naming.** Named for the action (`toggleXref`, `applyReferenceMark`), not
   the trigger; no `Command` suffix (`EditorCommands.spec.md` §1.10.2).
 
@@ -571,8 +557,8 @@ custom properties from the base stylesheet.
 
 ## 9. Accessibility
 
-The attribute-collection UI is the main a11y surface. Requirements beyond
-base §9 (native `<button>` semantics for the trigger buttons):
+Feature-specific accessibility additions beyond the baseline
+(README §2.5 / `MetanormaToolbar.spec.md` §9):
 
 - **Popovers** (`xref`, `eref`, `concept`, `stem`, `bcp14`) use `role="dialog"`,
   `aria-modal="false"`, and `aria-labelledby` pointing at the trigger's
@@ -592,38 +578,17 @@ Genuine unknowns to resolve before/while implementing:
 
 ## 11. Export changes
 
-The commands are **defined and exported** from
-`@metanorma/editor-commands`. Its `pkg/editor-commands/index.ts` adds:
+Pure commands are exported from `@metanorma/editor-commands` and re-exported
+through `@metanorma/prosemirror-editor`; see the consolidated export listing in
+README §5.11. The feature-specific export notes below are not covered by that
+listing.
+
+`@metanorma/prosemirror-editor` also exports the **UI-only types** that describe
+the attribute-resolution UI (they carry `EditorState` for host pickers and are
+consumed only by the `on*Prompt` hooks), so they stay in `prosemirror-editor`
+alongside the toolbar component, not in the commands package:
 
 ```typescript
-// Command helpers (pure logic; Command contract, EditorCommands.spec.md §1.5)
-export {
-  applyReferenceMark,
-  toggleXref,
-  toggleEref,
-  toggleConcept,
-  toggleBcp14,
-  insertFootnoteMarker,
-  insertStem,
-} from "./commands/referenceMarks.js";
-```
-
-`@metanorma/prosemirror-editor` **re-exports** them (so toolbar code can
-import all editor APIs from one package) via
-`pkg/prosemirror-editor/index.ts`:
-
-```typescript
-// Re-export pure reference-mark commands from @metanorma/editor-commands
-export {
-  applyReferenceMark,
-  toggleXref,
-  toggleEref,
-  toggleConcept,
-  toggleBcp14,
-  insertFootnoteMarker,
-  insertStem,
-} from "@metanorma/editor-commands";
-
 // UI-only types: the prompt/picker context objects live with the toolbar UI
 // in prosemirror-editor, not in the commands package.
 export type {
@@ -631,9 +596,6 @@ export type {
   StemPromptContext,
   StemResult,
 } from "./AdvancedMetanormaToolbar.js";
-
-// New toolbar group key (extends base ToolbarGroup)
-export type { ToolbarGroup } from "./AdvancedMetanormaToolbar.js";
 ```
 
 **Split rationale.** Commands are pure and schema-derived, so they originate
@@ -657,20 +619,8 @@ export type ToolbarGroup =
 
 ## 12. File structure summary
 
-```
-pkg/editor-commands/                         ← PURE command logic (no React, no DOM)
-  commands/
-    referenceMarks.ts                            ← applyReferenceMark + six toggle wrappers
-  index.ts                                       ← exports the commands above
-
-pkg/prosemirror-editor/                      ← UI + EditorView concerns
-  AdvancedMetanormaToolbar.tsx                   ← extended toolbar; adds 'refs' group,
-                                                 │   on*Prompt hooks, popover UI,
-                                                 │   RefPromptContext / StemPromptContext / StemResult
-  reference-marks.css                            ← popover styles for attribute collection
-  index.ts                                       ← re-exports commands from @metanorma/editor-commands;
-                                                   exports UI types + ToolbarGroup
-```
+See the consolidated file-structure summary in README §5.10. This feature adds
+no feature-specific structure notes.
 
 ## 13. TypeScript constraints
 

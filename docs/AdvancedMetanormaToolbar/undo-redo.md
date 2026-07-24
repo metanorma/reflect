@@ -410,17 +410,9 @@ export {
 export type { HistoryOptions } from "prosemirror-history";
 ```
 
-**Conformance note.** `undo`/`redo` from `prosemirror-history` already satisfy
-every clause of the Command contract in `EditorCommands.spec.md` §1.5: they
-act as a pure applicability predicate when called without `dispatch`
-(§1.5.1/§1.5.3), dispatch exactly one transaction when applicable (§1.5.2),
-and never throw on well-formed state (§1.5.4). Because they are reused with
-**no** project-specific adaptation, no wrapper, factory, or `…Command`
-suffix is introduced — the re-export under the standard `undo`/`redo` names
-is the whole of the editor-commands surface for this feature
-(§1.10.2, §1.10.3). The `EditorView`/`view.focus()` and plugin/keymap-wiring
-concerns belong to `@metanorma/prosemirror-editor` (§1.13), and are covered in
-§4 and §5 above.
+`undo`/`redo` conform to the Command contract (README §6.2;
+`EditorCommands.spec.md` §1.5) and are re-exported unchanged under their
+standard names (§1.10.3).
 
 The package barrel `pkg/editor-commands/index.ts` re-exports these in turn:
 
@@ -491,23 +483,21 @@ group by the standard `.mn-toolbar-divider`.
 
 ## 9. Accessibility
 
-Undo/redo are among the simplest controls to make accessible, and they meet
-the baseline (base §9, README §2.5) with no extra work:
+Feature-specific accessibility additions beyond the baseline (README §2.5 /
+`MetanormaToolbar.spec.md` §9):
 
-- Each button is a native `<button>` with a descriptive `title` (§5), which
-  also serves as the accessible name.
-- An explicit `aria-label` is recommended in addition to `title`, because some
-  assistive technologies do not expose `title` consistently:
-  `aria-label="Undo"` / `aria-label="Redo"`.
-- `disabled` is set whenever `isEnabled` is `false` (`undoDepth === 0` /
+- **`isActive` is constant.** Undo/redo are momentary actions, not toggles, so
+  `aria-pressed` does not apply (unlike the mark/block buttons) and the
+  `mn-toolbar-btn--active` modifier is never applied. An explicit `aria-label`
+  (`"Undo"` / `"Redo"`) is recommended in addition to `title`, since the glyph
+  label is not self-describing.
+- **Depth-based disabled state.** `disabled` (and `mn-toolbar-btn--disabled`)
+  is set whenever `isEnabled` is `false` (`undoDepth === 0` /
   `redoDepth === 0`), so the buttons are correctly removed from the tab order
   and announced as unavailable when there is nothing to undo/redo.
-- **No `aria-pressed`**: undo/redo are momentary actions, not toggles, so
-  `aria-pressed` does not apply (unlike the mark/block buttons).
-- **Keyboard operability is already handled by the keymap** (§4.2), not by the
-  buttons: a user never needs to tab to the toolbar to undo. The buttons are
-  nonetheless fully keyboard-operable via `Enter` / `Space` (native `<button>`
-  semantics) for users who do navigate to them.
+- **Keyboard access is primarily via the keymap** (§4.2), not the buttons: a
+  user never needs to tab to the toolbar to undo. The buttons are nonetheless
+  fully operable via `Enter` / `Space` (native `<button>` semantics).
 
 ## 10. Open questions / unknowns
 
@@ -516,6 +506,10 @@ Genuine unknowns to resolve before/while implementing:
 (none remain — all questions resolved.)
 
 ## 11. Export and package changes
+
+The consolidated `index.ts` export listing for both packages lives in
+README §5.11; this section records only the **undo-redo-specific** additions
+not captured there.
 
 ### 11.1 Runtime dependencies
 
@@ -553,39 +547,27 @@ and `HistoryOptions` in `state.ts`; those are re-exported through
 `@metanorma/editor-commands`, so `prosemirror-editor` can import everything
 from the one workspace package.
 
-### 11.2 `index.ts` exports
+### 11.2 Undo-redo-specific exports
 
-The command symbols originate in `@metanorma/editor-commands`.
-`pkg/editor-commands/index.ts` re-exports `undo`, `redo`, `undoDepth`,
-`redoDepth`, and the `history` plugin factory + `HistoryOptions` type (see §7).
-The editor barrel `pkg/prosemirror-editor/index.ts` re-exports them in turn
-so that consumers can depend only on `@metanorma/prosemirror-editor`:
+Beyond the re-exported `undo`/`redo`/`undoDepth`/`redoDepth`/`history`/
+`HistoryOptions` (README §5.11), the editor package surface gains three
+**undo-redo-specific** symbols that have no analogue in the other features:
 
 ```typescript
-// pkg/prosemirror-editor/index.ts
-// History commands — re-exported through @metanorma/editor-commands (§7).
-export {
-  undo,
-  redo,
-  undoDepth,
-  redoDepth,
-  history,
-} from "@metanorma/editor-commands";
+// pkg/prosemirror-editor/index.ts — feature-specific additions only
+export { buildUndoRedoKeymap, DEFAULT_HISTORY_OPTIONS } from "./state.js";
 export type { HistoryOptions } from "@metanorma/editor-commands";
-
-// History plugin construction helpers — editor-bound (live here, not in the
-// commands package; EditorCommands §1.13).
-export {
-  buildUndoRedoKeymap,
-  DEFAULT_HISTORY_OPTIONS,
-} from "./state.js";
 ```
 
-Re-exporting `undo`/`redo`/`undoDepth`/`redoDepth`/`history` and
-`HistoryOptions` from the editor barrel lets consumers depend only on
-`@metanorma/prosemirror-editor` and avoids forcing a direct `prosemirror-history`
-dependency on hosts. (They can equally import the commands from
-`@metanorma/editor-commands` directly.)
+- **`buildUndoRedoKeymap`** and **`DEFAULT_HISTORY_OPTIONS`** originate in
+  `pkg/prosemirror-editor/state.ts` (editor-bound, per EditorCommands §1.13)
+  and are re-exported from the editor barrel so that controlled-mode consumers
+  can compose
+  `[…itsPlugins, history(DEFAULT_HISTORY_OPTIONS), buildUndoRedoKeymap()]`
+  without a direct `prosemirror-history`/`prosemirror-keymap` dependency.
+- **`HistoryOptions`** is re-exported from the editor barrel (sourced from
+  `@metanorma/editor-commands`) so hosts can type the `history` option without
+  importing `prosemirror-history` directly.
 
 The `createInitialEditorState` signature change (new `history?: HistoryOptions
 | false` option) is additive and backwards-compatible; the existing
@@ -617,32 +599,8 @@ export type ToolbarGroup =
 
 ## 12. File structure summary
 
-```
-pkg/editor-commands/
-  commands/
-    history.ts                      ← re-export { undo, redo, undoDepth,
-                                    │   redoDepth, history } from
-                                    │   "prosemirror-history" (+ type
-                                    │   HistoryOptions); no wrappers, no
-                                    │   …Command suffix (EditorCommands §1.10.3)
-  index.ts                          ← re-export the above from ./commands/history.js
-
-pkg/prosemirror-editor/
-  state.ts                          ← add history() + keymap to default plugins;
-                                    │   new history? option, buildUndoRedoKeymap,
-                                    │   DEFAULT_HISTORY_OPTIONS; imports undo/redo
-                                    │   from @metanorma/editor-commands
-  MetanormaProseMirror.tsx          ← add history? prop (uncontrolled forwarding)
-  AdvancedMetanormaToolbar.tsx      ← add 'history' group (undo, redo buttons);
-                                    │   button run() adapters live here (the only
-                                    │   place EditorView/view.focus() appears)
-  index.ts                          ← re-export undo/redo/undoDepth/redoDepth/
-                                    │   history/HistoryOptions from
-                                    │   @metanorma/editor-commands; export
-                                    │   buildUndoRedoKeymap, DEFAULT_HISTORY_OPTIONS
-  package.json                      ← add @metanorma/editor-commands (workspace:^),
-                                    │   prosemirror-keymap
-```
+See the consolidated file-structure summary in README §5.10. This feature adds
+no feature-specific structure notes.
 
 ## 13. TypeScript constraints
 
