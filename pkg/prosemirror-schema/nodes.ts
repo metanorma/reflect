@@ -230,13 +230,14 @@ const blockNodes: Record<string, NodeSpec> = {
     attrs: {
       id: { default: null },
       number: { default: null },
+      type: { default: "asciimath" },
       asciimath: { default: null },
       mathml: { default: null },
-      math_text: { default: null },
       ...DATA_ATTR,
     },
     toDOM: (node) => {
-      const attrs: Record<string, string> = { class: "formula" };
+      const type = node.attrs["type"] as string;
+      const attrs: Record<string, string> = { class: "formula", "data-type": type };
       const asciimath = node.attrs["asciimath"] as string | null;
       const mathml = node.attrs["mathml"] as string | null;
       const number = node.attrs["number"] as string | null;
@@ -255,6 +256,7 @@ const blockNodes: Record<string, NodeSpec> = {
       {
         tag: "div.formula",
         getAttrs: (el) => ({
+          type: el.getAttribute("data-type") ?? "asciimath",
           asciimath: el.getAttribute("data-asciimath"),
           mathml: el.getAttribute("data-mathml"),
           number: el.getAttribute("data-number"),
@@ -419,7 +421,6 @@ const mediaNodes: Record<string, NodeSpec> = {
       id: { default: null },
       number: { default: null },
       title: { default: null },
-      src: { default: null },
       ...DATA_ATTR,
     },
     toDOM: (node) => {
@@ -518,12 +519,14 @@ const footnoteNodes: Record<string, NodeSpec> = {
       inline: true,
       atom: true,
       attrs: {
+        type: { default: "asciimath" },
         asciimath: { default: null },
         mathml: { default: null },
         ...DATA_ATTR,
       },
       toDOM: (node) => {
-        const attrs: Record<string, string> = { class: "stem" };
+        const type = node.attrs["type"] as string;
+        const attrs: Record<string, string> = { class: "stem", "data-type": type };
         const asciimath = node.attrs["asciimath"] as string | null;
         const mathml = node.attrs["mathml"] as string | null;
         if (asciimath !== null) {
@@ -538,6 +541,7 @@ const footnoteNodes: Record<string, NodeSpec> = {
         {
           tag: "span.stem",
           getAttrs: (el) => ({
+            type: el.getAttribute("data-type") ?? "asciimath",
             asciimath: el.getAttribute("data-asciimath"),
             mathml: el.getAttribute("data-mathml"),
           }),
