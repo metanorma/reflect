@@ -1,7 +1,7 @@
 # Metanorma ProseMirror — React Component Specification
 
-**Status:** Greenfield. This spec defines a **new** React component package that
-wraps the [`@handlewithcare/react-prosemirror`](https://github.com/handlewithcarecollective/react-prosemirror)
+This spec defines the React component package that wraps the
+[`@handlewithcare/react-prosemirror`](https://github.com/handlewithcarecollective/react-prosemirror)
 library and binds it to the Metanorma Mirror schema defined in
 [`schema.spec.md`](./schema.spec.md).
 

@@ -1,8 +1,7 @@
 # Metanorma Editor Commands — Specification
 
-**Status:** Greenfield. This spec defines a **new** package providing
-schema-aware ProseMirror editor commands for the Metanorma Mirror document
-model. It is the command-logic companion to
+This spec defines the package providing schema-aware ProseMirror editor commands
+for the Metanorma Mirror document model. It is the command-logic companion to
 [`@metanorma/prosemirror-schema`](./schema.spec.md) and a consumer of the
 `MetanormaProseMirror` editor mount ([`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md)).
 

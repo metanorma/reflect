@@ -1,9 +1,8 @@
 # Metanorma Mirror — ProseMirror Schema Specification
 
-**Status:** Greenfield. This spec defines a **new** ProseMirror schema module.
-Ignore the preexisting `pkg/schema` subpackage and any prior ProseMirror usage in
-this repository — this document supersedes them as the source of truth for the
-schema.
+This spec defines the ProseMirror schema module. Ignore the preexisting
+`pkg/schema` subpackage and any prior ProseMirror usage in this repository —
+this document supersedes them as the source of truth for the schema.
 
 **Spec version:** 1
 
