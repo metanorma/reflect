@@ -308,6 +308,12 @@ base spec §4.2) so the base component's public type is unaffected;
 `AdvancedMetanormaToolbar` uses the widened `AdvancedToolbarGroup`. The
 advanced group ids are fixed by the table in §5.1.1.
 
+**Reconciliation note:** where an individual feature doc shows its own
+`export type ToolbarGroup = …` extension of the base union (adding only that
+document's group id), treat those as illustrative of the widening pattern.
+The consolidated `AdvancedToolbarGroup` type above is the one to implement,
+and the advanced group ids are fixed by the table in §5.1.1.
+
 ### 5.4 Render order
 
 Left-to-right (dividers between groups):
