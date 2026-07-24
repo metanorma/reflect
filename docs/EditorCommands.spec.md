@@ -6,6 +6,8 @@ model. It is the command-logic companion to
 [`@metanorma/prosemirror-schema`](./schema.spec.md) and a consumer of the
 `MetanormaProseMirror` editor mount ([`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md)).
 
+**Spec version:** 1
+
 > **Scope of this document.** This revision specifies only the **general,
 > cross-cutting aspects** of command implementation — the contract every command
 > obeys, how commands couple to the schema, transaction discipline, testability,

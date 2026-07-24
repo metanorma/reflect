@@ -5,6 +5,8 @@ Ignore the preexisting `pkg/schema` subpackage and any prior ProseMirror usage i
 this repository — this document supersedes them as the source of truth for the
 schema.
 
+**Spec version:** 1
+
 **Source of truth for the document model:**
 `src/types.ts` of [`metanorma/metanorma-mirror-js`](https://github.com/metanorma/metanorma-mirror-js/blob/main/src/types.ts)
 (commit on `main` at the time of writing). Every node name, mark name, and

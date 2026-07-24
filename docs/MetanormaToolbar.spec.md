@@ -1,5 +1,7 @@
 # MetanormaToolbar — Functional Specification
 
+**Spec version:** 1
+
 ## 1. Purpose
 
 `MetanormaToolbar` is a schema-bound React toolbar component that gives the
