@@ -593,13 +593,15 @@ Definition-list nodes do not conflict with the existing `wrapIn`/`lift`/
   `basicdoc.rng`'s `LiBody` is
   `<oneOrMore><ref name="paragraph-with-footnote" /></oneOrMore>` — paragraphs
   only. A `dl` (or table, figure, etc.) inside a `ul`/`ol` would produce
-  **invalid StanDoc XML**. Therefore the toolbar's `toggleList` button is
-  **disabled when the selection is inside (or spans) a `dl`**; the
-  bullet/ordered list toggle cannot wrap a definition list. Pre-existing
-  documents containing such nesting still render — this is an authoring
-  constraint, not a render-time rejection. The implementer adds a guard to
-  `toggleList`'s enable predicate (or the button's `disabled` logic):
-  selection inside a `dl` → disabled.
+  **invalid StanDoc XML**. This exclusion is a property of the
+  `toggleList` **command** itself: `toggleList` returns `false` (not
+  applicable) whenever the selection is inside or spans into a `dl`, so the
+  bullet/ordered-list toggle can never wrap a definition list — regardless
+  of the caller (toolbar, keymap, menu). It is specified at the command in
+  `EditorCommands.spec.md` §3.5; the toolbar's list buttons inherit the
+  disabled state automatically by querying the command's applicability.
+  Pre-existing documents containing such nesting still render — this is an
+  authoring constraint, not a render-time rejection.
 
 ## 8. Styling
 

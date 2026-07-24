@@ -804,3 +804,158 @@ rows:
 Every row must also satisfy the global Acceptance criteria: single dispatch, no
 throw, valid resulting selection, query/dispatch parity, and headless
 executability.
+
+---
+
+## 3. List toggling (`toggleList`)
+
+This section specifies the **list-toggle command**: the operation that wraps
+the selected block(s) in a `bullet_list`/`ordered_list` when no list is
+active, switches list type when a different list is active, and lifts the
+block(s) out when the same list is active. It is the command backing the
+`lists` group of `MetanormaToolbar` (see `MetanormaToolbar.spec.md` §5.3)
+and any keymap that toggles list formatting.
+
+### 3.1 Why a custom command
+
+ProseMirror's stock `wrapIn` (from `prosemirror-commands`) can wrap selected
+blocks in a list, but it **cannot unwrap** an existing list, so it has no
+toggle-off semantics. A dedicated command is therefore required to provide
+the wrap / switch / unwrap behaviour a toolbar bullet-list button needs.
+
+### 3.2 Signature and form
+
+```ts
+import type { NodeType } from "prosemirror-model";
+
+/**
+ * Toggle a list type on/off around the current selection.
+ *
+ * `listType` selects the target list: `bullet_list` or `ordered_list`. When
+ * omitted, the command resolves the target from the active list (for the
+ * switch and unwrap branches); when there is no active list and no target is
+ * given, the command is not applicable.
+ *
+ * Conforms to the Command contract (§1.5): pure predicate when queried,
+ * single transaction when dispatched.
+ */
+export function toggleList(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+  listType?: NodeType,
+): boolean;
+```
+
+`toggleList` binds `metanormaSchema` directly (the `bullet_list` /
+`ordered_list` / `list_item` / `dl` names are Metanorma-specific — §1.6.2),
+so it is exported as a plain `Command`, not a `(schema) => Command` factory.
+
+### 3.3 Algorithm
+
+The current list context is resolved by walking up from `$from`: the list
+wraps `list_item` wraps block content, so the active list (if any) sits two
+levels above the selection's immediate parent (`$from.node($from.depth - 2)`).
+Only `bullet_list` and `ordered_list` at that depth count; a `dl` is not a
+toggle-list context (see §3.5).
+
+Given the target `listType` and the current list context, the command
+selects one branch. The three branches are mutually exclusive and dispatch
+**exactly one transaction** (composed via chained steps within that single
+`state.tr` — §1.7):
+
+| Current context | Branch | Effect |
+|---|---|---|
+| inside the **same** list type | **unwrap** | `lift` the selected block(s) out of the list. |
+| inside a **different** list type | **switch** | `lift` out of the current list, then `wrapIn(listType)` — both steps composed into one transaction. |
+| not in a list | **wrap** | `wrapIn(listType)` via ProseMirror's `findWrapping`, producing the full `list > list_item > <selected block>` chain in one step. |
+
+> The lift+wrap sequence of the **switch** branch is composed *within one
+> transaction*, not as two separate dispatches (§1.7.1). This differs from a
+> naïve implementation that calls `lift` then `wrapIn` as independent
+> commands, which would dispatch twice; the single-transaction composition is
+> the reason the query form (no `dispatch`) must recompute the post-lift
+> position before testing `wrapIn` applicability.
+
+### 3.4 Selection handling and schema safety
+
+- **Collapsed and ranged selections.** `toggleList` delegates the block
+  range to ProseMirror's `lift` / `wrapIn`, which operate on the selection's
+  `$from`/`$to` range. The resulting transaction sets a valid selection via
+  the standard `lift`/`wrapIn` mapping (§1.7.2).
+- **Node selections** on whole blocks are handled by the same range logic
+  (they reduce to a single-block range); node selections on atoms or
+  structural nodes are not applicable (`false`).
+- **`scrollIntoView`** is called so the viewport follows the toggle
+  (user-initiated command — §1.7.3).
+
+### 3.5 Definition-list exclusion (`dl`)
+
+A definition list (`dl`) is **never** a valid toggle-list context, even
+though `dl` is itself a `block` and could in principle be wrapped in a
+`bullet_list`/`ordered_list`:
+
+- Metanorma's `list_item` has content `block+` (§1.6), so the schema would
+  *permit* wrapping a `dl` in a list.
+- **Upstream Metanorma forbids it.** `basicdoc.rng`'s `LiBody` is
+  `<oneOrMore><ref name="paragraph-with-footnote" /></oneOrMore>` —
+  paragraphs only. A `dl` (or table, figure, etc.) inside a `ul`/`ol` would
+  produce **invalid StanDoc XML**.
+
+`toggleList` therefore returns `false` (not applicable, dispatches nothing)
+whenever the selection is inside — or spans into — a `dl`. This makes the
+command's applicability predicate agree with the toolbar button's
+`isEnabled` state (the toolbar's list buttons read the command's query form,
+per `MetanormaToolbar.spec.md` §5.3): the bullet/ordered-list toggle cannot
+wrap a definition list. Pre-existing documents containing such nesting still
+render — this is an authoring constraint, not a render-time rejection.
+
+> This is the single behavioural exception the Metanorma schema imposes on an
+> otherwise stock list-toggle. It is recorded here, at the command, so that
+> every consumer (toolbar, keymap, menu) sees the same applicability rather
+> than each consumer re-implementing a `dl` guard.
+
+### 3.6 Command-contract conformance
+
+`toggleList` satisfies the global invariants of §1.5/§1.7:
+
+1. **Predicate when queried** — without `dispatch`, returns `true` exactly
+   for the wrap/switch/unwrap branches above (and `false` inside a `dl`),
+   mutating nothing.
+2. **Effect when dispatched** — builds exactly one transaction (composing
+   the switch branch's lift+wrap) and calls `dispatch` once.
+3. **No-when-inapplicable** — `false` and no dispatch when the selection is
+   inside a `dl`, on a structural/atom node selection, or at a position no
+   branch covers.
+4. **Non-throwing** — resolves all node types through the schema (§1.6.1);
+   reports failure by returning `false`.
+5. **Selection-aware** — behaviour follows `$from`/`$to`, per §3.4.
+
+### 3.7 Test matrix
+
+Each row is a fixture (an `EditorState` over `metanormaSchema`), a
+`toggleList(state, …)` invocation, and an assertion on applicability and, when
+dispatched, on `tr.doc.toJSON()` and the selection. Representative rows:
+
+- **W1** cursor in a top-level paragraph, `listType = bullet_list` →
+  applicable; dispatched, the paragraph is wrapped in
+  `bullet_list > list_item > paragraph`; selection maps into the item.
+- **W2** ranged selection over two sibling paragraphs, `bullet_list` → both
+  wrapped as two items of one `bullet_list`.
+- **U1** cursor in a `bullet_list > list_item > paragraph`, `listType =
+  bullet_list` → applicable; dispatched, the item's block is lifted to a
+  sibling of the list; the list is removed if it becomes empty.
+- **S1** cursor in a `bullet_list > list_item > paragraph`, `listType =
+  ordered_list` → applicable; dispatched, the block is lifted out of the
+  bullet list and re-wrapped in `ordered_list > list_item`, in **one**
+  transaction.
+- **X1** cursor inside a `dt`/`dd` of a `dl`, any `listType` → **not
+  applicable** (`false`); without `dispatch` mutates nothing; with
+  `dispatch` dispatches nothing.
+- **X2** ranged selection spanning from a paragraph into a `dd`, any
+  `listType` → **not applicable** (`false`) — the span touches a `dl`.
+- **X3** node selection on an `image`/`formula`/`floating_title` atom →
+  `false`.
+
+Every row must also satisfy the global Acceptance criteria: single dispatch,
+no throw, valid resulting selection, query/dispatch parity, and headless
+executability.

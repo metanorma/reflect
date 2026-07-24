@@ -207,43 +207,15 @@ let ProseMirror handle the toggle logic.
 | Bullet list | • | `bullet_list` | toggle list (see below) |
 | Ordered list | 1. | `ordered_list` | toggle list (see below) |
 
-ProseMirror's `prosemirror-commands` `wrapIn` can wrap selected blocks in a
-list, but **cannot unwrap** (toggle off) an existing list. Proper list
-toggling requires a custom `toggleList` command that:
+The list-toggle is the `toggleList` command, specified fully in
+[`EditorCommands.spec.md`](./EditorCommands.spec.md) §3 — including its
+wrap/switch/unwrap branches, the definition-list (`dl`) exclusion, and its
+conformance to the pure-`Command` contract (§1.5). It is exported from
+`@metanorma/editor-commands` and re-exported from `@metanorma/prosemirror-editor`
+(§12). This section specifies only the **button** on top of that command.
 
-1. If the selection is already inside the same list type: calls `lift`
-   (from `prosemirror-commands`) or `wrapIn(schema.nodes.list_item)` +
-   `lift` to unwrap.
-2. If inside a **different** list type: first lifts out of the current list,
-   then wraps in the new list type.
-3. If not in a list: wraps the selected block(s) in a `list_item` inside
-   the target list node.
-
-**Version 2 change — pure command contract.** `toggleList` is now a pure
-ProseMirror `Command` (as required by [`EditorCommands.spec.md`](./EditorCommands.spec.md)
-§1.5), not a view-taking function. It composes the
-lift+wrap cross-list-type case into a **single transaction** and never
-touches an `EditorView`:
-
-```typescript
-import type { Command } from "prosemirror-state";
-
-/**
- * Toggle a list type on/off around the current selection.
- * Pure: called without `dispatch` it only reports applicability.
- * Returns true iff a transaction was (or would be) dispatched.
- */
-export function toggleList(
-  state: EditorState,
-  dispatch?: (tr: Transaction) => void,
-  listType?: NodeType,
-): boolean;
-```
-
-Defined in `@metanorma/editor-commands` (`pkg/editor-commands/commands/toggleList.ts`)
-and re-exported from `@metanorma/prosemirror-editor` (§12). The lists
-group's `run(view)` adapter is a thin wrapper that delegates to the pure
-command and re-focuses the editor:
+The lists group's `run(view)` adapter is a thin wrapper that delegates to
+the pure command and re-focuses the editor:
 
 ```typescript
 run: (view) => {
@@ -257,7 +229,12 @@ run: (view) => {
 `list_item` wraps block content, so the list is two levels above the
 selection's immediate parent).
 
-**Enabled detection:** the selection's parent block is in the `block` group.
+**Enabled detection:** mirrors the command's applicability — the selection's
+parent block is in the `block` group and the selection is not inside a `dl`
+(see `EditorCommands.spec.md` §3.5). The button reads this by querying the
+command (calling `toggleList(state)` without `dispatch`) or by an equivalent
+predicate, so the button's `disabled` state and the command's `false`
+result always agree.
 
 ### 5.4 Group: `link` — hyperlink
 
@@ -715,8 +692,9 @@ are the shared primitives.
 
 The existing `toggleList(view: EditorView, listType): boolean` takes an
 `EditorView` and dispatches up to two transactions (the cross-list-type
-case lifts then wraps in separate dispatches). This violates the §5.3
-contract. The refactor rewrites it to the pure single-transaction form:
+case lifts then wraps in separate dispatches). The refactor rewrites it to
+the pure single-transaction `Command` specified in
+[`EditorCommands.spec.md`](./EditorCommands.spec.md) §3:
 
 ```typescript
 export function toggleList(
@@ -731,8 +709,9 @@ one `state.tr`), no `EditorView`. The lists group's `run(view)` adapter
 then calls `toggleList(view.state, view.dispatch, listType)` and
 `view.focus()`. The pure command is relocated to
 `@metanorma/editor-commands` (`pkg/editor-commands/commands/toggleList.ts`)
-and re-exported from `@metanorma/prosemirror-editor` (§12); the toolbar
-adapter stays in `prosemirror-editor`.
+— owned by `EditorCommands.spec.md` §3 — and re-exported from
+`@metanorma/prosemirror-editor` (§12); the toolbar adapter stays in
+`prosemirror-editor`.
 
 ### 11.9 Step ordering and dependencies
 
