@@ -13,7 +13,7 @@ document tree at the `sections` / `clause` level.
 The base `MetanormaToolbar` handles inline marks, block wraps (`quote`,
 `note`, `example`), lists, and links. It deliberately does not touch the
 document's structural skeleton. This document specifies the buttons, commands,
-state detection, accessibility, and open questions for structural editing:
+state detection, and accessibility for structural editing:
 inserting clauses, promoting / demoting clauses through nesting levels, and
 changing the type of a section node — all against the content model defined in
 `@metanorma/prosemirror-schema`.
@@ -167,7 +167,7 @@ structural transformation (identity change at a fixed location) and lets the
 user migrate a `clause` into a `terms` / `references` block without retyping
 content. The ten raw section types are **not** each given a dedicated insert
 button — that would balloon the toolbar; instead type conversion is centralised
-in button 4 (see §10 open question on scope). Wrap/unwrap of arbitrary section
+in button 4 ("Change section type"). Wrap/unwrap of arbitrary section
 types beyond `clause` is deliberately left to "Change section type" + "Insert
 clause" composition.
 
@@ -256,7 +256,7 @@ The structural command logic lives in the **`@metanorma/editor-commands`**
 package, at `pkg/editor-commands/commands/sections.ts` — **not** in
 `pkg/prosemirror-editor`. The editor package (`@metanorma/prosemirror-editor`)
 re-exports them; the toolbar component and its view-holding adapters stay in
-`prosemirror-editor`. See §11 (exports) and §12 (file structure).
+`prosemirror-editor`. See §10 (exports) and §11 (file structure).
 
 #### Command contract conformance
 
@@ -713,24 +713,18 @@ carries the true depth to assistive tech. Depth is **derived**, not stored:
 it is recomputed whenever the clause's ancestors change (insert/promote/
 demote), so no command needs to maintain it.
 
-## 10. Open questions / unknowns
-
-These are genuine unresolved design questions, listed for review:
-
-(none remain — all questions resolved.)
-
-## 11. Export changes
+## 10. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/prosemirror-editor`; see the consolidated export listing
 in README §5.6. This feature adds no feature-specific export notes.
 
-## 12. File structure summary
+## 11. File structure summary
 
 See the consolidated file-structure summary in README §5.5. This feature adds
 no feature-specific structure notes.
 
-## 13. TypeScript constraints
+## 12. TypeScript constraints
 
 The project tsconfig enforces `strict`, `exactOptionalPropertyTypes`,
 `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, `module: node16` (per

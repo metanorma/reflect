@@ -265,7 +265,7 @@ externally-owned `EditorState`, but the host does not need to depend on
 `prosemirror-history` directly: everything required to add history to an
 externally-owned state is exported from `@metanorma/prosemirror-editor` — the
 `history` plugin factory + `HistoryOptions` type (§7), plus
-`DEFAULT_HISTORY_OPTIONS` and `buildUndoRedoKeymap` (§11.2). A controlled
+`DEFAULT_HISTORY_OPTIONS` and `buildUndoRedoKeymap` (§10.2). A controlled
 consumer composes its plugin list as e.g.
 `[…itsPlugins, history(DEFAULT_HISTORY_OPTIONS), buildUndoRedoKeymap()]`. A
 separate `buildDefaultPlugins()` helper is deliberately **not** added: it would
@@ -501,19 +501,13 @@ Feature-specific accessibility additions beyond the baseline (README §2.5 /
   user never needs to tab to the toolbar to undo. The buttons are nonetheless
   fully operable via `Enter` / `Space` (native `<button>` semantics).
 
-## 10. Open questions / unknowns
-
-Genuine unknowns to resolve before/while implementing:
-
-(none remain — all questions resolved.)
-
-## 11. Export and package changes
+## 10. Export and package changes
 
 The consolidated `index.ts` export listing for both packages lives in
 README §5.6; this section records only the **undo-redo-specific** additions
 not captured there.
 
-### 11.1 Runtime dependencies
+### 10.1 Runtime dependencies
 
 `prosemirror-history` is consumed by `@metanorma/editor-commands` (which
 re-exports `undo`/`redo`/`undoDepth`/`redoDepth`/`history`), and
@@ -549,7 +543,7 @@ and `HistoryOptions` in `state.ts`; those are re-exported through
 `@metanorma/editor-commands`, so `prosemirror-editor` can import everything
 from the one workspace package.
 
-### 11.2 Undo-redo-specific exports
+### 10.2 Undo-redo-specific exports
 
 Beyond the re-exported `undo`/`redo`/`undoDepth`/`redoDepth`/`history`/
 `HistoryOptions` (README §5.6), the editor package surface gains three
@@ -585,7 +579,7 @@ export type CreateInitialEditorStateOptions = {
 };
 ```
 
-### 11.3 New toolbar group
+### 10.3 New toolbar group
 
 `AdvancedMetanormaToolbar.tsx` extends `ToolbarGroup` to add `'history'`:
 
@@ -599,12 +593,12 @@ export type ToolbarGroup =
   | "history"; // ← undo / redo (this document)
 ```
 
-## 12. File structure summary
+## 11. File structure summary
 
 See the consolidated file-structure summary in README §5.5. This feature adds
 no feature-specific structure notes.
 
-## 13. TypeScript constraints
+## 12. TypeScript constraints
 
 All new code follows the project `tsconfig` (`strict`,
 `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`,

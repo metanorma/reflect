@@ -211,7 +211,7 @@ new `dt`.
   or a lone `dd` (without a preceding `dt`) violates `(dt dd)+`. The pair is
   the atomic unit of definition-list editing, so both controls operate on
   whole pairs. A future "split description" affordance (for multi-paragraph
-  `dd`) is listed as an open question (§10).
+  `dd`) is deferred to a later version, not part of v1.
 
 ## 5. Commands
 
@@ -637,20 +637,13 @@ Feature-specific accessibility additions beyond the baseline (README §2.5 /
   "exit dl" rule (§6.1 last row) is the escape route and must be testable
   with keyboard-only navigation.
 
-## 10. Open questions / unknowns
-
-These are genuine unresolved points; the recommendations above are defaults,
-not final decisions.
-
-(none remain — all questions resolved.)
-
-## 11. Export changes
+## 10. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/prosemirror-editor`; see the consolidated export listing
 in README §5.6. This feature adds no feature-specific export notes.
 
-## 12. File structure summary
+## 11. File structure summary
 
 See the consolidated file-structure summary in README §5.5. This feature
 adds no feature-specific structure notes.

@@ -25,7 +25,7 @@ migration narrative for bringing a legacy monolith into that shape (base spec
 §11); this spec does not reiterate that material.
 
 Each document in this directory specifies one of the deferred feature areas
-with a concrete implementation proposal and a list of open questions.
+with a concrete implementation proposal.
 
 ## 2. Conventions
 
@@ -188,7 +188,12 @@ export function AdvancedMetanormaToolbar({
 
 The base functionality is shared — `baseGroups` and `<Toolbar>` are the very
 same modules used by `MetanormaToolbar`. There is no second copy of the
-mark/block/list/link logic.
+mark/block/list/link logic. This shared-shell approach is chosen over two
+rejected alternatives: rendering `<MetanormaToolbar />` then appending groups
+(which yields two `.mn-toolbar` roots with uncoordinated `visibleGroups` and no
+way to interleave/reorder base and advanced groups), and copying the base
+groups into the advanced component (which violates the no-duplication goal and
+lets mark/list/link logic drift between the two components).
 
 #### 5.1.1 Advanced group modules
 
@@ -435,15 +440,7 @@ and the group modules — are intentionally internal (not exported from
 `index.ts`), consistent with base spec §12. Consumers use the two assembler
 components.
 
-### 5.7 Alternatives considered
-
-| Approach | Verdict |
-|---|---|
-| **A. `AdvancedMetanormaToolbar` renders `<MetanormaToolbar />` then appends groups** | ✗ Rejected. Produces two `.mn-toolbar` roots (double border/padding), two independent `visibleGroups` props that can't span the whole, and no way to interleave/reorder base and advanced groups. Also can't share a single ordered group list. |
-| **B. Copy the base groups into the advanced component** | ✗ Rejected. Violates the no-duplication goal; mark/list/link logic would drift between the two components. |
-| **C. Shared shell + group registry (§5.1)** | ✓ **Recommended.** Base groups and the rendering machinery live once (base spec §10); both components are thin assemblers over the same `<Toolbar>` shell. |
-
-### 5.8 Potential further developments
+### 5.7 Potential further developments
 
 - **`floating_title` insertion.** The `sections` group inserts only the ten
   `section`-group node types; the standalone `floating_title` block node (an

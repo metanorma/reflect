@@ -344,7 +344,7 @@ export interface StemPromptContext extends RefPromptContext {
 
 Pure command logic, defined in `@metanorma/editor-commands` at
 `pkg/editor-commands/commands/referenceMarks.ts`, and **re-exported** by
-`@metanorma/prosemirror-editor` (§11). A generic core command plus per-mark
+`@metanorma/prosemirror-editor` (§10). A generic core command plus per-mark
 wrappers, all conforming to the ProseMirror `Command` contract
 (`EditorCommands.spec.md` §1.5): each is `(state, dispatch?, …) => boolean`.
 
@@ -410,8 +410,9 @@ export function applyReferenceMark(
    `state.doc` and `state.selection` stay reference-equal and unchanged.
 
 For **empty selections** where content is required (see §7), the command
-returns `false`; the toolbar layer may instead choose to insert placeholder
-text first (open question, §10).
+returns `false`. Whether to insert placeholder text first is deliberately left
+to the toolbar adapter layer (a UI concern, not a command concern); the pure
+command itself never synthesises placeholder content.
 
 ### 6.2 Mark-specific wrappers
 
@@ -575,13 +576,7 @@ Feature-specific accessibility additions beyond the baseline
   via `data-*` for host styling without relying on `title`.
 - `aria-haspopup="dialog"` is set on trigger buttons that open a popover.
 
-## 10. Open questions / unknowns
-
-Genuine unknowns to resolve before/while implementing:
-
-(none remain — all questions resolved.)
-
-## 11. Export changes
+## 10. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/prosemirror-editor`; see the consolidated export listing in
@@ -622,12 +617,12 @@ export type ToolbarGroup =
   | "refs"; // ← reference / semantic marks (this document)
 ```
 
-## 12. File structure summary
+## 11. File structure summary
 
 See the consolidated file-structure summary in README §5.5. This feature adds
 no feature-specific structure notes.
 
-## 13. TypeScript constraints
+## 12. TypeScript constraints
 
 All new code follows the project tsconfig (`strict`,
 `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`,

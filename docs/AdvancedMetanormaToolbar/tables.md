@@ -59,8 +59,8 @@ it carries a `title`; the other five table nodes carry only `...DATA_ATTR`.
 | Command module | `pkg/editor-commands/commands/insertTable.ts` |
 | Popover / adapter component | `pkg/prosemirror-editor/TableSizePicker.tsx` (`InsertTableButton` + grid picker) |
 | Picker styles | `pkg/prosemirror-editor/table-picker.css` (imported side-effect) |
-| Commands barrel | `pkg/editor-commands/index.ts` (export `insertTable`, `canInsertTable`, `MAX_ROWS`, `MAX_COLS` — §10) |
-| Editor barrel | `pkg/prosemirror-editor/index.ts` (re-export the command; export `InsertTableButton` — §10) |
+| Commands barrel | `pkg/editor-commands/index.ts` (export `insertTable`, `canInsertTable`, `MAX_ROWS`, `MAX_COLS` — §9) |
+| Editor barrel | `pkg/prosemirror-editor/index.ts` (re-export the command; export `InsertTableButton` — §9) |
 | Schema source | `@metanorma/prosemirror-schema` (`metanormaSchema`, `DATA_ATTR`) |
 
 The pure `insertTable` command lives in the `@metanorma/editor-commands` package
@@ -550,25 +550,19 @@ the library. The custom command is therefore the standing approach; it may
 grow (e.g. cell merge/split, row/column add-remove) as separate hand-rolled
 commands as Metanorma table-editing needs emerge.
 
-## 9. Open questions / unknowns
-
-These are genuine design decisions left for the implementer / product owner:
-
-(none remain — all questions resolved.)
-
-## 10. Export changes
+## 9. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/prosemirror-editor`; see the consolidated export listing in
 README §5.6. This feature adds no feature-specific export notes.
 
-## 11. File-structure summary
+## 10. File-structure summary
 
 See the consolidated file-structure listing in README §5.5. The packages
 touched by this feature are `@metanorma/editor-commands` (pure command logic)
 and `@metanorma/prosemirror-editor` (React mount + toolbar adapter).
 
-## 12. TypeScript constraints
+## 11. TypeScript constraints
 
 The project tsconfig enforces `strict`, `exactOptionalPropertyTypes`,
 `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, `module: node16`. All new

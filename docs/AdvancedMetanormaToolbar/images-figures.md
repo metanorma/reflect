@@ -93,11 +93,11 @@ insert-only.)
 |---|---|
 | Command-logic package | `@metanorma/editor-commands` |
 | Command module | `pkg/editor-commands/commands/insertImage.ts` (pure command logic) |
-| Editor package (consumer) | `@metanorma/prosemirror-editor` — re-exports `insertImage`/`canInsertFigure` (§11) |
+| Editor package (consumer) | `@metanorma/prosemirror-editor` — re-exports `insertImage`/`canInsertFigure` (§10) |
 | Dialog / adapter component | `pkg/prosemirror-editor/ImageInsertDialog.tsx` (`InsertImageButton` + dialog; owns `EditorView`, async, DOM) |
 | Dialog styles | `pkg/prosemirror-editor/image-dialog.css` (imported side-effect) |
-| Public barrel (editor) | `pkg/prosemirror-editor/index.ts` (re-exports — §11) |
-| Public barrel (commands) | `pkg/editor-commands/index.ts` (command exports — §11) |
+| Public barrel (editor) | `pkg/prosemirror-editor/index.ts` (re-exports — §10) |
+| Public barrel (commands) | `pkg/editor-commands/index.ts` (command exports — §10) |
 | Schema source | `@metanorma/prosemirror-schema` (`metanormaSchema`, `assertValidImageAttrs`) |
 
 The split follows the `@metanorma/editor-commands` Command contract
@@ -625,19 +625,13 @@ the WAI-ARIA **dialog** pattern:
 - The dialog must not insert a full focus trap (it is `aria-modal="false"`); it
   relies on `Escape`/outside-click for dismissal.
 
-## 10. Open questions / unknowns
-
-Genuine design decisions left for the implementer / product owner:
-
-(none remain — all questions resolved.)
-
-## 11. Export changes
+## 10. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/prosemirror-editor`; see the consolidated export listing in
 README §5.6. This feature adds no feature-specific export notes.
 
-## 12. CSS classes
+## 11. CSS classes
 
 The dialog introduces feature-specific classes under the existing `mn-toolbar`
 prefix:
@@ -665,12 +659,12 @@ The stylesheet is plain CSS imported as a side-effect in `ImageInsertDialog.tsx`
 matching the base toolbar's `toolbar.css` convention and `tables.md`'s
 `table-picker.css`.
 
-## 13. File-structure summary
+## 12. File-structure summary
 
 See the consolidated file-structure summary in README §5.5. This feature adds
 no feature-specific structure notes.
 
-## 14. TypeScript constraints
+## 13. TypeScript constraints
 
 The project tsconfig enforces `strict`, `exactOptionalPropertyTypes`,
 `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, `module: node16`. All new
