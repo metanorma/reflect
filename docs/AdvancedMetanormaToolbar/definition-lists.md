@@ -144,6 +144,12 @@ function inDefinitionList($pos: ResolvedPos): boolean {
 }
 ```
 
+Prefer the shared utilities already exported from `@metanorma/editor-commands`
+(`pkg/editor-commands/schema.ts`): `isInside(schema, $pos, "dl")` or
+`nearestAncestorDepth($from, ["dl"])` cover this pattern with null-safe schema
+lookup under `noUncheckedIndexedAccess`. The hand-rolled loop above is shown
+for clarity; production code should use the shared helpers.
+
 **Enabled detection.** `dl` is in the `block` group, so it is legal wherever
 a block is accepted — top-level sections, clauses, table cells, list items,
 `dd` (nested), etc. The button is enabled when the parent's content

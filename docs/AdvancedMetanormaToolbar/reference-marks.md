@@ -149,13 +149,13 @@ Needs a `target`: the anchor/id of another element in the document. Three
 tiers of resolution, best available wins:
 
 1. **Doc-anchored picker (preferred).** A popover listing candidate targets.
-   The source is the set of ids already present in the document, harvested by
-   scanning `state.doc` for id-bearing nodes. The `id` attribute is present on
-   all section types (`clause`, `annex`, `foreword`, `introduction`,
-   `acknowledgements`, `terms`, `definitions`, `references` — via
-   `sectionAttrs()`), the containers (`preface`, `sections`, `bibliography` —
-   via `baseAttrs()`), `floating_title`, `figure`, `table`, `formula`,
-   `footnote_entry`, and `footnote_marker`. Since IDs are **generated at
+     The source is the set of ids already present in the document, harvested by
+     scanning `state.doc` for id-bearing nodes. The `id` attribute is present on
+     all section types (`clause`, `annex`, `content_section`, `abstract`,
+     `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`,
+     `references` — via `sectionAttrs()`), the containers (`preface`,
+     `sections`, `bibliography` — via `baseAttrs()`), `floating_title`,
+     `figure`, `table`, `formula`, `footnote_entry`, and `footnote_marker`.
    insertion time** by all node-insertion commands (the established convention),
    these `id` values are reliably populated in any document created by this
    editor — there is no separate "anchor" construct. Each entry shows a

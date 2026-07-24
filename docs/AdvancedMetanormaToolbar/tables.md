@@ -484,12 +484,17 @@ export function insertTable(
   const tr = state.tr;
   tr.replaceSelectionWith(table);
 
-  // Move the cursor into the first cell's empty paragraph.
-  // Position math: doc pos of table +1 (in table) +1 (in body)
-  //   +1 (in row) +1 (in cell) = start of the first cell's content.
-  const startPos = tr.selection.from;
-  const firstCellPos = startPos + 4; // table→body→row→cell = 4 open tags
-  tr.setSelection(TextSelection.near(tr.doc.resolve(firstCellPos), 1));
+  // Move the cursor into the first cell's empty paragraph. Resolve the table
+  // start from the post-replace selection and descend to the first table_cell,
+  // rather than hard-coding a position offset.
+  const $tableStart = tr.doc.resolve(tr.selection.from);
+  // After replaceSelectionWith the selection sits just past the inserted table;
+  // step back onto the table node and descend into its first cell.
+  const firstCell = $tableStart.nodeAfter?.firstChild?.firstChild?.firstChild;
+  if (firstCell) {
+    const firstCellPos = $tableStart.pos + 1; // into table
+    tr.setSelection(TextSelection.near(tr.doc.resolve(firstCellPos), 1));
+  }
 
   tr.scrollIntoView(); // user-initiated command (§1.7.3)
   dispatch(tr);        // exactly one transaction, dispatched once (§1.7.1)
@@ -511,13 +516,13 @@ const onCommit = (view, r, c) => {
 };
 ```
 
-**Position arithmetic.** `firstCellPos = startPos + 4` reflects four nested
-"enter node" offsets: `table` (+1), `table_body` (+1), `table_row` (+1),
-`table_cell` (+1). `TextSelection.near(..., 1)` resolves forward onto the
-empty paragraph's content start and is robust to small offsets; prefer it over
-hard-coded positions in production code. If `replaceSelectionWith` lands the
-table adjacent to a block rather than replacing it, recompute `startPos` from
-  `tr.doc.resolve` by searching forward for the first `table_cell`.
+**Position arithmetic.** Rather than hard-coding a fixed offset (the table
+structure is `table → table_body → table_row → table_cell`, which is four
+"enter node" positions), the command resolves the first `table_cell` from the
+post-replace document and sets the selection via `TextSelection.near`. This is
+robust to `replaceSelectionWith` landing the table adjacent to a block rather
+than replacing one, and survives any future addition of a `table_head` section
+(which would shift the offset).
 
 ### 8.4 Why a single `table_body`
 

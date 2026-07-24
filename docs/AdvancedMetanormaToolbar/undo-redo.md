@@ -427,9 +427,9 @@ export type { HistoryOptions } from "./commands/history.js";
 
 `prosemirror-history` groups transactions into undoable units using two
 mechanisms: `newGroupDelay` (a time window, configured in §4.1) and explicit
-`tr.setMeta(historyPluginKey, { rebasedOver })` / the `addToHistory` meta flag.
-The recommendation for the first implementation is to **rely solely on
-`newGroupDelay`** and do no manual grouping. Specifically:
+`addToHistory` meta (`tr.setMeta("addToHistory", false)`). The recommendation
+for the first implementation is to **rely solely on `newGroupDelay`** and do no
+manual grouping. Specifically:
 
 - Do **not** set `addToHistory: false` on any toolbar transaction. Every
   toolbar operation (mark toggle, list insert, table insert, etc.) should be
@@ -444,10 +444,11 @@ inserts a `footnote_entry` and applies a mark). If those are dispatched as
 separate transactions within the same `newGroupDelay` window they collapse
 into one undo step already — which is the desired behaviour. No special
 handling is required unless a feature explicitly wants its sub-steps to be
-separately undoable, in which case it should call
-`view.dispatch(tr.setMeta("history$odom", ...))` or set `newGroupDelay`-aware
-grouping. That is deferred to the relevant feature doc; this document takes no
-position beyond "default grouping is fine".
+separately undoable, in which case it should set
+`tr.setMeta("addToHistory", false)` on intermediate steps (the actual
+prosemirror-history meta key is `"addToHistory"`). That is deferred to the
+relevant feature doc; this document takes no position beyond "default grouping
+is fine".
 
 **Async-prompted transactions start a new group — and that is correct.** Some
 sibling features (e.g. reference marks) collect attributes via an async dialog
