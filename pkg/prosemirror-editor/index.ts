@@ -15,7 +15,7 @@ export type { MetanormaProseMirrorProps } from "./MetanormaProseMirror.js";
 
 export { MetanormaToolbar } from "./MetanormaToolbar.js";
 export type { MetanormaToolbarProps, ToolbarGroup } from "./MetanormaToolbar.js";
-export { toggleList } from "./commands/toggleList.js";
+export { toggleList } from "@metanorma/editor-commands";
 
 export type { MirrorDocument, MirrorMark } from "./types.js";
 

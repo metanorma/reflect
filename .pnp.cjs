@@ -585,6 +585,7 @@ const RAW_RUNTIME_STATE =
           ["prosemirror-model", "npm:1.25.11"],\
           ["prosemirror-schema-list", "npm:1.5.1"],\
           ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-transform", "npm:1.12.0"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
         ],\
         "linkType": "SOFT"\
@@ -595,6 +596,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./pkg/prosemirror-editor/",\
         "packageDependencies": [\
           ["@handlewithcare/react-prosemirror", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:3.2.7"],\
+          ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
           ["@metanorma/prosemirror-editor", "workspace:pkg/prosemirror-editor"],\
           ["@metanorma/prosemirror-schema", "workspace:pkg/prosemirror-schema"],\
           ["@types/react", "npm:19.2.14"],\

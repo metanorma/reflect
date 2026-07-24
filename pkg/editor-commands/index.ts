@@ -25,3 +25,6 @@ export { enterDefinitionList } from "./commands/enterDefinitionList.js";
 export { exitContainerBlock } from "./commands/exitContainerBlock.js";
 export { createParagraphNear } from "./commands/createParagraphNear.js";
 export { insertSoftBreak } from "./commands/insertSoftBreak.js";
+
+// List toggling (spec §3).
+export { toggleList } from "./commands/toggleList.js";

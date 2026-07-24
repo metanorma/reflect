@@ -12,7 +12,8 @@
     "prosemirror-commands": "^1.7.1",
     "prosemirror-model": "^1.22.0",
     "prosemirror-schema-list": "^1.4.0",
-    "prosemirror-state": "^1.4.4"
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-transform": "^1.12.0"
   },
   "devDependencies": {
     "typescript": "~6.0.3"

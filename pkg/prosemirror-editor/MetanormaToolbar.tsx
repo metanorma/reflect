@@ -22,7 +22,7 @@ import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 
 import { metanormaSchema } from "@metanorma/prosemirror-schema";
-import { toggleList } from "./commands/toggleList.js";
+import { toggleList } from "@metanorma/editor-commands";
 import "./toolbar.css";
 
 // ---------------------------------------------------------------------------
@@ -229,9 +229,12 @@ function buildButtons(
         label,
         title,
         isActive: (state) => isListActive(state, node),
-        isEnabled: isBlockContext,
+        // Mirror the command's applicability (incl. the dl guard —
+        // EditorCommands §3.5 / MetanormaToolbar §5.3).
+        isEnabled: (state) => toggleList(state, undefined, node),
         run: (view) => {
-          toggleList(view, node);
+          toggleList(view.state, view.dispatch, node);
+          view.focus();
         },
       };
     },
