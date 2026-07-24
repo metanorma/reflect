@@ -98,3 +98,37 @@ transactions through the `@handlewithcare/react-prosemirror` context.
 | 10 | [Export changes](./MetanormaToolbar.spec.md#10-export-changes) |
 | 11 | [File structure summary](./MetanormaToolbar.spec.md#11-file-structure-summary) |
 | 12 | [TypeScript constraints](./MetanormaToolbar.spec.md#12-typescript-constraints) |
+
+---
+
+### [`AdvancedMetanormaToolbar/`](./AdvancedMetanormaToolbar/README.md) — Advanced Toolbar Features
+
+Defines **`AdvancedMetanormaToolbar`**, a superset of `MetanormaToolbar` that
+picks up the six feature areas deferred by
+`MetanormaToolbar.spec.md` §5.5: tables, images/figures, section/clause nesting,
+reference marks, definition lists, and undo/redo. Like `MetanormaToolbar`, it
+renders as a **child** of `MetanormaProseMirror`; it reuses the base groups
+without duplication via a shared `<Toolbar>` shell + group registry, and adds
+the advanced groups after them. The index below covers the shared architecture,
+conventions, and command-layering rules; each feature is then specified in its
+own document.
+
+| § | Section |
+|---|---|
+| 1 | [Relationship to `MetanormaToolbar`](./AdvancedMetanormaToolbar/README.md#1-relationship-to-metanormatoolbar) |
+| 2 | [Conventions](./AdvancedMetanormaToolbar/README.md#2-conventions) |
+| 3 | [Document map](./AdvancedMetanormaToolbar/README.md#3-document-map) |
+| 4 | [Schema reference (shared)](./AdvancedMetanormaToolbar/README.md#4-schema-reference-shared) |
+| 5 | [Composition with `MetanormaToolbar`](./AdvancedMetanormaToolbar/README.md#5-composition-with-metanormatoolbar) |
+| 6 | [Command layering (alignment with `EditorCommands.spec.md`)](./AdvancedMetanormaToolbar/README.md#6-command-layering-alignment-with-editorcommandsspecmd) |
+
+#### Feature documents
+
+| Document | Feature area |
+|---|---|
+| [`tables.md`](./AdvancedMetanormaToolbar/tables.md) | Table insertion with row/column dimension selection UI |
+| [`images-figures.md`](./AdvancedMetanormaToolbar/images-figures.md) | Image/figure insertion, URL/upload, `assertValidImageAttrs` |
+| [`sections.md`](./AdvancedMetanormaToolbar/sections.md) | Section/clause nesting structural operations |
+| [`reference-marks.md`](./AdvancedMetanormaToolbar/reference-marks.md) | `xref`, `eref`, `concept`, `bcp14` marks + `footnote_marker`, `stem` inline nodes |
+| [`definition-lists.md`](./AdvancedMetanormaToolbar/definition-lists.md) | `dl`/`dt`/`dd` insertion logic |
+| [`undo-redo.md`](./AdvancedMetanormaToolbar/undo-redo.md) | Undo/redo via `prosemirror-history` |
