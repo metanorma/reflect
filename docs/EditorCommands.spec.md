@@ -178,7 +178,7 @@ account for them:
 | The inline line-break node is named `soft_break` (not `hardBreak`) | Any line-break command must insert `schema.nodes.soft_break`, not reference a `hardBreak` type. |
 | Definition lists use `dl` = `(dt dd)+` with `dt` (`inline*`) / `dd` (`block+`) | There is **no** upstream command for this model; definition-list flow is fully custom and must preserve the `(dt dd)+` pairing invariant. |
 | `sourcecode` has `code: true` | Code-newline behaviour applies inside `sourcecode`; stock code-newline detection works because `code: true` is honoured by `EditorState`. |
-| A defined set of **atom** nodes (`image`, `formula`, `floating_title`, `footnote_marker`, `soft_break`) has `content: ""` | The cursor can never be *inside* these; commands must handle node-selections on and adjacency to atoms via `createParagraphNear`-style logic rather than attempting to split them. |
+| A defined set of **atom** nodes (`image`, `formula`, `floating_title`, `footnote_marker`, `soft_break`, `stem`) has `content: ""` | The cursor can never be *inside* these; commands must handle node-selections on and adjacency to atoms via `createParagraphNear`-style logic rather than attempting to split them. |
 | Optional attrs default to `null`; the catch-all `data` attr exists on every node/mark | Commands that create nodes should rely on schema defaults (omit unset attrs) rather than constructing explicit `null`/`{}` attr maps, so `data` and defaults are preserved consistently. |
 
 Individual commands' detailed behaviour with respect to these facts is specified
@@ -624,7 +624,7 @@ behaviour:
    produced by Enter contains two adjacent `dt` nodes or two adjacent `dd`
    nodes, nor a trailing `dt` without a `dd`.
 3. **Atoms are never split or entered.** `image`, `formula`, `floating_title`,
-   `footnote_marker`, `soft_break` are never given content; Enter beside one
+   `footnote_marker`, `soft_break`, `stem` are never given content; Enter beside one
    creates an adjacent paragraph instead.
 4. **No transaction leaves the selection on a forbidden position.** After any
    structural step the selection resolves to a valid cursor (typically via

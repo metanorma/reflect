@@ -86,8 +86,9 @@ The schema defines `footnote_marker` and `stem` as inline atom nodes (`content: 
   Presentation XML's `<fn>` element — an inline element at the reference site
   (not a text-wrapping mark). The `footnote` mark exists in the schema but is
   unused by the toolbar. See §5.5.
-- `stem` (attrs `{ asciimath, mathml, data }`) is an inline formula atom —
-  the math source lives in attrs, not as wrapped text. This makes host-
+- `stem` (attrs `{ type, asciimath, mathml, data }`) is an inline formula atom —
+  the math source lives in the `asciimath`/`mathml` attrs (selected by the
+  `type` discriminator — schema §17.2), not as wrapped text. This makes host-
   provided live math preview possible via node-view override (like block
   `formula`). The former `stem` mark has been **removed** from the schema;
   `stem` is now solely a node. See §5.6.
@@ -284,14 +285,16 @@ non-blocking.
 
 ### 5.6 `stem` — inline formula node insertion
 
-`stem` is an **inline atom node** (not a mark), with attrs `asciimath` and
-`mathml` storing the formula source. The math source lives in the node's attrs,
-not as wrapped text — this makes host-provided live math preview possible via
-node-view override (the same mechanism as block `formula`). The default UI is a
-small **formula-edit popover**: a notation selector (`asciimath` / `mathml`)
-plus a text area for the source, with an optional live preview (if the host
-supplies a renderer). On commit, a `stem` node is inserted at the cursor with
-the chosen notation attr set.
+`stem` is an **inline atom node** (not a mark), with a `type` discriminator
+( enum `"asciimath"` | `"mathml"`, default `"asciimath"`) and `asciimath` /
+`mathml` attrs storing the formula source for each encoding (only the
+`type`-selected one is authoritative on export — schema §17.2). The math source
+lives in the node's attrs, not as wrapped text — this makes host-provided live
+math preview possible via node-view override (the same mechanism as block
+`formula`). The default UI is a small **formula-edit popover**: a notation
+selector (`asciimath` / `mathml`) plus a text area for the source, with an
+optional live preview (if the host supplies a renderer). On commit, a `stem`
+node is inserted at the cursor with the chosen notation attr set.
 
 ```typescript
 /** Resolve a stem formula (notation + source). Default: minimal popover. Return null to cancel. */

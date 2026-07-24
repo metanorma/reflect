@@ -39,7 +39,7 @@ defined in `pkg/prosemirror-schema/nodes.ts` §8.6). The relevant fragment:
 
 | Node | Content | Group | Atom | Draggable | Attrs |
 |---|---|---|---|---|---|
-| `figure` | `(image \| block)*` | `block` | no | — | `id`, `number`, `title`, `src` (all default `null`), plus `data` (default `{}`) |
+| `figure` | `(image \| block)*` | `block` | no | — | `id`, `number`, `title` (all default `null`), plus `data` (default `{}`) |
 | `image` | *(empty)* | **none** | yes | yes | `src` (default `""`), `alt` (default `null`), plus `data` (default `{}`) |
 
 Three consequences drive the entire design:
@@ -59,12 +59,12 @@ Three consequences drive the entire design:
    and returning `false` if invalid (§6.2 step 3). This is exactly the concern
    the base spec's §5.5 anticipated.
 3. **`figure` and `image` split attribute responsibility.** `figure` owns
-   `title` (the caption) and retains `src`; it has **no `alt`**. `image` owns
-   `alt` (the a11y text) and its own `src`; it has **no `title`**. There is
-   therefore **no duplicated `alt`** to mirror or ignore — the two nodes carry
-   disjoint caption/a11y attributes by design. The rendered image attributes
-   (`src`, `alt`) live on the `image` child; `figure` renders only
-   `class="figure"` and `data-id`.
+   `title` (the caption); it has **no `alt`** and **no `src`** (`src` lives only
+   on the `image` child — see schema §17.1). `image` owns `alt` (the a11y text)
+   and `src`; it has **no `title`**. There is therefore **no duplicated `alt`**
+   to mirror or ignore — the two nodes carry disjoint caption/a11y/source
+   attributes by design. The rendered image attributes (`src`, `alt`) live on
+   the `image` child; `figure` renders only `class="figure"` and `data-id`.
 
 The guard, exported from both `@metanorma/prosemirror-schema` and
 `@metanorma/prosemirror-editor`:
@@ -373,8 +373,8 @@ required.
        — the atom leaf carrying the rendered `src`/`alt`.
      - `figure = state.schema.nodes.figure.create({ id: generateId() }, [image])`
        — the block wrapper; the `figure` carries a **generated `id`** for
-       cross-referencing. `number`/`title`/`src`/`data` default to their
-        schema values (`figure` has no `alt` attribute — §2).
+         cross-referencing. `number`/`title`/`data` default to their
+          schema values (`figure` has no `alt` and no `src` attribute — §2).
        `generateId()` is the shared helper from `@metanorma/editor-commands`
        (`util.ts`).
 6. **Insert.** `tr = state.tr.replaceSelectionWith(figure)`.
