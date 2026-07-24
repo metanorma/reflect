@@ -149,14 +149,14 @@ seam. Concretely, the current implementation contains:
 
 | Current location (in `MetanormaToolbar.tsx`) | What it is | Visibility |
 |---|---|---|
-| `ToolbarButton` interface (`:61`) | The button descriptor (`key/label/title/isActive/isEnabled/run`) | **private** — not exported |
-| `ToolbarButtonView` function component (`:283`) | Renders one button; subscribes to state; dispatches via `useEditorEventCallback` | **private** — not exported |
-| `buildButtons()` factory (`:163`) | Builds all four groups' descriptors in one function, returns `Record<ToolbarGroup, readonly ToolbarButton[]>` | private |
-| `GROUP_ORDER` constant (`:311`) | Hardcoded `["marks","blocks","lists","link"]` ordering | private |
-| Predicates (`:97`–`152`) | `activeMarkTypes`, `isInlineContext`, `isBlockContext`, `isMarkActive`, `isListActive`, `isBlockWrapActive` | private |
-| `requireMark` / `requireNode` (`:74`) | Schema name-resolution guards | private |
-| `defaultLinkPrompt` (`:285`) | `window.prompt` fallback for the link group | private |
-| Render body (`:343`) | Inlined group iteration, divider insertion, `visibleGroups` filtering | private |
+| `ToolbarButton` interface | The button descriptor (`key/label/title/isActive/isEnabled/run`) | **private** — not exported |
+| `ToolbarButtonView` function component | Renders one button; subscribes to state; dispatches via `useEditorEventCallback` | **private** — not exported |
+| `buildButtons()` factory | Builds all four groups' descriptors in one function, returns `Record<ToolbarGroup, readonly ToolbarButton[]>` | private |
+| `GROUP_ORDER` constant | Hardcoded `["marks","blocks","lists","link"]` ordering | private |
+| Predicates (`activeMarkTypes`, `isInlineContext`, `isBlockContext`, `isMarkActive`, `isListActive`, `isBlockWrapActive`) | State-reading predicate functions | private |
+| `requireMark` / `requireNode` | Schema name-resolution guards | private |
+| `defaultLinkPrompt` | `window.prompt` fallback for the link group | private |
+| Render body | Inlined group iteration, divider insertion, `visibleGroups` filtering | private |
 
 The `commands/` directory contains only `toggleList.ts`, whose signature is
 `toggleList(view: EditorView, listType): boolean` — it takes an `EditorView`
@@ -267,7 +267,7 @@ export interface ToolbarProps {
 
 The shell iterates `groups`, skips any whose `visibleGroups[id] === false`,
 and inserts a `.mn-toolbar-divider` between visible groups — the logic
-currently inlined in `MetanormaToolbar`'s render body (`:343`). For each entry
+currently inlined in `MetanormaToolbar`'s render body. For each entry
 it renders `<ToolbarButtonView>` (for `kind: "button"`) or the control's node
 (for `kind: "control"`). It reuses the `mn-toolbar*` CSS classes from
 `MetanormaToolbar.spec.md` §8 unchanged.
@@ -361,39 +361,39 @@ move with it unchanged.
 
 #### 5.5.4 Step 3 — Extract the `<Toolbar>` shell to `toolbar/Toolbar.tsx`
 
-Move the render-body logic currently inlined in `MetanormaToolbar` (`:343`:
-the group iteration, the `GROUP_ORDER`-driven loop, the divider insertion, and
+Move the render-body logic currently inlined in `MetanormaToolbar`
+(the group iteration, the `GROUP_ORDER`-driven loop, the divider insertion, and
 the `visibleGroups` filtering) into a new generic `<Toolbar>` component
 (`pkg/prosemirror-editor/toolbar/Toolbar.tsx`) with the `ToolbarProps`
 signature from §5.3.3. The shell renders `<ToolbarButtonView>` for each
 `ToolbarButtonEntry`. After this step, `MetanormaToolbar`'s render body is a
 single `<Toolbar …/>` call.
 
-The `GROUP_ORDER` constant (`:311`) is **retired** — ordering now comes from
+The `GROUP_ORDER` constant is **retired** — ordering now comes from
 the `groups` array passed to `<Toolbar>`, so a hardcoded order is no longer
 needed.
 
 #### 5.5.5 Step 4 — Split `buildButtons()` into four group modules
 
-The current `buildButtons()` factory (`:163`) builds all four groups in one
+The current `buildButtons()` factory builds all four groups in one
 function. Split it into one module per group under `toolbar/groups/`:
 
 | Target module | Extracted from `buildButtons()` | Predicates it absorbs |
 |---|---|---|
-| `marksGroup.tsx` | the `markSpecs` array + mark-button loop (`:167`) | `activeMarkTypes`, `isMarkActive`, `isInlineContext` |
-| `blocksGroup.tsx` | the `blockSpecs` array + block-button loop (`:184`) | `isBlockWrapActive`, `isBlockContext` |
-| `listsGroup.tsx` | the `listSpecs` array + list-button loop (`:200`) | `isListActive` |
-| `linkGroup.tsx` | the `link` button (`:216`) + `defaultLinkPrompt` (`:285`) | (uses `isMarkActive`, `isInlineContext`) |
+| `marksGroup.tsx` | the `markSpecs` array + mark-button loop | `activeMarkTypes`, `isMarkActive`, `isInlineContext` |
+| `blocksGroup.tsx` | the `blockSpecs` array + block-button loop | `isBlockWrapActive`, `isBlockContext` |
+| `listsGroup.tsx` | the `listSpecs` array + list-button loop | `isListActive` |
+| `linkGroup.tsx` | the `link` button + `defaultLinkPrompt` | (uses `isMarkActive`, `isInlineContext`) |
 
 Each module exports a `ToolbarGroupDef`. Shared predicates used by more than
 one group (`isInlineContext`, `isBlockContext`, `isMarkActive`,
 `activeMarkTypes`) move to a small `toolbar/predicates.ts` (or
 `toolbar/types.ts`) and are imported by the group modules. The
-`requireMark`/`requireNode` schema guards (`:74`) move alongside them.
+`requireMark`/`requireNode` schema guards move alongside them.
 
 The link group is parameterised by the prompt callback: `linkGroup` becomes a
 factory `(onLinkPrompt) => ToolbarGroupDef` so it can read the latest prop —
-the current code achieves this via a ref + lazy getter (`:345`); the extracted
+the current code achieves this via a ref + lazy getter; the extracted
 module preserves that pattern.
 
 #### 5.5.6 Step 5 — Create `baseGroups` and reduce `MetanormaToolbar` to an assembler
