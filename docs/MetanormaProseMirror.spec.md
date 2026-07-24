@@ -5,8 +5,8 @@ This spec defines the React component package that wraps the
 library and binds it to the Metanorma Mirror schema defined in
 [`schema.spec.md`](./schema.spec.md).
 
-**Spec version:** 1
-**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v1
+**Spec version:** 2
+**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v2
 
 **Pinned integration library:** `@handlewithcare/react-prosemirror` **exactly
 `3.2.7`**. No other version is permitted. React ProseMirror releases are tightly
@@ -314,7 +314,7 @@ Default registered node views (node type → component):
 |---|---|---|
 | `image` | `ImageNodeView` | Atom leaf, `draggable`; displays `src`/`alt`; leaf (no `contentDOMRef`). |
 | `figure` | `FigureNodeView` | Wraps its `image` child + caption blocks; forwards `contentDOMRef`. |
-| `formula` | `FormulaNodeView` | Atom leaf; renders math placeholders from `asciimath`/`mathml`/`math_text` attrs. |
+| `formula` | `FormulaNodeView` | Atom leaf; renders math placeholder from the `asciimath`/`mathml` attr selected by the `type` attr. |
 | `floating_title` | `FloatingTitleNodeView` | Atom block leaf; renders `title` attr text. |
 | `sourcecode` | `SourcecodeNodeView` | `text*` container; renders `<pre><code>` with `language-${language}` class; forwards `contentDOMRef`. |
 
@@ -347,9 +347,12 @@ and `text`. The component must not register node views for these by default.
   element (use `useMergedDOMRefs`).
 
 #### `FormulaNodeView`
-- Atom leaf; renders `<div class="formula" data-number={number}>` with the
-  `asciimath`/`mathml` text as visible placeholder content. Math **rendering** is
-  out of scope (schema §16); this view only surfaces the stored attributes.
+- Atom leaf; renders `<div class="formula" data-type={type} data-number={number}>`
+  with the math text from the **`type`-selected** attribute (`asciimath` when
+  `type === "asciimath"`, `mathml` when `type === "mathml"`) as visible
+  placeholder content. The non-selected attribute, if populated, is ignored by
+  this view. Math **rendering** is out of scope (schema §16); this view only
+  surfaces the stored attributes (schema v2 §17.2).
 
 #### `FloatingTitleNodeView`
 - Atom block leaf; renders `<div class="floating-title" data-id={id}>{title}</div>`
