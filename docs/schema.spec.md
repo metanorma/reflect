@@ -46,6 +46,13 @@ XML value is required but cannot be derived from anything the editor models
 (e.g. `mimetype`, `reviewer`, `depth`), the converter may **invent** a default,
 but such invention is a schema limitation, surfaced in §17.
 
+Four dual-source-of-truth issues are resolved in this spec so that conversion is
+unambiguous: `figure.src` lives only on the `image` child (§17.1); `formula` and
+`stem` carry a `type` discriminator selecting the authoritative encoding
+(§17.2); the `concept` mark carries a `kind` discriminator selecting the
+reference-element type (§17.3); and footnote references use a single
+`footnote_marker` node, with no competing `footnote` mark (§3.2).
+
 ---
 
 ## 2. Module layout
@@ -97,11 +104,18 @@ schema- definition time (`toDOM`/`parseDOM` describe structure only).
 > `NodeAttrsByType`. It is modelled as a **block leaf** whose visible text lives
 > in its `title` attribute (§8.4).
 
-### 3.2 Mark types (15)
+### 3.2 Mark types (14)
 
 `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`,
-`strike`, `smallcap`, `link`, `xref`, `eref`, `footnote`, `concept`,
-`bcp14`, `span`.
+`strike`, `smallcap`, `link`, `xref`, `eref`, `concept`, `bcp14`, `span`.
+
+> Footnote references are modelled by the `footnote_marker` **inline node**
+> (§3.1, §8.7), which directly mirrors the inline Presentation-XML `<fn>`
+> element (body co-located at the reference site). There is **no** `footnote`
+> mark: an earlier draft carried both representations, which created a dual
+> source of truth for the same fact — a converter could not decide which was
+> authoritative. The mark has been removed to keep conversion unambiguous
+> (§1.1).
 
 ---
 
@@ -196,7 +210,7 @@ following rules:
 | `table_cell` | `colspan` (default `1`), `rowspan` (default `1`) | `TableCellAttrs` |
 | `image` | `src` (default `""`), `alt` | `ImageAttrs` (`src` required in TS → default `""` + runtime validation) |
 | `admonition` | `type` | `AdmonitionAttrs` |
-| `sourcecode` | `text`, `language` | `SourcecodeAttrs` |
+| `sourcecode` | `language` | `SourcecodeAttrs` (the `text` field of `SourcecodeAttrs` is dropped — the code text lives in the node's `text*` content, not an attribute; carrying both would be a dual source of truth on conversion, §1.1) |
 | `ordered_list` | `order` (default `1`) | open (`Record<string, unknown>`) |
 | `footnote_entry` | `id`, `number` | open |
 | `footnote_marker` | `id`, `target` | open |
@@ -211,11 +225,10 @@ following rules:
 
 | Mark | Declared attributes (beyond `data`) | Source |
 |---|---|---|
-| `link` | `href`, `target` | `LinkMarkAttrs` |
+| `link` | `href` | `LinkMarkAttrs` (`target` is dropped — Presentation-XML `<link>` carries a single required `target` URL, and `href` is that URL; a second URL-shaped attr would be a dual source of truth, §1.1) |
 | `xref` | `target` | `XrefMarkAttrs` |
 | `eref` | `cite` | open — the external citation key |
-| `footnote` | `id` | open — references `footnote_entry.id` |
-| `concept` | `ref` | open — concept reference |
+| `concept` | `ref`, `kind` (enum `"eref" \| "xref" \| "termref"`, default `"xref"`) | open — `ref` is the concept reference; `kind` discriminates the Presentation-XML child element emitted on export (`<eref>` / `<xref>` / `<termref>`). Without `kind`, a flat `ref` cannot tell the converter which reference type to emit and conversion is ambiguous (§1.1). `erefstack` (a stack of erefs, the fourth XML choice) is not supported — folded into `eref`. |
 | `bcp14` | `type` | open — BCP 14 keyword (e.g. `"MUST"`) |
 | `span` | `class` | open — generic span class |
 | `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`, `strike`, `smallcap` | *(none beyond `data`)* | boolean-style marks |
@@ -227,7 +240,7 @@ following rules:
 | Mark | `inclusive` | Notes |
 |---|---|---|
 | `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`, `strike`, `smallcap` | `true` (default) | Formatting continues while typing. |
-| `link`, `xref`, `eref`, `footnote`, `concept`, `bcp14`, `span` | `false` | Reference/semantic marks do **not** extend on typing. |
+| `link`, `xref`, `eref`, `concept`, `bcp14`, `span` | `false` | Reference/semantic marks do **not** extend on typing. |
 
 `code` is modelled as **non-exclusive** (it may co-exist with other marks) to
 match the open mark model of `types.ts`; no `excludes` is set on any mark.
@@ -372,11 +385,10 @@ with the mark tag and `0` (content hole), and `parseDOM` uses the tag.
 
 | Mark | Attrs | `toDOM` | `parseDOM` |
 |---|---|---|---|
-| `link` | `href`, `target` | `["a", {href, target}, 0]` (function; omit attrs when null) | `[{tag: "a[href]", getAttrs: el => ({ href: el.getAttribute("href"), target: el.getAttribute("target") })}]` |
+| `link` | `href` | `["a", {href}, 0]` (function; omit attr when null) | `[{tag: "a[href]", getAttrs: el => ({ href: el.getAttribute("href") })}]` |
 | `xref` | `target` | `["a", {class: "xref", "data-target": target}, 0]` (function) | `[{tag: "a.xref", getAttrs: el => ({ target: el.getAttribute("data-target") })}]` |
 | `eref` | `cite` | `["cite", {class: "eref", "data-cite": cite}, 0]` (function) | `[{tag: "cite.eref", getAttrs: el => ({ cite: el.getAttribute("data-cite") })}]` |
-| `footnote` | `id` | `["sup", {class: "footnote", "data-id": id}, 0]` (function) | `[{tag: "sup.footnote", getAttrs: el => ({ id: el.getAttribute("data-id") })}]` |
-| `concept` | `ref` | `["span", {class: "concept", "data-ref": ref}, 0]` (function) | `[{tag: "span.concept", getAttrs: el => ({ ref: el.getAttribute("data-ref") })}]` |
+| `concept` | `ref`, `kind` | `["span", {class: "concept", "data-ref": ref, "data-kind": kind}, 0]` (function) | `[{tag: "span.concept", getAttrs: el => ({ ref: el.getAttribute("data-ref"), kind: el.getAttribute("data-kind") ?? "xref" })}]` |
 | `bcp14` | `type` | `["span", {class: "bcp14", "data-type": type}, 0]` (function) | `[{tag: "span.bcp14", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
 | `span` | `class` | `["span", {class}, 0]` (function) | `[{tag: "span[data-class]", getAttrs: el => ({ class: el.getAttribute("data-class") }), priority: 1}]` |
 
@@ -400,7 +412,7 @@ export const metanormaSchema = new Schema({
 ```
 
 `nodes` **must** contain exactly the 43 names in §3.1 (including `text`, which
-ProseMirror requires). `marks` **must** contain exactly the 15 names in §3.2.
+ProseMirror requires). `marks` **must** contain exactly the 14 names in §3.2.
 The spec order is not semantically significant but should follow the group order
 in §3 for readability.
 
@@ -420,7 +432,7 @@ export const metanormaMarks: Record<string, MarkSpec>;
 
 /** Convenience lookups derived from the schema. */
 export const NODE_NAMES: readonly string[];   // 43 entries, in §3.1 order
-export const MARK_NAMES: readonly string[];   // 15 entries, in §3.2 order
+export const MARK_NAMES: readonly string[];   // 14 entries, in §3.2 order
 
 /** Runtime guard for image insertion (§6.1). */
 export function assertValidImageAttrs(attrs: { src?: unknown }): asserts attrs is { src: string };
@@ -441,8 +453,11 @@ reduces to:
 2. **`toJSON`** of a node loaded from a `MirrorDocument` reproduces the same
    `type`, the same typed attribute values, and the same extra keys (via
    `data`). `marks`, `content`, and `text` round-trip identically.
-3. The 43 node names and 15 mark names in the schema are **exactly** the
-   members of the `MirrorNodeType` union and `MirrorMarkType` constant.
+3. The 43 node names and 14 mark names in the schema are the editor-side
+   vocabulary. They are derived from (but not identical to) the `MirrorNodeType`
+   union and `MirrorMarkType` constant of `types.ts`: the `footnote` mark is
+   dropped in favour of the `footnote_marker` node (§3.2), and `stem` is
+   reclassified from mark to node (§3.1).
 
 > Because `data` is itself a JSON object, deeply nested extra attributes survive
 > the round-trip. The module **must not** flatten `data` into top-level attrs on
@@ -472,7 +487,7 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 1. `yarn workspace @metanorma/prosemirror-schema compile` succeeds with **zero**
    TypeScript errors under the repo tsconfig.
 2. `metanormaSchema.spec.nodes` contains **exactly** the 43 names in §3.1 and
-   `metanormaSchema.spec.marks` contains **exactly** the 15 names in §3.2
+   `metanormaSchema.spec.marks` contains **exactly** the 14 names in §3.2
    (asserted by a unit test against `NODE_NAMES` / `MARK_NAMES`).
 3. For every node type `T` with a typed attribute interface, constructing
    `metanormaSchema.nodeFromJSON({ type: T, attrs: {...all typed fields...} })`
@@ -573,7 +588,26 @@ preview but is **ignored on export**. This removes the previous ambiguity where
 parallel, simultaneously-populated `asciimath` and `mathml` attributes had no
 defined winner.
 
-### 17.3 Values the converter must invent (schema coverage gaps)
+### 17.3 `concept` carries a `kind` discriminator
+
+Presentation-XML `<concept>` (isodoc) expresses its reference as a **choice of
+child elements** — `<eref>` (bibliographic definition), `<xref>` (definition in
+the current document), or `<termref>` (definition in a termbase). Each maps to a
+different output element, so a single flat reference string cannot tell the
+converter which one to emit.
+
+The `concept` mark therefore declares a `kind` attribute (enum: `"eref"` |
+`"xref"` | `"termref"`, default `"xref"`) alongside `ref` (§6.2, §9.2). `kind`
+selects the XML child element; `ref` supplies the pointer value
+(`<eref citeas>` / `<xref target>` / `<termref target>`). The default of
+`"xref"` keeps export deterministic even when `kind` is unset, so the
+internal-concept-definition case works without an explicit `kind`.
+
+The fourth XML choice, `<erefstack>` (a stack of erefs), is **not supported** —
+it is folded into `kind: "eref"` (a single `<eref>`), which is the common case.
+This is a known coverage gap, not an ambiguity.
+
+### 17.4 Values the converter must invent (schema coverage gaps)
 
 The following Metanorma Presentation XML values are **required** (or commonly
 expected) but have **no typed slot** in this schema, so a converter must
@@ -588,7 +622,7 @@ subset, not ambiguities:
 | `<review reviewer="…">` | required | Default placeholder (the editor does not model `reviewer`). |
 | `<eref citeas="…">`, `<link target="…">`, `<fn reference="…">` | required | Direct rename of the editor attr (`cite`, `href`, `number`). |
 
-### 17.4 Features not represented (dropped on import)
+### 17.5 Features not represented (dropped on import)
 
 The following Metanorma features exist in the covered element families but have
 **no representation** in this schema, so a Presentation-XML → editor import
@@ -604,7 +638,7 @@ The following Metanorma features exist in the covered element families but have
 | Ordered-list `start`, section/block `obligation`, `unnumbered`, `inline-header`, `number` override | various | carried via the `data` catch-all if present on import; not typed or editable |
 | Rich inline markup inside titles/captions | `<title>`, `<name>` | flattened to plain text — the typed `title` attr is a string |
 
-### 17.5 Over-permissive content (coerced on export)
+### 17.6 Over-permissive content (coerced on export)
 
 The schema's content expressions are intentionally **looser** than Metanorma XML
 so the editor is ergonomic. A converter must normalise these on export (this is
