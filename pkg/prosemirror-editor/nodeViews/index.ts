@@ -17,16 +17,24 @@ import { FigureNodeView } from "./FigureNodeView.js";
 import { FormulaNodeView } from "./FormulaNodeView.js";
 import { FloatingTitleNodeView } from "./FloatingTitleNodeView.js";
 import { SourcecodeNodeView } from "./SourcecodeNodeView.js";
+import { SectionNodeView } from "./SectionNodeView.js";
 
 export { ImageNodeView } from "./ImageNodeView.js";
 export { FigureNodeView } from "./FigureNodeView.js";
 export { FormulaNodeView } from "./FormulaNodeView.js";
 export { FloatingTitleNodeView } from "./FloatingTitleNodeView.js";
 export { SourcecodeNodeView } from "./SourcecodeNodeView.js";
+export { SectionNodeView } from "./SectionNodeView.js";
 
 /**
  * The default node-view component map. Node types not present here fall back to
  * the schema's default `toDOM` rendering (§7.2).
+ *
+ * `SectionNodeView` is registered for all ten content-bearing section node
+ * types (`clause`, `annex`, `content_section`, `abstract`, `foreword`,
+ * `introduction`, `acknowledgements`, `terms`, `definitions`, `references`) so
+ * the `title` attribute is rendered as editable text above the content and
+ * survives `setSectionType` conversions. `floating_title` keeps its own view.
  */
 export const nodeViewComponents: Readonly<
   Record<string, ComponentType<NodeViewComponentProps>>
@@ -36,4 +44,14 @@ export const nodeViewComponents: Readonly<
   formula: FormulaNodeView,
   floating_title: FloatingTitleNodeView,
   sourcecode: SourcecodeNodeView,
+  clause: SectionNodeView,
+  annex: SectionNodeView,
+  content_section: SectionNodeView,
+  abstract: SectionNodeView,
+  foreword: SectionNodeView,
+  introduction: SectionNodeView,
+  acknowledgements: SectionNodeView,
+  terms: SectionNodeView,
+  definitions: SectionNodeView,
+  references: SectionNodeView,
 };
