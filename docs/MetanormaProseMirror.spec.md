@@ -118,8 +118,9 @@ The component imports and uses **only** `metanormaSchema` from
 2. Never register a node-view or mark-view component for a node/mark name not
    present in `NODE_NAMES` / `MARK_NAMES`.
 3. Use `assertValidImageAttrs` (schema §6.1) when handling image insertion from
-   paste or any future input rule (out of scope for v1, but the guard is
-   re-exported from this package's public API so toolbars can call it).
+   paste or any future input rule (out of scope for v1; the guard is exported
+   from `@metanorma/prosemirror-schema` and re-exported from the editor package's
+   public API for convenience).
 4. Treat the schema's `toDOM`/`parseDOM` as the rendering fallback for any node
    that does not have a React node-view component (§7.2).
 

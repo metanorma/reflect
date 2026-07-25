@@ -80,7 +80,7 @@ module — it does not ship commands, keymaps, or input rules.
 ### [`MetanormaToolbar.spec.md`](./MetanormaToolbar.spec.md) — Toolbar Component
 
 Defines `MetanormaToolbar`, a schema-bound React toolbar component
-(`@metanorma/prosemirror-editor`) giving one-click access to common
+(`@metanorma/toolbar`) giving one-click access to common
 document-manipulation operations — toggling inline marks, wrapping blocks,
 inserting lists, and creating links — against `metanormaSchema`. Rendered as a
 **child** of `MetanormaProseMirror` so it reads editor state and dispatches
@@ -97,9 +97,11 @@ transactions through the `@handlewithcare/react-prosemirror` context.
 | 7 | [State detection implementation](./MetanormaToolbar.spec.md#7-state-detection-implementation) |
 | 8 | [Styling](./MetanormaToolbar.spec.md#8-styling) |
 | 9 | [Accessibility](./MetanormaToolbar.spec.md#9-accessibility) |
-| 10 | [Export changes](./MetanormaToolbar.spec.md#10-export-changes) |
-| 11 | [File structure summary](./MetanormaToolbar.spec.md#11-file-structure-summary) |
-| 12 | [TypeScript constraints](./MetanormaToolbar.spec.md#12-typescript-constraints) |
+| 10 | [Shared toolbar architecture](./MetanormaToolbar.spec.md#10-shared-toolbar-architecture) |
+| 11 | [Migration from the monolith](./MetanormaToolbar.spec.md#11-migration-from-the-monolith) |
+| 12 | [Export changes](./MetanormaToolbar.spec.md#12-export-changes) |
+| 13 | [File structure summary](./MetanormaToolbar.spec.md#13-file-structure-summary) |
+| 14 | [TypeScript constraints](./MetanormaToolbar.spec.md#14-typescript-constraints) |
 
 ---
 
