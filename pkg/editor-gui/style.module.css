@@ -29,3 +29,70 @@
   position: absolute;
   inset: 0;
 }
+
+/*
+ * AdvancedMetanormaToolbar — vertical right-dock layout.
+ *
+ * Pure consumer-side override. The toolbar package ships a horizontal
+ * `.mn-toolbar` (MetanormaToolbar.spec.md §8.3 minimum styles); editor-gui
+ * opts into a vertical variant through the public `className` prop
+ * (AdvancedMetanormaToolbar §5.2) and reflows the editor wrapper so the bar
+ * docks to the right of the contenteditable. No source in `pkg/toolbar/` or
+ * `pkg/prosemirror-editor/` is touched, and DOM ancestry — hence the
+ * `@handlewithcare/react-prosemirror` context used by the toolbar — is
+ * unchanged: the bar remains a descendant of `MetanormaProseMirror`.
+ */
+
+/* Make the editor wrapper a horizontal flex container so the toolbar docks to
+ * the right of the document. `.app` is position:absolute/inset:0, so its
+ * definite height lets `min-height:100%` resolve and the bar stretch full
+ * height via the default `align-items: stretch`. */
+:global(.mn-prosemirror) {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.5em;
+  min-height: 100%;
+}
+
+:global(.mn-prosemirror .ProseMirror) {
+  flex: 1 1 auto;
+  min-width: 0; /* allow shrink so the docked toolbar gets its space */
+}
+
+/* Reorient the toolbar vertically. Keeps `mn-toolbar` (base button/group
+ * styles) and adds the `--vertical` modifier to flip both the group stack and
+ * the buttons within each group. */
+:global(.mn-toolbar--vertical) {
+  flex: 0 0 auto;
+  align-self: stretch;
+  flex-direction: column;
+  border-bottom: none;
+  border-left: 1px solid var(--mn-border, #ccc);
+}
+
+:global(.mn-toolbar--vertical .mn-toolbar-group) {
+  flex-direction: column; /* buttons stack within each group */
+}
+
+:global(.mn-toolbar--vertical .mn-toolbar-divider) {
+  width: auto;
+  height: 1px; /* horizontal rule between vertically-stacked groups */
+  margin: 0.25em 0;
+}
+
+/* Stateful popovers/dialogs (table grid picker, image dialog, reference-mark
+ * popovers) are `position: absolute`; flip them to open leftward so they don't
+ * overflow the right viewport edge when the bar is docked right. */
+:global(.mn-toolbar--vertical .mn-toolbar-popover),
+:global(.mn-toolbar--vertical .mn-toolbar-dialog) {
+  right: 100%;
+  left: auto;
+  margin-right: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(.mn-toolbar--vertical) {
+    border-left-color: var(--mn-border, #444);
+  }
+}
