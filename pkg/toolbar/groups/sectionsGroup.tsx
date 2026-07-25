@@ -119,12 +119,20 @@ export function sectionsGroup(
           isActive: (_state: EditorState) => false,
           isEnabled: canWrapInClause,
           run: (view: EditorView) => {
+            // Capture state/dispatch synchronously, BEFORE the awaited prompt.
+            // Reading `view.state` inside the `.then()` (after `window.prompt`
+            // closes) races against controlled-mode React state invalidation:
+            // `useEditor`'s `dispatchTransaction` callback closes over the
+            // `stateValue` from the render that built it, and `ReactEditorView`
+            // eagerly swaps `view.state`. Capturing the references on the
+            // synchronous event tick keeps the dispatch coherent.
+            const { state, dispatch } = view;
             void getHeadingPrompt()().then((title) => {
               const opts =
                 title === null
                   ? { title: null }
                   : { title: title === "" ? null : title };
-              wrapInClause(view.state, view.dispatch, opts);
+              wrapInClause(state, dispatch, opts);
               view.focus();
             });
           },
