@@ -46,6 +46,7 @@ document model — 43 node types and 15 mark types.
 | 14 | [Acceptance criteria](./schema.spec.md#14-acceptance-criteria) |
 | 15 | [Default document](./schema.spec.md#15-default-document) |
 | 16 | [Out of scope (v1)](./schema.spec.md#16-out-of-scope-v1) |
+| 17 | [Conversion to Metanorma Presentation XML](./schema.spec.md#17-conversion-to-metanorma-presentation-xml) |
 
 ---
 
@@ -74,6 +75,22 @@ module — it does not ship commands, keymaps, or input rules.
 | 12 | [TypeScript constraints](./MetanormaProseMirror.spec.md#12-typescript-constraints) |
 | 13 | [Acceptance criteria](./MetanormaProseMirror.spec.md#13-acceptance-criteria) |
 | 14 | [Out of scope (v1)](./MetanormaProseMirror.spec.md#14-out-of-scope-v1) |
+
+---
+
+### [`EditorCommands.spec.md`](./EditorCommands.spec.md) — Editor Commands
+
+Defines `@metanorma/editor-commands`, the schema-aware ProseMirror command library
+(companion to `@metanorma/prosemirror-schema`). Pure `(state, dispatch?) => boolean`
+functions — no React, no DOM, no `EditorView` — for Enter-key handling, list toggling,
+and the advanced-toolbar node/section/reference commands. Re-exported through
+`@metanorma/toolbar`.
+
+| § | Section |
+|---|---|
+| 1 | [The editor-commands module](./EditorCommands.spec.md#1-the-editor-commands-module) |
+| 2 | [The Enter key](./EditorCommands.spec.md#2-the-enter-key) |
+| 3 | [List toggling (`toggleList`)](./EditorCommands.spec.md#3-list-toggling-togglelist) |
 
 ---
 
