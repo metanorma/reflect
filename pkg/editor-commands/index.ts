@@ -80,5 +80,8 @@ export {
 export { undo, redo, undoDepth, redoDepth, history } from "./commands/history.js";
 export type { HistoryOptions } from "./commands/history.js";
 
+// Outdent (outdent.md §3) — stock `lift` re-exported under its standard name.
+export { lift } from "./commands/outdent.js";
+
 // Shared utilities.
 export { generateId } from "./util.js";

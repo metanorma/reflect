@@ -19,6 +19,7 @@ import { definitionListGroup } from "./definitionListGroup.js";
 import { tablesGroup } from "./tablesGroup.js";
 import { imagesGroup } from "./imagesGroup.js";
 import { historyGroup } from "./historyGroup.js";
+import { outdentGroup } from "./outdentGroup.js";
 import type { AdvancedFeatureOptions } from "../AdvancedMetanormaToolbar.js";
 
 export { defaultLinkPrompt } from "./linkGroup.js";
@@ -39,15 +40,16 @@ export function baseGroups(
 }
 
 /**
- * Build the six advanced groups, threading feature-specific props
+ * Build the advanced groups, threading feature-specific props
  * (AdvancedMetanormaToolbar §5.1.2).
  *
- * Render order: refs → sections → dl → tables → images → history.
+ * Render order: outdent → refs → sections → dl → tables → images → history.
  */
 export function buildAdvancedGroups(
   opts: AdvancedFeatureOptions,
 ): readonly ToolbarGroupDef[] {
   return [
+    outdentGroup,
     refsGroup(opts),
     sectionsGroup(),
     definitionListGroup,

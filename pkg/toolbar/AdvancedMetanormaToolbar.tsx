@@ -29,7 +29,7 @@ export type { BaseToolbarGroup };
 
 /** Advanced group ids (one per document in this directory). */
 export type AdvancedToolbarGroupId =
-  | "tables" | "images" | "sections" | "refs" | "dl" | "history";
+  | "outdent" | "tables" | "images" | "sections" | "refs" | "dl" | "history";
 
 /** Union used by AdvancedMetanormaToolbarProps.visibleGroups. */
 export type AdvancedToolbarGroup = BaseToolbarGroup | AdvancedToolbarGroupId;

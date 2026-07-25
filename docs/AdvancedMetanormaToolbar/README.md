@@ -113,6 +113,7 @@ proposed in these documents must:
 | [`reference-marks.md`](./reference-marks.md) | `xref`, `eref`, `concept`, `bcp14` marks + `footnote_marker`, `stem` inline nodes | "Reference marks" |
 | [`definition-lists.md`](./definition-lists.md) | `dl`/`dt`/`dd` insertion logic | "Definition lists" |
 | [`undo-redo.md`](./undo-redo.md) | Undo/redo via `prosemirror-history` | "Undo / redo" |
+| [`outdent.md`](./outdent.md) | General-purpose outdent (decrease nesting level) via stock `lift` | *(new — complements the base wrap/list buttons)* |
 
 ## 4. Schema reference (shared)
 
@@ -202,6 +203,7 @@ alongside the four base group modules:
 
 | Module | Group id | Spec source |
 |---|---|---|
+| `outdentGroup.tsx` | `outdent` | [`outdent.md`](./outdent.md) |
 | `tablesGroup.tsx` | `tables` | [`tables.md`](./tables.md) |
 | `imagesGroup.tsx` | `images` | [`images-figures.md`](./images-figures.md) |
 | `sectionsGroup.tsx` | `sections` | [`sections.md`](./sections.md) |
@@ -217,7 +219,7 @@ repeated here.
 
 A barrel (`groups/index.ts`) exports the shared `baseGroups` factory
 (base spec §10.6) alongside a `buildAdvancedGroups` factory that produces the
-six advanced groups:
+advanced groups:
 
 ```typescript
 /** Factory: builds the advanced groups, threading feature-specific props. */
@@ -225,6 +227,7 @@ export function buildAdvancedGroups(
   opts: AdvancedFeatureOptions,
 ): readonly ToolbarGroupDef[] {
   return [
+    outdentGroup,           // right after base — complements wrap/list buttons
     refsGroup(opts),        // after 'link' — cross-references
     sectionsGroup(opts),
     definitionListGroup(),
@@ -324,11 +327,14 @@ and the advanced group ids are fixed by the table in §5.1.1.
 Left-to-right (dividers between groups):
 
 ```
-marks · blocks · lists · link · refs · sections · dl · tables · images · history
-└──── base (MetanormaToolbar) ────┘   └──────── advanced (this spec) ────────┘
+marks · blocks · lists · link · outdent · refs · sections · dl · tables · images · history
+└──── base (MetanormaToolbar) ────┘  └──────────────── advanced (this spec) ────────────┘
 ```
 
-- `refs` immediately follows `link` (both are inline-attachment operations).
+- `outdent` is the first advanced group, placed immediately after `link` so
+  it sits visually adjacent to the `blocks` and `lists` groups it
+  complements (those increase nesting; outdent decreases it).
+- `refs` follows `link` (both are inline-attachment operations).
 - `history` is rightmost, per `undo-redo.md` §8.
 - The order is just the default `groups` array; hosts can reorder by passing a
   custom `groups` prop directly to `<Toolbar>` if a lower-level API is exposed.
