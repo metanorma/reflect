@@ -160,10 +160,9 @@ export function wrapInClause(
   const tr = state.tr;
 
   // The new clause: a leading empty paragraph + generated id. The selection's
-  // block content becomes the clause's remaining children.
+  // block content becomes the clause's remaining children (§5.2 step 3).
   const clauseAttrs = { id: generateId(), title: opts?.title ?? null };
   const leadingParagraph = paragraphType.create();
-  void leadingParagraph; // placeholder paragraph is the cursor landing site
 
   // Determine the block range to wrap. For a collapsed cursor, wrap the single
   // block containing the cursor.
@@ -212,22 +211,23 @@ export function wrapInClause(
   }
 
   // Wrap the range with the clause (a single node wrapping). The clause's
-  // leading paragraph precedes the wrapped content.
+  // children are the wrapped blocks; the leading empty paragraph is inserted
+  // as its first child below.
   tr.wrap(range, [{ type: clauseType, attrs: clauseAttrs }]);
 
-  // After wrapping, the clause sits at the range start. Find the leading
-  // paragraph inside it and place the cursor there. The clause is at
-  // `range.start - 1` (the wrap inserts the wrapping node around the range).
-  // Resolve from the document to find the clause, then descend to the first
-  // paragraph.
-  const clausePos = range.start - 1;
-  const $clause = tr.doc.resolve(clausePos);
-  const clauseNode = $clause.nodeAfter;
-  if (clauseNode !== null && clauseNode.firstChild !== null) {
-    // First child is the leading empty paragraph; cursor at its content start.
-    const paraPos = clausePos + 1;
-    tr.setSelection(TextSelection.near(tr.doc.resolve(paraPos), 1));
-  }
+  // The wrap inserts the clause around `range`. After the wrap, position
+  // `range.start + 1` is just inside the new clause's opening token, before its
+  // first child. Insert the leading empty paragraph there so it becomes the
+  // clause's first child (§5.2 step 3) — the cursor landing site. `range.start`
+  // is `range.$from.before(range.depth + 1)`, a position derived from the
+  // pre-wrap resolution; the wrap does not shift it (it inserts *around* the
+  // range, leaving `range.start` as the position just before the wrapped
+  // content, now inside the new clause).
+  tr.insert(range.start + 1, leadingParagraph);
+
+  // Place the cursor inside the leading paragraph (one past its opening token).
+  const paraPos = range.start + 2;
+  tr.setSelection(TextSelection.near(tr.doc.resolve(paraPos), 1));
 
   tr.scrollIntoView();
   dispatch(tr);
