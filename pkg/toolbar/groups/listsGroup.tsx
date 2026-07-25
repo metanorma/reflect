@@ -13,8 +13,8 @@ import { isListActive, requireNode } from "../predicates.js";
 
 // [nodeName, label, title, key]
 const listSpecs: ReadonlyArray<readonly [string, string, string, string]> = [
-  ["bullet_list", "•", "Bullet list", "bullet-list"],
-  ["ordered_list", "1.", "Ordered list", "ordered-list"],
+  ["bullet_list", "Bullets", "Bullet list", "bullet-list"],
+  ["ordered_list", "Numbers", "Ordered list", "ordered-list"],
 ];
 
 /** The `lists` group definition (static — no external props). */

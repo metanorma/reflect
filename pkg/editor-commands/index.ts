@@ -2,22 +2,22 @@
  * Public API for `@metanorma/editor-commands` (spec §1.10).
  *
  * Implements [`docs/EditorCommands.spec.md`](../../docs/EditorCommands.spec.md)
- * **v1** — schema-aware ProseMirror editor commands for the Metanorma document
+ * **v2** — schema-aware ProseMirror editor commands for the Metanorma document
  * model (Command contract, transaction discipline, and the command inventory:
- * §2 Enter-key commands and §3 `toggleList`).
+ * §2 Enter-key commands, §3 `toggleList`, and §4 Backspace-key handling).
  *
- * Exports the Enter-feature commands (spec §2.7), the `chainCommands`
- * combinator (spec §1.9.2), and the `metanormaSchema` re-export for consumer
- * convenience.
+ * Exports the Enter-feature commands (spec §2.7), the Backspace-feature command
+ * (spec §4.7), the `chainCommands` combinator (spec §1.9.2), and the
+ * `metanormaSchema` re-export for consumer convenience.
  *
- * Per spec §2.3, there is deliberately **no** composite `enterKey` symbol:
- * commands are named for the action they perform, not the key that triggers
- * them (§1.10.2), and the Enter chain is composed at the call site (the
- * keymap plugin of §2.8) so composition stays explicit (§1.9.3) and keymap
- * wiring stays outside the package (§1.13).
+ * Per spec §2.3 and §4.3, there is deliberately **no** composite `enterKey` or
+ * `backspaceKey` symbol: commands are named for the action they perform, not
+ * the key that triggers them (§1.10.2), and the chains are composed at the call
+ * site (the keymap plugin of §2.8/§4.8) so composition stays explicit (§1.9.3)
+ * and keymap wiring stays outside the package (§1.13).
  */
 
-export { chainCommands } from "prosemirror-commands";
+export { chainCommands, joinBackward, deleteSelection } from "prosemirror-commands";
 export type { Command } from "prosemirror-state";
 
 export { metanormaSchema, NODE_NAMES, MARK_NAMES } from "@metanorma/prosemirror-schema";
@@ -30,6 +30,9 @@ export { enterDefinitionList } from "./commands/enterDefinitionList.js";
 export { exitContainerBlock } from "./commands/exitContainerBlock.js";
 export { createParagraphNear } from "./commands/createParagraphNear.js";
 export { insertSoftBreak } from "./commands/insertSoftBreak.js";
+
+// Backspace-feature command (spec §4.7).
+export { emptyTextblockBackspace } from "./commands/emptyTextblockBackspace.js";
 
 // List toggling (spec §3).
 export { toggleList } from "./commands/toggleList.js";

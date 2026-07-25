@@ -114,7 +114,7 @@ export function sectionsGroup(
         kind: "button",
         descriptor: {
           key: "sections-insert-clause",
-          label: "clause",
+          label: "Clause",
           title: "Insert clause (wrap selection in a new clause)",
           isActive: (_state: EditorState) => false,
           isEnabled: canWrapInClause,
@@ -142,7 +142,7 @@ export function sectionsGroup(
         kind: "button",
         descriptor: {
           key: "sections-promote",
-          label: "▲",
+          label: "Promote",
           title: "Promote clause (move out one level)",
           isActive: (_state: EditorState) => false,
           isEnabled: canPromote,
@@ -156,7 +156,7 @@ export function sectionsGroup(
         kind: "button",
         descriptor: {
           key: "sections-demote",
-          label: "▼",
+          label: "Demote",
           title: "Demote clause (nest one level deeper)",
           isActive: (_state: EditorState) => false,
           isEnabled: canDemote,
@@ -170,7 +170,7 @@ export function sectionsGroup(
         kind: "button",
         descriptor: {
           key: "sections-set-type",
-          label: "§ type",
+          label: "Type",
           title: "Change section type…",
           isActive: (_state: EditorState) => false,
           isEnabled: canChangeType,

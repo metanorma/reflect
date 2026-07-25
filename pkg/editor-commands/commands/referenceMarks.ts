@@ -113,15 +113,27 @@ export function toggleEref(
   return applyReferenceMark(state, dispatch, mt, cite === null ? null : { cite });
 }
 
-/** Toggle the `concept` mark with the given `ref` id. `null` removes the mark. */
+/**
+ * Toggle the `concept` mark with the given `ref` id and `kind` discriminator.
+ * `null` ref removes the mark. `kind` (enum `"eref"` | `"xref"` | `"termref"`,
+ * default `"xref"`) selects the Presentation-XML child element
+ * (`<eref>` / `<xref>` / `<termref>`); see schema.spec.md §17.3 and
+ * reference-marks.md §5.3.
+ */
 export function toggleConcept(
   state: EditorState,
   dispatch: ((tr: Transaction) => void) | undefined,
   ref: string | null,
+  kind?: "eref" | "xref" | "termref",
 ): boolean {
   const mt = resolveMark(state, "concept");
   if (mt === null) return false;
-  return applyReferenceMark(state, dispatch, mt, ref === null ? null : { ref });
+  return applyReferenceMark(
+    state,
+    dispatch,
+    mt,
+    ref === null ? null : { ref, kind: kind ?? "xref" },
+  );
 }
 
 /** Toggle the `bcp14` mark with the given `type` keyword. `null` removes the mark. */

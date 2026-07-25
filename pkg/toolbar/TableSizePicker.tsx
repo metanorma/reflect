@@ -159,10 +159,10 @@ export function InsertTableButton(): React.JSX.Element {
         aria-expanded={open}
         disabled={!enabled}
         title="Insert table"
-        onClick={() => setOpen((v) => !v)}
-      >
-        ▦
-      </button>
+          onClick={() => setOpen((v) => !v)}
+        >
+          Table
+        </button>
       {open ? (
         <TableSizePicker
           onCommit={(r, c) => {

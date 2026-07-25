@@ -5,8 +5,8 @@ This spec defines the React component package that wraps the
 library and binds it to the Metanorma Mirror schema defined in
 [`schema.spec.md`](./schema.spec.md).
 
-**Spec version:** 2
-**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v2
+**Spec version:** 3
+**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v3
 
 **Pinned integration library:** `@handlewithcare/react-prosemirror` **exactly
 `3.2.7`**. No other version is permitted. React ProseMirror releases are tightly
@@ -27,7 +27,7 @@ Provide a single, reusable React component — `MetanormaProseMirror` — that:
 
 1. Mounts a ProseMirror editor driven by `metanormaSchema`
    (`@metanorma/prosemirror-schema`), so the editable document vocabulary is
-   **exactly** the 43 node types and 15 mark types of `schema.spec.md` §3.
+   **exactly** the 43 node types and 14 mark types of `schema.spec.md` §3.
 2. Renders the editor through React using
    `@handlewithcare/react-prosemirror@3.2.7` (the `ProseMirror` +
    `ProseMirrorDoc` components, the `reactKeys` plugin, and the React node-view
@@ -318,6 +318,7 @@ Default registered node views (node type → component):
 | `formula` | `FormulaNodeView` | Atom leaf; renders math placeholder from the `asciimath`/`mathml` attr selected by the `type` attr. |
 | `floating_title` | `FloatingTitleNodeView` | Atom block leaf; renders `title` attr text. |
 | `sourcecode` | `SourcecodeNodeView` | `text*` container; renders `<pre><code>` with `language-${language}` class; forwards `contentDOMRef`. |
+| `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` | `SectionNodeView` | Content-bearing section containers; render the `title` attr as an editable heading above the content; forward `contentDOMRef`. (See §7.3.) |
 
 Consumer-supplied `nodeViewComponents` (prop, §5) are **merged over** this default
 map (consumer wins on key collision).
@@ -326,10 +327,14 @@ map (consumer wins on key collision).
 
 All nodes **not** listed in §7.1 are rendered by ProseMirror's default mechanism
 using the schema's `toDOM` (schema §8). This includes, but is not limited to:
-`doc`, `preface`, `sections`, `bibliography`, every `section`-group node,
-`paragraph`, `note`, `admonition`, `example`, `quote`, `review`, all list nodes,
-all table nodes, `footnotes`, `footnote_entry`, `footnote_marker`, `soft_break`,
-and `text`. The component must not register node views for these by default.
+`doc`, `preface`, `sections`, `bibliography`, `paragraph`, `note`, `admonition`,
+`example`, `quote`, `review`, all list nodes, all table nodes, `footnotes`,
+`footnote_entry`, `footnote_marker`, `soft_break`, and `text`. The component
+must not register node views for these by default. (The ten content-bearing
+section node types — `clause`, `annex`, `content_section`, `abstract`,
+`foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`,
+`references` — *were* in this list prior to v3; they are now rendered by
+`SectionNodeView`, §7.1/§7.3. `floating_title` has had its own view since v1.)
 
 ### 7.3 Node-view component contracts
 
@@ -353,7 +358,7 @@ and `text`. The component must not register node views for these by default.
   `type === "asciimath"`, `mathml` when `type === "mathml"`) as visible
   placeholder content. The non-selected attribute, if populated, is ignored by
   this view. Math **rendering** is out of scope (schema §16); this view only
-  surfaces the stored attributes (schema v2 §17.2).
+  surfaces the stored attributes (schema v3 §17.2).
 
 #### `FloatingTitleNodeView`
 - Atom block leaf; renders `<div class="floating-title" data-id={id}>{title}</div>`
@@ -368,11 +373,54 @@ and `text`. The component must not register node views for these by default.
 - Syntax highlighting is out of scope (schema §16); the view only applies the
   language class.
 
+#### `SectionNodeView`
+- Registered for the ten content-bearing section node types (`clause`, `annex`,
+  `content_section`, `abstract`, `foreword`, `introduction`,
+  `acknowledgements`, `terms`, `definitions`, `references`); NOT for
+  `floating_title` (which keeps `FloatingTitleNodeView`).
+- Renders `<section class="mn-<type>" data-id={id}>` containing:
+  1. an editable title strip `<div class="mn-section-title" contentEditable={false}>`
+     holding a controlled `<input class="mn-section-title-input">` bound to
+     `node.attrs.title`; and
+  2. the section's editable content (`{children}`) inside a content-host element
+     (`<div class="mn-section-content">`) that receives `nodeProps.contentDOMRef`.
+- Forwards `ref` to the outer `<section>`; forwards `nodeProps.contentDOMRef`
+  to the content-host element via `useMergedDOMRefs`. The title strip and the
+  content host are **separate elements** (the title sits between the section's
+  opening token and its first child); `ref` and `contentDOMRef` are NOT merged
+  onto the same element.
+- **Editing the title:** the `<input>` is `contentEditable={false}` and has
+  capture-phase `stopPropagation` listeners (attached via a ref callback) for
+  every editor-relevant DOM event type (`beforeinput`, `keydown`, `mousedown`,
+  composition, paste, cut, drop, dragover, dragenter) so that prosemirror-view
+  and `@handlewithcare/react-prosemirror`'s `beforeInputPlugin` do not
+  intercept input destined for the field. The `input` event is deliberately
+  NOT stopped — React's controlled-`<input>` `onChange` relies on it bubbling
+  to the React root. The title is committed on **blur**, not on every change:
+  dispatching a `setNodeMarkup` transaction per keystroke would trigger a
+  controlled-mode re-render → `selectionToDOM`, stealing focus from the field
+  after each character. On blur (and only when the edited value differs from
+  the committed title), dispatches
+  `tr.setNodeMarkup(getPos(), undefined, { ...node.attrs, title })` via
+  `useEditorEventCallback` (the view's `state`/`dispatch` seam). An empty input
+  commits `title: null`. The `<input>` carries a placeholder
+  (`"Section heading"`) when `title` is null/empty. Undo walks back one title
+  edit per blur (not per character).
+- **Schema relationship:** `sectionToDOM` (schema §8.2) is the headless / export
+  serialization path and deliberately does NOT render `title` (Metanorma
+  Presentation XML models a section heading as a `<title>`/`<name>` *child
+  element*, not an attribute — schema §17). This node view is an editor-only
+  rendering override that surfaces the typed `title` attribute as editable
+  text; the attribute remains the source of truth, and `sectionToDOM` remains
+  the path used for non-editor serialization (clipboard, `Node.toJSON`,
+  headless conversion). Registering this view does **not** change the schema,
+  the `toDOM`/`parseDOM` rules, or the `SectionAttrs` shape.
+
 ---
 
 ## 8. Mark views
 
-No mark-view components are registered by default. All 15 marks render via the
+No mark-view components are registered by default. All 14 marks render via the
 schema's `toDOM` (schema §9). Consumers may pass `markViewComponents` through
 `editorProps` if needed; this is not part of the default contract.
 
@@ -387,6 +435,10 @@ A single CSS module imported by the component provides:
   typography baseline, placeholder colour for the empty default clause).
 - `.mn-image-placeholder`, `.figure`, `.formula`, `.floating-title`,
   `pre.language-*` — node-view affordances.
+- `.mn-section-title`, `.mn-section-title-input`, `.mn-section-content` —
+  `SectionNodeView` affordances (§7.3): the editable heading strip above each
+  section's content, the `<input>` inside it, and the content host wrapping the
+  section's editable children.
 
 The component **must not** ship or depend on a CSS-in-JS runtime. Styling is
 plain CSS, consistent with `pkg/editor-gui/style.module.css`.
@@ -483,7 +535,7 @@ Inherits the root `tsconfig.json` (`strict`, `exactOptionalPropertyTypes`,
    with **zero** TypeScript errors under the repo tsconfig.
 3. **Schema bound.** The editor state's `schema` is reference-equal to
    `metanormaSchema`, and `state.schema.spec.nodes` contains exactly the 43 names
-   from `NODE_NAMES` and `state.schema.spec.marks` the 15 from `MARK_NAMES`.
+   from `NODE_NAMES` and `state.schema.spec.marks` the 14 from `MARK_NAMES`.
 4. **`reactKeys` present.** The initial state's plugin set includes a
    `reactKeys` plugin (its key is `"reactKeys"`); constructing state via
    `createInitialEditorState({})` does not throw and yields an editable doc from

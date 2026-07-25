@@ -63,7 +63,7 @@ package, not by the schema or the core state module. The relevant exports are:
 | `redo` | command | `(state, dispatch?) => boolean` — re-applies the most recently undone group. |
 | `undoDepth` | selector | `(state) => number` — how many groups are available to undo. `0` means nothing to undo. |
 | `redoDepth` | selector | `(state) => number` — how many groups are available to redo. `0` means nothing to redo. |
-| `HistoryOptions` | type | `{ newGroupDelay?: number; preserveItems?: boolean }` — configures group boundaries and whether unreachable branches are kept. |
+| `HistoryOptions` | type | `{ depth?: number; newGroupDelay?: number }` — `depth` caps how many events are kept (default `100`); `newGroupDelay` (ms, default `500`) starts a new undo group after a pause. Note: `prosemirror-history` does **not** export this type as a named symbol, so `@metanorma/editor-commands` re-declares a structurally identical `HistoryOptions` and re-exports it from there (§7). |
 
 Two facts drive the whole design:
 
@@ -115,12 +115,12 @@ import type { MirrorDocument } from "./types.js";
  * well-tested and familiar. It primarily affects character-level typing
  * (rapid keystrokes collapse into one undo step); structural commands (section
  * promote/demote, insert, change-type) are each a single transaction and
- * therefore already one undo step regardless of the delay. `preserveItems`
- * left at its default (`false`) — no feature currently depends on unreachable
- * branches.
+ * therefore already one undo step regardless of the delay. `depth` is left at
+ * its upstream default (`100`) — no feature currently depends on a shallower
+ * or deeper undo stack.
  *
- * Host apps may override the value by passing a custom `HistoryOptions` to
- * `createInitialEditorState({ history: { newGroupDelay: … } })`.
+ * Host apps may override either field by passing a custom `HistoryOptions` to
+ * `createInitialEditorState({ history: { newGroupDelay: …, depth: … } })`.
  */
 export const DEFAULT_HISTORY_OPTIONS: Readonly<HistoryOptions> = {
   newGroupDelay: 500,
@@ -284,12 +284,11 @@ and `isEnabled` depends only on the history depth, not on what is selected.
 
 | Button | Label | Title | Command | `isActive` | `isEnabled` |
 |---|---|---|---|---|---|
-| Undo | ↶ | "Undo (Ctrl+Z)" | `undo` | always `false` | `undoDepth(state) > 0` |
-| Redo | ↷ | "Redo (Ctrl+Shift+Z)" | `redo` | always `false` | `redoDepth(state) > 0` |
+| Undo | Undo | "Undo (Ctrl+Z)" | `undo` | always `false` | `undoDepth(state) > 0` |
+| Redo | Redo | "Redo (Ctrl+Shift+Z)" | `redo` | always `false` | `redoDepth(state) > 0` |
 
-The labels use the conventional arrow glyphs (`↶` / `↷`) so the group reads
-left-to-right as undo-then-redo, matching desktop editors. The `title`
-attribute doubles as the tooltip and includes the primary shortcut for
+The labels read left-to-right as undo-then-redo, matching desktop editors. The
+`title` attribute doubles as the tooltip and includes the primary shortcut for
 discoverability (§7).
 
 Because `isActive` is constant, the buttons never receive the
@@ -310,7 +309,7 @@ import { undo, redo, undoDepth, redoDepth } from "@metanorma/editor-commands";
 
 export const undoButton = {
   key: "undo",
-  label: "↶",
+  label: "Undo",
   title: "Undo (Ctrl+Z)",
   isActive: () => false,
   isEnabled: (state) => undoDepth(state) > 0,
@@ -322,7 +321,7 @@ export const undoButton = {
 
 export const redoButton = {
   key: "redo",
-  label: "↷",
+  label: "Redo",
   title: "Redo (Ctrl+Shift+Z)",
   isActive: () => false,
   isEnabled: (state) => redoDepth(state) > 0,
@@ -401,6 +400,11 @@ that the rest of this document consumes):
  * Undo/redo are re-exported unchanged from prosemirror-history under their
  * standard names (EditorCommands §1.10.3). They already conform to the Command
  * contract (§1.5): pure, query/dispatch parity, non-throwing, and view-free.
+ *
+ * `HistoryOptions` is re-declared here (and re-exported) because
+ * `prosemirror-history` does not export it as a named type — it only uses it
+ * internally as the parameter type of `history()`. This local interface is
+ * structurally identical (fields `depth?` and `newGroupDelay?`).
  */
 export {
   undo,
@@ -409,7 +413,15 @@ export {
   redoDepth,
   history,
 } from "prosemirror-history";
-export type { HistoryOptions } from "prosemirror-history";
+
+/** Configuration for the `history()` plugin (§3, §4.1). Re-declared here
+ * because `prosemirror-history` does not export it as a named type. */
+export interface HistoryOptions {
+  /** The delay (ms) after which a new undo group is started. Default 500. */
+  readonly newGroupDelay?: number;
+  /** The number of history events collected before the oldest are discarded. Default 100. */
+  readonly depth?: number;
+}
 ```
 
 `undo`/`redo` conform to the Command contract (README §6.2;
@@ -474,10 +486,9 @@ surface, so **no new stylesheet** is introduced. They reuse the base
     .mn-toolbar-btn--disabled  /* applied when depth is 0 */
 ```
 
-The only styling requirement specific to this group is visual: because undo
-and redo are arrow glyphs rather than letters, ensure the buttons have a
-consistent `min-width` (already provided by base `.mn-toolbar-btn`) so the
-arrows centre correctly. No new CSS rules are needed.
+The only styling requirement specific to this group is visual: keep the
+buttons at a consistent `min-width` (already provided by base
+`.mn-toolbar-btn`) so the two word labels align. No new CSS rules are needed.
 
 The group should render at the **end** of the toolbar (rightmost, after all
 schema-bound groups), matching the convention in desktop editors where
@@ -492,8 +503,8 @@ Feature-specific accessibility additions beyond the baseline (README §2.5 /
 - **`isActive` is constant.** Undo/redo are momentary actions, not toggles, so
   `aria-pressed` does not apply (unlike the mark/block buttons) and the
   `mn-toolbar-btn--active` modifier is never applied. An explicit `aria-label`
-  (`"Undo"` / `"Redo"`) is recommended in addition to `title`, since the glyph
-  label is not self-describing.
+  (`"Undo"` / `"Redo"`) is recommended in addition to `title` for robust
+  disclosure to assistive technology.
 - **Depth-based disabled state.** `disabled` (and `mn-toolbar-btn--disabled`)
   is set whenever `isEnabled` is `false` (`undoDepth === 0` /
   `redoDepth === 0`), so the buttons are correctly removed from the tab order
@@ -576,7 +587,7 @@ export type CreateInitialEditorStateOptions = {
   doc?: import("./types.js").MirrorDocument;
   plugins?: readonly Plugin[];
   editable?: boolean;
-  history?: import("prosemirror-history").HistoryOptions | false; // ← new
+  history?: import("@metanorma/editor-commands").HistoryOptions | false; // ← new
 };
 ```
 
@@ -619,9 +630,9 @@ All new code follows the project `tsconfig` (`strict`,
   Where it is threaded through `MetanormaProseMirror`'s `useMemo` builder, the
   `if (history !== undefined) opts.history = history;` guard keeps it
   `exactOptionalPropertyTypes`-clean.
-- `HistoryOptions` fields (`newGroupDelay`, `preserveItems`) are themselves
-  optional numbers/booleans; `DEFAULT_HISTORY_OPTIONS` is declared
-  `Readonly<HistoryOptions>` and constructed without `undefined` keys.
+- `HistoryOptions` fields (`newGroupDelay`, `depth`) are themselves optional
+  numbers; `DEFAULT_HISTORY_OPTIONS` is declared `Readonly<HistoryOptions>`
+  and constructed without `undefined` keys.
 - `undo`/`redo`/`undoDepth`/`redoDepth` have non-array return types
   (`boolean` / `number`), so `noUncheckedIndexedAccess` adds no extra null
   checks at the toolbar layer.

@@ -66,10 +66,14 @@ function defaultErefPrompt(): Promise<string | null> {
   );
 }
 
-function defaultConceptPrompt(): Promise<string | null> {
+function defaultConceptPrompt(): Promise<{ ref: string; kind: "eref" | "xref" | "termref" } | null> {
   return Promise.resolve(
     typeof window !== "undefined" && typeof window.prompt === "function"
-      ? window.prompt("Concept id:")
+      ? (() => {
+          const ref = window.prompt("Concept id:");
+          if (ref === null) return null;
+          return { ref, kind: "xref" as const };
+        })()
       : null,
   );
 }
@@ -148,20 +152,21 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
         kind: "button",
         descriptor: {
           key: "refs-xref",
-          label: "↗",
+          label: "Xref",
           title: "Insert cross-reference",
           isActive: (state) => refMarkActive(state, "xref"),
           isEnabled: isInlineContext,
           run: (view: EditorView) => {
-            if (refMarkActive(view.state, "xref")) {
-              toggleXref(view.state, view.dispatch, null);
+            const { state, dispatch } = view;
+            if (refMarkActive(state, "xref")) {
+              toggleXref(state, dispatch, null);
               view.focus();
               return;
             }
-            const ctx = buildRefContext(view.state, "xref");
+            const ctx = buildRefContext(state, "xref");
             void getXrefPrompt(ctx).then((target) => {
               if (target === null) return;
-              toggleXref(view.state, view.dispatch, target);
+              toggleXref(state, dispatch, target);
               view.focus();
             });
           },
@@ -172,20 +177,21 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
         kind: "button",
         descriptor: {
           key: "refs-eref",
-          label: "📕",
+          label: "Eref",
           title: "Insert bibliographic reference",
           isActive: (state) => refMarkActive(state, "eref"),
           isEnabled: isInlineContext,
           run: (view: EditorView) => {
-            if (refMarkActive(view.state, "eref")) {
-              toggleEref(view.state, view.dispatch, null);
+            const { state, dispatch } = view;
+            if (refMarkActive(state, "eref")) {
+              toggleEref(state, dispatch, null);
               view.focus();
               return;
             }
-            const ctx = buildRefContext(view.state, "eref");
+            const ctx = buildRefContext(state, "eref");
             void getErefPrompt(ctx).then((cite) => {
               if (cite === null) return;
-              toggleEref(view.state, view.dispatch, cite);
+              toggleEref(state, dispatch, cite);
               view.focus();
             });
           },
@@ -196,20 +202,22 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
         kind: "button",
         descriptor: {
           key: "refs-concept",
-          label: "💡",
+          label: "Concept",
           title: "Insert concept reference",
           isActive: (state) => refMarkActive(state, "concept"),
           isEnabled: isInlineContext,
           run: (view: EditorView) => {
-            if (refMarkActive(view.state, "concept")) {
-              toggleConcept(view.state, view.dispatch, null);
+            const { state, dispatch } = view;
+            if (refMarkActive(state, "concept")) {
+              toggleConcept(state, dispatch, null);
               view.focus();
               return;
             }
-            const ctx = buildRefContext(view.state, "concept");
-            void getConceptPrompt(ctx).then((ref) => {
-              if (ref === null) return;
-              toggleConcept(view.state, view.dispatch, ref);
+            const ctx = buildRefContext(state, "concept");
+            void getConceptPrompt(ctx).then((res) => {
+              if (res === null) return;
+              const { ref, kind } = res;
+              toggleConcept(state, dispatch, ref, kind);
               view.focus();
             });
           },
@@ -220,20 +228,21 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
         kind: "button",
         descriptor: {
           key: "refs-bcp14",
-          label: "MUST",
+          label: "Bcp14",
           title: "Insert BCP14 keyword",
           isActive: (state) => refMarkActive(state, "bcp14"),
           isEnabled: isInlineContext,
           run: (view: EditorView) => {
-            if (refMarkActive(view.state, "bcp14")) {
-              toggleBcp14(view.state, view.dispatch, null);
+            const { state, dispatch } = view;
+            if (refMarkActive(state, "bcp14")) {
+              toggleBcp14(state, dispatch, null);
               view.focus();
               return;
             }
-            const ctx = buildRefContext(view.state, "bcp14");
+            const ctx = buildRefContext(state, "bcp14");
             void getBcp14Prompt(ctx).then((type) => {
               if (type === null) return;
-              toggleBcp14(view.state, view.dispatch, type);
+              toggleBcp14(state, dispatch, type);
               view.focus();
             });
           },
@@ -244,21 +253,22 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
         kind: "button",
         descriptor: {
           key: "refs-footnote",
-          label: "⁺",
+          label: "Footnote",
           title: "Insert footnote",
           isActive: (_state) => false,
           isEnabled: isInlineContext,
           run: (view: EditorView) => {
+            const { state, dispatch } = view;
             // Default: generate a fresh id for a new footnote entry.
             const target = generateId();
             if (getFootnotePrompt !== undefined) {
               void getFootnotePrompt().then((id) => {
                 if (id === null) return;
-                insertFootnoteMarker(view.state, view.dispatch, id);
+                insertFootnoteMarker(state, dispatch, id);
                 view.focus();
               });
             } else {
-              insertFootnoteMarker(view.state, view.dispatch, target);
+              insertFootnoteMarker(state, dispatch, target);
               view.focus();
             }
           },
@@ -269,15 +279,16 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
         kind: "button",
         descriptor: {
           key: "refs-stem",
-          label: "∑",
+          label: "Formula",
           title: "Insert inline formula",
           isActive: (_state) => false,
           isEnabled: isInlineContext,
           run: (view: EditorView) => {
-            const ctx = buildStemContext(view.state);
+            const { state, dispatch } = view;
+            const ctx = buildStemContext(state);
             void getStemPrompt(ctx).then((result) => {
               if (result === null) return;
-              insertStem(view.state, view.dispatch, result.type, result.source);
+              insertStem(state, dispatch, result.type, result.source);
               view.focus();
             });
           },

@@ -35,7 +35,8 @@ specific additions are defined here.
 ## 2. Scope and schema recap
 
 Both media nodes come from `@metanorma/prosemirror-schema` (`metanormaSchema`,
-defined in `pkg/prosemirror-schema/nodes.ts` §8.6). The relevant fragment:
+defined in `schema.spec.md` §8.6 — implementation
+`pkg/prosemirror-schema/nodes.ts`). The relevant fragment:
 
 | Node | Content | Group | Atom | Draggable | Attrs |
 |---|---|---|---|---|---|
@@ -115,7 +116,7 @@ the command synchronously from `run`; see §7 for the async dispatch pattern.
 | Field | Value |
 |---|---|
 | `key` | `"image"` |
-| `label` | `"🖼"` (image glyph) |
+| `label` | `"Image"` |
 | `title` | `"Insert image"` |
 | `isActive` | `false` — image insertion is not a toggle; see §8. |
 | `isEnabled` | §8 enabled rule (`canInsertFigure(state)`). |
@@ -152,7 +153,7 @@ export function InsertImageButton({
         title="Insert image"
         onClick={() => setOpen((v) => !v)}
       >
-        🖼
+        Image
       </button>
       {open ? (
         <ImageInsertDialog

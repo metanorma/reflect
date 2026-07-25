@@ -45,19 +45,30 @@
 
 /* Make the editor wrapper a horizontal flex container so the toolbar docks to
  * the right of the document. `.app` is position:absolute/inset:0, so its
- * definite height lets `min-height:100%` resolve and the bar stretch full
- * height via the default `align-items: stretch`. */
+ * definite height lets `height:100%` resolve and the bar stretch full height
+ * via the default `align-items: stretch`.
+ *
+ * `height: 100%` (not `min-height`) bounds the flex container to a *definite*
+ * height — which is what each child's `overflow-y: auto` needs to trigger
+ * independent scrolling: the children cannot overflow-scroll unless their
+ * parent's cross/block size is constrained. */
 :global(.mn-prosemirror) {
   display: flex;
   flex-direction: row;
   align-items: stretch;
   gap: 0.5em;
-  min-height: 100%;
+  height: 100%;
+  overflow: hidden; /* the children scroll, not the wrapper */
 }
 
+/* Editor pane: scrolls independently of the toolbar. `min-height: 0` defeats
+ * the flex default (`min-height: auto` = content size) so the pane can shrink
+ * below its content and `overflow-y: auto` can engage. */
 :global(.mn-prosemirror .ProseMirror) {
   flex: 1 1 auto;
-  min-width: 0; /* allow shrink so the docked toolbar gets its space */
+  min-width: 0;  /* allow shrink so the docked toolbar gets its space */
+  min-height: 0; /* allow shrink so this pane scrolls rather than grows */
+  overflow-y: auto;
 }
 
 /* Reorient the toolbar vertically. Keeps `mn-toolbar` (base button/group
@@ -69,6 +80,8 @@
   flex-direction: column;
   border-bottom: none;
   border-left: 1px solid var(--mn-border, #ccc);
+  min-height: 0;  /* allow shrink so this pane scrolls rather than grows */
+  overflow-y: auto;
 }
 
 :global(.mn-toolbar--vertical .mn-toolbar-group) {
@@ -76,9 +89,10 @@
 }
 
 :global(.mn-toolbar--vertical .mn-toolbar-divider) {
-  width: auto;
+  width: 100%;
   height: 1px; /* horizontal rule between vertically-stacked groups */
   margin: 0.25em 0;
+  flex-shrink: 0; /* keep the 1px height; the empty span would otherwise collapse to 0 in a shrinking flex column */
 }
 
 /* Stateful popovers/dialogs (table grid picker, image dialog, reference-mark

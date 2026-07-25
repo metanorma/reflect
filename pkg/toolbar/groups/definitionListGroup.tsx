@@ -26,7 +26,7 @@ export const definitionListGroup: ToolbarGroupDef = {
       kind: "button",
       descriptor: {
         key: "insert-definition-list",
-        label: "≡",
+        label: "Def list",
         title: "Insert definition list",
         isActive: (state: EditorState) => inDefinitionList(state),
         isEnabled: (state: EditorState) => canInsertBlock(state),
@@ -40,7 +40,7 @@ export const definitionListGroup: ToolbarGroupDef = {
       kind: "button",
       descriptor: {
         key: "add-definition-pair",
-        label: "+ term",
+        label: "+ Term",
         title: "Add term and description",
         isActive: (_state: EditorState) => false,
         isEnabled: (state: EditorState) => inDefinitionList(state),

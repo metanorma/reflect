@@ -2,7 +2,7 @@
  * Public API for `@metanorma/prosemirror-schema` (§11).
  *
  * Implements [`docs/schema.spec.md`](../../docs/schema.spec.md) **v2** — the
- * source of truth for the document model (43 node types, 15 mark types,
+ * source of truth for the document model (43 node types, 14 mark types,
  * content model, attributes, and DOM serialization rules).
  *
  * Assembles the single ProseMirror `Schema` whose node/mark vocabulary,
@@ -67,15 +67,15 @@ export const NODE_NAMES: readonly string[] = [
 ];
 
 /**
- * The 15 mark names, in §3.2 order. The authoritative list that the schema's
+ * The 14 mark names, in §3.2 order. The authoritative list that the schema's
  * `marks` map must contain exactly.
  */
 export const MARK_NAMES: readonly string[] = [
   // Formatting marks (8)
   "emphasis", "strong", "subscript", "superscript", "code",
   "underline", "strike", "smallcap",
-  // Reference / semantic marks (7)
-  "link", "xref", "eref", "footnote", "concept", "bcp14", "span",
+  // Reference / semantic marks (6)
+  "link", "xref", "eref", "concept", "bcp14", "span",
 ];
 
 // ---------------------------------------------------------------------------

@@ -33,8 +33,8 @@ toggle commands — see `docs/MetanormaToolbar.spec.md` for those.
 
 ## 2. Schema recap
 
-From `pkg/prosemirror-schema/nodes.ts` (the `listNodes` group), the three
-node specs are:
+From `schema.spec.md` §8.4 (List nodes — implementation
+`pkg/prosemirror-schema/nodes.ts`), the three node specs are:
 
 | Node | `content` | `group` | `attrs` | `toDOM` | `parseDOM` | Role |
 |---|---|---|---|---|---|---|
@@ -125,7 +125,7 @@ selection, and places the cursor in the `dt` so the user can type the term.
 | Field | Value |
 |---|---|
 | `key` | `"insert-definition-list"` |
-| `label` | `"Def list"` (rendered as `≡` or "DL" — see §8 icon note) |
+| `label` | `"Def list"` |
 | `title` | `"Insert definition list"` |
 | `isActive` | `true` when selection is inside a `dl` (see §7) |
 | `isEnabled` | `true` when the selection's parent accepts `block` content and `dl` is not already an ancestor at the immediate block level (see §7) |
@@ -190,7 +190,7 @@ new `dt`.
 | Field | Value |
 |---|---|
 | `key` | `"add-definition-pair"` |
-| `label` | `"+ term"` |
+| `label` | `"+ Term"` |
 | `title` | `"Add term and description"` |
 | `isActive` | `false` (this is an insert action, not a toggle) |
 | `isEnabled` | `true` when selection is inside a `dl` (see §7) |
@@ -611,7 +611,6 @@ differ — primarily the **editor content** side, not the toolbar chrome:
 
 | Selector | Purpose |
 |---|---|
-| `.mn-toolbar-btn[data-key="insert-definition-list"]` | optional icon/text variant for the dl button |
 | `dl` / `dt` / `dd` (in editor CSS, e.g. `style.css`) | native elements render with implicit semantics; add `dl { display: block; } dt { font-weight: 600; } dd { margin: 0 0 0 1.5em; }` as a sensible default |
 | `.mn-deflist--nested` (open) | visual indent for nested dl inside dd, if nesting is supported |
 
@@ -619,9 +618,9 @@ The `dl`/`dt`/`dd` render as native HTML elements via the schema `toDOM`
 (`["dl", 0]`, `["dt", 0]`, `["dd", 0]`), so no custom class is required for
 correctness — only optional visual polish.
 
-**Icon note:** the base spec uses emoji/unicode glyphs. For the definition
-list, `≡` (identical-to) or the text label `DL` is recommended; final icon is
-a design decision left to the implementer.
+The `dl` group defines no group-specific toolbar-button classes: its buttons
+reuse the base `.mn-toolbar-btn` styling (§8 of the directory `README.md`),
+with `"Def list"` and `"+ Term"` as their visible labels.
 
 ## 9. Accessibility
 

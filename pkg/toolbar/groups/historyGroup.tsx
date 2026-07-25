@@ -22,7 +22,7 @@ export const historyGroup: ToolbarGroupDef = {
       kind: "button",
       descriptor: {
         key: "undo",
-        label: "↶",
+        label: "Undo",
         title: "Undo (Ctrl+Z)",
         isActive: (_state: EditorState) => false,
         isEnabled: (state: EditorState) => undoDepth(state) > 0,
@@ -36,7 +36,7 @@ export const historyGroup: ToolbarGroupDef = {
       kind: "button",
       descriptor: {
         key: "redo",
-        label: "↷",
+        label: "Redo",
         title: "Redo (Ctrl+Shift+Z)",
         isActive: (_state: EditorState) => false,
         isEnabled: (state: EditorState) => redoDepth(state) > 0,

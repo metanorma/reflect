@@ -73,7 +73,7 @@ forms (e.g. `footnote_entry`), not to these marks.
 |---|---|---|---|
 | `xref` | `target: null` | `<a class="xref" data-target>` | Cross-reference to an anchor / element id elsewhere in the document. |
 | `eref` | `cite: null` | `<cite class="eref" data-cite>` | Bibliographic reference — cites a `bibliography` entry by key. |
-| `concept` | `ref: null` | `<span class="concept" data-ref>` | Reference to a concept / designation in a concept store. |
+| `concept` | `ref: null`, `kind: "xref"` | `<span class="concept" data-ref data-kind>` | Reference to a concept / designation. `kind` (enum `"eref"` \| `"xref"` \| `"termref"`, default `"xref"`) selects the Presentation-XML child element (`<eref>` / `<xref>` / `<termref>`); `ref` supplies the pointer value (`citeas` / `target` / `target`). See schema §17.3. |
 | `bcp14` | `type: null` | `<span class="bcp14" data-type>` | A BCP14 [BCP14] keyword (`MUST`, `SHOULD`, …). `type` is an open free-text string (any keyword, any language). |
 
 #### footnote and stem are inline atom nodes, not marks
@@ -83,15 +83,13 @@ The schema defines `footnote_marker` and `stem` as inline atom nodes (`content: 
 (node-insertion commands), not mark toggles:
 
 - `footnote_marker` (attrs `{ id, target, data }`) mirrors Metanorma
-  Presentation XML's `<fn>` element — an inline element at the reference site
-  (not a text-wrapping mark). The `footnote` mark exists in the schema but is
-  unused by the toolbar. See §5.5.
+  Presentation XML's `<fn>` element — an inline element at the reference site,
+  not a text-wrapping mark. See §5.5.
 - `stem` (attrs `{ type, asciimath, mathml, data }`) is an inline formula atom —
   the math source lives in the `asciimath`/`mathml` attrs (selected by the
   `type` discriminator — schema §17.2), not as wrapped text. This makes host-
   provided live math preview possible via node-view override (like block
-  `formula`). The former `stem` mark has been **removed** from the schema;
-  `stem` is now solely a node. See §5.6.
+  `formula`). See §5.6.
 
 - `formula` — a **block-level** atom node for display equations (separate
   from the inline `stem` node). Block formula insertion/editing is out of
@@ -108,12 +106,12 @@ attribute rather than firing an immediate toggle.
 
 | Button | Label | Title (ARIA) | Key attr to collect | Input UI |
 |---|---|---|---|---|
-| Cross-reference | `↗` | "Insert cross-reference" | `target` (anchor/id) | target picker or free-text input |
-| Bibliographic ref | `📕` | "Insert bibliographic reference" | `cite` (citation key) | bibliography picker or free-text input |
-| Concept | `💡` | "Insert concept reference" | `ref` (concept id) | concept picker or free-text input |
-| BCP14 keyword | `MUST` | "Insert BCP14 keyword" | `type` (free text) | free-text input (keyword prompt) |
-| Footnote | `⁺` | "Insert footnote" | `target` (footnote entry id) | dialog: create new entry or pick existing (§5.5) |
-| Inline formula | `∑` | "Insert inline formula" | `asciimath`/`mathml` (node attrs) | formula-edit popover (§5.6) |
+| Cross-reference | `Xref` | "Insert cross-reference" | `target` (anchor/id) | target picker or free-text input |
+| Bibliographic ref | `Eref` | "Insert bibliographic reference" | `cite` (citation key) | bibliography picker or free-text input |
+| Concept | `Concept` | "Insert concept reference" | `ref` (concept id), `kind` (`eref` \| `xref` \| `termref`, default `xref`) | concept picker or free-text input (§5.3) |
+| BCP14 keyword | `Bcp14` | "Insert BCP14 keyword" | `type` (free text) | free-text input (keyword prompt) |
+| Footnote | `Footnote` | "Insert footnote" | `target` (footnote entry id) | dialog: create new entry or pick existing (§5.5) |
+| Inline formula | `Formula` | "Insert inline formula" | `asciimath`/`mathml` (node attrs) | formula-edit popover (§5.6) |
 
 All buttons follow the `ToolbarButton` descriptor from base §5 (reproduced in
 the context for this document). Active detection, enabled detection, and the
@@ -193,24 +191,37 @@ readonly onErefPrompt?: (context: RefPromptContext) => Promise<string | null>;
 
 ### 5.3 `concept` — concept-ref resolution
 
-Needs a `ref`: the id of a node that defines the concept (typically a clause or
-block within a `definitions` or `terms` section). Unlike `eref`, `concept.ref`
-is a **document-internal** target — it maps to the `target` of the inner
-`<xref>` inside Metanorma Presentation XML's `<concept>` element. Resolution is
-therefore the same shape as `xref` (§5.1):
+Needs a `ref` and a `kind`. `kind` (enum `"eref"` \| `"xref"` \| `"termref"`,
+default `"xref"`) selects which Presentation-XML child element the mark
+represents — bibliographic (`<eref>`), document-internal (`<xref>`), or
+termbase (`<termref>`) — and `ref` supplies the pointer value (`citeas` for
+`eref`, `target` for `xref`/`termref`). See schema §17.3. The default of
+`"xref"` keeps export deterministic when `kind` is unset, so the common
+internal-concept-definition case works without an explicit `kind`.
 
-1. **Doc-anchored picker (preferred).** Scan `state.doc` for id-bearing nodes,
-   emphasising those inside `definitions`/`terms` sections (where term-definition
-   clauses live). Because the schema has no dedicated "term entry" node, the
-   picker lists id-bearing clauses/blocks — coarse but functional.
-2. **Free-text input (fallback).** A `window.prompt('Concept id:')` when no
-   picker is available.
-3. **Upgrade hook.** `onConceptPrompt` lets the host supply a curated picker
-   (e.g. only term-definition entries, with proper labels).
+Resolution of `ref` depends on `kind`:
+
+- **`kind: "xref"` (default).** `ref` is a **document-internal** target — the id
+  of a node that defines the concept (typically a clause or block within a
+  `definitions` or `terms` section). Resolution is the same shape as `xref`
+  (§5.1):
+  1. **Doc-anchored picker (preferred).** Scan `state.doc` for id-bearing nodes,
+     emphasising those inside `definitions`/`terms` sections (where
+     term-definition clauses live). Because the schema has no dedicated "term
+     entry" node, the picker lists id-bearing clauses/blocks — coarse but
+     functional.
+  2. **Free-text input (fallback).** A `window.prompt('Concept id:')` when no
+     picker is available.
+  3. **Upgrade hook.** `onConceptPrompt` lets the host supply a curated picker
+     (e.g. only term-definition entries, with proper labels).
+- **`kind: "eref"`.** `ref` is a bibliographic **citeas** key — same shape as
+  `eref` (§5.2).
+- **`kind: "termref"`.** `ref` is a **termbase** target — free-text only (the
+  editor has no termbase to scan); `window.prompt('Termbase target:')`.
 
 ```typescript
-/** Resolve a concept ref. Default: window.prompt. Return null to cancel. */
-readonly onConceptPrompt?: (context: RefPromptContext) => Promise<string | null>;
+/** Resolve a concept ref and kind. Default: window.prompt. Return null to cancel. */
+readonly onConceptPrompt?: (context: RefPromptContext) => Promise<{ ref: string; kind: "eref" | "xref" | "termref" } | null>;
 ```
 
 ### 5.4 `bcp14` — free-text keyword
@@ -235,12 +246,12 @@ convention, not a hard constraint — allowing keywords in any language and
 deferring stricter validation (or a host-supplied curated menu) to future
 work without a schema change.
 
-### 5.5 `footnote` — `footnote_marker` node insertion
+### 5.5 `footnote_marker` — footnote node insertion
 
 Unlike the other reference marks, footnote insertion uses the
-**`footnote_marker` inline atom node** (not the `footnote` mark), because it
-mirrors Metanorma Presentation XML's inline `<fn>` element (§3). The command
-inserts a `footnote_marker` node at the cursor; its `target` attr points at a
+**`footnote_marker` inline atom node**, because it mirrors Metanorma
+Presentation XML's inline `<fn>` element (§3). The command inserts a
+`footnote_marker` node at the cursor; its `target` attr points at a
 `footnote_entry`'s `id`, and its own `id` enables backlinks.
 
 1. **Id generation.** The toolbar generates a fresh, unique id using the
@@ -440,6 +451,7 @@ export function toggleConcept(
   state: EditorState,
   dispatch?: (tr: Transaction) => void,
   ref: string | null,
+  kind?: "eref" | "xref" | "termref",  // default "xref"
 ): boolean;
 
 export function toggleBcp14(

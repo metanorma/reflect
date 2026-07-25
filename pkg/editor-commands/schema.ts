@@ -93,8 +93,7 @@ export const MARK_NAME = Object.freeze({
   link: "link",
   xref: "xref",
   eref: "eref",
-    footnote: "footnote",
-    concept: "concept",
+  concept: "concept",
   bcp14: "bcp14",
   span: "span",
 } as const);

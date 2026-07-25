@@ -40,7 +40,7 @@ export function makeLinkGroup(
         kind: "button",
         descriptor: {
           key: "link",
-          label: "🔗",
+          label: "Link",
           title: "Link",
           isActive: (state) => isMarkActive(state, linkMark),
           isEnabled: (state) => {

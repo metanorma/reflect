@@ -171,10 +171,10 @@ export function InsertImageButton({
         aria-expanded={open}
         disabled={!enabled}
         title="Insert image"
-        onClick={() => setOpen((v) => !v)}
-      >
-        🖼
-      </button>
+          onClick={() => setOpen((v) => !v)}
+        >
+          Image
+        </button>
       {open ? (
         <ImageInsertDialog
           onImageUpload={onImageUpload}

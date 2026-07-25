@@ -25,8 +25,8 @@ additions are defined here.
 ## 2. Scope and schema recap
 
 All table nodes come from `@metanorma/prosemirror-schema`
-(`metanormaSchema`, defined in `pkg/prosemirror-schema/nodes.ts` §8.5). The
-relevant fragment:
+(`metanormaSchema`, defined in `schema.spec.md` §8.5 — implementation
+`pkg/prosemirror-schema/nodes.ts`). The relevant fragment:
 
 | Node | Content | Group | Attrs |
 |---|---|---|---|
@@ -80,7 +80,7 @@ event callback to run the insert command from the adapter.
 | Field | Value |
 |---|---|
 | `key` | `"table"` |
-| `label` | `"▦"` (grid glyph) |
+| `label` | `"Table"` |
 | `title` | `"Insert table"` |
 | `isActive` | `false` — table insertion is not a toggle; see §7. |
 | `isEnabled` | §7 enabled rule (selection parent in `block` group and not inside an existing `table_cell`). |
@@ -118,7 +118,7 @@ export function InsertTableButton() {
         title="Insert table"
         onClick={() => setOpen((v) => !v)}
       >
-        ▦
+        Table
       </button>
       {open ? (
         <TableSizePicker

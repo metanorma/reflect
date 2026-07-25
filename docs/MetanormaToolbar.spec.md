@@ -1,6 +1,6 @@
 # MetanormaToolbar — Functional Specification
 
-**Spec version:** 2
+**Spec version:** 3
 **Spec dependencies:** [`EditorCommands.spec.md`](./EditorCommands.spec.md) v1
 
 ## 1. Purpose
@@ -39,6 +39,21 @@ package, `@metanorma/toolbar` (`pkg/toolbar/`), separated from
 > assembler plus shared primitives — was moved into its own package,
 > `@metanorma/toolbar` (`pkg/toolbar/`). The public component API
 > (`MetanormaToolbar`, `MetanormaToolbarProps`, `ToolbarGroup`) is unchanged.
+
+> **What changed in version 3.** The visible `label` of every toolbar button
+> changed from a glyph/emoji/short token (e.g. `❝`, `🔗`, `B`, `x₂`) to a
+> **short legible word** (e.g. `Quote`, `Link`, `Bold`, `Sub`). The `title`
+> field (the `<button title>` tooltip) is unchanged and is now the sole
+> channel for the longer per-button description. Consequences for this
+> document: the §5 button tables are restructured so each row carries
+> explicit `Label` (= the short visible word) and `Title` (= the tooltip)
+> columns, replacing the old tables that specified only a glyph `Label` (and,
+> in §5.1, a separate `Icon/text` glyph column). The `ToolbarButton.label`
+> and `ToolbarButton.title` field semantics (§5) are unchanged — `label`
+> was always "the text shown as button text"; only the *recommended values*
+> changed. The styling baseline in §8 is unchanged (no `min-width` bump is
+> mandated; consumers that find word-labels too wide for their layout
+> override `.mn-toolbar-btn` as needed).
 
 ## 2. Package and export
 
@@ -181,16 +196,16 @@ Each mark button uses `prosemirror-commands`'s `toggleMark`. Active state is
 detected by checking whether the mark is present in `$from` stored marks or
 the current selection range.
 
-| Button | Label | Mark | Icon/text | Command |
+| Button | Label | Title | Mark | Command |
 |---|---|---|---|---|
-| Bold | **B** | `strong` | "B" (bold) | `toggleMark(schema.marks.strong)` |
-| Italic | *I* | `emphasis` | "I" (italic) | `toggleMark(schema.marks.emphasis)` |
-| Underline | U̲ | `underline` | "U" (underlined) | `toggleMark(schema.marks.underline)` |
-| Strikethrough | S̶ | `strike` | "S" (strikethrough) | `toggleMark(schema.marks.strike)` |
-| Subscript | X₂ | `subscript` | "x₂" | `toggleMark(schema.marks.subscript)` |
-| Superscript | X² | `superscript` | "x²" | `toggleMark(schema.marks.superscript)` |
-| Code | `<>` | `code` | "code" | `toggleMark(schema.marks.code)` |
-| Small caps | ᴀᴀ | `smallcap` | "AA" (small caps) | `toggleMark(schema.marks.smallcap)` |
+| Bold | Bold | Bold | `strong` | `toggleMark(schema.marks.strong)` |
+| Italic | Italic | Italic | `emphasis` | `toggleMark(schema.marks.emphasis)` |
+| Underline | Underline | Underline | `underline` | `toggleMark(schema.marks.underline)` |
+| Strikethrough | Strikethrough | Strikethrough | `strike` | `toggleMark(schema.marks.strike)` |
+| Subscript | Sub | Subscript | `subscript` | `toggleMark(schema.marks.subscript)` |
+| Superscript | Super | Superscript | `superscript` | `toggleMark(schema.marks.superscript)` |
+| Code | Code | Code | `code` | `toggleMark(schema.marks.code)` |
+| Small caps | Smallcaps | Small caps | `smallcap` | `toggleMark(schema.marks.smallcap)` |
 
 **Active detection:** a mark is active when
 `state.selection.empty ? schema.marks.X.isInSet(state.storedMarks ?? state.$from.marks()) : schema.marks.X.isInSet(state.selection.$to.marks())`.
@@ -203,11 +218,11 @@ inline-content node). Returns `false` when the cursor is inside an atom node
 
 ### 5.2 Group: `blocks` — block wrapping
 
-| Button | Label | Node type | Command |
-|---|---|---|---|
-| Quote | ❝ | `quote` | `wrapIn(schema.nodes.quote)` |
-| Note | 📝 | `note` | `wrapIn(schema.nodes.note)` |
-| Example | 💡 | `example` | `wrapIn(schema.nodes.example)` |
+| Button | Label | Title | Node type | Command |
+|---|---|---|---|---|
+| Quote | Quote | Quote | `quote` | `wrapIn(schema.nodes.quote)` |
+| Note | Note | Note | `note` | `wrapIn(schema.nodes.note)` |
+| Example | Example | Example | `example` | `wrapIn(schema.nodes.example)` |
 
 Uses `prosemirror-commands`'s `wrapIn`.
 
@@ -227,10 +242,10 @@ let ProseMirror handle the toggle logic.
 
 ### 5.3 Group: `lists` — list insertion
 
-| Button | Label | Node type | Command |
-|---|---|---|---|
-| Bullet list | • | `bullet_list` | toggle list (see below) |
-| Ordered list | 1. | `ordered_list` | toggle list (see below) |
+| Button | Label | Title | Node type | Command |
+|---|---|---|---|---|
+| Bullet list | Bullets | Bullet list | `bullet_list` | toggle list (see below) |
+| Ordered list | Numbers | Ordered list | `ordered_list` | toggle list (see below) |
 
 The list-toggle is the `toggleList` command, specified fully in
 [`EditorCommands.spec.md`](./EditorCommands.spec.md) §3 — including its
@@ -263,9 +278,9 @@ result always agree.
 
 ### 5.4 Group: `link` — hyperlink
 
-| Button | Label | Mark | Command |
-|---|---|---|---|
-| Link | 🔗 | `link` | toggle link (see below) |
+| Button | Label | Title | Mark | Command |
+|---|---|---|---|---|
+| Link | Link | Link | `link` | toggle link (see below) |
 
 The `link` mark carries an `href` attribute (default `null`), so a simple
 `toggleMark` is insufficient — the user must supply a URL.

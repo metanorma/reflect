@@ -12,14 +12,14 @@ import { isInlineContext, isMarkActive, requireMark } from "../predicates.js";
 
 // [markName, label, title, key]
 const markSpecs: ReadonlyArray<readonly [string, string, string, string]> = [
-  ["strong", "B", "Bold", "strong"],
-  ["emphasis", "I", "Italic", "emphasis"],
-  ["underline", "U", "Underline", "underline"],
-  ["strike", "S", "Strikethrough", "strike"],
-  ["subscript", "x₂", "Subscript", "subscript"],
-  ["superscript", "x²", "Superscript", "superscript"],
-  ["code", "code", "Code", "code"],
-  ["smallcap", "AA", "Small caps", "smallcap"],
+  ["strong", "Bold", "Bold", "strong"],
+  ["emphasis", "Italic", "Italic", "emphasis"],
+  ["underline", "Underline", "Underline", "underline"],
+  ["strike", "Strikethrough", "Strikethrough", "strike"],
+  ["subscript", "Sub", "Subscript", "subscript"],
+  ["superscript", "Super", "Superscript", "superscript"],
+  ["code", "Code", "Code", "code"],
+  ["smallcap", "Smallcaps", "Small caps", "smallcap"],
 ];
 
 /** The `marks` group definition (static — no external props). */

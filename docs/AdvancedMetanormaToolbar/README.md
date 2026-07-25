@@ -1,7 +1,20 @@
 # AdvancedMetanormaToolbar — Feature Specifications
 
-**Spec version:** 1
-**Spec dependencies:** [`../MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) v2, [`../EditorCommands.spec.md`](../EditorCommands.spec.md) v1, [`../schema.spec.md`](../schema.spec.md) v2
+**Spec version:** 2
+**Spec dependencies:** [`../MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) v3, [`../EditorCommands.spec.md`](../EditorCommands.spec.md) v1, [`../schema.spec.md`](../schema.spec.md) v3
+
+> **What changed in version 2.** The visible `label` of every advanced
+> toolbar button changed from a glyph/emoji (e.g. `↩`, `↶`, `▦`, `🖼`,
+> `≡`, `↗`, `📕`, `⁺`, `∑`) to a **short legible word** (e.g. `Outdent`,
+> `Undo`, `Table`, `Image`, `Def list`, `Xref`, `Eref`, `Formula`), tracking
+> the base spec's v3 textual-label convention
+> (`MetanormaToolbar.spec.md` v3 §5 + its "What changed in version 3" block).
+> The `title` field (tooltip) on every button is unchanged. Member-page
+> button tables and code blocks were updated in place to show the new word
+> labels; where a member page carried an "icon note" or arrow-glyph styling
+> rationale, that wording was removed or recast (decision history lives in
+> this block, not in the member pages). The `ToolbarButton` descriptor
+> shape (§2.3) is unchanged.
 
 This directory contains the feature specifications for **`AdvancedMetanormaToolbar`**,
 an extended version of the `MetanormaToolbar` component specified in
@@ -119,10 +132,13 @@ proposed in these documents must:
 
 All features target the single `metanormaSchema` exported from
 `@metanorma/prosemirror-schema`. Key node and mark definitions relevant across
-features are summarized below; consult `pkg/prosemirror-schema/nodes.ts`
-and `marks.ts` for full specs.
+features are summarized below; consult [`schema.spec.md`](../schema.spec.md)
+§8 (nodes) and §9 (marks) for the authoritative specs (implementation:
+`pkg/prosemirror-schema/nodes.ts` and `marks.ts`).
 
 ### 4.1 Groups
+
+Mirrors `schema.spec.md` §4 (ProseMirror group design):
 
 | Group constant | Value | Members (excerpt) |
 |---|---|---|
@@ -132,11 +148,15 @@ and `marks.ts` for full specs.
 
 ### 4.2 Attribute helpers
 
+Governed by `schema.spec.md` §6 (Attribute conventions):
+
 - `DATA_ATTR` — `{ data: { default: {} } }`, universal catch-all.
 - `baseAttrs()` — `{ id, number, data }`, all defaulting `null`/`{}`.
 - `sectionAttrs()` — `{ id, number, title, data }`, all defaulting `null`/`{}`.
 
 ### 4.3 Runtime guards
+
+Exported per `schema.spec.md` §11 (Public API):
 
 `assertValidImageAttrs(attrs)` — asserts `src` is a non-empty string; used by
 image insertion paths (see `images-figures.md`).
@@ -267,7 +287,7 @@ export interface AdvancedMetanormaToolbarProps {
   // — refs group (reference-marks.md) —
   readonly onXrefPrompt?: () => Promise<string | null>;
   readonly onErefPrompt?: () => Promise<string | null>;
-  readonly onConceptPrompt?: () => Promise<string | null>;
+  readonly onConceptPrompt?: () => Promise<{ ref: string; kind: "eref" | "xref" | "termref" } | null>;
   /** Resolve a BCP14 keyword (free text). Default: window.prompt. */
   readonly onBcp14Prompt?: () => Promise<string | null>;
   /** Resolve a footnote entry id (optionally create). Default: generate. */

@@ -25,9 +25,10 @@ prefix (`mn-toolbar`), and TypeScript constraints defined in
 
 ## 2. Schema recap
 
-All node references below are from `pkg/prosemirror-schema/nodes.ts`. The
-group constants (`BLOCK_GROUP = "block"`, `SECTION_GROUP = "section"`) are from
-`pkg/prosemirror-schema/groups.ts`.
+All node references below are from `schema.spec.md` §8.2 (Section nodes —
+implementation `pkg/prosemirror-schema/nodes.ts`). The group constants
+(`BLOCK_GROUP = "block"`, `SECTION_GROUP = "section"`) are from
+`schema.spec.md` §4 (implementation `pkg/prosemirror-schema/groups.ts`).
 
 ### 2.1 Structural containers
 
@@ -153,10 +154,10 @@ between section node types where the content model permits). The proposed set:
 
 | # | Button | Label | Purpose |
 |---|---|---|---|
-| 1 | Insert clause | `clause` | Wrap the selected block(s) in a new `clause` node containing a leading child paragraph; place the cursor in that paragraph. The primary structural "add a subsection here" action. |
-| 2 | Promote clause | `▲` | Lift the nearest enclosing clause out one nesting level (move it to be a sibling of its parent clause). Disabled at the top structural level. |
-| 3 | Demote clause | `▼` | Nest the nearest enclosing clause as the last child of its preceding sibling clause (one level deeper). Disabled when no legal deeper target exists. |
-| 4 | Change section type | `§ type` | Convert the nearest enclosing section node into another section type whose content expression is satisfied by the node's current children (e.g. `clause` → `terms`). Disabled for leaf-only or unsatisfiable conversions. |
+| 1 | Insert clause | `Clause` | Wrap the selected block(s) in a new `clause` node containing a leading child paragraph; place the cursor in that paragraph. The primary structural "add a subsection here" action. |
+| 2 | Promote clause | `Promote` | Lift the nearest enclosing clause out one nesting level (move it to be a sibling of its parent clause). Disabled at the top structural level. |
+| 3 | Demote clause | `Demote` | Nest the nearest enclosing clause as the last child of its preceding sibling clause (one level deeper). Disabled when no legal deeper target exists. |
+| 4 | Change section type | `Type` | Convert the nearest enclosing section node into another section type whose content expression is satisfied by the node's current children (e.g. `clause` → `terms`). Disabled for leaf-only or unsatisfiable conversions. |
 
 **Why this set, and not more.** "Insert clause" is the single most-requested
 structural action and the baseline deliverable (it is the only one the base
@@ -182,7 +183,7 @@ the most common type, `clause`, in one action; a dropdown caret opens a menu of
 | Field | Value |
 |---|---|
 | `key` | `"sections-insert-clause"` |
-| `label` | `clause` |
+| `label` | `Clause` |
 | `title` | `"Insert clause (wrap selection in a new clause)"` |
 | `isActive` | `false` — insertion is not a toggle. (See note below.) |
 | `isEnabled` | `canWrapInClause(state)` (§5.1): the resolved selection's ancestor chain contains a container that permits a `clause` child (or the doc-top-level fallback applies). |
@@ -222,7 +223,7 @@ wrong type.
 | Field | Value |
 |---|---|
 | `key` | `"sections-promote"` |
-| `label` | `▲` |
+| `label` | `Promote` |
 | `title` | `"Promote clause (move out one level)"` |
 | `isActive` | `false` |
 | `isEnabled` | The nearest enclosing section node is a `clause` **and** its parent is itself a section node (or a container that can legally receive the clause as a child at the post-lift position). Disabled when the clause is already a top-level child of `sections`/`preface`/`bibliography` (nothing to lift into without violating the doc ordering). |
@@ -233,7 +234,7 @@ wrong type.
 | Field | Value |
 |---|---|
 | `key` | `"sections-demote"` |
-| `label` | `▼` |
+| `label` | `Demote` |
 | `title` | `"Demote clause (nest one level deeper)"` |
 | `isActive` | `false` |
 | `isEnabled` | The nearest enclosing clause has a preceding sibling that is a clause (or `annex`/`terms`/`definitions`/`references`/`content_section` that can legally contain a `clause`), so it can be reparented as that sibling's last child. Disabled at the top of a container with no preceding-section sibling, or when the only candidate parent is a leaf section. |
@@ -244,7 +245,7 @@ wrong type.
 | Field | Value |
 |---|---|
 | `key` | `"sections-set-type"` |
-| `label` | `§ type` |
+| `label` | `Type` |
 | `title` | `"Change section type…"` |
 | `isActive` | `true` when the nearest enclosing section node's type matches the most recently chosen target — used only to reflect the current type once a sub-menu selection has been made. In the common (no sub-menu) rendering, `false`. |
 | `isEnabled` | There exists at least one *other* section node type such that `targetType.validContent(currentNode.content)` and the current parent permits `targetType` (same group `section`, so the parent's content expression is unaffected). Disabled inside `block`-only contexts and when no legal target exists. |
@@ -670,7 +671,7 @@ and `mn-toolbar-divider` classes. Feature-specific additions for this group:
 
 | Class | Purpose |
 |---|---|
-| `.mn-toolbar-btn--sections` | Optional modifier marking buttons belonging to the `sections` group (for targeted styling / icon colour). |
+| `.mn-toolbar-btn--sections` | Optional modifier marking buttons belonging to the `sections` group (for targeted group-specific styling). |
 | `.mn-toolbar-section-menu` | The `<select>` or sub-menu (`role="listbox"`) listing section node types. Shared by the §4.2 insert split-button dropdown and the §4.5 "Change section type" menu. |
 | `.mn-toolbar-heading-popover` | The popover `<div>` containing the heading `<input>` (§7 option 1). Anchored, with `role="dialog"`. |
 

@@ -21,11 +21,12 @@
  *   nested list if it becomes empty.
  *
  * Because list items are generalised, the split operates on whichever block
- * type the cursor is in (a paragraph, a nested list's paragraph, …), not on
- * an assumed `paragraph` parent.
+ * type the cursor is in (a paragraph, a nested list's paragraph, …), not on an
+ * assumed `paragraph` parent.
  */
 
 import type { Schema } from "prosemirror-model";
+import { canSplit } from "prosemirror-transform";
 import type { Command } from "prosemirror-state";
 import { TextSelection } from "prosemirror-state";
 
@@ -76,35 +77,42 @@ export function splitListItem(schema: Schema): Command {
       parentListItemDepth >= 1 &&
       $from.node(parentListItemDepth).type.name === itemTypeName.name;
 
-    // ----- Exit path: empty paragraph at end of item ----------------------
+    // ----- Exit path: empty paragraph at end of item (spec L2/L3) ------------
+    // The cursor's textblock is the LAST child of its list_item iff its index
+    // within the item is the item's last child index. (An earlier revision used
+    // `$from.end($from.depth) === $from.end(itemDepth)`, which silently fails
+    // for EMPTY paragraphs: `$from.end` of an empty textblock returns the
+    // textblock's open-token position, never matching the item's end.)
     const inner = $from.parent;
-    const inLastBlockOfItem = $from.depth >= 1 &&
-      $from.end($from.depth) === $from.end(itemDepth);
+    const isLastChildOfItem =
+      $from.depth >= 1 &&
+      $from.index(itemDepth) === $from.node(itemDepth).childCount - 1;
     if (
       inner.type === paraType &&
       isEmptyTextblock(inner) &&
-      inLastBlockOfItem &&
+      isLastChildOfItem &&
       $from.pos === $to.pos
     ) {
       if (dispatch === undefined) return true;
       const tr = state.tr;
       const para = paraType.create();
 
+      // Compute the list's end position ONCE; the post-delete insert position
+      // is the same absolute slot (the position just after the list, or after
+      // the parent item for the nested exit-one-level case). Positions after
+      // the deleted range shift in the new doc, so re-resolve on tr.doc.
       if (isNested) {
         // Exit one level: remove the inner list if it has only this item,
         // otherwise remove just this item; then drop an empty paragraph into
         // the parent list_item as a trailing block.
         if (listNode.childCount === 1) {
           tr.delete($from.before(listDepth), $from.after(listDepth));
-          const insertAt = $from.after(listDepth);
-          tr.insert(insertAt, para);
-          tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
         } else {
           tr.delete($from.before(itemDepth), $from.after(itemDepth));
-          const insertAt = $from.after(listDepth);
-          tr.insert(insertAt, para);
-          tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
         }
+        const insertAt = tr.mapping.map($from.after(listDepth));
+        tr.insert(insertAt, para);
+        tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
       } else {
         // Top-level: replace item+para with a paragraph *after* the list; if
         // this was the only item, remove the whole list.
@@ -115,7 +123,7 @@ export function splitListItem(schema: Schema): Command {
           tr.setSelection(TextSelection.near(tr.doc.resolve(listStart + 1)));
         } else {
           tr.delete($from.before(itemDepth), $from.after(itemDepth));
-          const insertAt = $from.after(listDepth);
+          const insertAt = tr.mapping.map($from.after(listDepth));
           tr.insert(insertAt, para);
           tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
         }
@@ -125,7 +133,17 @@ export function splitListItem(schema: Schema): Command {
       return true;
     }
 
-    // ----- Continue path: split into a new list_item -----------------------
+    // ----- Continue path: split into a new list_item (spec L1) --------------
+    // Cursor is in a non-empty textblock, or at the start/middle/end of one
+    // that is not the (empty) exit case above. `tr.split(pos, depth, types)`
+    // splits through `depth` ancestor levels starting from the textblock. To
+    // produce a new sibling list_item, depth must equal the number of levels
+    // from the textblock up through (and including) the list_item:
+    //   textblockDepth - itemDepth + 1.
+    // When the cursor is at the END of the textblock, the second half would be
+    // an empty list_item, violating `block+`; upstream solves this by passing
+    // a `types` argument that seeds the new item with a default-type block
+    // (a paragraph), pre-flighted by `canSplit`. We mirror that here.
     if (dispatch === undefined) return true;
     const tr = state.tr;
     tr.deleteSelection();
@@ -141,14 +159,22 @@ export function splitListItem(schema: Schema): Command {
     }
     if (newItemDepth === NOT_IN_ITEM) return false;
 
-    // `tr.split(pos, depth)` with depth = (itemDepth - textblockDepth + 1)
-    // splits from the textblock up through the list_item, producing a new
-    // sibling item whose first block is the tail of the split. This is the
-    // generalised form of upstream `splitListItem` for `block+` content: we
-    // don't assume the inner block is a paragraph.
     const textblockDepth = head.depth;
-    const splitDepth = newItemDepth - textblockDepth + 1;
-    tr.split(head.pos, splitDepth);
+    const splitDepth = textblockDepth - newItemDepth + 1;
+
+    // When at the end of the textblock, seed the new list_item's first block.
+    const atEnd = head.pos === head.end(textblockDepth);
+    const itemTypeObj = head.node(newItemDepth).type;
+    const nextType = atEnd ? itemTypeObj.contentMatch.defaultType : null;
+    const types =
+      nextType !== null
+        ? [null, { type: nextType }]
+        : undefined;
+
+    // Pre-flight: refuse cleanly if the split would produce invalid content.
+    if (!canSplit(tr.doc, head.pos, splitDepth, types)) return false;
+
+    tr.split(head.pos, splitDepth, types);
     tr.scrollIntoView();
     dispatch(tr);
     return true;

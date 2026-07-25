@@ -26,7 +26,7 @@ export const outdentGroup: ToolbarGroupDef = {
       kind: "button",
       descriptor: {
         key: "outdent",
-        label: "↩",
+        label: "Outdent",
         title: "Outdent (decrease level)",
         isActive: (_state: EditorState) => false,
         isEnabled: (state: EditorState) => lift(state) === true,

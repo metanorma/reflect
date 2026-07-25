@@ -1,5 +1,5 @@
 /**
- * Mark specifications — the 15-mark `marks` map passed to `new Schema` (§9).
+ * Mark specifications — the 14-mark `marks` map passed to `new Schema` (§9).
  *
  * Formatting marks (§9.1) keep the default `inclusive: true`; reference /
  * semantic marks (§9.2) set `inclusive: false` (§7).
@@ -114,57 +114,46 @@ const referenceMarks: Record<string, MarkSpec> = {
       },
     ],
   },
-  eref: {
-    inclusive: false,
-    attrs: { cite: { default: null }, ...DATA_ATTR },
-    toDOM: (mark) => {
-      const attrs: Record<string, string> = { class: "eref" };
-      const cite = markAttr(mark, "cite");
-      if (cite !== null) {
-        attrs["data-cite"] = cite;
-      }
-      return ["cite", attrs, 0];
-    },
-    parseDOM: [
-      {
-        tag: "cite.eref",
-        getAttrs: (el) => ({ cite: el.getAttribute("data-cite") }),
+    eref: {
+      inclusive: false,
+      attrs: { cite: { default: null }, ...DATA_ATTR },
+      toDOM: (mark) => {
+        const attrs: Record<string, string> = { class: "eref" };
+        const cite = markAttr(mark, "cite");
+        if (cite !== null) {
+          attrs["data-cite"] = cite;
+        }
+        return ["cite", attrs, 0];
       },
-    ],
-  },
-  footnote: {
-    inclusive: false,
-    attrs: { id: { default: null }, ...DATA_ATTR },
-    toDOM: (mark) => {
-      const attrs: Record<string, string> = { class: "footnote" };
-      const id = markAttr(mark, "id");
-      if (id !== null) {
-        attrs["data-id"] = id;
-      }
-      return ["sup", attrs, 0];
+      parseDOM: [
+        {
+          tag: "cite.eref",
+          getAttrs: (el) => ({ cite: el.getAttribute("data-cite") }),
+        },
+      ],
     },
-    parseDOM: [
-      {
-        tag: "sup.footnote",
-        getAttrs: (el) => ({ id: el.getAttribute("data-id") }),
-      },
-    ],
-  },
     concept: {
     inclusive: false,
-    attrs: { ref: { default: null }, ...DATA_ATTR },
+    attrs: { ref: { default: null }, kind: { default: "xref" }, ...DATA_ATTR },
     toDOM: (mark) => {
       const attrs: Record<string, string> = { class: "concept" };
       const ref = markAttr(mark, "ref");
       if (ref !== null) {
         attrs["data-ref"] = ref;
       }
+      const kind = markAttr(mark, "kind");
+      if (kind !== null) {
+        attrs["data-kind"] = kind;
+      }
       return ["span", attrs, 0];
     },
     parseDOM: [
       {
         tag: "span.concept",
-        getAttrs: (el) => ({ ref: el.getAttribute("data-ref") }),
+        getAttrs: (el) => ({
+          ref: el.getAttribute("data-ref"),
+          kind: el.getAttribute("data-kind") ?? "xref",
+        }),
       },
     ],
   },
@@ -214,7 +203,7 @@ const referenceMarks: Record<string, MarkSpec> = {
 // ---------------------------------------------------------------------------
 
 /**
- * The 15 mark specs, in §3.2 order.
+ * The 14 mark specs, in §3.2 order.
  *
  * Exposed for consumers that compose a modified schema.
  */

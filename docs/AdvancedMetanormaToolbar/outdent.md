@@ -75,7 +75,7 @@ Two facts drive the whole design:
 
 | Button | Label | Title | Command |
 |---|---|---|---|
-| Outdent | ↩ | Outdent (decrease level) | `lift` (from `@metanorma/editor-commands`) |
+| Outdent | Outdent | Outdent (decrease level) | `lift` (from `@metanorma/editor-commands`) |
 
 ```typescript
 // pkg/toolbar/groups/outdentGroup.tsx
@@ -92,7 +92,7 @@ export const outdentGroup: ToolbarGroupDef = {
       kind: "button",
       descriptor: {
         key: "outdent",
-        label: "↩",
+        label: "Outdent",
         title: "Outdent (decrease level)",
         isActive: (_state: EditorState) => false,
         isEnabled: (state: EditorState) => lift(state) === true,

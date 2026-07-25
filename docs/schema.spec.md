@@ -4,7 +4,7 @@ This spec defines the ProseMirror schema module. Ignore the preexisting
 `pkg/schema` subpackage and any prior ProseMirror usage in this repository —
 this document supersedes them as the source of truth for the schema.
 
-**Spec version:** 2
+**Spec version:** 3
 
 **Source of truth for the document model:**
 `src/types.ts` of [`metanorma/metanorma-mirror-js`](https://github.com/metanorma/metanorma-mirror-js/blob/main/src/types.ts)
@@ -293,6 +293,17 @@ function sectionToDOM(cls: string) {
 | `terms` | `(clause \| block)*` | `mn-terms` |
 | `definitions` | `(clause \| block)*` | `mn-definitions` |
 | `references` | `(clause \| block)*` | `mn-references` |
+
+> **Editor rendering note.** The `sectionToDOM` shape above is the
+> **headless / export serialization path** (clipboard, `Node.toJSON`, headless
+> conversion) and deliberately does NOT render `title` — in Metanorma
+> Presentation XML a section heading is a `<title>`/`<name>` child element, not
+> an attribute (§17). In the **editor**, the ten content-bearing section nodes
+> are rendered by a React node view (`SectionNodeView`,
+> `MetanormaProseMirror.spec.md` §7.3) that surfaces the typed `title`
+> attribute as an editable heading above the content. That node view is a
+> rendering override only; it does not change this schema, the `toDOM`/`parseDOM`
+> rules, or the `SectionAttrs` shape.
 
 ### 8.3 Block nodes
 

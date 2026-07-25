@@ -2,11 +2,11 @@
 
 This spec defines the package providing schema-aware ProseMirror editor commands
 for the Metanorma Mirror document model. It is the command-logic companion to
-[`@metanorma/prosemirror-schema`](./schema.spec.md) and a consumer of the
-`MetanormaProseMirror` editor mount ([`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md)).
+[`@metanorma/prosemirror-schema`](./schema.spec.md); its commands are wired into
+the `MetanormaProseMirror` editor mount via the consumer's `plugins` prop.
 
-**Spec version:** 1
-**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v2, [`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) v2
+**Spec version:** 2
+**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v3
 
 > **Scope of this document.** This revision specifies only the **general,
 > cross-cutting aspects** of command implementation — the contract every command
@@ -42,7 +42,7 @@ functions — tailored to the node/mark vocabulary and content model of
 | Package | Relationship |
 |---|---|
 | `@metanorma/prosemirror-schema` | **Source of truth.** Commands consume `metanormaSchema`, `NODE_NAMES`, and `MARK_NAMES`. They never redefine nodes, marks, attributes, or `toDOM`/`parseDOM`. |
-| `@metanorma/prosemirror-editor` (planned) | **Consumer.** The React editor mount provides the `plugins` prop and `children` hook surface (`MetanormaProseMirror.spec.md` §5, §10) into which keymaps built from these commands are wired. This package does not import React. |
+| `@metanorma/prosemirror-editor` | **Consumer.** The React editor mount provides the `plugins` prop and `children` hook surface (`MetanormaProseMirror.spec.md` §5, §10) into which keymaps built from these commands are wired. This package does not import React. |
 | `prosemirror-commands`, `prosemirror-schema-list` (upstream) | **Composition bases.** Where a stock upstream command works unchanged, it is reused; where the Metanorma schema diverges, this package provides an adapted/custom replacement (defined in later sections). |
 | `prosemirror-state`, `prosemirror-model` | **Runtime types.** `EditorState`, `Transaction`, `Command`, `Node`, `Schema`. |
 
@@ -506,7 +506,7 @@ The newline is plain text, matching round-tripping expectations: the
 |---|---|---|---|---|
 | Collapsed | middle | non-empty paragraph in a list_item | Split the paragraph; the tail becomes the first block of a **new list_item** after the current one (list continues). | `list_item+`; ≥1 item. |
 | Collapsed | end | non-empty last block of a list_item | New **list_item** with an empty first paragraph; cursor in it (list continues). | `list_item+`. |
-| Collapsed | start | non-empty paragraph in a list_item | Split the paragraph in place (per the plain-paragraph rule); list structure unaffected. | `list_item+`. |
+| Collapsed | start | non-empty paragraph in a list_item | Split the paragraph; the (empty) head stays in the current item and the tail becomes the first block of a **new list_item** after it (list continues — see the always-continues rule below). | `list_item+`; ≥1 item. |
 | Collapsed | empty | the empty paragraph is in a **top-level** list_item | **Exit the list**: replace the empty paragraph + its item with an empty paragraph *after* the list; if the list would become empty, remove the list entirely. | No empty `bullet_list`/`ordered_list` left behind. |
 | Collapsed | empty | the empty paragraph is in a **nested** list_item | **Exit one level**: lift the empty paragraph into the parent list_item as a trailing block; remove the nested list if it becomes empty. | Parent item keeps `block+`; no empty nested list. |
 | Ranged | within one item | any | Delete the range, then apply the collapsed rule at the resulting position. | `list_item+`. |
@@ -958,4 +958,725 @@ dispatched, on `tr.doc.toJSON()` and the selection. Representative rows:
 
 Every row must also satisfy the global Acceptance criteria: single dispatch,
 no throw, valid resulting selection, query/dispatch parity, and headless
+executability.
+
+---
+
+## 4. The Backspace key
+
+This section specifies the **Backspace-key-handling feature** of the
+`MetanormaProseMirror` editor: the complete, context-dependent behaviour of
+Backspace at the **start of a textblock** (in particular an empty paragraph)
+across every editing context the Metanorma schema permits, including deeply
+nested documents. It is the third of the command-specific sections deferred from
+"The editor-commands module".
+
+Backspace is structurally dual to Enter: where Enter at the end of a block
+continues or exits a structure, Backspace at the start of a block undoes it.
+But the Metanorma schema has a structural property that defeats stock
+ProseMirror handling: a paragraph is typically the *only child* of a deeply
+nested `clause` (`clause = (clause | block)*`), so stock `joinBackward` (from
+`prosemirror-commands`) finds no joinable sibling at the paragraph's depth and
+**does nothing** — the editor appears unresponsive. The feature's central job is
+therefore to walk the container stack upward, deleting empty textblocks and any
+parent that would be left empty by the deletion, until it reaches a node that
+either should not be deleted (a list item, a table cell, the document root) or
+has a non-deletable predecessor.
+
+The governing rule is the dual of §2's:
+
+> **Backspace at the start of an empty textblock deletes the textblock and, when
+> that would empty its parent, deletes the parent too — walking up the container
+> stack until a node is reached that the schema or this spec refuses to
+> remove.** When the cursor is not at the start of an empty textblock, Backspace
+> performs ordinary character deletion (delegated to the editor view's default
+> handler). Schema safety always wins.
+
+The feature is delivered as a single command in `@metanorma/editor-commands`
+(`emptyTextblockBackspace`, §4.7), placed at the front of the Backspace dispatch
+chain (§4.3) and bound to the Backspace key by a keymap plugin wired into the
+editor mount (§4.8, per §1.13).
+
+### 4.1 Scope
+
+In scope:
+
+- Behaviour of **Backspace at the start of a textblock** for every editing
+  context reachable in a `metanormaSchema` document, with particular attention to
+  the empty-paragraph case.
+- The command the feature introduces (`emptyTextblockBackspace`), and the
+  dispatch order that selects between it and stock deletion.
+- The schema-preservation and user-expectation invariants each branch honours.
+- The keymap binding contract (which key, which platforms, how it is wired into
+  the mount).
+
+Out of scope (handled by other keys or elsewhere):
+
+- **Mid-textblock Backspace** (cursor strictly inside text, or a ranged
+  selection): ordinary character/range deletion, performed by the editor view's
+  default handler. This feature returns `false` for those cases (§4.3).
+- **Forward deletion** (`Delete` key): not bound by this feature. It is a
+  separate key with its own context rules and is not the structural dual of
+  Backspace at the start; it is left unbound in v2.
+- **`Mod-Backspace`** / **`Alt-Backspace`** / word-boundary variants
+  (`Mod-Delete` on macOS deletes the previous word): not bound by this feature.
+- Table row/column deletion via Backspace (`prosemirror-tables` is not
+  integrated — see §4.4.6).
+- Input rules, paste handling, drag-and-drop, and collaborative bindings.
+
+### 4.2 What determines Backspace-at-start's behaviour
+
+The effect is a pure function of the editor state at the moment of the keypress.
+The relevant inputs are:
+
+1. **Selection kind.**
+   - *Collapsed* (a blinking cursor) — the case all structural logic below keys
+     off.
+   - *Ranged* (a non-collapsed text selection spanning inline content and/or
+     whole blocks) — handled by stock deletion (this feature returns `false`,
+     letting the editor view's default `deleteSelection` run).
+   - *Node* (a whole node selected via gap cursor or keyboard node-selection) —
+     see §4.4.7.
+2. **Innermost textblock** — the nearest ancestor of the selection whose content
+   is inline (`paragraph`, `sourcecode`, `dt`).
+3. **Container stack** — the chain of ancestors from the textblock up to the
+   document root (`list_item`, `bullet_list`/`ordered_list`, `dl`, `dd`,
+   `note`/`example`/`quote`/`review`/`admonition`, `figure`, `table_cell`, and
+   the section/structural nodes).
+4. **Cursor zone within the textblock.** Only two zones matter for this feature:
+   - *start-of-empty* — collapsed at position 0 of a textblock with no content
+     (`content.size === 0`); the structural branch applies.
+   - *any-other* — collapsed at the start of a non-empty textblock, or strictly
+     inside, or at the end; this feature returns `false` and default deletion
+     runs.
+
+   The "start of a non-empty textblock" case is deliberately left to default
+   handling (a no-op at the boundary), matching what every word-processor does:
+   pressing Backspace at the very first position of a populated block does
+   nothing until the user presses it again or arrows left. The structural branch
+   fires only when there is nothing left in the block to delete.
+5. **Predecessor of the textblock (and, recursively, of each ancestor that would
+   be emptied).** The structural branch must decide where the cursor lands once
+   it has deleted nodes — at the end of the previous sibling, at the end of the
+   previous sibling of a deleted ancestor, or at the start of the document when
+   there is no predecessor (§4.4.8).
+
+The decision tables below key off these inputs.
+
+### 4.3 The Backspace dispatch chain
+
+The Backspace behaviour is an ordered composition of the command introduced in
+§4.7 with stock ProseMirror deletion, assembled with the `chainCommands`-style
+combinator (§1.9.2). The first command that is *applicable* runs; the rest are
+skipped; if none is applicable, the editor view's built-in input handler runs
+(character deletion / `deleteSelection`).
+
+Per §1.10.2 (commands are named for the action, not the key), the package does
+**not** export a composite `backspaceKey`/`onBackspace` symbol. The chain is
+assembled at the call site — the keymap plugin specified in §4.8 — so that
+composition is explicit (§1.9.3) and keymap wiring stays outside the command
+package (§1.13).
+
+The recommended order is **most-specific context first, default deletion last**:
+
+```
+chainCommands(
+  emptyTextblockBackspace, // 1. collapsed cursor at the start of an empty textblock
+  joinBackward,            // 2. stock ProseMirror join-backward (handles joinable siblings)
+  deleteSelection,         // 3. ranged/node selections (default ProseMirror deletion)
+)
+```
+
+Rationale for the order: `emptyTextblockBackspace` must run first because the
+empty-paragraph-in-a-section case is exactly the one stock `joinBackward`
+refuses (no joinable sibling at the paragraph's depth); if `joinBackward` ran
+first it would return `false` and ProseMirror's input handler would fall through
+to a plain `deleteSelection` that also no-ops on an empty paragraph, leaving the
+user stranded. `joinBackward` is retained second so that the ordinary
+join-with-previous-block behaviour still fires when the previous sibling *is*
+joinable (two consecutive paragraphs at the end of a `block+` container, etc.)
+and the cursor is at the start of a non-empty textblock where the structural
+branch declined. `deleteSelection` is the ranged/node fallback.
+
+**The chain is exhaustive over Backspace-at-start positions in the schema.**
+Nesting is resolved by `emptyTextblockBackspace`'s container-stack walk
+(§4.7.3): it does not delegate to per-context sub-commands, and no global
+recursion is required.
+
+Every branch obeys the global Command contract and Transaction discipline. In
+particular, the structural branch first verifies that the cursor is at the start
+of an empty textblock; if not, it returns `false` so that the ranged/character
+branches run.
+
+> **Interaction with `definitionListKeymap` (definition-lists.md §6.2).** That
+> keymap binds Backspace-at-start inside `dt`/`dd` to a uniform **no-op** to
+> preserve `(dt dd)+`. When `definitionListKeymap()` is registered with higher
+> precedence than the §4.8 chain (as its spec requires), it claims the event
+> first and `emptyTextblockBackspace` never runs inside a `dt`/`dd`. When it is
+> *not* registered, `emptyTextblockBackspace` itself refuses inside a `dl`
+> (§4.4.4) so the invariant holds regardless. The two are therefore composable
+> in either order; the dl invariant is never violated.
+
+### 4.4 Behaviour by context
+
+The tables below give the observable effect of Backspace at the start of an
+empty textblock for each context, plus the schema invariant the branch must
+preserve. "Node" rows are covered once under §4.4.7 and referenced from the
+per-context tables.
+
+#### 4.4.1 Plain paragraphs
+
+The innermost textblock is an empty `paragraph`, and no list / container / dl /
+table context alters the behaviour (the nearest "interesting" ancestor is a
+section, a list item, a container block, or the document body — the latter two
+covered in their own subsections).
+
+| Selection | Zone | Effect | Invariant preserved |
+|---|---|---|---|
+| Collapsed | start-of-empty | Delete the empty paragraph. If its parent (e.g. a `clause`) would become empty as a result, delete the parent too, recursing upward per §4.7.3. Land the cursor at the end of the predecessor (the previous sibling block, or the previous sibling of the nearest deleted ancestor that has one); if there is no predecessor anywhere up the stack, land at the start of the document. | No parent left with fewer children than its content expression requires. |
+| Collapsed | start (non-empty) | No-op (`false`). Default deletion runs and itself no-ops at the boundary. | Unchanged. |
+| Collapsed | middle / end | No-op (`false`). Default character deletion runs. | Unchanged. |
+| Ranged | any | No-op (`false`). `deleteSelection` runs. | `inline*` reflows; valid. |
+| Node | — | See §4.4.7. | — |
+
+The "delete the parent too" recursion is what makes Backspace work in deeply
+nested documents: an empty paragraph that is the sole child of its `clause`
+cannot be deleted on its own (the clause would then be empty, violating
+`clause = (clause | block)*` only at `*`'s lower bound of zero — schema-legal,
+but see §4.4.8 for why the spec nonetheless removes the now-empty clause). The
+recursion stops at the first ancestor that has a non-deletable role: a list item
+(§4.4.3), a table cell (§4.4.6), or the document root.
+
+#### 4.4.2 Source code (`sourcecode`)
+
+`sourcecode` has content `text*` and `code: true`.
+
+| Selection | Zone | Effect | Invariant preserved |
+|---|---|---|---|
+| Collapsed | start-of-empty (an empty `sourcecode` block) | Same as plain paragraph §4.4.1 (delete the block, recurse upward if the parent would empty). | `block+` / section content models honoured. |
+| Collapsed | start (non-empty) | No-op (`false`). Default deletion runs. | `text*` intact. |
+| Collapsed | middle / end | No-op (`false`). Default character deletion runs. | `text*` intact. |
+| Ranged | any | No-op (`false`). `deleteSelection` runs. | `text*`. |
+| Node | — | See §4.4.7. | — |
+
+Backspace never inserts anything into a `sourcecode`; it only deletes the block
+when empty, mirroring the Enter feature's refusal to split it (§2.4.2).
+
+#### 4.4.3 Lists (`bullet_list`, `ordered_list`, `list_item`)
+
+`list_item` content is `block+` — generalised, not paragraph-only. **The list
+item's content model determines whether deleting its last block also deletes the
+item.**
+
+| Selection | Zone | Context | Effect | Invariant |
+|---|---|---|---|---|
+| Collapsed | start-of-empty | `list_item` allows free text / a block other than `paragraph` directly (i.e. its content is `block+` and the deleted paragraph is *not* the item's only child) | Delete the empty paragraph; cursor at the end of the previous block in the same item. | `list_item = block+` honoured (≥1 block remains). |
+| Collapsed | start-of-empty | the empty paragraph is the **only** remaining block in a `list_item` whose content model does **not** allow free text unwrapped in a paragraph or another block — i.e. **the Metanorma `list_item`**, whose `block+` is the upstream StanDoc `LiBody` of paragraphs-only-allowing form (§1.6.3, §3.5) — **delete the `list_item`**. Then: if the parent list has other items remaining, the cursor jumps to the end of the **previous item**'s content; if no items remain, **delete the list** and continue the §4.7.3 walk from the list's former position. | No empty list; no `list_item` left with zero blocks; parent content model honoured. |
+| Collapsed | start-of-empty | the empty paragraph is the only remaining block in a `list_item` whose content *does* allow free text unwrapped in a block (no such node exists in `metanormaSchema` today; the row exists for forward-compatibility of a composed schema) | Delete the empty paragraph only; leave a zero-block `list_item` is **forbidden** — instead fall back to the row above (delete the item). The intent is: a list item may never be left with fewer children than its content expression requires. | `list_item` content model honoured. |
+| Collapsed | start-of-empty | inside a nested `list_item` | Same: delete the item; remove the nested list if it becomes empty; if the parent item then becomes empty, continue the walk one level up. | Parent `list_item = block+`. |
+| Collapsed | any other | — | No-op (`false`). Default deletion. | `list_item+`. |
+| Ranged | any | — | No-op (`false`). `deleteSelection` runs. | `list_item+`. |
+| Node | — | — | See §4.4.7. | — |
+
+**Where the cursor lands.** When the item is deleted and the list survives, the
+cursor goes to the **end of the previous item's last textblock** (so a second
+Backspace continues to delete backward inside that item). When the whole list is
+deleted, the walk continues from the list's former position (the cursor lands at
+the end of whatever predecessor the walk finds next).
+
+> The "delete the item" rule applies specifically when deleting the empty
+> paragraph would leave the item with no valid content. The Metanorma
+> `list_item` (`block+`) permits multiple blocks, so an item with a note *and* a
+> trailing empty paragraph only loses the paragraph (first row); an item whose
+> only child is the empty paragraph loses the item (second row). This mirrors
+> the Enter feature's list-exit rule (§2.4.3) and shares its rationale: a list
+> item is never left empty.
+
+#### 4.4.4 Definition lists (`dl`, `dt`, `dd`)
+
+`emptyTextblockBackspace` **refuses inside a `dl`** (returns `false`), so the
+`(dt dd)+` alternation invariant is preserved regardless of whether
+`definitionListKeymap()` is registered:
+
+| Selection | Zone | Context | Effect | Invariant |
+|---|---|---|---|---|
+| Collapsed | start-of-empty | inside a `dt` or inside a `dd` (an empty paragraph that is the only block of a `dd`) | **No-op** (`false`). Default handling also refuses because the result would violate `(dt dd)+` (a lone `dt`, or a `dd` removed from a pair). | `(dt dd)+` intact. |
+| Collapsed | any other | inside `dt` / `dd` | No-op (`false`). Default character deletion runs. | `(dt dd)+`. |
+| Ranged | any | within `dt` or `dd` | No-op (`false`). `deleteSelection` runs. | `(dt dd)+`. |
+| Node | — | — | See §4.4.7. | — |
+
+This is the structural dual of the Enter feature's dl rules (§2.4.4): just as
+Enter commits a term or starts a new pair rather than splitting structural
+boundaries, Backspace refuses to break a pair. Removing a whole pair is done by
+selecting it and deleting (the ranged case). The rationale is identical to
+definition-lists.md §6.2: `dt` (`inline*`) and `dd` (`block+`) are different
+content kinds, so any cross-boundary merge is categorically lossy.
+
+#### 4.4.5 Container blocks (`note`, `example`, `quote`, `review`, `admonition`, `figure`)
+
+These nodes share content `block+` (for `figure`, `(image | block)*`). The
+container is removed when deleting its last block would empty it — the dual of
+Enter's `exitContainerBlock` (§2.4.5).
+
+| Selection | Zone | Context | Effect | Invariant |
+|---|---|---|---|---|
+| Collapsed | start-of-empty | the empty paragraph is **not** the container's only block | Delete the empty paragraph; cursor at the end of the previous block in the container. | `block+` honoured (≥1 remains). |
+| Collapsed | start-of-empty | the empty paragraph **is** the container's only block | **Delete the container**; continue the §4.7.3 walk from the container's former position. | No empty container left behind. |
+| Collapsed | any other | — | No-op (`false`). Default deletion. | `block+`. |
+| Ranged | any | within the container | No-op (`false`). `deleteSelection` runs. | `block+`. |
+| Node | — | — | See §4.4.7. | — |
+
+> `footnote_entry` (content `block+`, parent `footnotes` requires
+> `footnote_entry+`) is handled by the §4.7.3 walk, not specially: deleting its
+> last block deletes the entry, and if that empties `footnotes`, the
+> `footnotes` container is deleted too. The cursor lands at the end of the
+> previous `footnote_entry`, or — if the `footnotes` was the only child of the
+> document root's tail — the walk stops at the document body (§4.4.8).
+
+#### 4.4.6 Tables (`table`, `table_cell`)
+
+`prosemirror-tables` is not integrated. Backspace performs **no row or cell
+management**.
+
+| Selection | Zone | Context | Effect | Invariant |
+|---|---|---|---|---|
+| Collapsed | start-of-empty | the empty paragraph is the **only** block in a `table_cell` | **No-op** (refuse). A cell must retain at least one block; deleting the paragraph would empty the cell, and deleting the cell would violate `table_row = table_cell+`. The cursor stays where it is. | `table_cell = block+`; `table_row = table_cell+` never violated. |
+| Collapsed | start-of-empty | the empty paragraph is one of several blocks in a `table_cell` | Delete the empty paragraph; cursor at the end of the previous block in the cell. | `block+` honoured. |
+| Collapsed | start-of-empty | the empty paragraph is the only block in the **last cell** of a row, the last row of a section — still no-op | Refuse for the same reason as the row above; do not propagate upward. The cell (and the row, the table) are preserved. | Tables never lose their last cell/row on Backspace. |
+| Collapsed | any other | inside a cell | No-op (`false`). Default deletion. | `block+`. |
+| Ranged | any | within a cell | No-op (`false`). `deleteSelection` runs. | `block+`. |
+| Node | — | on table parts | `false` (no table restructuring on Backspace). | — |
+
+The deliberate choice, mirroring Enter §2.4.6, is predictability: Backspace
+inside a table deletes characters or an empty paragraph (when the cell has
+more content), never a cell, row, or the table. The cursor cannot escape the
+cell by deletion; arrow keys or a dedicated toolbar are the way out.
+
+#### 4.4.7 Atoms and node selections (`image`, `formula`, `floating_title`)
+
+`image`, `formula`, and `floating_title` are block-level atoms (empty content,
+`atom: true`); the cursor cannot rest *inside* them. (`footnote_marker` and
+`soft_break` are inline atoms; Backspace at the cursor immediately after one
+deletes it via default character handling, not this feature.)
+
+| Selection | Context | Effect | Invariant |
+|---|---|---|---|
+| Node selection on a block atom | `image` / `formula` / `floating_title` | **No-op** (`false`) for this feature; the chain's `deleteSelection` step (§4.3) then deletes the atom. Cursor lands at the merge of the surrounding textblocks, or at the start/end of the surrounding container if the atom was its only child. | Atom removed in one transaction by the chain; surrounding content model honoured. |
+| Node selection on a **non-atom** block (`paragraph`, `sourcecode`, `note`, `clause`, …) | — | `false`. Default handling may delete the node (per ProseMirror's stock node-deletion behaviour). Restructuring sections on Backspace is left to dedicated commands. | — |
+| Gap cursor immediately before/after an atom | — | `false` for this feature; chain's `deleteSelection` may delete the adjacent atom. | As above. |
+
+This feature's only job for atoms is to **decline** so the chain's deletion step
+can run. It never dispatches a transaction for an atom or node selection itself.
+
+#### 4.4.8 Structural and section nodes
+
+The cursor is always inside some textblock; it is never "inside" a `clause`,
+`sections`, `doc`, etc. in a way that Backspace would split. The structural
+behaviour is therefore expressed in terms of **what happens when deleting a
+textblock empties a section**:
+
+- **A section node (`clause`, `annex`, `content_section`, `abstract`,
+  `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`,
+  `references`) is deleted when deleting its last child block would leave it
+  empty.** This is the §4.7.3 walk's central rule, and the fix for the
+  nested-empty-paragraph no-op described at the top of §4. Deleting an empty
+  `clause` recurses upward: if the clause was its parent clause's only child,
+  the parent is deleted too, and so on up to the `sections`/`preface`/
+  `bibliography`/`doc` level.
+- **The walk stops at the document root and at the structural containers
+  (`preface`, `sections`, `bibliography`).** These are never deleted on
+  Backspace: they are the fixed top-level skeleton of a Metanorma document. If
+  the walk would empty one, the command instead **refuses** and leaves the
+  cursor where it is. The document must always have an editable position.
+- **Where the cursor lands when a section is deleted.** When the deleted section
+  has a previous sibling (a previous `clause`, a previous block, …), the cursor
+  goes to the **end of the previous sibling's last descendant textblock** — i.e.
+  the deepest editable position inside the predecessor. When the deleted section
+  has no previous sibling, the cursor goes to the **end of the last descendant
+  textblock of the previous sibling of the nearest non-deleted ancestor**, and
+  so on; if no predecessor exists anywhere (the cursor was at the very start of
+  the document's editable region), the cursor stays at the start of the document
+  (no-op-adjacent: the deletion is refused or, if a paragraph was removed,
+  lands at position 0 of the first remaining textblock).
+- **Backspace never creates, merges, or reorders sections.** Deletion is the
+  only structural change Backspace makes to the section hierarchy; new sections
+  come from dedicated commands (the toolbar's Clause button, §3 of the
+  AdvancedMetanormaToolbar spec), never from Backspace.
+- **For leaf sections whose content is `block+`** (`abstract`, `foreword`,
+  `introduction`, `acknowledgements`), the same rule applies as for clauses:
+  delete the last block → section deleted → walk upward. The schema-safety rule
+  below still applies: the document is never left with no editable position.
+
+> **Doc-start anchor.** The default document (schema.spec.md §15) is
+> `doc > sections > clause > paragraph`. Pressing Backspace at the start of that
+> paragraph deletes the paragraph, which empties the `clause`, which is deleted;
+> the walk then reaches `sections`, a structural container that the rule above
+> refuses to delete. To keep the document editable, the command **re-creates a
+> minimal valid content** for the emptied container: an empty `paragraph` inside
+> the `clause` (or, if the `clause` was also deleted, a fresh `clause` with an
+> empty paragraph inside the `sections`). The user observes a no-op at the
+> document start — the cursor stays in an empty paragraph at the same screen
+> position — but no invariant is violated. This is the one case where
+> `emptyTextblockBackspace` dispatches a transaction that *adds* a node rather
+> than only deleting; it is the dual of the Enter feature's §2.4.7
+> `createParagraphNear` rule ("Enter near an atom makes a place to type").
+
+### 4.5 Schema-preservation guarantees
+
+Every branch of the Backspace chain upholds invariants dual to §2.5's:
+
+1. **No empty required-`+` container is ever left behind.** If a branch would
+   leave a parent whose content expression requires one-or-more (`list_item+`,
+   `table_row+`, `table_cell+`, `block+` in a container, `(dt dd)+` in a dl,
+   `footnote_entry+` in footnotes, `block+` in a leaf section) with zero
+   children, the branch instead removes that parent (and recurses upward per
+   §4.7.3) so the document stays valid.
+2. **The `(dt dd)+` alternation of `dl` is never broken.** No transaction
+   produced by Backspace deletes a `dt` or `dd` such that the remaining dl has
+   two adjacent `dt` or two adjacent `dd`, or a trailing `dt` without a `dd`.
+   Inside a `dt`/`dd`, Backspace at start is a no-op (§4.4.4).
+3. **Atoms are never entered or split.** Block atoms (`image`, `formula`,
+   `floating_title`) are removed only by the chain's `deleteSelection` step
+   under a node selection; the structural branch never enters them.
+4. **No transaction leaves the selection on a forbidden position.** After any
+   structural step the selection resolves to a valid cursor (typically via
+   `Selection.near` / `TextSelection.near` at the computed predecessor end),
+   never inside an atom or between two structural nodes where inline content is
+   disallowed.
+5. **Section boundaries are respected.** Backspace deletes empty sections but
+   never merges content across a section boundary. Two adjacent `clause`s are
+   never joined into one; the second's content is not appended to the first.
+   (Joining sections is a separate operation, not bound to Backspace in v2.)
+6. **The document always has an editable position.** When the structural walk
+   would empty a non-deletable container (`sections`, `preface`, `bibliography`,
+   `doc`), the command re-creates a minimal valid child (§4.4.8 doc-start
+   anchor) rather than leaving an uneditable document.
+
+### 4.6 User-expectation guarantees
+
+Where several schema-legal behaviours exist, Backspace picks the one a
+word-processor user expects — duals of §2.6's:
+
+1. **Backspace at start-of-empty unwinds one structure at a time** — it deletes
+   the paragraph, then the empty list item, then the empty list, …, one level
+   per keypress when the user holds the key, because each keypress is a single
+   command invocation. A single keypress may delete multiple *nested* nodes only
+   when they are emptied together in one transaction (an empty paragraph that is
+   the sole child of an empty clause is deleted in one keypress along with its
+   clause); the user sees the innermost block disappear and the cursor land at
+   the predecessor, never a surprising distant jump.
+2. **Backspace over a selection deletes first** — handled by the chain's
+   `deleteSelection`, not by the structural branch.
+3. **Backspace inside a table is inert at the cell's last block** (no surprise
+   cell/row/table deletion).
+4. **Backspace never silently reorders or merges the document hierarchy** (no
+   section joins, no clause content appended to a sibling).
+5. **Backspace at the very start of the document is a no-op** (the cursor stays
+   in a valid editable paragraph; nothing the user typed is lost).
+
+When in doubt, Backspace's effect matches the platform's dominant word-processor
+(Word / Google Docs) for the analogous construct.
+
+### 4.7 Command inventory
+
+The Backspace feature introduces a single command in `@metanorma/editor-commands`.
+It is an exported `Command` conforming to the Command contract.
+
+| Command | Form | Source | Responsibility |
+|---|---|---|---|
+| `emptyTextblockBackspace` | `Command` | custom | When the cursor is collapsed at the start of an **empty** textblock, walk the container stack (§4.7.3) deleting the textblock and any parent that would be emptied, refusing inside a `dl`, a `table_cell`'s last block, or when the walk reaches a non-deletable container. Returns `false` (so the chain's deletion steps run) for any other input: a non-empty textblock, a cursor not at the start, a ranged or node selection. |
+
+The package re-exports the stock `joinBackward` and `deleteSelection` commands
+from `prosemirror-commands` so consumers can assemble the full Backspace chain
+without a direct dependency (§1.9.2). No composite "backspace" symbol is
+exported: per §1.10.2 the chain is composed at the call site (the keymap plugin
+of §4.8), which also keeps composition explicit (§1.9.3) and keymap wiring
+outside the package (§1.13). Consumers may reorder or substitute commands.
+
+> **Why a single command, not a per-context family like Enter (§2.7)?** Enter's
+> branches are *constructive* — each creates different nodes (a newline, a list
+> item, a dl pair, an adjacent paragraph) — so they are naturally separate
+> commands composed by `chainCommands`. Backspace's structural branch is
+> *destructive* and uniform: regardless of context, it deletes the empty
+> textblock and recurses upward while the parent would be emptied. The
+> per-context variation (lists vs. containers vs. sections) is captured in the
+> walk's *stopping conditions* (§4.7.3), not in separate commands. The few
+> contexts that genuinely differ in kind — `dl` (refuse) and `table_cell`'s
+> last block (refuse) — are handled as early-return guards inside the single
+> command, not as separate commands in the chain.
+
+#### 4.7.1 Signature
+
+```ts
+import type { Command } from "prosemirror-state";
+
+/**
+ * Delete an empty textblock at the cursor and unwind the container stack.
+ *
+ * Applicable (returns true / dispatches) exactly when:
+ * - the selection is a collapsed `TextSelection`,
+ * - its `$from` is at the start (offset 0) of its parent textblock, and
+ * - that textblock is empty (`node.content.size === 0`).
+ *
+ * Refuses (returns false, dispatches nothing) when the cursor is inside a `dl`
+ * (`dt` or `dd`), inside the last block of a `table_cell`, or when the
+ * container-stack walk (§4.7.3) reaches a non-deletable container without a
+ * predecessor. In all other positions — non-empty textblock, cursor not at
+ * start, ranged or node selection — returns false so the chain's stock
+ * deletion steps run.
+ *
+ * Conforms to the Command contract (§1.5): pure predicate when queried
+ * (without `dispatch`), single transaction when dispatched.
+ */
+export const emptyTextblockBackspace: Command;
+```
+
+`emptyTextblockBackspace` binds `metanormaSchema` directly (the `clause` /
+`sections` / `list_item` / `table_cell` / `dl` names are Metanorma-specific —
+§1.6.2), so it is exported as a plain `Command`, not a `(schema) => Command`
+factory — the same form as `exitContainerBlock` (§2.7) and `toggleList` (§3.2).
+
+#### 4.7.2 Applicability predicate
+
+The query form (no `dispatch`) returns `true` exactly when the structural branch
+would dispatch, i.e. when **all** of:
+
+1. the selection is a collapsed `TextSelection` (not `NodeSelection`, not
+   ranged);
+2. `$from.parent === $to.parent` and `$from.parentOffset === 0`;
+3. `$from.parent` (the innermost textblock) is empty (`content.size === 0`);
+4. the textblock is not inside a `dl` (i.e. no ancestor up to root is a `dt` or
+   `dd` whose parent is a `dl`);
+5. the textblock is not the last block of a `table_cell` (the parent
+   `table_cell`'s `childCount === 1` and that child is the textblock);
+6. simulating the §4.7.3 walk from this position reaches a deletion set that
+   either terminates with a predecessor (some non-deleted ancestor has a
+   previous sibling) **or** terminates at a non-deletable container that would
+   be re-seeded per §4.4.8 (the doc-start anchor case).
+
+In every other state, the query form returns `false` and dispatches nothing,
+so the chain's `joinBackward` / `deleteSelection` steps run.
+
+#### 4.7.3 Container-stack walk (algorithm)
+
+When the applicability predicate holds and `dispatch` is provided, the command
+builds a single transaction (§1.7) that performs the walk:
+
+1. **Initialise the deletion set** to the empty textblock's range (its start and
+   end positions in the document).
+2. **Walk up:** for the textblock's parent, ask:
+   - *If the parent is a `list_item` whose remaining children (after subtracting
+     the deletion set's nodes inside it) would be zero* → add the `list_item`'s
+     range to the deletion set. Then consider the `list_item`'s parent (the
+     list): if its remaining `list_item` children would be zero, add the list's
+     range too. Continue from the list's parent.
+   - *If the parent is a section node (`clause`, `annex`, …) or a container
+     block (`note`, `example`, …) whose remaining children would be zero* → add
+     the parent's range to the deletion set. Continue from the parent's parent.
+   - *If the parent is a `table_cell`* → **abort and refuse** (return `false`,
+     dispatch nothing): §4.4.6 forbids emptying a cell. This guard is also
+     reached up-front by applicability clause 5, but is re-checked here for
+     safety.
+   - *If the parent is a `dl`, `dt`, or `dd`* → **abort and refuse** (§4.4.4).
+     Reached up-front by applicability clause 4, re-checked here for safety.
+   - *If the parent is a non-deletable container* (`doc`, `sections`, `preface`,
+     `bibliography`) → **stop the walk.** Do not add this parent to the deletion
+     set.
+   - *Otherwise* (the parent still has other children not in the deletion set)
+     → **stop the walk.** The parent is not emptied; no further recursion.
+3. **Resolve the cursor.** After the deletion, choose the new selection:
+   - If the deletion set removed a node that had a **previous sibling** (in the
+     parent the walk stopped at, or at the level where the walk stopped) → the
+     cursor goes to the **end of the last descendant textblock** of that
+     previous sibling. Compute it by descending the sibling's last child
+     repeatedly until a textblock is reached, then taking its end position
+     (mapped through the deletion transaction).
+   - If the walk stopped at a non-deletable container (step 2's bullet 5) and
+     the container now has **no children** (the doc-start anchor case) →
+     **re-seed** the container with a minimal valid child: for `sections`/
+     `preface`/`bibliography`, insert a fresh `clause` containing an empty
+     `paragraph`; for `doc`, insert the default skeleton. Place the cursor at
+     the start of that re-seeded paragraph. This is the only transaction the
+     command dispatches that *adds* nodes (§4.4.8 doc-start anchor).
+   - If the walk stopped because the parent still has other children (step 2's
+     last bullet) but the deleted textblock was that parent's **first** child
+     (so there is no previous sibling at this level) → the cursor lands at the
+     **start** of the parent's new first child (the next sibling). (This occurs
+     when the user Backspaces the first of several paragraphs in a clause: the
+     first paragraph is deleted and the cursor lands at the start of the second.
+     It is the dual of Enter's "insert an empty paragraph before" rule, §2.4.1.)
+4. **Dispatch** the single composed transaction with `scrollIntoView` set
+   (user-initiated command — §1.7.3).
+
+The walk composes all deletions and (in the re-seed case) insertions into
+**one transaction** (§1.7.1), never multiple dispatches. The query form
+re-simulates the walk to decide applicability without dispatching.
+
+> The "end of the last descendant textblock" cursor rule is what gives
+> Backspace its natural feel: deleting an empty paragraph that was the sole
+> child of a `clause` places the cursor at the end of the *previous clause's*
+> last paragraph, exactly where the user's eye already is. It is the same
+> "deepest editable position of the predecessor" idea used by the Enter
+> feature's exit branches (§2.4.3, §2.4.5).
+
+### 4.8 Keymap binding
+
+The Backspace feature is wired into the editor through a keymap plugin supplied
+to `MetanormaProseMirror` via its `plugins` prop (the mount itself remains
+keymap-agnostic — see the MetanormaProseMirror spec). The binding contract:
+
+- **Key:** `"Backspace"`.
+- **Bound command:** the `chainCommands(...)` composition specified in §4.3,
+  assembled inline (the package exports the new command plus the re-exported
+  stock `joinBackward`/`deleteSelection`, not a pre-built "backspace" command).
+- **Platform notes:**
+  - `"Mod-Backspace"` (macOS previous-word deletion), `"Alt-Backspace"`, and
+    `"Ctrl-Backspace"` are **not** bound by this feature.
+  - `"Delete"` (forward delete) is **not** bound by this feature (see §4.1).
+- **Precedence:** the Backspace keymap is appended via the mount's `plugins`
+  prop and therefore runs alongside, and may be overridden by, consumer-supplied
+  plugins (notably `definitionListKeymap()`, which must run with higher
+  precedence inside `dt`/`dd` — definition-lists.md §6.5; the chain is safe
+  either way per the §4.3 interaction note). The `reactKeys` plugin always
+  remains first and does not handle Backspace.
+
+A reference keymap plugin (lives outside this package — in the editor mount or a
+dedicated `@metanorma/editor-keymap` package), extending the Enter keymap of
+§2.8:
+
+```ts
+import { keymap } from "prosemirror-keymap";
+import { chainCommands, joinBackward, deleteSelection } from "prosemirror-commands";
+import {
+  newlineInCode,
+  enterDefinitionList,
+  splitListItem,
+  exitContainerBlock,
+  createParagraphNear,
+  splitBlockKeepMarks,
+  insertSoftBreak,
+  emptyTextblockBackspace,
+  metanormaSchema,
+} from "@metanorma/editor-commands";
+
+// The Enter binding is the chain from §2.3; Backspace is the chain from §4.3.
+const backspaceBinding = chainCommands(
+  emptyTextblockBackspace,
+  joinBackward,
+  deleteSelection,
+);
+
+export function metanormaKeymap() {
+  return keymap({
+    Enter: chainCommands(
+      newlineInCode,
+      enterDefinitionList,
+      splitListItem(metanormaSchema),
+      exitContainerBlock,
+      createParagraphNear,
+      splitBlockKeepMarks,
+    ),
+    "Shift-Enter": insertSoftBreak,
+    Backspace: backspaceBinding,
+  });
+}
+```
+
+Wiring: `<MetanormaProseMirror plugins={[metanormaKeymap(), …]} />`.
+
+### 4.9 Relationship to Delete and Mod-Backspace
+
+To prevent the deletion keys from being conflated:
+
+| Key | Command | Effect | When |
+|---|---|---|---|
+| `Backspace` | the §4.3 `chainCommands(...)` (composed in the keymap) | At start-of-empty: structural unwind (§4.4). Else: default character/range deletion. | Always (the subject of this section). |
+| `Delete` | *not bound by this feature* | Stock forward character deletion. No structural-unwind behaviour is defined for forward deletion in v2. | Always. |
+| `Mod-Backspace` / `Alt-Backspace` | *not bound by this feature* | Stock previous-word deletion. | Always. |
+
+The asymmetry — Backspace is structural at start-of-empty, Delete is never — is
+deliberate. Forward structural deletion (delete the *next* block when the cursor
+is at the end of the current one) has subtler interaction with selection
+direction and is deferred to a later spec version. Users who want to delete the
+following block can node-select it and press Backspace or Delete.
+
+### 4.10 Test matrix
+
+Each row is a fixture (an `EditorState` built from a `MirrorDocument`), a
+Backspace keypress, and an assertion on the resulting `tr.doc.toJSON()` and
+selection. The matrix is exhaustive over the contexts above; representative
+rows:
+
+- **BP1** empty paragraph, cursor at start, paragraph is one of several blocks
+  in a `clause` → paragraph deleted; cursor at the end of the previous block.
+- **BP2** empty paragraph, cursor at start, paragraph is the sole child of its
+  `clause`, and the `clause` has a previous sibling `clause` → paragraph and
+  `clause` both deleted in one transaction; cursor at the end of the previous
+  clause's last descendant paragraph.
+- **BP3** empty paragraph at the default document start
+  (`doc > sections > clause > paragraph`) → paragraph deleted, clause deleted,
+  walk stops at `sections`; `sections` re-seeded with a fresh `clause > empty
+  paragraph`; cursor at the start of that paragraph (observed no-op).
+- **BP4** non-empty paragraph, cursor at start → no-op for this feature
+  (`false`); default handling runs and itself no-ops at the boundary.
+- **BP5** paragraph, cursor mid-text → no-op for this feature (`false`);
+  default character deletion runs.
+- **BR1** ranged selection within a paragraph → no-op for this feature
+  (`false`); `deleteSelection` runs.
+- **BC1** empty `sourcecode` block, cursor at start → block deleted; recursion
+  per §4.4.2.
+- **BL1** empty paragraph that is one of several blocks in a `list_item` →
+  paragraph deleted; cursor at end of previous block in the same item; item and
+  list survive.
+- **BL2** empty paragraph that is the **only** remaining block in a top-level
+  `list_item`, list has other items → **item deleted**; cursor at end of
+  previous item's last textblock; list survives.
+- **BL3** empty paragraph that is the only block in the **only** `list_item` of
+  a `bullet_list` → item and list both deleted in one transaction; cursor lands
+  per the §4.7.3 walk (end of the previous sibling of the list, or re-seed at
+  doc start).
+- **BL4** empty paragraph in a nested `list_item` (only block, only item of the
+  nested list) → nested item and nested list deleted; cursor in the parent item
+  (at the end of its last block); parent list survives.
+- **BD1** empty paragraph as the only block of a `dd`, cursor at start → no-op
+  (`false`); `(dt dd)+` intact.
+- **BD2** cursor at start of a `dt` (any content) → no-op (`false`); `(dt dd)+`
+  intact.
+- **BN1** empty paragraph that is one of several blocks in a `note` → paragraph
+  deleted; note survives.
+- **BN2** empty paragraph that is the **only** block of a `note` → note
+  deleted; walk continues from the note's former position.
+- **BT1** empty paragraph that is one of several blocks in a `table_cell` →
+  paragraph deleted; cell/row/table unchanged.
+- **BT2** empty paragraph that is the **only** block in a `table_cell` → no-op
+  (`false`); cell/row/table unchanged (§4.4.6).
+- **BT3** empty paragraph that is the only block in the only cell of the only
+  row of a `table` → no-op (`false`); table never deleted by Backspace.
+- **BA1** node selection on an `image` → `false` for this feature; chain's
+  `deleteSelection` deletes the atom.
+- **BA2** node selection on a non-atom block (`paragraph`) → `false` for this
+  feature; default handling.
+- **BS1** empty paragraph, sole child of a `clause`, sole child of an outer
+  `clause` (two-level nesting) → both clauses and the paragraph deleted in one
+  transaction; cursor at end of the previous sibling of the outer clause (or
+  re-seed).
+- **BS2** empty paragraph, sole child of a leaf section (`abstract`), the
+  `abstract` is one of several siblings in `preface` → paragraph and `abstract`
+  deleted; cursor at end of the previous sibling's last descendant textblock.
+- **BS3** empty paragraph whose deletion chain would empty a non-deletable
+  container other than at doc start (e.g. an empty `bibliography` reached by
+  deleting its only `clause`) → re-seed per §4.4.8; cursor in the re-seeded
+  paragraph; document remains editable.
+- **S1** every applicable row: assert no `bullet_list` / `ordered_list` / `dl` /
+  container / table part / leaf section is left with fewer children than its
+  content expression requires.
+- **S2** every dl-affecting row (BD1, BD2): assert `(dt dd)+` intact.
+- **S3** every applicable row: assert the resulting selection resolves to a
+  valid `TextSelection` inside a textblock (never an atom, never a forbidden
+  position between structural nodes).
+- **S4** BP3, BS3: assert the document still contains at least one editable
+  paragraph after the re-seed (the doc-start anchor).
+
+Every row must also satisfy the global Acceptance criteria: single dispatch, no
+throw, valid resulting selection, query/dispatch parity, and headless
 executability.

@@ -13,9 +13,9 @@ import { isBlockContext, isBlockWrapActive, requireNode } from "../predicates.js
 
 // [nodeName, label, title, key]
 const blockSpecs: ReadonlyArray<readonly [string, string, string, string]> = [
-  ["quote", "❝", "Quote", "quote"],
-  ["note", "📝", "Note", "note"],
-  ["example", "💡", "Example", "example"],
+  ["quote", "Quote", "Quote", "quote"],
+  ["note", "Note", "Note", "note"],
+  ["example", "Example", "Example", "example"],
 ];
 
 /** The `blocks` group definition (static — no external props). */

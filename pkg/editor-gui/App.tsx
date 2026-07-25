@@ -16,6 +16,9 @@ import {
   createParagraphNear,
   splitBlockKeepMarks,
   insertSoftBreak,
+  emptyTextblockBackspace,
+  joinBackward,
+  deleteSelection,
   metanormaSchema,
 } from '@metanorma/editor-commands';
 import classNames from './style.module.css';
@@ -24,7 +27,13 @@ import classNames from './style.module.css';
  * Enter-key dispatch chain (EditorCommands.spec.md §2.3), composed at the call
  * site per §2.8: most-specific context first, generic split last. Bound to the
  * primary `Enter` key; `Shift-Enter` is bound separately to `insertSoftBreak`
- * (spec §2.8). Built once at module scope for a stable plugin reference.
+ * (spec §2.8).
+ *
+ * Backspace-key dispatch chain (spec §4.3): structural unwind of empty
+ * textblocks first (§4.7), then stock `joinBackward` for joinable siblings,
+ * then `deleteSelection` for ranged/node selections.
+ *
+ * Built once at module scope for a stable plugin reference.
  */
 const editorPlugins = [
   keymap({
@@ -37,6 +46,11 @@ const editorPlugins = [
       splitBlockKeepMarks,
     ),
     'Shift-Enter': insertSoftBreak,
+    Backspace: chainCommands(
+      emptyTextblockBackspace,
+      joinBackward,
+      deleteSelection,
+    ),
   }),
 ];
 
