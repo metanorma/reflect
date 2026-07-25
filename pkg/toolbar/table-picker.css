@@ -1,0 +1,48 @@
+/* table-picker.css — grid-picker popover for table insertion (tables.md §5.4). */
+
+.mn-toolbar-popover {
+  position: absolute;
+  z-index: 10;
+  background: var(--mn-surface, #fff);
+  border: 1px solid var(--mn-border, #ccc);
+  border-radius: 4px;
+  padding: 0.4em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.mn-toolbar-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 10), 1.2em);
+  grid-template-rows: repeat(var(--rows, 10), 1.2em);
+  gap: 2px;
+}
+
+.mn-toolbar-gridcell {
+  width: 1.2em;
+  height: 1.2em;
+  border: 1px solid var(--mn-border, #ccc);
+  background: transparent;
+  cursor: pointer;
+}
+
+.mn-toolbar-gridcell--on {
+  background: var(--mn-active, #e0e0e0);
+  border-color: var(--mn-active, #e0e0e0);
+}
+
+.mn-toolbar-grid-readout {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.3em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mn-toolbar-popover {
+    background: var(--mn-surface, #1e1e1e);
+    border-color: var(--mn-border, #444);
+    color: #eee;
+  }
+  .mn-toolbar-gridcell {
+    border-color: var(--mn-border, #555);
+  }
+}

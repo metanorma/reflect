@@ -1,12 +1,12 @@
 /**
  * Public API for `@metanorma/prosemirror-editor` (§11).
  *
- * Implements two specs, both at **v2**:
- *  - [`docs/MetanormaProseMirror.spec.md`](../../docs/MetanormaProseMirror.spec.md)
- *    — the `MetanormaProseMirror` React editor component (§5), editor-state
- *    factory, and React node-view components.
- *  - [`docs/MetanormaToolbar.spec.md`](../../docs/MetanormaToolbar.spec.md)
- *    — the schema-bound `MetanormaToolbar` (§1, §3) and its button groups.
+ * Implements [`docs/MetanormaProseMirror.spec.md`](../../docs/MetanormaProseMirror.spec.md)
+ * v2 — the `MetanormaProseMirror` React editor component (§5), editor-state
+ * factory, and React node-view components.
+ *
+ * The `MetanormaToolbar` lives in its own package, `@metanorma/toolbar`
+ * (`pkg/toolbar/`) — see [`docs/MetanormaToolbar.spec.md`](../../docs/MetanormaToolbar.spec.md).
  *
  * Exports the main editor component, the editor-local document type, the
  * editor-state factory, re-exports from the schema package, and the individual
@@ -20,15 +20,13 @@ import type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
 export { MetanormaProseMirror } from "./MetanormaProseMirror.js";
 export type { MetanormaProseMirrorProps } from "./MetanormaProseMirror.js";
 
-export { MetanormaToolbar } from "./MetanormaToolbar.js";
-export type { MetanormaToolbarProps, ToolbarGroup } from "./MetanormaToolbar.js";
-export { toggleList } from "@metanorma/editor-commands";
-
 export type { MirrorDocument, MirrorMark } from "./types.js";
 
 export {
   createInitialEditorState,
   DEFAULT_MIRROR_DOC,
+  DEFAULT_HISTORY_OPTIONS,
+  buildUndoRedoKeymap,
 } from "./state.js";
 
 export {
@@ -57,6 +55,9 @@ export {
 
 export type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
 
+/** Re-exported so hosts can type the `history` option without a direct dep. */
+export type { HistoryOptions } from "@metanorma/editor-commands";
+
 /**
  * Build an EditorState bound to metanormaSchema (always includes reactKeys).
  *
@@ -66,6 +67,8 @@ export type CreateInitialEditorStateOptions = {
   doc?: import("./types.js").MirrorDocument;
   plugins?: readonly Plugin[];
   editable?: boolean;
+  /** History plugin configuration — opt-in (undo-redo.md §4.1). */
+  history?: import("@metanorma/editor-commands").HistoryOptions | false;
 };
 
 /** Type-only alias for {@link EditorState}. */

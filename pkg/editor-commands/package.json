@@ -10,6 +10,7 @@
   "dependencies": {
     "@metanorma/prosemirror-schema": "workspace:^",
     "prosemirror-commands": "^1.7.1",
+    "prosemirror-history": "^1.4.1",
     "prosemirror-model": "^1.22.0",
     "prosemirror-schema-list": "^1.4.0",
     "prosemirror-state": "^1.4.4",

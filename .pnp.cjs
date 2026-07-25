@@ -29,6 +29,10 @@ const RAW_RUNTIME_STATE =
     {\
       "name": "@metanorma/prosemirror-schema",\
       "reference": "workspace:pkg/prosemirror-schema"\
+    },\
+    {\
+      "name": "@metanorma/toolbar",\
+      "reference": "workspace:pkg/toolbar"\
     }\
   ],\
   "enableTopLevelFallback": true,\
@@ -38,6 +42,7 @@ const RAW_RUNTIME_STATE =
     ["@metanorma/editor-commands", ["workspace:pkg/editor-commands"]],\
     ["@metanorma/prosemirror-editor", ["workspace:pkg/prosemirror-editor"]],\
     ["@metanorma/prosemirror-schema", ["workspace:pkg/prosemirror-schema"]],\
+    ["@metanorma/toolbar", ["workspace:pkg/toolbar"]],\
     ["editor-gui", ["workspace:pkg/editor-gui"]],\
     ["metanorma-editor", ["workspace:."]]\
   ],\
@@ -163,6 +168,10 @@ const RAW_RUNTIME_STATE =
       "workspace:pkg/prosemirror-schema"\
     ],\
     [\
+      "@metanorma/toolbar",\
+      "workspace:pkg/toolbar"\
+    ],\
+    [\
       "@types/node",\
       "npm:22.5.5"\
     ],\
@@ -203,6 +212,14 @@ const RAW_RUNTIME_STATE =
       "npm:1.7.1"\
     ],\
     [\
+      "prosemirror-history",\
+      "npm:1.5.0"\
+    ],\
+    [\
+      "prosemirror-keymap",\
+      "npm:1.2.3"\
+    ],\
+    [\
       "prosemirror-model",\
       "npm:1.25.11"\
     ],\
@@ -235,6 +252,10 @@ const RAW_RUNTIME_STATE =
       "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:0.32.0"\
     ],\
     [\
+      "rope-sequence",\
+      "npm:1.3.4"\
+    ],\
+    [\
       "scheduler",\
       "npm:0.27.0"\
     ],\
@@ -265,6 +286,10 @@ const RAW_RUNTIME_STATE =
     [\
       "vscode-languageserver-types",\
       "npm:3.17.5"\
+    ],\
+    [\
+      "w3c-keyname",\
+      "npm:2.2.8"\
     ]\
   ],\
   "packageRegistryData": [\
@@ -582,6 +607,7 @@ const RAW_RUNTIME_STATE =
           ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
           ["@metanorma/prosemirror-schema", "workspace:pkg/prosemirror-schema"],\
           ["prosemirror-commands", "npm:1.7.1"],\
+          ["prosemirror-history", "npm:1.5.0"],\
           ["prosemirror-model", "npm:1.25.11"],\
           ["prosemirror-schema-list", "npm:1.5.1"],\
           ["prosemirror-state", "npm:1.4.4"],\
@@ -602,6 +628,7 @@ const RAW_RUNTIME_STATE =
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
           ["prosemirror-commands", "npm:1.7.1"],\
+          ["prosemirror-keymap", "npm:1.2.3"],\
           ["prosemirror-model", "npm:1.25.11"],\
           ["prosemirror-state", "npm:1.4.4"],\
           ["prosemirror-view", "npm:1.42.0"],\
@@ -619,6 +646,29 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@metanorma/prosemirror-schema", "workspace:pkg/prosemirror-schema"],\
           ["prosemirror-model", "npm:1.25.11"],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+        ],\
+        "linkType": "SOFT"\
+      }]\
+    ]],\
+    ["@metanorma/toolbar", [\
+      ["workspace:pkg/toolbar", {\
+        "packageLocation": "./pkg/toolbar/",\
+        "packageDependencies": [\
+          ["@handlewithcare/react-prosemirror", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:3.2.7"],\
+          ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
+          ["@metanorma/prosemirror-schema", "workspace:pkg/prosemirror-schema"],\
+          ["@metanorma/toolbar", "workspace:pkg/toolbar"],\
+          ["@types/react", "npm:19.2.14"],\
+          ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
+          ["prosemirror-commands", "npm:1.7.1"],\
+          ["prosemirror-keymap", "npm:1.2.3"],\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-view", "npm:1.42.0"],\
+          ["react", "npm:19.2.7"],\
+          ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"],\
+          ["react-reconciler", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:0.32.0"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
         ],\
         "linkType": "SOFT"\
@@ -696,10 +746,14 @@ const RAW_RUNTIME_STATE =
       ["workspace:pkg/editor-gui", {\
         "packageLocation": "./pkg/editor-gui/",\
         "packageDependencies": [\
+          ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
           ["@metanorma/prosemirror-editor", "workspace:pkg/prosemirror-editor"],\
+          ["@metanorma/toolbar", "workspace:pkg/toolbar"],\
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
           ["editor-gui", "workspace:pkg/editor-gui"],\
+          ["prosemirror-commands", "npm:1.7.1"],\
+          ["prosemirror-keymap", "npm:1.2.3"],\
           ["react", "npm:19.2.7"],\
           ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
@@ -781,6 +835,30 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["prosemirror-history", [\
+      ["npm:1.5.0", {\
+        "packageLocation": "./.yarn/cache/prosemirror-history-npm-1.5.0-e639d02880-9f24c99316.zip/node_modules/prosemirror-history/",\
+        "packageDependencies": [\
+          ["prosemirror-history", "npm:1.5.0"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-transform", "npm:1.12.0"],\
+          ["prosemirror-view", "npm:1.42.2"],\
+          ["rope-sequence", "npm:1.3.4"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["prosemirror-keymap", [\
+      ["npm:1.2.3", {\
+        "packageLocation": "./.yarn/cache/prosemirror-keymap-npm-1.2.3-0e7e0c8195-0ec2f8bd9b.zip/node_modules/prosemirror-keymap/",\
+        "packageDependencies": [\
+          ["prosemirror-keymap", "npm:1.2.3"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["w3c-keyname", "npm:2.2.8"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["prosemirror-model", [\
       ["npm:1.25.11", {\
         "packageLocation": "./.yarn/cache/prosemirror-model-npm-1.25.11-98cadf5aa5-e41faa4774.zip/node_modules/prosemirror-model/",\
@@ -845,6 +923,16 @@ const RAW_RUNTIME_STATE =
           ["prosemirror-view", "npm:1.42.1"]\
         ],\
         "linkType": "HARD"\
+      }],\
+      ["npm:1.42.2", {\
+        "packageLocation": "./.yarn/cache/prosemirror-view-npm-1.42.2-8dc73951fe-2fb9bc68bc.zip/node_modules/prosemirror-view/",\
+        "packageDependencies": [\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-transform", "npm:1.12.0"],\
+          ["prosemirror-view", "npm:1.42.2"]\
+        ],\
+        "linkType": "HARD"\
       }]\
     ]],\
     ["react", [\
@@ -898,6 +986,15 @@ const RAW_RUNTIME_STATE =
         "packagePeers": [\
           "@types/react",\
           "react"\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["rope-sequence", [\
+      ["npm:1.3.4", {\
+        "packageLocation": "./.yarn/cache/rope-sequence-npm-1.3.4-3b09587e5f-caa90be3d7.zip/node_modules/rope-sequence/",\
+        "packageDependencies": [\
+          ["rope-sequence", "npm:1.3.4"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -988,6 +1085,15 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./.yarn/cache/vscode-languageserver-types-npm-3.17.5-aca3b71a5a-1e1260de79.zip/node_modules/vscode-languageserver-types/",\
         "packageDependencies": [\
           ["vscode-languageserver-types", "npm:3.17.5"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["w3c-keyname", [\
+      ["npm:2.2.8", {\
+        "packageLocation": "./.yarn/cache/w3c-keyname-npm-2.2.8-66d7d5317a-37cf335c90.zip/node_modules/w3c-keyname/",\
+        "packageDependencies": [\
+          ["w3c-keyname", "npm:2.2.8"]\
         ],\
         "linkType": "HARD"\
       }]\

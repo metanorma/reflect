@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import type { EditorState, Plugin } from "prosemirror-state";
 import type { DirectEditorProps } from "prosemirror-view";
 import type { ComponentType } from "react";
+import type { HistoryOptions } from "@metanorma/editor-commands";
 import {
   ProseMirror,
   ProseMirrorDoc,
@@ -44,6 +45,14 @@ export interface MetanormaProseMirrorProps {
   /** Extra direct editor props forwarded to the underlying `ProseMirror` component. */
   readonly editorProps?: DirectEditorProps;
 
+  /**
+   * History configuration forwarded to `createInitialEditorState` (uncontrolled
+   * mode only). `undefined` / `false` (default): history is NOT added.
+   * A `HistoryOptions` value enables history with the supplied config.
+   * In controlled mode this is ignored — the host controls the plugin list.
+   */
+  readonly history?: HistoryOptions | false;
+
   /** Per-node-name overrides/additions to the default node-view map (§7). */
   readonly nodeViewComponents?: Readonly<Record<string, ComponentType<NodeViewComponentProps>>>;
 
@@ -69,6 +78,7 @@ export function MetanormaProseMirror({
   editable,
   plugins,
   editorProps,
+  history,
   nodeViewComponents,
   children,
   className,
@@ -86,12 +96,15 @@ export function MetanormaProseMirror({
     if (defaultState !== undefined) {
       return defaultState;
     }
-    const opts: { doc?: MirrorDocument; plugins?: readonly Plugin[] } = {};
+    const opts: { doc?: MirrorDocument; plugins?: readonly Plugin[]; history?: HistoryOptions | false } = {};
     if (defaultDoc !== undefined) {
       opts.doc = defaultDoc;
     }
     if (plugins !== undefined) {
       opts.plugins = plugins;
+    }
+    if (history !== undefined) {
+      opts.history = history; // exactOptionalPropertyTypes-safe
     }
     return createInitialEditorState(opts);
     // Intentionally exclude `editable` from deps — initial state build only.

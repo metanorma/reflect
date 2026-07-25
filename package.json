@@ -22,7 +22,8 @@
     "pkg/editor-gui",
     "pkg/prosemirror-schema",
     "pkg/prosemirror-editor",
-    "pkg/editor-commands"
+    "pkg/editor-commands",
+    "pkg/toolbar"
   ],
   "devDependencies": {
     "@types/node": "^22.5.5",

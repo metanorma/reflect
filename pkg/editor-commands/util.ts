@@ -8,6 +8,10 @@
  *
  * Also re-exports the small predicate helpers from {@link ./schema.js} that
  * several commands share, so command modules import from one place.
+ *
+ * `generateId()` is the shared id-generation helper used by all node-insertion
+ * commands (tables, figures, sections, footnotes) so they are immediately
+ * referenceable by `xref`/`eref`.
  */
 
 export { chainCommands } from "prosemirror-commands";
@@ -21,3 +25,24 @@ export {
   nodeAt,
   isInside,
 } from "./schema.js";
+
+/**
+ * Generate a fresh, unique id string via `crypto.randomUUID()`.
+ *
+ * Used by all node-insertion commands (tables, figures, sections, footnotes)
+ * so the created node is immediately referenceable by `xref`/`eref`. Ids are
+ * immutable once generated — they are not renumbered on serialize.
+ *
+ * Falls back to a timestamp+random string when `crypto.randomUUID` is not
+ * available (older runtimes / non-secure contexts).
+ */
+export function generateId(): string {
+  const c: typeof globalThis.crypto | undefined =
+    typeof globalThis !== "undefined" && typeof globalThis.crypto === "object"
+      ? globalThis.crypto
+      : undefined;
+  if (c !== undefined && typeof c.randomUUID === "function") {
+    return c.randomUUID();
+  }
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}

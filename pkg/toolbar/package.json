@@ -1,5 +1,5 @@
 {
-  "name": "@metanorma/prosemirror-editor",
+  "name": "@metanorma/toolbar",
   "version": "0.1.0",
   "type": "module",
   "packageManager": "yarn@4.17.0",

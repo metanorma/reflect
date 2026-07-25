@@ -33,3 +33,52 @@ export { insertSoftBreak } from "./commands/insertSoftBreak.js";
 
 // List toggling (spec §3).
 export { toggleList } from "./commands/toggleList.js";
+
+// AdvancedMetanormaToolbar pure commands.
+
+// Tables (tables.md).
+export { insertTable, canInsertTable, MAX_ROWS, MAX_COLS } from "./commands/insertTable.js";
+
+// Images / figures (images-figures.md).
+export { insertImage, canInsertFigure } from "./commands/insertImage.js";
+export type { InsertImageAttrs } from "./commands/insertImage.js";
+
+// Sections / clause nesting (sections.md).
+export {
+  wrapInClause,
+  promoteClause,
+  demoteClause,
+  setSectionType,
+  canWrapInClause,
+  nearestSectionAncestor,
+  findNearestSectionOfType,
+  parentAccepts,
+} from "./commands/sections.js";
+
+// Reference marks (reference-marks.md).
+export {
+  applyReferenceMark,
+  toggleXref,
+  toggleEref,
+  toggleConcept,
+  toggleBcp14,
+  insertFootnoteMarker,
+  insertStem,
+} from "./commands/referenceMarks.js";
+
+// Definition lists (definition-lists.md).
+export {
+  insertDefinitionList,
+  addDefinitionPair,
+  jumpToSiblingDescription,
+  exitDefinitionList,
+  inDefinitionList,
+  canInsertBlock,
+} from "./commands/definitionList.js";
+
+// Undo / redo (undo-redo.md §7).
+export { undo, redo, undoDepth, redoDepth, history } from "./commands/history.js";
+export type { HistoryOptions } from "./commands/history.js";
+
+// Shared utilities.
+export { generateId } from "./util.js";
