@@ -6,8 +6,11 @@
     "compile": "tsc --outdir compiled"
   },
   "dependencies": {
+    "@metanorma/editor-commands": "workspace:^",
     "@metanorma/prosemirror-editor": "workspace:^",
     "@metanorma/toolbar": "workspace:^",
+    "prosemirror-commands": "^1.7.1",
+    "prosemirror-keymap": "^1.2.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
