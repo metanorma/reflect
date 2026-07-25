@@ -35,10 +35,10 @@ the six reference marks and the new `refs` toolbar group they introduce into
 | Aspect | Value |
 |---|---|
 | Command logic | `@metanorma/editor-commands` — `pkg/editor-commands/commands/referenceMarks.ts` |
-| Toolbar component | `pkg/prosemirror-editor/AdvancedMetanormaToolbar.tsx` |
-| Popover/menu UI | `pkg/prosemirror-editor/reference-marks.css` (imported side-effect) |
-| Commands re-exported from | `@metanorma/prosemirror-editor` (`pkg/prosemirror-editor/index.ts`) |
-| Popover/prompt hooks (UI) | `pkg/prosemirror-editor/AdvancedMetanormaToolbar.tsx` |
+| Toolbar component | `pkg/toolbar/AdvancedMetanormaToolbar.tsx` |
+| Popover/menu UI | `pkg/toolbar/reference-marks.css` (imported side-effect) |
+| Commands re-exported from | `@metanorma/toolbar` (`pkg/toolbar/index.ts`) |
+| Popover/prompt hooks (UI) | `pkg/toolbar/AdvancedMetanormaToolbar.tsx` |
 | New toolbar group | `'refs'` |
 
 **Layering.** The pure command logic lives in `@metanorma/editor-commands`,
@@ -46,16 +46,16 @@ the framework-agnostic, DOM-free command package defined in
 [`EditorCommands.spec.md`](../EditorCommands.spec.md). Everything that touches
 the `EditorView`, the DOM, async prompt hooks, or React — the toolbar
 component, the attribute-collection popovers/menus, and the `on*Prompt`
-upgrade hooks — stays in `@metanorma/prosemirror-editor`. The editor package
+upgrade hooks — stays in `@metanorma/toolbar`. The toolbar package
 **re-exports** the commands for toolbar consumption; it does not define them.
 
 Rationale, as in the base spec and `EditorCommands.spec.md` §1.8: the
 **command logic** is schema-bound (it resolves `MarkType`s through
 `state.schema`) but must remain **pure** — no `EditorView`, no DOM, no async —
 so it composes with keymaps and is headless-testable. It therefore belongs in
-`@metanorma/editor-commands`, not in `prosemirror-editor`. The
+`@metanorma/editor-commands`, not in `@metanorma/toolbar`. The
 `@handlewithcare/react-prosemirror` context, the prompt hooks, and the popover
-UI *are* editor-bound and stay in `prosemirror-editor`.
+UI *are* editor-bound and stay in `@metanorma/toolbar`.
 
 These commands conform to the Command contract (README §6.2;
 `EditorCommands.spec.md` §1.5).
@@ -136,7 +136,7 @@ real UX to the host.
 **UI/command boundary.** Attribute resolution — the xref target picker, the
 eref cite picker, the concept picker, the bcp14 keyword prompt, footnote id
 generation, the stem formula popover, and all the `on*Prompt` hooks — is a
-**UI concern** and lives in `@metanorma/prosemirror-editor`
+**UI concern** and lives in `@metanorma/toolbar`
 (the toolbar component). The pure commands in
 `@metanorma/editor-commands` (§6) receive **already-resolved** attribute
 values and never prompt, await, or touch the DOM. The toolbar's `run(view)`
@@ -344,7 +344,7 @@ export interface StemPromptContext extends RefPromptContext {
 
 Pure command logic, defined in `@metanorma/editor-commands` at
 `pkg/editor-commands/commands/referenceMarks.ts`, and **re-exported** by
-`@metanorma/prosemirror-editor` (§10). A generic core command plus per-mark
+`@metanorma/toolbar` (§10). A generic core command plus per-mark
 wrappers, all conforming to the ProseMirror `Command` contract
 (`EditorCommands.spec.md` §1.5): each is `(state, dispatch?, …) => boolean`.
 
@@ -482,7 +482,7 @@ container and a placeholder entry if absent.
 ### 6.3 Toolbar-side dispatch
 
 The toolbar adapter is the **only** place that touches the `EditorView`, the
-DOM, or async. It lives in `@metanorma/prosemirror-editor`
+DOM, or async. It lives in `@metanorma/toolbar`
 (`AdvancedMetanormaToolbar.tsx`), not in the commands package. The buttons
 resolve the attribute through the prompt hook, then call the **pure** command
 with `view.state` / `view.dispatch` and restore focus — exactly the seam the
@@ -547,8 +547,8 @@ requirement is presence.
 ## 8. Styling
 
 Follows base §8 conventions: plain CSS side-effect import, `mn-toolbar`
-prefix. The attribute-collection UI (a `prosemirror-editor` concern, §5)
-introduces new classes in `pkg/prosemirror-editor/reference-marks.css`:
+prefix. The attribute-collection UI (a `@metanorma/toolbar` concern, §5)
+introduces new classes in `pkg/toolbar/reference-marks.css`:
 
 ```
 .mn-toolbar-popover             /* floating container for xref/eref/concept/stem/bcp14 input */
@@ -579,18 +579,18 @@ Feature-specific accessibility additions beyond the baseline
 ## 10. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
-through `@metanorma/prosemirror-editor`; see the consolidated export listing in
+through `@metanorma/toolbar`; see the consolidated export listing in
 README §5.6. The feature-specific export notes below are not covered by that
 listing.
 
-`@metanorma/prosemirror-editor` also exports the **UI-only types** that describe
+`@metanorma/toolbar` also exports the **UI-only types** that describe
 the attribute-resolution UI (they carry `EditorState` for host pickers and are
-consumed only by the `on*Prompt` hooks), so they stay in `prosemirror-editor`
+consumed only by the `on*Prompt` hooks), so they stay in `@metanorma/toolbar`
 alongside the toolbar component, not in the commands package:
 
 ```typescript
 // UI-only types: the prompt/picker context objects live with the toolbar UI
-// in prosemirror-editor, not in the commands package.
+// in @metanorma/toolbar, not in the commands package.
 export type {
   RefPromptContext,
   StemPromptContext,
@@ -603,7 +603,7 @@ in `@metanorma/editor-commands`. The
 `RefPromptContext` / `StemPromptContext` / `StemResult` types describe the
 **attribute-resolution UI** (they carry `EditorState` for host pickers and
 are consumed only by the `on*Prompt` hooks), so they stay in
-`prosemirror-editor` alongside the toolbar component.
+`@metanorma/toolbar` alongside the toolbar component.
 
 `ToolbarGroup` is extended in `AdvancedMetanormaToolbar.tsx` to add
 `'refs'`:

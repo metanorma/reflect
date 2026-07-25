@@ -32,20 +32,21 @@ undo/redo and the new `history` toolbar group it introduces into
 | Aspect | Value |
 |---|---|
 | Command module | `pkg/editor-commands/commands/history.ts` (`@metanorma/editor-commands`) |
-| Toolbar component | `pkg/prosemirror-editor/AdvancedMetanormaToolbar.tsx` |
-| Plugin wiring | `pkg/prosemirror-editor/state.ts` (`createInitialEditorState`) |
-| Button adapters / keymap | `pkg/prosemirror-editor/` |
+| Toolbar component | `pkg/toolbar/AdvancedMetanormaToolbar.tsx` |
+| Plugin wiring | `pkg/prosemirror-editor/state.ts` (`createInitialEditorState`) — editor-level |
+| Button adapters | `pkg/toolbar/` (the `history` toolbar group) |
 | Commands re-exported from | `@metanorma/editor-commands` (package barrel `pkg/editor-commands/index.ts`) |
-| Editor re-exports | `pkg/prosemirror-editor/index.ts` |
+| Editor re-exports | `pkg/prosemirror-editor/index.ts` (history plugin wiring) |
 | New toolbar group | `'history'` |
 | New runtime deps | `prosemirror-history`, `prosemirror-keymap` |
 
 Rationale, as in the base spec and sibling documents: the **pure command logic**
 lives in the framework-agnostic `@metanorma/editor-commands` package (it consumes
 only `EditorState`/`Transaction`, never React or the DOM — see
-`EditorCommands.spec.md` §1.5/§1.8). The **editor-bound** concerns — the
-`history()` plugin, the `buildUndoRedoKeymap()` keymap, and the toolbar button
-adapters that touch `EditorView`/`view.focus()` — live in
+`EditorCommands.spec.md` §1.5/§1.8). The **toolbar-bound** concerns — the
+button adapters that touch `EditorView`/`view.focus()` — live in
+`@metanorma/toolbar`. The **editor-bound** concerns — the `history()` plugin
+wiring and the `buildUndoRedoKeymap()` keymap — live in
 `@metanorma/prosemirror-editor`, per §1.13 (plugins and keymaps are intentionally
 separate from command logic). This split matches the sibling feature docs and
 keeps the command seam DOM-free and headless-testable.
@@ -131,7 +132,7 @@ export const DEFAULT_HISTORY_OPTIONS: Readonly<HistoryOptions> = {
  * elsewhere. Both `Shift-Mod-z` (macOS convention) and `Mod-y`
  * (Windows/Linux convention) map to redo so the binding is cross-platform.
  *
- * This keymap lives in `prosemirror-editor` (per EditorCommands §1.13), not in
+ * This keymap lives in `@metanorma/prosemirror-editor` (per EditorCommands §1.13), not in
  * the commands package: it imports the `undo`/`redo` commands from
  * `@metanorma/editor-commands` and binds them to physical keys.
  */
@@ -301,7 +302,7 @@ Both buttons dispatch through the standard command signature
 `(state, dispatch)`. The `ToolbarButton.run` receives the `EditorView`, so the
 adapters pass `view.state` and `view.dispatch`. The commands themselves are pure
 and view-free; the `EditorView` appears **only** in this adapter, which lives in
-`prosemirror-editor`:
+`@metanorma/toolbar`:
 
 ```typescript
 import type { EditorView } from "prosemirror-view";

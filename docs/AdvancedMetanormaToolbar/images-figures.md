@@ -25,7 +25,7 @@ that validates the resolved `src`, materialises the
 Command contract (`EditorCommands.spec.md` §1.5), the command is split cleanly
 from the UI: the **pure command** (no `EditorView`/DOM, synchronous) lives in `@metanorma/editor-commands`; the **button + dialog adapter**
 (`EditorView`, async upload/URL resolution, focus) live in
-`@metanorma/prosemirror-editor`.
+`@metanorma/toolbar`.
 
 It deliberately does **not** re-specify anything from the base toolbar (marks,
 blocks, lists, links, the `ToolbarButton` descriptor, the `mn-toolbar` styling
@@ -67,7 +67,7 @@ Three consequences drive the entire design:
    the `image` child; `figure` renders only `class="figure"` and `data-id`.
 
 The guard, exported from both `@metanorma/prosemirror-schema` and
-`@metanorma/prosemirror-editor`:
+`@metanorma/toolbar`:
 
 ```typescript
 export function assertValidImageAttrs(
@@ -93,10 +93,10 @@ insert-only.)
 |---|---|
 | Command-logic package | `@metanorma/editor-commands` |
 | Command module | `pkg/editor-commands/commands/insertImage.ts` (pure command logic) |
-| Editor package (consumer) | `@metanorma/prosemirror-editor` — re-exports `insertImage`/`canInsertFigure` (§10) |
-| Dialog / adapter component | `pkg/prosemirror-editor/ImageInsertDialog.tsx` (`InsertImageButton` + dialog; owns `EditorView`, async, DOM) |
-| Dialog styles | `pkg/prosemirror-editor/image-dialog.css` (imported side-effect) |
-| Public barrel (editor) | `pkg/prosemirror-editor/index.ts` (re-exports — §10) |
+| Toolbar package (consumer) | `@metanorma/toolbar` — re-exports `insertImage`/`canInsertFigure` (§10) |
+| Dialog / adapter component | `pkg/toolbar/ImageInsertDialog.tsx` (`InsertImageButton` + dialog; owns `EditorView`, async, DOM) |
+| Dialog styles | `pkg/toolbar/image-dialog.css` (imported side-effect) |
+| Public barrel (toolbar) | `pkg/toolbar/index.ts` (re-exports — §10) |
 | Public barrel (commands) | `pkg/editor-commands/index.ts` (command exports — §10) |
 | Schema source | `@metanorma/prosemirror-schema` (`metanormaSchema`, `assertValidImageAttrs`) |
 
@@ -104,7 +104,7 @@ The split follows the `@metanorma/editor-commands` Command contract
 (`EditorCommands.spec.md` §1.5): **pure command logic** — schema-coupled,
 no `EditorView`, no DOM — lives in `@metanorma/editor-commands`.
 The **toolbar adapter** (`InsertImageButton` + `ImageInsertDialog`) lives in
-`@metanorma/prosemirror-editor`; it owns the React state, the `EditorView`,
+`@metanorma/toolbar`; it owns the React state, the `EditorView`,
 and the async URL/upload resolution. The adapter resolves a `src` first, then
 calls the synchronous pure command with the resolved `{ src, alt }`. Because
 the source may need to be uploaded, the dialog's commit handler does not call
@@ -132,7 +132,7 @@ minimal, non-invasive deviation, reusing the same `.mn-toolbar-btn` classes for
 visual consistency.
 
 ```tsx
-// pkg/prosemirror-editor/ImageInsertDialog.tsx (excerpt)
+// pkg/toolbar/ImageInsertDialog.tsx (excerpt)
 export function InsertImageButton({
   onImageUpload,
 }: {
@@ -296,7 +296,7 @@ Lives in `pkg/editor-commands/commands/insertImage.ts` — the
 (`EditorCommands.spec.md` §1.5): it is a pure `(state, dispatch?) => boolean`
 function — **no `EditorView`, no DOM**. The `EditorView`, async
 URL/upload resolution, and focus management concerns live only in the toolbar
-adapter in `@metanorma/prosemirror-editor` (§4, §7). The command takes
+adapter in `@metanorma/toolbar` (§4, §7). The command takes
 **already-resolved** `{ src, alt }` and is synchronous.
 
 ### 6.1 Signature
@@ -489,7 +489,7 @@ bare-`image` insertion path is offered.
 ## 7. The async dispatch pattern
 
 All async/`Promise`/`File` work is **UI-only** and lives in the toolbar adapter
-(`ImageInsertDialog.tsx` in `@metanorma/prosemirror-editor`); the pure command
+(`ImageInsertDialog.tsx` in `@metanorma/toolbar`); the pure command
 (§6) is synchronous. URL entry is synchronous, but the **file path is
 asynchronous** (both `data:`-URL generation and `onImageUpload`), and even URL
 entry via the `onImagePrompt` hook returns a `Promise`. The **adapter** resolves
@@ -515,9 +515,9 @@ rules make this safe:
    touches focus.
 
 ```tsx
-// pkg/prosemirror-editor/ImageInsertDialog.tsx (commit handler)
+// pkg/toolbar/ImageInsertDialog.tsx (commit handler)
 // The ADAPTER owns EditorView, async, and DOM. The pure command owns none.
-import { insertImage } from "@metanorma/editor-commands"; // re-exported through editor pkg
+import { insertImage } from "@metanorma/editor-commands"; // re-exported through toolbar pkg
 
 const dispatchInsert = useEditorEventCallback(
   async (view: EditorView | null, src: string, alt: string | null) => {
@@ -628,7 +628,7 @@ the WAI-ARIA **dialog** pattern:
 ## 10. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
-through `@metanorma/prosemirror-editor`; see the consolidated export listing in
+through `@metanorma/toolbar`; see the consolidated export listing in
 README §5.6. This feature adds no feature-specific export notes.
 
 ## 11. CSS classes
@@ -673,7 +673,7 @@ code must:
 - Use `import type` for type-only imports (`EditorState`, `Transaction`, `Node`).
   The **pure command** imports `EditorState`/`Transaction`/`Node` but must
   **never** import `EditorView`/`prosemirror-view`; only the UI adapter in
-  `prosemirror-editor` imports `EditorView`.
+  `@metanorma/toolbar` imports `EditorView`.
 - Use `.js` extensions in relative imports (`"./commands/insertImage.js"`).
 - Treat `schema.nodes["figure"]` / `schema.nodes["image"]` lookups as
   `NodeType | undefined` under `noUncheckedIndexedAccess` — guard or assert

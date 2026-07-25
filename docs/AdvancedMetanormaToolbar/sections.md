@@ -254,9 +254,9 @@ wrong type.
 
 The structural command logic lives in the **`@metanorma/editor-commands`**
 package, at `pkg/editor-commands/commands/sections.ts` — **not** in
-`pkg/prosemirror-editor`. The editor package (`@metanorma/prosemirror-editor`)
+`pkg/toolbar`. The toolbar package (`@metanorma/toolbar`)
 re-exports them; the toolbar component and its view-holding adapters stay in
-`prosemirror-editor`. See §10 (exports) and §11 (file structure).
+`@metanorma/toolbar`. See §10 (exports) and §11 (file structure).
 
 #### Command contract conformance
 
@@ -361,7 +361,7 @@ export function wrapInClause(
 **No `wrapInClauseView` overload.** An earlier draft specified a
 `wrapInClauseView(view: EditorView, title): void` adapter in this module. That
 is a UI concern and is **not** exported from `editor-commands`: the toolbar
-button's `run(view)` adapter (which lives in `prosemirror-editor`) resolves the
+button's `run(view)` adapter (which lives in `@metanorma/toolbar`) resolves the
 heading `title` per §7, calls `wrapInClause(view.state, view.dispatch, { title })`,
 and then `view.focus()`. The pure command takes `title` as an ordinary optional
 argument so no `EditorView` ever enters the command.
@@ -716,7 +716,7 @@ demote), so no command needs to maintain it.
 ## 10. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
-through `@metanorma/prosemirror-editor`; see the consolidated export listing
+through `@metanorma/toolbar`; see the consolidated export listing
 in README §5.6. This feature adds no feature-specific export notes.
 
 ## 11. File structure summary
@@ -729,11 +729,11 @@ no feature-specific structure notes.
 The project tsconfig enforces `strict`, `exactOptionalPropertyTypes`,
 `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, `module: node16` (per
 project memory). All new code in `pkg/editor-commands/commands/sections.ts`
-(the command logic) and the toolbar component in `prosemirror-editor` must:
+  (the command logic) and the toolbar component in `@metanorma/toolbar` must:
 
 - Use `import type` for type-only imports (`Command`, `EditorState`,
   `Transaction`, `Node`, `NodeType`, `ResolvedPos`). **`EditorView` is imported
-  only in `prosemirror-editor` (the adapter layer), never in
+  only in `@metanorma/toolbar` (the adapter layer), never in
   `editor-commands`** — commands are DOM-free per the Command contract
   (`EditorCommands.spec.md` §1.8).
 - Use `.js` extensions in all relative imports

@@ -55,18 +55,18 @@ it carries a `title`; the other five table nodes carry only `...DATA_ATTR`.
 | Aspect | Value |
 |---|---|
 | Commands package | `@metanorma/editor-commands` (command logic, DOM-free) |
-| Editor package | `@metanorma/prosemirror-editor` (React mount + toolbar adapter) |
+| Toolbar package | `@metanorma/toolbar` (React mount + toolbar adapter) |
 | Command module | `pkg/editor-commands/commands/insertTable.ts` |
-| Popover / adapter component | `pkg/prosemirror-editor/TableSizePicker.tsx` (`InsertTableButton` + grid picker) |
-| Picker styles | `pkg/prosemirror-editor/table-picker.css` (imported side-effect) |
+| Popover / adapter component | `pkg/toolbar/TableSizePicker.tsx` (`InsertTableButton` + grid picker) |
+| Picker styles | `pkg/toolbar/table-picker.css` (imported side-effect) |
 | Commands barrel | `pkg/editor-commands/index.ts` (export `insertTable`, `canInsertTable`, `MAX_ROWS`, `MAX_COLS` — §9) |
-| Editor barrel | `pkg/prosemirror-editor/index.ts` (re-export the command; export `InsertTableButton` — §9) |
+| Toolbar barrel | `pkg/toolbar/index.ts` (re-export the command; export `InsertTableButton` — §9) |
 | Schema source | `@metanorma/prosemirror-schema` (`metanormaSchema`, `DATA_ATTR`) |
 
 The pure `insertTable` command lives in the `@metanorma/editor-commands` package
 and conforms to the Command contract (README §6.2; `EditorCommands.spec.md`
 §1.5). The grid-picker popover and its `InsertTableButton` component live in
-`@metanorma/prosemirror-editor`; they are the **toolbar adapter** — the only
+`@metanorma/toolbar`; they are the **toolbar adapter** — the only
 layer that holds an `EditorView`, restores focus, and calls the pure command.
 
 The picker is rendered as a descendent of the toolbar (and therefore a
@@ -93,7 +93,7 @@ component that owns the picker's open state and renders the `ToolbarButton`
 visuals (`.mn-toolbar-btn` and modifiers) plus the popover. Concretely:
 
 ```tsx
-// pkg/prosemirror-editor/TableSizePicker.tsx (excerpt)
+// pkg/toolbar/TableSizePicker.tsx (excerpt)
 import { insertTable } from "@metanorma/editor-commands";
 import { canInsertTable } from "@metanorma/editor-commands";
 
@@ -328,7 +328,7 @@ Notes on the strict-tsconfig constraints in play:
 Lives in `pkg/editor-commands/commands/insertTable.ts` and conforms to the
 Command contract (README §6.2; `EditorCommands.spec.md` §1.5). The
 `EditorView` / `view.focus()` concerns live exclusively in the toolbar adapter
-in `@metanorma/prosemirror-editor` (§4, §5.2).
+in `@metanorma/toolbar` (§4, §5.2).
 
 **Command vs. trigger.** Per the naming rule
 (`docs/EditorCommands.spec.md` §1.10.2) the command is named for the action it
@@ -502,11 +502,11 @@ export function insertTable(
 }
 ```
 
-The adapter that drives it (in `@metanorma/prosemirror-editor`) is the **only**
+The adapter that drives it (in `@metanorma/toolbar`) is the **only**
 place an `EditorView` appears:
 
 ```typescript
-// pkg/prosemirror-editor/TableSizePicker.tsx (adapter excerpt)
+// pkg/toolbar/TableSizePicker.tsx (adapter excerpt)
 import { insertTable } from "@metanorma/editor-commands";
 
 // inside InsertTableButton's commit handler (useEditorEventCallback):
@@ -553,14 +553,14 @@ commands as Metanorma table-editing needs emerge.
 ## 9. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
-through `@metanorma/prosemirror-editor`; see the consolidated export listing in
+through `@metanorma/toolbar`; see the consolidated export listing in
 README §5.6. This feature adds no feature-specific export notes.
 
 ## 10. File-structure summary
 
 See the consolidated file-structure listing in README §5.5. The packages
 touched by this feature are `@metanorma/editor-commands` (pure command logic)
-and `@metanorma/prosemirror-editor` (React mount + toolbar adapter).
+and `@metanorma/toolbar` (React mount + toolbar adapter).
 
 ## 11. TypeScript constraints
 
@@ -572,9 +572,9 @@ code must:
   (`@metanorma/editor-commands`) these are `EditorState`, `Transaction`, `Node`,
   `Schema` — **never** `EditorView` (the command must not import
   `prosemirror-view`). `EditorView` may appear only in the adapter component in
-  `@metanorma/prosemirror-editor`.
+  `@metanorma/toolbar`.
 - Use `.js` extensions in relative imports (e.g. `"./commands/insertTable.js"`
-  inside `editor-commands`; `"./TableSizePicker.js"` inside `prosemirror-editor`).
+  inside `editor-commands`; `"./TableSizePicker.js"` inside `@metanorma/toolbar`).
 - Treat `schema.nodes["table"]` lookups as `NodeType | undefined` under
   `noUncheckedIndexedAccess` — guard or assert before use.
 - Pass `null` (not `undefined`) for defaulted attrs in `NodeType.create`, and

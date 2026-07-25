@@ -107,9 +107,9 @@ command logic** lives in `@metanorma/editor-commands`
 (`pkg/editor-commands/commands/definitionList.ts`): framework-agnostic,
 DOM-free, operating on `EditorState`/`Transaction` only. The **keymap
 plugin**, the `EditorView`-taking toolbar `run` adapter, and `view.focus()`
-belong in `@metanorma/prosemirror-editor` (consistent with the base toolbar's
+belong in `@metanorma/toolbar` (consistent with the base toolbar's
 packaging split and §1.13 — keymap wiring lives outside the commands package).
-`@metanorma/prosemirror-editor` re-exports the commands for toolbar/UI reuse.
+`@metanorma/toolbar` re-exports the commands for toolbar/UI reuse.
 
 ## 4. Buttons
 
@@ -433,9 +433,9 @@ split a `dt` into two `dt`s (invalid) or insert a paragraph inside a `dt`
 (invalid — `dt` is `inline*`). A dedicated keymap plugin is required.
 
 **Location & boundary (EditorCommands.spec.md §1.13).** The keymap plugin
-lives in `@metanorma/prosemirror-editor`, **not** in the commands package:
+lives in `@metanorma/toolbar`, **not** in the commands package:
 
-- File: `pkg/prosemirror-editor/plugins/definitionListKeymap.ts`, exporting
+- File: `pkg/toolbar/plugins/definitionListKeymap.ts`, exporting
   a `Plugin` (or `InputRule[]`/keybinding object) to be registered by
   `MetanormaProseMirror`.
 - It **imports the pure commands** (`insertDefinitionList`, `addDefinitionPair`)
@@ -471,7 +471,7 @@ trailing pair *and* inserts the exit paragraph, rather than dispatching two
 separate transactions or splitting the work across an undo-group boundary.
 
 ```typescript
-// pkg/prosemirror-editor/plugins/definitionListKeymap.ts
+// pkg/toolbar/plugins/definitionListKeymap.ts
 import {
   addDefinitionPair,
   jumpToSiblingDescription,
@@ -572,7 +572,7 @@ runs.
 keymap. Because they are **pure state-reading predicates** (no `EditorView`/
 DOM), they live in `@metanorma/editor-commands` (`commands/definitionList.ts`,
 or a small sibling `definitionListUtils.ts`) and are imported by both the
-`run(view)` toolbar adapter in `@metanorma/prosemirror-editor` and the keymap
+`run(view)` toolbar adapter in `@metanorma/toolbar` and the keymap
 plugin — no duplication.
 
 ### 7.1 Interaction with existing list commands
@@ -640,7 +640,7 @@ Feature-specific accessibility additions beyond the baseline (README §2.5 /
 ## 10. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
-through `@metanorma/prosemirror-editor`; see the consolidated export listing
+through `@metanorma/toolbar`; see the consolidated export listing
 in README §5.6. This feature adds no feature-specific export notes.
 
 ## 11. File structure summary
