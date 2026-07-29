@@ -92,7 +92,7 @@ Style guidelines
 
 * Trailing semicolons preferred
 
-* Split ternaries into lines like this:
+* Split ternaries into lines like this::
 
       const a = b > c
         ? foo
@@ -100,7 +100,7 @@ Style guidelines
 
 * JSX:
 
-  * Returning multi-line construct:
+  * Returning multi-line construct::
 
         return (
           <div>
@@ -108,13 +108,13 @@ Style guidelines
           </div>
         );
 
-  * Ternaries:
+  * Ternaries::
 
         {i > 0
           ? <span className="mn-toolbar-divider" aria-hidden="true" />
           : null}
 
-    * With multi-line contents:
+    * With multi-line contents::
 
           {i > 0
             ? (
