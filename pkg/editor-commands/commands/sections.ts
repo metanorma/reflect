@@ -14,6 +14,7 @@
 import { TextSelection } from "prosemirror-state";
 import type { EditorState, Transaction } from "prosemirror-state";
 import { Fragment } from "prosemirror-model";
+import { NodeRange } from "prosemirror-model";
 import type { Node, NodeType, ResolvedPos } from "prosemirror-model";
 import { liftTarget } from "prosemirror-transform";
 
@@ -262,8 +263,15 @@ export function promoteClause(
   const parent = $from.node(parentDepth);
   if (!SECTION_NAMES.has(parent.type.name)) return false;
 
-  const range = $from.blockRange($to, (n) => n.type === clauseType);
-  if (range === null) return false;
+  // Build a NodeRange that spans the *clause node itself* as a child of its
+  // parent. The naive `$from.blockRange($to, (n) => n.type === clauseType)`
+  // would return a range whose `.parent` IS the clause (range.depth ===
+  // hit.depth), i.e. a range spanning the clause's CHILDREN (the paragraph),
+  // not the clause. Lifting that range would lift the inner paragraph out of
+  // the clause, destroying the clause node instead of promoting it. We need
+  // range.depth === hit.depth - 1 (the clause's parent), so `tr.lift` operates
+  // on the clause as a unit.
+  const range = new NodeRange($from, $to, parentDepth);
   const target = liftTarget(range);
   if (target === null) return false;
 

@@ -39,16 +39,17 @@ function defaultHeadingPrompt(): Promise<string | null> {
   );
 }
 
-/** Whether promote is enabled: nearest clause's parent is itself a section. */
+/** Whether promote is enabled: mirrors `promoteClause`'s applicability. */
 function canPromote(state: EditorState): boolean {
-  const { $from } = state.selection;
-  const clauseType = metanormaSchema.nodes["clause"];
-  if (clauseType === undefined) return false;
-  const hit = findNearestSectionOfType($from, clauseType);
-  if (hit === null) return false;
-  const parentDepth = hit.depth - 1;
-  if (parentDepth < 1) return false;
-  return nearestSectionAncestor($from)?.depth === parentDepth;
+  // Query the command without a dispatch: it returns true iff a promotion is
+  // legal at the current selection (nearest clause's parent is itself a
+  // section). This keeps the button's `isEnabled` exactly in sync with the
+  // command — the contract per MetanormaToolbar.spec.md §5.4. The previous
+  // hand-rolled check (`nearestSectionAncestor($from)?.depth === parentDepth`)
+  // compared the cursor's nearest section (always the clause itself, at
+  // hit.depth) against the clause's parent depth (hit.depth - 1), which is
+  // never equal, so the button was permanently disabled.
+  return promoteClause(state) === true;
 }
 
 /** Whether demote is enabled: nearest clause has a preceding section sibling. */
