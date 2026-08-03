@@ -81,7 +81,7 @@ must be disabled when the insertion or demotion target is a leaf section or a
 The schema also defines a `floating_title` block node (`group: "block"`,
 `atom: true`, `content: ""`, `sectionAttrs()` — i.e. it carries
 `id`/`number`/`title`/`data` but has no children). It renders as a
-non-`<section>` `<div class="floating-title">` and is deliberately placed
+non-`<section>` `<div class="mn-floating-title">` and is deliberately placed
 **outside the numbered section hierarchy** — per
 [Metanorma's documentation](https://www.metanorma.org/author/topics/sections/),
 "a floating title is a title that is placed outside the numbered hierarchy of

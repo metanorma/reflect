@@ -4,7 +4,7 @@ This spec defines the ProseMirror schema module. Ignore the preexisting
 `pkg/schema` subpackage and any prior ProseMirror usage in this repository —
 this document supersedes them as the source of truth for the schema.
 
-**Spec version:** 3
+**Spec version:** 4
 
 **Source of truth for the document model:**
 `src/types.ts` of [`metanorma/metanorma-mirror-js`](https://github.com/metanorma/metanorma-mirror-js/blob/main/src/types.ts)
@@ -255,14 +255,43 @@ Each entry below contributes one key to the `nodes` map passed to `new Schema`.
 `text` uses ProseMirror's built-in via `schema.text` — declare it explicitly
 with `group: "inline"` so `inline*` content resolves.
 
+### 8.0 The `CLASS` contract
+
+Every CSS class emitted by a `toDOM` (and matched by the corresponding
+`parseDOM` rule) lives in a single typed const `CLASS`, exported from
+`@metanorma/prosemirror-schema` (`classes.ts`) and documented in §11.
+
+```ts
+export const CLASS = {
+  doc: "mn-doc", preface: "mn-preface", /* …sections… */
+  note: "mn-note", formula: "mn-formula", figure: "mn-figure",
+  smallcap: "mn-smallcap", xref: "mn-xref", /* … */
+} as const;
+```
+
+The node/mark `toDOM`/`parseDOM` rules in §8.1–§8.8 and §9 read their class
+from this const; the React node views (`pkg/prosemirror-editor`) and the
+document stylesheet (`document.css`) consume the same names. **All emitted
+classes carry the `mn-` prefix** (unified to the prefix in v4 — previously a
+mix of `mn-*` and bare `figure` / `formula` / `xref` / etc.). Renaming a class
+now touches one symbol in `CLASS`, with the schema's `toDOM`/`parseDOM` pairs
+updated in lockstep.
+
+**Scope.** `CLASS` covers ONLY classes emitted by a schema `toDOM`.
+Editor-chrome classes that exist solely for editor UX (e.g.
+`mn-image-placeholder`, `mn-section-title-input`) are NOT in the const — they
+belong to `@metanorma/prosemirror-editor`, not to the schema's serialization
+contract. `sourcecode`'s dynamic `language-${language}` class is a Prism /
+highlight.js interop convention and is likewise absent.
+
 ### 8.1 Structural nodes
 
 | Node | Spec essentials |
 |---|---|
-| `doc` | `content: "(preface? sections? bibliography? footnotes?)"`; `toDOM: ["div", {class: "mn-doc"}, 0]`; no `parseDOM`. |
-| `preface` | `content: "(section \| block)*"`; `toDOM: ["section", {class: "mn-preface"}, 0]`; `parseDOM: [{tag: "section.mn-preface"}]`. |
-| `sections` | `content: "(section \| block)*"`; `toDOM: ["section", {class: "mn-sections"}, 0]`; `parseDOM: [{tag: "section.mn-sections"}]`. |
-| `bibliography` | `content: "(section \| block)*"`; `toDOM: ["section", {class: "mn-bibliography"}, 0]`; `parseDOM: [{tag: "section.mn-bibliography"}]`. |
+| `doc` | `content: "(preface? sections? bibliography? footnotes?)"`; `toDOM: ["div", {class: CLASS.doc}, 0]`; no `parseDOM`. |
+| `preface` | `content: "(section \| block)*"`; `toDOM: ["section", {class: CLASS.preface}, 0]`; `parseDOM: [{tag: "section.mn-preface"}]`. |
+| `sections` | `content: "(section \| block)*"`; `toDOM: ["section", {class: CLASS.sections}, 0]`; `parseDOM: [{tag: "section.mn-sections"}]`. |
+| `bibliography` | `content: "(section \| block)*"`; `toDOM: ["section", {class: CLASS.bibliography}, 0]`; `parseDOM: [{tag: "section.mn-bibliography"}]`. |
 
 ### 8.2 Section nodes (`group: "section"`)
 
@@ -310,14 +339,14 @@ function sectionToDOM(cls: string) {
 | Node | `content` | `toDOM` | `parseDOM` |
 |---|---|---|---|
 | `paragraph` | `inline*` | `["p", 0]` | `[{tag: "p"}]` |
-| `note` | `block+` | `["div", {class: "note"}, 0]` | `[{tag: "div.note"}]` |
-| `example` | `block+` | `["div", {class: "example"}, 0]` | `[{tag: "div.example"}]` |
+| `note` | `block+` | `["div", {class: CLASS.note}, 0]` | `[{tag: "div.mn-note"}]` |
+| `example` | `block+` | `["div", {class: CLASS.example}, 0]` | `[{tag: "div.mn-example"}]` |
 | `quote` | `block+` | `["blockquote", 0]` | `[{tag: "blockquote"}]` |
-| `review` | `block+` | `["div", {class: "review"}, 0]` | `[{tag: "div.review"}]` |
-| `admonition` | `block+` | `["div", {class: `admonition ${type}`, "data-type": type}, 0]` (function) | `[{tag: "div.admonition", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
-| `sourcecode` | `text*`, `code: true` | `["pre", {class: `language-${language}`}, ["code", 0]]` (function) | `[{tag: "pre", getAttrs: el => ({ language: /language-(\S+)/.exec(el.className)?.[1] ?? null })}]` |
-| `formula` | *(empty)* atom | `["div", {class: "formula", "data-type": type, "data-asciimath": asciimath, "data-mathml": mathml, "data-number": number}]` (function; no content slot; only the encoding selected by `type` is authoritative — see §17.2) | `[{tag: "div.formula", getAttrs: el => ({ type: el.getAttribute("data-type") ?? "asciimath", asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml"), number: el.getAttribute("data-number") })}]` |
-| `floating_title` | *(empty)* atom, `group: "block"` | `["div", {class: "floating-title", "data-id": id}, title ?? ""]` (function) | `[{tag: ".floating-title", getAttrs: el => ({ title: el.textContent, id: el.getAttribute("data-id") })}]` |
+| `review` | `block+` | `["div", {class: CLASS.review}, 0]` | `[{tag: "div.mn-review"}]` |
+| `admonition` | `block+` | `["div", {class: \`mn-admonition ${type}\`, "data-type": type}, 0]` (function) | `[{tag: "div.mn-admonition", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
+| `sourcecode` | `text*`, `code: true` | `["pre", {class: \`language-${language}\`}, ["code", 0]]` (function) | `[{tag: "pre", getAttrs: el => ({ language: /language-(\S+)/.exec(el.className)?.[1] ?? null })}]` |
+| `formula` | *(empty)* atom | `["div", {class: CLASS.formula, "data-type": type, "data-asciimath": asciimath, "data-mathml": mathml, "data-number": number}]` (function; no content slot; only the encoding selected by `type` is authoritative — see §17.2) | `[{tag: "div.mn-formula", getAttrs: el => ({ type: el.getAttribute("data-type") ?? "asciimath", asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml"), number: el.getAttribute("data-number") })}]` |
+| `floating_title` | *(empty)* atom, `group: "block"` | `["div", {class: CLASS.floatingTitle, "data-id": id}, title ?? ""]` (function) | `[{tag: ".mn-floating-title", getAttrs: el => ({ title: el.textContent, id: el.getAttribute("data-id") })}]` |
 
 > **`sourcecode.code: true`.** The `sourcecode` node spec sets `code: true`, the
 > ProseMirror convention marking a textblock as a code block. This is what makes
@@ -353,16 +382,16 @@ function sectionToDOM(cls: string) {
 
 | Node | `content` | `atom`/leaf | `toDOM` | `parseDOM` |
 |---|---|---|---|---|
-| `figure` | `(image \| block)*`, `group: "block"` | — | `["figure", {class: "figure", "data-id": id}, 0]` (function) | `[{tag: "figure"}]` |
+| `figure` | `(image \| block)*`, `group: "block"` | — | `["figure", {class: CLASS.figure, "data-id": id}, 0]` (function) | `[{tag: "figure"}]` |
 | `image` | *(empty)* | atom, `draggable: true` | `["img", {src, alt, "data-src": src}]` (function; **no content slot** — leaf) | `[{tag: "img", getAttrs: el => ({ src: el.getAttribute("src"), alt: el.getAttribute("alt") })}]` |
 
 ### 8.7 Footnote nodes
 
 | Node | `content` | inline? | `toDOM` | `parseDOM` |
 |---|---|---|---|---|
-| `footnotes` | `footnote_entry+` | no | `["section", {class: "footnotes"}, 0]` | `[{tag: "section.footnotes"}, {tag: "ol.footnotes"}]` |
-| `footnote_entry` | `block+` | no | `["div", {class: "footnote-entry", "data-id": id, "data-number": number}, 0]` (function) | `[{tag: ".footnote-entry", getAttrs: el => ({ id: el.getAttribute("data-id"), number: el.getAttribute("data-number") })}]` |
-| `footnote_marker` | *(empty)* | **yes** (`group: "inline"`, `inline: true`, atom) | `["sup", {class: "footnote-marker", "data-target": target}]` (function; no content slot) | `[{tag: "sup.footnote-marker", getAttrs: el => ({ target: el.getAttribute("data-target") })}]` |
+| `footnotes` | `footnote_entry+` | no | `["section", {class: CLASS.footnotes}, 0]` | `[{tag: "section.mn-footnotes"}, {tag: "ol.mn-footnotes"}]` |
+| `footnote_entry` | `block+` | no | `["div", {class: CLASS.footnoteEntry, "data-id": id, "data-number": number}, 0]` (function) | `[{tag: ".mn-footnote-entry", getAttrs: el => ({ id: el.getAttribute("data-id"), number: el.getAttribute("data-number") })}]` |
+| `footnote_marker` | *(empty)* | **yes** (`group: "inline"`, `inline: true`, atom) | `["sup", {class: CLASS.footnoteMarker, "data-target": target}]` (function; no content slot) | `[{tag: "sup.mn-footnote-marker", getAttrs: el => ({ target: el.getAttribute("data-target") })}]` |
 
 ### 8.8 Leaf inline nodes
 
@@ -370,7 +399,7 @@ function sectionToDOM(cls: string) {
 |---|---|---|---|
 | `text` | `inline` | *(built-in)* | *(built-in)* |
 | `soft_break` | `inline`, `inline: true`, `atom: true` | `["br"]` | `[{tag: "br"}]` |
-| `stem` | `inline`, `inline: true`, `atom: true` | `["span", {class: "stem", "data-type": type, "data-asciimath": asciimath, "data-mathml": mathml}]` (function; no content slot; only the encoding selected by `type` is authoritative) | `[{tag: "span.stem", getAttrs: el => ({ type: el.getAttribute("data-type") ?? "asciimath", asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml") })}]` |
+| `stem` | `inline`, `inline: true`, `atom: true` | `["span", {class: CLASS.stem, "data-type": type, "data-asciimath": asciimath, "data-mathml": mathml}]` (function; no content slot; only the encoding selected by `type` is authoritative) | `[{tag: "span.mn-stem", getAttrs: el => ({ type: el.getAttribute("data-type") ?? "asciimath", asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml") })}]` |
 
 ---
 
@@ -390,22 +419,22 @@ with the mark tag and `0` (content hole), and `parseDOM` uses the tag.
 | `code` | `["code", 0]` | `[{tag: "code"}]` |
 | `underline` | `["u", 0]` | `[{tag: "u"}]` |
 | `strike` | `["s", 0]` | `[{tag: "s"}, {tag: "strike"}, {tag: "del"}]` |
-| `smallcap` | `["span", {class: "smallcap"}, 0]` | `[{tag: "span.smallcap"}, {style: "font-variant=small-caps"}]` |
+| `smallcap` | `["span", {class: CLASS.smallcap}, 0]` | `[{tag: "span.mn-smallcap"}, {style: "font-variant=small-caps"}]` |
 
 ### 9.2 Reference / semantic marks
 
 | Mark | Attrs | `toDOM` | `parseDOM` |
 |---|---|---|---|
 | `link` | `href` | `["a", {href}, 0]` (function; omit attr when null) | `[{tag: "a[href]", getAttrs: el => ({ href: el.getAttribute("href") })}]` |
-| `xref` | `target` | `["a", {class: "xref", "data-target": target}, 0]` (function) | `[{tag: "a.xref", getAttrs: el => ({ target: el.getAttribute("data-target") })}]` |
-| `eref` | `cite` | `["cite", {class: "eref", "data-cite": cite}, 0]` (function) | `[{tag: "cite.eref", getAttrs: el => ({ cite: el.getAttribute("data-cite") })}]` |
-| `concept` | `ref`, `kind` | `["span", {class: "concept", "data-ref": ref, "data-kind": kind}, 0]` (function) | `[{tag: "span.concept", getAttrs: el => ({ ref: el.getAttribute("data-ref"), kind: el.getAttribute("data-kind") ?? "xref" })}]` |
-| `bcp14` | `type` | `["span", {class: "bcp14", "data-type": type}, 0]` (function) | `[{tag: "span.bcp14", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
+| `xref` | `target` | `["a", {class: CLASS.xref, "data-target": target}, 0]` (function) | `[{tag: "a.mn-xref", getAttrs: el => ({ target: el.getAttribute("data-target") })}]` |
+| `eref` | `cite` | `["cite", {class: CLASS.eref, "data-cite": cite}, 0]` (function) | `[{tag: "cite.mn-eref", getAttrs: el => ({ cite: el.getAttribute("data-cite") })}]` |
+| `concept` | `ref`, `kind` | `["span", {class: CLASS.concept, "data-ref": ref, "data-kind": kind}, 0]` (function) | `[{tag: "span.mn-concept", getAttrs: el => ({ ref: el.getAttribute("data-ref"), kind: el.getAttribute("data-kind") ?? "xref" })}]` |
+| `bcp14` | `type` | `["span", {class: CLASS.bcp14, "data-type": type}, 0]` (function) | `[{tag: "span.mn-bcp14", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
 | `span` | `class` | `["span", {class}, 0]` (function) | `[{tag: "span[data-class]", getAttrs: el => ({ class: el.getAttribute("data-class") }), priority: 1}]` |
 
 > **`span` parse priority.** The generic `span` mark parses with low priority
-> (`priority: 1`) so that the more specific `span.smallcap` /
-> `span.concept` / `span.bcp14` rules win during HTML ingestion.
+> (`priority: 1`) so that the more specific `span.mn-smallcap` /
+> `span.mn-concept` / `span.mn-bcp14` rules win during HTML ingestion.
 
 ---
 
@@ -444,6 +473,10 @@ export const metanormaMarks: Record<string, MarkSpec>;
 /** Convenience lookups derived from the schema. */
 export const NODE_NAMES: readonly string[];   // 43 entries, in §3.1 order
 export const MARK_NAMES: readonly string[];   // 14 entries, in §3.2 order
+
+/** The CSS class emitted by every `toDOM`/`parseDOM` rule (§8.0). */
+export const CLASS: { readonly doc: "mn-doc"; /* …one key per emitting node/mark… */ };
+export type ClassName = (typeof CLASS)[keyof typeof CLASS];
 
 /** Runtime guard for image insertion (§6.1). */
 export function assertValidImageAttrs(attrs: { src?: unknown }): asserts attrs is { src: string };

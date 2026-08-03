@@ -65,7 +65,7 @@ Three consequences drive the entire design:
    and `src`; it has **no `title`**. There is therefore **no duplicated `alt`**
    to mirror or ignore — the two nodes carry disjoint caption/a11y/source
    attributes by design. The rendered image attributes (`src`, `alt`) live on
-   the `image` child; `figure` renders only `class="figure"` and `data-id`.
+   the `image` child; `figure` renders only `class="mn-figure"` and `data-id`.
 
 The guard, exported from both `@metanorma/prosemirror-schema` and
 `@metanorma/toolbar`:
@@ -81,7 +81,7 @@ export function assertValidImageAttrs(
 ```
 
 Existing node views — `ImageNodeView` (renders `<img src alt>` or a placeholder
-when `src === ""`) and `FigureNodeView` (renders `<figure class="figure">` with
+when `src === ""`) and `FigureNodeView` (renders `<figure class="mn-figure">` with
 `contentDOMRef`) — already render these nodes once they exist in the document.
 This feature only **creates** them; it does not change the node views.
 (Reusing the node views for attribute editing of an existing figure is a

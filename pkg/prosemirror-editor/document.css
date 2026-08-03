@@ -17,14 +17,14 @@
 
   /* ---- figure (image + caption block) ---- */
 
-  .mn-prosemirror figure.figure {
+  .mn-prosemirror figure.mn-figure {
     margin: var(--mn-space-4) 0;
     text-align: center;
   }
 
   /* ---- formula ---- */
 
-  .mn-prosemirror .formula {
+  .mn-prosemirror .mn-formula {
     margin: var(--mn-space-4) 0;
     padding: var(--mn-space-2) var(--mn-space-3);
     font-family: var(--mn-font-mono);
@@ -36,7 +36,7 @@
 
   /* ---- floating title ---- */
 
-  .mn-prosemirror .floating-title {
+  .mn-prosemirror .mn-floating-title {
     font-weight: 600;
     font-size: 1.15em;
     margin: var(--mn-space-4) 0 var(--mn-space-2);

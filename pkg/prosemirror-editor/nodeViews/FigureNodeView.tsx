@@ -7,6 +7,7 @@
 
 import React from "react";
 import { useMergedDOMRefs, type NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
+import { CLASS } from "@metanorma/prosemirror-schema";
 
 export function FigureNodeView({ nodeProps, children, ref, ...props }: NodeViewComponentProps) {
   const mergedRef = useMergedDOMRefs(ref, nodeProps.contentDOMRef);
@@ -16,7 +17,7 @@ export function FigureNodeView({ nodeProps, children, ref, ...props }: NodeViewC
   return (
     <figure
       ref={mergedRef}
-      className="figure"
+      className={CLASS.figure}
       {...(id != null ? { "data-id": id } : {})}
       {...props}
     >

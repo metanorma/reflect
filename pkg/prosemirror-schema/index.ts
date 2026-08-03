@@ -1,7 +1,7 @@
 /**
  * Public API for `@metanorma/prosemirror-schema` (§11).
  *
- * Implements [`docs/schema.spec.md`](../../docs/schema.spec.md) **v3** — the
+ * Implements [`docs/schema.spec.md`](../../docs/schema.spec.md) **v4** — the
  * source of truth for the document model (43 node types, 14 mark types,
  * content model, attributes, and DOM serialization rules).
  *
@@ -34,6 +34,8 @@ export const metanormaSchema: Schema = new Schema({
 
 export { metanormaNodes } from "./nodes.js";
 export { metanormaMarks } from "./marks.js";
+export { CLASS } from "./classes.js";
+export type { ClassName } from "./classes.js";
 
 // ---------------------------------------------------------------------------
 // Convenience lookups — in §3 group order.

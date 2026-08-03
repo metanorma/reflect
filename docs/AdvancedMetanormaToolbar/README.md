@@ -1,7 +1,7 @@
 # AdvancedMetanormaToolbar — Feature Specifications
 
 **Spec version:** 2
-**Spec dependencies:** [`../MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) v3, [`../EditorCommands.spec.md`](../EditorCommands.spec.md) v1, [`../schema.spec.md`](../schema.spec.md) v3
+**Spec dependencies:** [`../MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) v3, [`../EditorCommands.spec.md`](../EditorCommands.spec.md) v1, [`../schema.spec.md`](../schema.spec.md) v4
 
 > **What changed in version 2.** The visible `label` of every advanced
 > toolbar button changed from a glyph/emoji (e.g. `↩`, `↶`, `▦`, `🖼`,

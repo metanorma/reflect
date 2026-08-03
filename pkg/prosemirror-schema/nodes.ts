@@ -9,6 +9,7 @@ import type { Node, NodeSpec, TagParseRule, DOMOutputSpec } from "prosemirror-mo
 
 import { BLOCK_GROUP, INLINE_GROUP, SECTION_GROUP } from "./groups.js";
 import { baseAttrs, sectionAttrs, DATA_ATTR } from "./attrs.js";
+import { CLASS } from "./classes.js";
 
 // ---------------------------------------------------------------------------
 // toDOM helpers
@@ -53,29 +54,29 @@ function sectionParseRule(cls: string): readonly TagParseRule[] {
 // ---------------------------------------------------------------------------
 
 const structuralNodes: Record<string, NodeSpec> = {
-  doc: {
-    content: "(preface? sections? bibliography? footnotes?)",
-    attrs: { ...DATA_ATTR },
-    toDOM: () => ["div", { class: "mn-doc" }, 0],
-  },
-  preface: {
-    content: `(section | ${BLOCK_GROUP})*`,
-    attrs: baseAttrs(),
-    toDOM: () => ["section", { class: "mn-preface" }, 0],
-    parseDOM: [{ tag: "section.mn-preface" }],
-  },
-  sections: {
-    content: `(section | ${BLOCK_GROUP})*`,
-    attrs: baseAttrs(),
-    toDOM: () => ["section", { class: "mn-sections" }, 0],
-    parseDOM: [{ tag: "section.mn-sections" }],
-  },
-  bibliography: {
-    content: `(section | ${BLOCK_GROUP})*`,
-    attrs: baseAttrs(),
-    toDOM: () => ["section", { class: "mn-bibliography" }, 0],
-    parseDOM: [{ tag: "section.mn-bibliography" }],
-  },
+    doc: {
+      content: "(preface? sections? bibliography? footnotes?)",
+      attrs: { ...DATA_ATTR },
+      toDOM: () => ["div", { class: CLASS.doc }, 0],
+    },
+    preface: {
+      content: `(section | ${BLOCK_GROUP})*`,
+      attrs: baseAttrs(),
+      toDOM: () => ["section", { class: CLASS.preface }, 0],
+      parseDOM: [{ tag: `section.${CLASS.preface}` }],
+    },
+    sections: {
+      content: `(section | ${BLOCK_GROUP})*`,
+      attrs: baseAttrs(),
+      toDOM: () => ["section", { class: CLASS.sections }, 0],
+      parseDOM: [{ tag: `section.${CLASS.sections}` }],
+    },
+    bibliography: {
+      content: `(section | ${BLOCK_GROUP})*`,
+      attrs: baseAttrs(),
+      toDOM: () => ["section", { class: CLASS.bibliography }, 0],
+      parseDOM: [{ tag: `section.${CLASS.bibliography}` }],
+    },
 };
 
 // ---------------------------------------------------------------------------
@@ -83,76 +84,76 @@ const structuralNodes: Record<string, NodeSpec> = {
 // ---------------------------------------------------------------------------
 
 const sectionNodes: Record<string, NodeSpec> = {
-  clause: {
-    content: `(clause | ${BLOCK_GROUP})*`,
-    group: SECTION_GROUP,
-    attrs: sectionAttrs(),
-    toDOM: sectionToDOM("mn-clause"),
-    parseDOM: sectionParseRule("mn-clause"),
-  },
-  annex: {
-    content: `(annex | clause | ${BLOCK_GROUP})*`,
-    group: SECTION_GROUP,
-    attrs: sectionAttrs(),
-    toDOM: sectionToDOM("mn-annex"),
-    parseDOM: sectionParseRule("mn-annex"),
-  },
-  content_section: {
-    content: `(section | ${BLOCK_GROUP})*`,
-    group: SECTION_GROUP,
-    attrs: sectionAttrs(),
-    toDOM: sectionToDOM("mn-content-section"),
-    parseDOM: sectionParseRule("mn-content-section"),
-  },
-  abstract: {
-    content: `${BLOCK_GROUP}+`,
-    group: SECTION_GROUP,
-    attrs: sectionAttrs(),
-    toDOM: sectionToDOM("mn-abstract"),
-    parseDOM: sectionParseRule("mn-abstract"),
-  },
-  foreword: {
-    content: `${BLOCK_GROUP}+`,
-    group: SECTION_GROUP,
-    attrs: sectionAttrs(),
-    toDOM: sectionToDOM("mn-foreword"),
-    parseDOM: sectionParseRule("mn-foreword"),
-  },
-  introduction: {
-    content: `${BLOCK_GROUP}+`,
-    group: SECTION_GROUP,
-    attrs: sectionAttrs(),
-    toDOM: sectionToDOM("mn-introduction"),
-    parseDOM: sectionParseRule("mn-introduction"),
-  },
-  acknowledgements: {
-    content: `${BLOCK_GROUP}+`,
-    group: SECTION_GROUP,
-    attrs: sectionAttrs(),
-    toDOM: sectionToDOM("mn-acknowledgements"),
-    parseDOM: sectionParseRule("mn-acknowledgements"),
-  },
-  terms: {
-    content: `(clause | ${BLOCK_GROUP})*`,
-    group: SECTION_GROUP,
-    attrs: sectionAttrs(),
-    toDOM: sectionToDOM("mn-terms"),
-    parseDOM: sectionParseRule("mn-terms"),
-  },
-  definitions: {
-    content: `(clause | ${BLOCK_GROUP})*`,
-    group: SECTION_GROUP,
-    attrs: sectionAttrs(),
-    toDOM: sectionToDOM("mn-definitions"),
-    parseDOM: sectionParseRule("mn-definitions"),
-  },
-  references: {
-    content: `(clause | ${BLOCK_GROUP})*`,
-    group: SECTION_GROUP,
-    attrs: sectionAttrs(),
-    toDOM: sectionToDOM("mn-references"),
-    parseDOM: sectionParseRule("mn-references"),
-  },
+    clause: {
+      content: `(clause | ${BLOCK_GROUP})*`,
+      group: SECTION_GROUP,
+      attrs: sectionAttrs(),
+      toDOM: sectionToDOM(CLASS.clause),
+      parseDOM: sectionParseRule(CLASS.clause),
+    },
+    annex: {
+      content: `(annex | clause | ${BLOCK_GROUP})*`,
+      group: SECTION_GROUP,
+      attrs: sectionAttrs(),
+      toDOM: sectionToDOM(CLASS.annex),
+      parseDOM: sectionParseRule(CLASS.annex),
+    },
+    content_section: {
+      content: `(section | ${BLOCK_GROUP})*`,
+      group: SECTION_GROUP,
+      attrs: sectionAttrs(),
+      toDOM: sectionToDOM(CLASS.contentSection),
+      parseDOM: sectionParseRule(CLASS.contentSection),
+    },
+    abstract: {
+      content: `${BLOCK_GROUP}+`,
+      group: SECTION_GROUP,
+      attrs: sectionAttrs(),
+      toDOM: sectionToDOM(CLASS.abstract),
+      parseDOM: sectionParseRule(CLASS.abstract),
+    },
+    foreword: {
+      content: `${BLOCK_GROUP}+`,
+      group: SECTION_GROUP,
+      attrs: sectionAttrs(),
+      toDOM: sectionToDOM(CLASS.foreword),
+      parseDOM: sectionParseRule(CLASS.foreword),
+    },
+    introduction: {
+      content: `${BLOCK_GROUP}+`,
+      group: SECTION_GROUP,
+      attrs: sectionAttrs(),
+      toDOM: sectionToDOM(CLASS.introduction),
+      parseDOM: sectionParseRule(CLASS.introduction),
+    },
+    acknowledgements: {
+      content: `${BLOCK_GROUP}+`,
+      group: SECTION_GROUP,
+      attrs: sectionAttrs(),
+      toDOM: sectionToDOM(CLASS.acknowledgements),
+      parseDOM: sectionParseRule(CLASS.acknowledgements),
+    },
+    terms: {
+      content: `(clause | ${BLOCK_GROUP})*`,
+      group: SECTION_GROUP,
+      attrs: sectionAttrs(),
+      toDOM: sectionToDOM(CLASS.terms),
+      parseDOM: sectionParseRule(CLASS.terms),
+    },
+    definitions: {
+      content: `(clause | ${BLOCK_GROUP})*`,
+      group: SECTION_GROUP,
+      attrs: sectionAttrs(),
+      toDOM: sectionToDOM(CLASS.definitions),
+      parseDOM: sectionParseRule(CLASS.definitions),
+    },
+    references: {
+      content: `(clause | ${BLOCK_GROUP})*`,
+      group: SECTION_GROUP,
+      attrs: sectionAttrs(),
+      toDOM: sectionToDOM(CLASS.references),
+      parseDOM: sectionParseRule(CLASS.references),
+    },
 };
 
 // ---------------------------------------------------------------------------
@@ -167,39 +168,39 @@ const blockNodes: Record<string, NodeSpec> = {
     toDOM: () => ["p", 0],
     parseDOM: [{ tag: "p" }],
   },
-  note: {
-    content: `${BLOCK_GROUP}+`,
-    group: BLOCK_GROUP,
-    attrs: { ...DATA_ATTR },
-    toDOM: () => ["div", { class: "note" }, 0],
-    parseDOM: [{ tag: "div.note" }],
-  },
-  admonition: {
-    content: `${BLOCK_GROUP}+`,
-    group: BLOCK_GROUP,
-    attrs: { type: { default: null }, ...DATA_ATTR },
-    toDOM: (node) => {
-      const type = node.attrs["type"] as string | null;
-      const attrs: Record<string, string> = { class: `admonition ${type ?? ""}`.trim() };
-      if (type !== null) {
-        attrs["data-type"] = type;
-      }
-      return ["div", attrs, 0];
+    note: {
+      content: `${BLOCK_GROUP}+`,
+      group: BLOCK_GROUP,
+      attrs: { ...DATA_ATTR },
+      toDOM: () => ["div", { class: CLASS.note }, 0],
+      parseDOM: [{ tag: `div.${CLASS.note}` }],
     },
-    parseDOM: [
-      {
-        tag: "div.admonition",
-        getAttrs: (el) => ({ type: el.getAttribute("data-type") }),
+    admonition: {
+      content: `${BLOCK_GROUP}+`,
+      group: BLOCK_GROUP,
+      attrs: { type: { default: null }, ...DATA_ATTR },
+      toDOM: (node) => {
+        const type = node.attrs["type"] as string | null;
+        const attrs: Record<string, string> = { class: `${CLASS.admonition} ${type ?? ""}`.trim() };
+        if (type !== null) {
+          attrs["data-type"] = type;
+        }
+        return ["div", attrs, 0];
       },
-    ],
-  },
-  example: {
-    content: `${BLOCK_GROUP}+`,
-    group: BLOCK_GROUP,
-    attrs: { ...DATA_ATTR },
-    toDOM: () => ["div", { class: "example" }, 0],
-    parseDOM: [{ tag: "div.example" }],
-  },
+      parseDOM: [
+        {
+          tag: `div.${CLASS.admonition}`,
+          getAttrs: (el) => ({ type: el.getAttribute("data-type") }),
+        },
+      ],
+    },
+    example: {
+      content: `${BLOCK_GROUP}+`,
+      group: BLOCK_GROUP,
+      attrs: { ...DATA_ATTR },
+      toDOM: () => ["div", { class: CLASS.example }, 0],
+      parseDOM: [{ tag: `div.${CLASS.example}` }],
+    },
   sourcecode: {
     content: "text*",
     group: BLOCK_GROUP,
@@ -223,82 +224,82 @@ const blockNodes: Record<string, NodeSpec> = {
       },
     ],
   },
-  formula: {
-    content: "",
-    group: BLOCK_GROUP,
-    atom: true,
-    attrs: {
-      id: { default: null },
-      number: { default: null },
-      type: { default: "asciimath" },
-      asciimath: { default: null },
-      mathml: { default: null },
-      ...DATA_ATTR,
-    },
-    toDOM: (node) => {
-      const type = node.attrs["type"] as string;
-      const attrs: Record<string, string> = { class: "formula", "data-type": type };
-      const asciimath = node.attrs["asciimath"] as string | null;
-      const mathml = node.attrs["mathml"] as string | null;
-      const number = node.attrs["number"] as string | null;
-      if (asciimath !== null) {
-        attrs["data-asciimath"] = asciimath;
-      }
-      if (mathml !== null) {
-        attrs["data-mathml"] = mathml;
-      }
-      if (number !== null) {
-        attrs["data-number"] = number;
-      }
-      return ["div", attrs];
-    },
-    parseDOM: [
-      {
-        tag: "div.formula",
-        getAttrs: (el) => ({
-          type: el.getAttribute("data-type") ?? "asciimath",
-          asciimath: el.getAttribute("data-asciimath"),
-          mathml: el.getAttribute("data-mathml"),
-          number: el.getAttribute("data-number"),
-        }),
+    formula: {
+      content: "",
+      group: BLOCK_GROUP,
+      atom: true,
+      attrs: {
+        id: { default: null },
+        number: { default: null },
+        type: { default: "asciimath" },
+        asciimath: { default: null },
+        mathml: { default: null },
+        ...DATA_ATTR,
       },
-    ],
-  },
-  quote: {
-    content: `${BLOCK_GROUP}+`,
-    group: BLOCK_GROUP,
-    attrs: { ...DATA_ATTR },
-    toDOM: () => ["blockquote", 0],
-    parseDOM: [{ tag: "blockquote" }],
-  },
-  review: {
-    content: `${BLOCK_GROUP}+`,
-    group: BLOCK_GROUP,
-    attrs: { ...DATA_ATTR },
-    toDOM: () => ["div", { class: "review" }, 0],
-    parseDOM: [{ tag: "div.review" }],
-  },
-  floating_title: {
-    content: "",
-    group: BLOCK_GROUP,
-    atom: true,
-    attrs: sectionAttrs(),
-    toDOM: (node) => {
-      const attrs: Record<string, string> = { class: "floating-title" };
-      const id = node.attrs["id"] as string | null;
-      if (id !== null) {
-        attrs["data-id"] = id;
-      }
-      const title = node.attrs["title"] as string | null;
-      return ["div", attrs, title ?? ""];
-    },
-    parseDOM: [
-      {
-        tag: ".floating-title",
-        getAttrs: (el) => ({ title: el.textContent, id: el.getAttribute("data-id") }),
+      toDOM: (node) => {
+        const type = node.attrs["type"] as string;
+        const attrs: Record<string, string> = { class: CLASS.formula, "data-type": type };
+        const asciimath = node.attrs["asciimath"] as string | null;
+        const mathml = node.attrs["mathml"] as string | null;
+        const number = node.attrs["number"] as string | null;
+        if (asciimath !== null) {
+          attrs["data-asciimath"] = asciimath;
+        }
+        if (mathml !== null) {
+          attrs["data-mathml"] = mathml;
+        }
+        if (number !== null) {
+          attrs["data-number"] = number;
+        }
+        return ["div", attrs];
       },
-    ],
-  },
+      parseDOM: [
+        {
+          tag: `div.${CLASS.formula}`,
+          getAttrs: (el) => ({
+            type: el.getAttribute("data-type") ?? "asciimath",
+            asciimath: el.getAttribute("data-asciimath"),
+            mathml: el.getAttribute("data-mathml"),
+            number: el.getAttribute("data-number"),
+          }),
+        },
+      ],
+    },
+    quote: {
+      content: `${BLOCK_GROUP}+`,
+      group: BLOCK_GROUP,
+      attrs: { ...DATA_ATTR },
+      toDOM: () => ["blockquote", 0],
+      parseDOM: [{ tag: "blockquote" }],
+    },
+    review: {
+      content: `${BLOCK_GROUP}+`,
+      group: BLOCK_GROUP,
+      attrs: { ...DATA_ATTR },
+      toDOM: () => ["div", { class: CLASS.review }, 0],
+      parseDOM: [{ tag: `div.${CLASS.review}` }],
+    },
+    floating_title: {
+      content: "",
+      group: BLOCK_GROUP,
+      atom: true,
+      attrs: sectionAttrs(),
+      toDOM: (node) => {
+        const attrs: Record<string, string> = { class: CLASS.floatingTitle };
+        const id = node.attrs["id"] as string | null;
+        if (id !== null) {
+          attrs["data-id"] = id;
+        }
+        const title = node.attrs["title"] as string | null;
+        return ["div", attrs, title ?? ""];
+      },
+      parseDOM: [
+        {
+          tag: `.${CLASS.floatingTitle}`,
+          getAttrs: (el) => ({ title: el.textContent, id: el.getAttribute("data-id") }),
+        },
+      ],
+    },
 };
 
 // ---------------------------------------------------------------------------
@@ -414,25 +415,25 @@ const tableNodes: Record<string, NodeSpec> = {
 // ---------------------------------------------------------------------------
 
 const mediaNodes: Record<string, NodeSpec> = {
-  figure: {
-    content: `(image | ${BLOCK_GROUP})*`,
-    group: BLOCK_GROUP,
-    attrs: {
-      id: { default: null },
-      number: { default: null },
-      title: { default: null },
-      ...DATA_ATTR,
+    figure: {
+      content: `(image | ${BLOCK_GROUP})*`,
+      group: BLOCK_GROUP,
+      attrs: {
+        id: { default: null },
+        number: { default: null },
+        title: { default: null },
+        ...DATA_ATTR,
+      },
+      toDOM: (node) => {
+        const attrs: Record<string, string> = { class: CLASS.figure };
+        const id = node.attrs["id"] as string | null;
+        if (id !== null) {
+          attrs["data-id"] = id;
+        }
+        return ["figure", attrs, 0];
+      },
+      parseDOM: [{ tag: "figure" }],
     },
-    toDOM: (node) => {
-      const attrs: Record<string, string> = { class: "figure" };
-      const id = node.attrs["id"] as string | null;
-      if (id !== null) {
-        attrs["data-id"] = id;
-      }
-      return ["figure", attrs, 0];
-    },
-    parseDOM: [{ tag: "figure" }],
-  },
   image: {
     content: "",
     atom: true,
@@ -461,94 +462,94 @@ const mediaNodes: Record<string, NodeSpec> = {
 // ---------------------------------------------------------------------------
 
 const footnoteNodes: Record<string, NodeSpec> = {
-  footnotes: {
-    content: "footnote_entry+",
-    attrs: { ...DATA_ATTR },
-    toDOM: () => ["section", { class: "footnotes" }, 0],
-    parseDOM: [{ tag: "section.footnotes" }, { tag: "ol.footnotes" }],
-  },
-  footnote_entry: {
-    content: `${BLOCK_GROUP}+`,
-    attrs: { id: { default: null }, number: { default: null }, ...DATA_ATTR },
-    toDOM: (node) => {
-      const attrs: Record<string, string> = { class: "footnote-entry" };
-      const id = node.attrs["id"] as string | null;
-      const number = node.attrs["number"] as string | null;
-      if (id !== null) {
-        attrs["data-id"] = id;
-      }
-      if (number !== null) {
-        attrs["data-number"] = number;
-      }
-      return ["div", attrs, 0];
+    footnotes: {
+      content: "footnote_entry+",
+      attrs: { ...DATA_ATTR },
+      toDOM: () => ["section", { class: CLASS.footnotes }, 0],
+      parseDOM: [{ tag: `section.${CLASS.footnotes}` }, { tag: `ol.${CLASS.footnotes}` }],
     },
-    parseDOM: [
-      {
-        tag: ".footnote-entry",
-        getAttrs: (el) => ({
-          id: el.getAttribute("data-id"),
-          number: el.getAttribute("data-number"),
-        }),
-      },
-    ],
-  },
-    footnote_marker: {
-      content: "",
-      group: INLINE_GROUP,
-      inline: true,
-      atom: true,
-      attrs: { id: { default: null }, target: { default: null }, ...DATA_ATTR },
+    footnote_entry: {
+      content: `${BLOCK_GROUP}+`,
+      attrs: { id: { default: null }, number: { default: null }, ...DATA_ATTR },
       toDOM: (node) => {
-        const attrs: Record<string, string> = { class: "footnote-marker" };
-        const target = node.attrs["target"] as string | null;
-        if (target !== null) {
-          attrs["data-target"] = target;
+        const attrs: Record<string, string> = { class: CLASS.footnoteEntry };
+        const id = node.attrs["id"] as string | null;
+        const number = node.attrs["number"] as string | null;
+        if (id !== null) {
+          attrs["data-id"] = id;
         }
-        return ["sup", attrs];
+        if (number !== null) {
+          attrs["data-number"] = number;
+        }
+        return ["div", attrs, 0];
       },
       parseDOM: [
         {
-          tag: "sup.footnote-marker",
-          getAttrs: (el) => ({ target: el.getAttribute("data-target") }),
-        },
-      ],
-    },
-    stem: {
-      content: "",
-      group: INLINE_GROUP,
-      inline: true,
-      atom: true,
-      attrs: {
-        type: { default: "asciimath" },
-        asciimath: { default: null },
-        mathml: { default: null },
-        ...DATA_ATTR,
-      },
-      toDOM: (node) => {
-        const type = node.attrs["type"] as string;
-        const attrs: Record<string, string> = { class: "stem", "data-type": type };
-        const asciimath = node.attrs["asciimath"] as string | null;
-        const mathml = node.attrs["mathml"] as string | null;
-        if (asciimath !== null) {
-          attrs["data-asciimath"] = asciimath;
-        }
-        if (mathml !== null) {
-          attrs["data-mathml"] = mathml;
-        }
-        return ["span", attrs];
-      },
-      parseDOM: [
-        {
-          tag: "span.stem",
+          tag: `.${CLASS.footnoteEntry}`,
           getAttrs: (el) => ({
-            type: el.getAttribute("data-type") ?? "asciimath",
-            asciimath: el.getAttribute("data-asciimath"),
-            mathml: el.getAttribute("data-mathml"),
+            id: el.getAttribute("data-id"),
+            number: el.getAttribute("data-number"),
           }),
         },
       ],
     },
-  };
+      footnote_marker: {
+        content: "",
+        group: INLINE_GROUP,
+        inline: true,
+        atom: true,
+        attrs: { id: { default: null }, target: { default: null }, ...DATA_ATTR },
+        toDOM: (node) => {
+          const attrs: Record<string, string> = { class: CLASS.footnoteMarker };
+          const target = node.attrs["target"] as string | null;
+          if (target !== null) {
+            attrs["data-target"] = target;
+          }
+          return ["sup", attrs];
+        },
+        parseDOM: [
+          {
+            tag: `sup.${CLASS.footnoteMarker}`,
+            getAttrs: (el) => ({ target: el.getAttribute("data-target") }),
+          },
+        ],
+      },
+      stem: {
+        content: "",
+        group: INLINE_GROUP,
+        inline: true,
+        atom: true,
+        attrs: {
+          type: { default: "asciimath" },
+          asciimath: { default: null },
+          mathml: { default: null },
+          ...DATA_ATTR,
+        },
+        toDOM: (node) => {
+          const type = node.attrs["type"] as string;
+          const attrs: Record<string, string> = { class: CLASS.stem, "data-type": type };
+          const asciimath = node.attrs["asciimath"] as string | null;
+          const mathml = node.attrs["mathml"] as string | null;
+          if (asciimath !== null) {
+            attrs["data-asciimath"] = asciimath;
+          }
+          if (mathml !== null) {
+            attrs["data-mathml"] = mathml;
+          }
+          return ["span", attrs];
+        },
+        parseDOM: [
+          {
+            tag: `span.${CLASS.stem}`,
+            getAttrs: (el) => ({
+              type: el.getAttribute("data-type") ?? "asciimath",
+              asciimath: el.getAttribute("data-asciimath"),
+              mathml: el.getAttribute("data-mathml"),
+            }),
+          },
+        ],
+      },
+    };
 
 // ---------------------------------------------------------------------------
 // 8. Leaf inline nodes (§8.8)

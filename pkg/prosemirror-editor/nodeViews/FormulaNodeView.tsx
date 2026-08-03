@@ -1,7 +1,7 @@
 /**
  * React node view for the `formula` node (§7.3).
  *
- * Atom leaf; renders `<div class="formula" data-type={type} data-number={number}>`
+ * Atom leaf; renders `<div class="mn-formula" data-type={type} data-number={number}>`
  * with the math text from the `type`-selected attribute (`asciimath` when
  * `type === "asciimath"`, `mathml` when `type === "mathml"`) as visible
  * placeholder content. The non-selected attribute, if populated, is ignored.
@@ -11,6 +11,7 @@
 
 import React from "react";
 import type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
+import { CLASS } from "@metanorma/prosemirror-schema";
 
 export function FormulaNodeView({ nodeProps, ref, ...props }: NodeViewComponentProps) {
   const { node } = nodeProps;
@@ -24,7 +25,7 @@ export function FormulaNodeView({ nodeProps, ref, ...props }: NodeViewComponentP
   return (
     <div
       ref={ref}
-      className="formula"
+      className={CLASS.formula}
       {...(number != null ? { "data-number": number } : {})}
       data-type={type}
       {...props}

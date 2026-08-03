@@ -5,8 +5,8 @@ This spec defines the React component package that wraps the
 library and binds it to the Metanorma Mirror schema defined in
 [`schema.spec.md`](./schema.spec.md).
 
-**Spec version:** 3
-**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v3
+**Spec version:** 4
+**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v4
 
 **Pinned integration library:** `@handlewithcare/react-prosemirror` **exactly
 `3.2.7`**. No other version is permitted. React ProseMirror releases are tightly
@@ -64,7 +64,10 @@ pkg/prosemirror-editor/
 │   └── SourcecodeNodeView.tsx
 ├── types.ts              ← `MirrorDocument` JSON type (§6.1)
 ├── state.ts              ← `createInitialEditorState` + `DEFAULT_MIRROR_DOC` (§6.2)
-└── style.css             ← editor + node-view styling (§9)
+├── style.css             ← entry point: `@layer` order + three `@import`s (§9)
+├── tokens.css            ← `--mn-*` design tokens; themes (§9)
+├── editor-chrome.css     ← editor affordances (§9)
+└── document.css          ← document presentation (§9)
 ```
 
 > The implementer may choose a different package path, but the **public exports**
@@ -84,7 +87,7 @@ to the `workspaces` array in the root `package.json` (which currently lists
 | `prosemirror-view` | **`1.42.0`** (exact) | The peer release `react-prosemirror@3.2.7` is coupled to. Any other version is unsupported and **must** be deduplicated to this one (see §3.1). |
 | `prosemirror-state` | `^1.4.4` | `EditorState`, `Plugin`. Peer of react-prosemirror (`^1.0.0`). |
 | `prosemirror-model` | `^1.22.0` | `Schema`, `Node` types (also required by the schema package, `schema.spec.md` §2.1). |
-| `@metanorma/prosemirror-schema` | `workspace:^` | Provides `metanormaSchema`, `NODE_NAMES`, `MARK_NAMES`, `assertValidImageAttrs` (`schema.spec.md` §11). |
+| `@metanorma/prosemirror-schema` | `workspace:^` | Provides `metanormaSchema`, `NODE_NAMES`, `MARK_NAMES`, `CLASS`, `assertValidImageAttrs` (`schema.spec.md` §11). |
 | `react` | `^19.2.7` | Peer. Matches the repo root. |
 | `react-dom` | `^19.2.7` | Peer. Matches the repo root. |
 | `react-reconciler` | **`0.32.0`** | React ProseMirror uses `react-reconciler` as a peer; its version **must match** the installed React major. For React 19.x the matching release is `0.32.0` (per the library's compatibility table). |
@@ -347,22 +350,25 @@ section node types — `clause`, `annex`, `content_section`, `abstract`,
   insertion time, not render time).
 
 #### `FigureNodeView`
-- Renders `<figure class="figure" data-id={node.attrs.id}>` containing
-  `{children}` (the `image` child plus any caption blocks).
+- Renders `<figure class={CLASS.figure} data-id={node.attrs.id}>` containing
+  `{children}` (the `image` child plus any caption blocks). `CLASS.figure` is
+  `"mn-figure"` (schema §8.0, v4 namespace unification).
 - Forwards `ref` to `<figure>`; forwards `nodeProps.contentDOMRef` to the same
   element (use `useMergedDOMRefs`).
 
 #### `FormulaNodeView`
-- Atom leaf; renders `<div class="formula" data-type={type} data-number={number}>`
+- Atom leaf; renders `<div class={CLASS.formula} data-type={type} data-number={number}>`
   with the math text from the **`type`-selected** attribute (`asciimath` when
   `type === "asciimath"`, `mathml` when `type === "mathml"`) as visible
   placeholder content. The non-selected attribute, if populated, is ignored by
   this view. Math **rendering** is out of scope (schema §16); this view only
-  surfaces the stored attributes (schema v3 §17.2).
+  surfaces the stored attributes (schema v3 §17.2). `CLASS.formula` is
+  `"mn-formula"` (schema §8.0).
 
 #### `FloatingTitleNodeView`
-- Atom block leaf; renders `<div class="floating-title" data-id={id}>{title}</div>`
+- Atom block leaf; renders `<div class={CLASS.floatingTitle} data-id={id}>{title}</div>`
   where `title` comes from `node.attrs.title`. No `contentDOMRef` (leaf).
+  `CLASS.floatingTitle` is `"mn-floating-title"` (schema §8.0).
 
 #### `SourcecodeNodeView`
 - Renders `<pre class={language-${language}}><code>` and places `{children}`
@@ -426,22 +432,92 @@ schema's `toDOM` (schema §9). Consumers may pass `markViewComponents` through
 
 ---
 
-## 9. Styling (`style.css`)
+## 9. Styling
 
-A single CSS module imported by the component provides:
+Styling is split across four CSS files, all loaded as side-effects of importing
+`MetanormaProseMirror.tsx`. The component **must not** ship or depend on a
+CSS-in-JS runtime. All styles are plain CSS, consistent with
+`pkg/editor-gui/style.module.css`.
+
+### 9.1 File layout and cascade order
+
+`style.css` is a small entry point that declares the cascade order with
+`@layer` and pulls in the three implementation files:
+
+```css
+/* style.css */
+@layer tokens, chrome, document, layout;
+
+@import "./tokens.css";
+@import "./editor-chrome.css";
+@import "./document.css";
+```
+
+The `@layer` declaration is authoritative for specificity: a rule in a later
+layer beats an equal-specificity rule in an earlier layer, regardless of
+source order. This means:
+
+- `tokens` (lowest) — only `:root` custom properties; never competes on
+  selector specificity.
+- `chrome` — editor affordances.
+- `document` — document presentation.
+- `layout` (reserved) — consumer-side layout (e.g. the toolbar dock in
+  `pkg/editor-gui/style.module.css`). The host wins on equal specificity, so
+  overrides never need `!important`.
+
+### 9.2 `tokens.css` — design tokens (`--mn-*`)
+
+The single source of truth for every colour, spacing value, radius and font
+used by the editor surface, the document contents, and the toolbar. Every
+other stylesheet consumes these via `var(--mn-*)` and contains NO colour
+literals.
+
+Token inventory: `--mn-surface`, `--mn-surface-muted`, `--mn-border`,
+`--mn-text`, `--mn-text-muted`, `--mn-text-placeholder`, `--mn-empty-marker`,
+`--mn-accent`, `--mn-focus` (= accent), `--mn-active`, `--mn-danger`,
+`--mn-shadow`, `--mn-on-dark`; spacing scale `--mn-space-1` … `--mn-space-6`
+(`0.25em` … `2em`); `--mn-radius-sm`/`md` (`2px`/`4px`);
+`--mn-font-body`/`mono`.
+
+**Themes.** Light values are declared on `:root`. OS dark mode is centralised
+in a single `@media (prefers-color-scheme: dark)` block. A host may force a
+theme by setting `data-mn-theme="light"` or `"dark"` on `.mn-prosemirror` (or
+any ancestor); these selectors are declared after the media query so they win
+on equal specificity. *(A `theme` prop on `MetanormaProseMirror` that renders
+this attribute is a candidate for a future version; not part of v4.)*
+
+### 9.3 `editor-chrome.css` — editor affordances
+
+Rules that exist because the editor has UI the source document does not.
+Change cadence: editor UX changes. Consumers:
 
 - `.mn-prosemirror` — editor surface wrapper (focus outline, min-height).
 - `.mn-prosemirror .ProseMirror` — the `contenteditable` element (padding,
   typography baseline, placeholder colour for the empty default clause).
-- `.mn-image-placeholder`, `.figure`, `.formula`, `.floating-title`,
-  `pre.language-*` — node-view affordances.
+- `.mn-image-placeholder` — empty-src placeholder rendered by
+  `ImageNodeView` (§7.3).
 - `.mn-section-title`, `.mn-section-title-input`, `.mn-section-content` —
   `SectionNodeView` affordances (§7.3): the editable heading strip above each
   section's content, the `<input>` inside it, and the content host wrapping the
   section's editable children.
 
-The component **must not** ship or depend on a CSS-in-JS runtime. Styling is
-plain CSS, consistent with `pkg/editor-gui/style.module.css`.
+### 9.4 `document.css` — document presentation
+
+Rules that mirror the rendered Metanorma Presentation XML. Change cadence:
+design re-skin. A designer editing this file touches nothing the editor logic
+depends on. Consumes `var(--mn-*)` throughout.
+
+- `figure.mn-figure` — figure spacing and centring.
+- `.mn-formula` — formula panel (mono font, muted background).
+- `.mn-floating-title` — floating-title typography.
+- `pre.language-*` — sourcecode panel (highlighter-interop class, not in the
+  `CLASS` contract — schema §8.0).
+
+The class names referenced here (`mn-figure`, `mn-formula`,
+`mn-floating-title`) are emitted by the schema's `toDOM` and centralised in
+`CLASS` (schema §8.0). Node views source their `className` from the same
+`CLASS` const (§7.3), so the schema, the node views, and this stylesheet stay
+in sync via one symbol per class.
 
 ---
 

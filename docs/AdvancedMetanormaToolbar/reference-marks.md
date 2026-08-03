@@ -71,10 +71,10 @@ forms (e.g. `footnote_entry`), not to these marks.
 
 | Mark | Key attr (default) | `toDOM` element | Semantic purpose |
 |---|---|---|---|
-| `xref` | `target: null` | `<a class="xref" data-target>` | Cross-reference to an anchor / element id elsewhere in the document. |
-| `eref` | `cite: null` | `<cite class="eref" data-cite>` | Bibliographic reference — cites a `bibliography` entry by key. |
-| `concept` | `ref: null`, `kind: "xref"` | `<span class="concept" data-ref data-kind>` | Reference to a concept / designation. `kind` (enum `"eref"` \| `"xref"` \| `"termref"`, default `"xref"`) selects the Presentation-XML child element (`<eref>` / `<xref>` / `<termref>`); `ref` supplies the pointer value (`citeas` / `target` / `target`). See schema §17.3. |
-| `bcp14` | `type: null` | `<span class="bcp14" data-type>` | A BCP14 [BCP14] keyword (`MUST`, `SHOULD`, …). `type` is an open free-text string (any keyword, any language). |
+| `xref` | `target: null` | `<a class="mn-xref" data-target>` | Cross-reference to an anchor / element id elsewhere in the document. |
+| `eref` | `cite: null` | `<cite class="mn-eref" data-cite>` | Bibliographic reference — cites a `bibliography` entry by key. |
+| `concept` | `ref: null`, `kind: "xref"` | `<span class="mn-concept" data-ref data-kind>` | Reference to a concept / designation. `kind` (enum `"eref"` \| `"xref"` \| `"termref"`, default `"xref"`) selects the Presentation-XML child element (`<eref>` / `<xref>` / `<termref>`); `ref` supplies the pointer value (`citeas` / `target` / `target`). See schema §17.3. |
+| `bcp14` | `type: null` | `<span class="mn-bcp14" data-type>` | A BCP14 [BCP14] keyword (`MUST`, `SHOULD`, …). `type` is an open free-text string (any keyword, any language). |
 
 #### footnote and stem are inline atom nodes, not marks
 
