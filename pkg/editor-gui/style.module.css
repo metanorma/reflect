@@ -79,7 +79,7 @@
   align-self: stretch;
   flex-direction: column;
   border-bottom: none;
-  border-left: 1px solid var(--mn-border, #ccc);
+  border-left: 1px solid var(--mn-border);
   min-height: 0;  /* allow shrink so this pane scrolls rather than grows */
   overflow-y: auto;
 }
@@ -107,6 +107,6 @@
 
 @media (prefers-color-scheme: dark) {
   :global(.mn-toolbar--vertical) {
-    border-left-color: var(--mn-border, #444);
+    border-left-color: var(--mn-border);
   }
 }

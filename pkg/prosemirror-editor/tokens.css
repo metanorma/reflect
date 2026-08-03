@@ -1,0 +1,120 @@
+/*
+ * tokens.css — Metanorma editor design tokens (§9).
+ *
+ * The single source of truth for every colour, spacing value, radius and font
+ * used by the editor surface, the document contents and the toolbar. All other
+ * stylesheets consume these via `var(--mn-*)` and contain NO colour literals,
+ * so a token change rolls out uniformly across chrome, document and toolbar.
+ *
+ * Cascade: declared in the `tokens` layer (lowest priority — see style.css).
+ * Author needs override tokens → redefine on `.mn-prosemirror` or a host
+ * ancestor; consumers should NOT redeclare the `:root` block.
+ *
+ * Theme hooks (in priority order, highest wins):
+ *   1. `data-mn-theme="light"|"dark"` on `.mn-prosemirror` (host-forced,
+ *      declared after the media query so it wins on equal specificity).
+ *   2. `@media (prefers-color-scheme: dark)` (OS default).
+ *
+ * Loaded as a side-effect through style.css, which is imported by
+ * MetanormaProseMirror.tsx.
+ */
+
+@layer tokens {
+
+  :root {
+    /* ---- Colour ---- */
+
+    --mn-surface:          #ffffff;  /* panels, popovers, dialogs */
+    --mn-surface-muted:    #f7f7f9;  /* sourcecode/formula/title-input focus */
+    --mn-border:           #cccccc;  /* hairlines, popover/dialog edges */
+    --mn-text:             inherit;  /* body text — follow host */
+    --mn-text-muted:       #808080;  /* secondary text */
+    --mn-text-placeholder: #b0b0b0;  /* input/empty-clause placeholders */
+    --mn-empty-marker:     #aaaaaa;  /* empty-clause ::before content glyph */
+    --mn-accent:           #4a90d9;  /* brand accent */
+    --mn-focus:            var(--mn-accent);  /* focus outline */
+    --mn-active:           #e0e0e0;  /* active/hover fill (buttons, cells) */
+    --mn-danger:           #b00020;  /* error text */
+    --mn-shadow:           rgba(0, 0, 0, 0.15); /* popover/dialog drop shadow */
+    --mn-on-dark:          #eeeeee;  /* legible text on a dark surface */
+
+    /* ---- Spacing — small modular scale ---- */
+
+    --mn-space-1: 0.25em;
+    --mn-space-2: 0.5em;
+    --mn-space-3: 0.75em;
+    --mn-space-4: 1em;
+    --mn-space-5: 1.5em;
+    --mn-space-6: 2em;
+
+    /* ---- Radius ---- */
+
+    --mn-radius-sm: 2px;
+    --mn-radius-md: 4px;
+
+    /* ---- Fonts ---- */
+
+    --mn-font-body: inherit;
+    --mn-font-mono: monospace;
+  }
+
+  /* ---- OS dark mode ---- */
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --mn-surface:          #1e1e1e;
+      --mn-surface-muted:    #252526;
+      --mn-border:           #444444;
+      --mn-text-muted:       #aaaaaa;
+      --mn-text-placeholder: #666666;
+      --mn-empty-marker:     #666666;
+      --mn-active:           #3a3a3a;
+      --mn-danger:           #ff6b6b;
+    }
+  }
+
+  /* ---- Host-forced themes ---- */
+  /*
+   * Applied by `MetanormaProseMirror`'s `theme` prop, which renders
+   * `data-mn-theme="light"|"dark"` on the `.mn-prosemirror` wrapper. Declared
+   * AFTER the media query so it wins on equal specificity, regardless of OS
+   * preference. Values are the union of `:root` + dark media block above,
+   * repeated verbatim so a forced theme is self-contained (no dependence on
+   * the OS query firing).
+   */
+
+  [data-mn-theme="light"] {
+    color-scheme: light;
+    --mn-surface:          #ffffff;
+    --mn-surface-muted:    #f7f7f9;
+    --mn-border:           #cccccc;
+    --mn-text:             inherit;
+    --mn-text-muted:       #808080;
+    --mn-text-placeholder: #b0b0b0;
+    --mn-empty-marker:     #aaaaaa;
+    --mn-accent:           #4a90d9;
+    --mn-focus:            var(--mn-accent);
+    --mn-active:           #e0e0e0;
+    --mn-danger:           #b00020;
+    --mn-shadow:           rgba(0, 0, 0, 0.15);
+    --mn-on-dark:          #eeeeee;
+  }
+
+  [data-mn-theme="dark"] {
+    color-scheme: dark;
+    --mn-surface:          #1e1e1e;
+    --mn-surface-muted:    #252526;
+    --mn-border:           #444444;
+    --mn-text:             inherit;
+    --mn-text-muted:       #aaaaaa;
+    --mn-text-placeholder: #666666;
+    --mn-empty-marker:     #666666;
+    --mn-accent:           #4a90d9;
+    --mn-focus:            var(--mn-accent);
+    --mn-active:           #3a3a3a;
+    --mn-danger:           #ff6b6b;
+    --mn-shadow:           rgba(0, 0, 0, 0.4);
+    --mn-on-dark:          #eeeeee;
+  }
+
+}

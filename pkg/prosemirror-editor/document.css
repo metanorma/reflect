@@ -1,0 +1,64 @@
+/*
+ * document.css — how a Metanorma document LOOKS in the viewport (§9).
+ *
+ * These rules mirror the rendered Presentation XML: figure/formula/sourcecode
+ * panels, floating titles, list and table typography. They depend only on the
+ * tokens (`--mn-*`) and on the class names emitted by the schema's toDOM
+ * specs. A designer re-skinning the document edits THIS file and touches
+ * nothing the editor logic depends on.
+ *
+ * Cascade: declared in the `document` layer (see style.css), which sits ABOVE
+ * `chrome` so document rules can refine chrome defaults for the elements that
+ * have both (e.g. a section's title strip is chrome; a section's body
+ * typography is document). Loaded as a side-effect through style.css.
+ */
+
+@layer document {
+
+  /* ---- figure (image + caption block) ---- */
+
+  .mn-prosemirror figure.figure {
+    margin: var(--mn-space-4) 0;
+    text-align: center;
+  }
+
+  /* ---- formula ---- */
+
+  .mn-prosemirror .formula {
+    margin: var(--mn-space-4) 0;
+    padding: var(--mn-space-2) var(--mn-space-3);
+    font-family: var(--mn-font-mono);
+    font-size: 0.95em;
+    background: var(--mn-surface-muted);
+    border-radius: var(--mn-radius-sm);
+    white-space: pre-wrap;
+  }
+
+  /* ---- floating title ---- */
+
+  .mn-prosemirror .floating-title {
+    font-weight: 600;
+    font-size: 1.15em;
+    margin: var(--mn-space-4) 0 var(--mn-space-2);
+  }
+
+  /* ---- sourcecode ---- */
+
+  .mn-prosemirror pre[class^="language-"],
+  .mn-prosemirror pre[class*=" language-"] {
+    margin: var(--mn-space-4) 0;
+    padding: var(--mn-space-3) var(--mn-space-4);
+    font-family: var(--mn-font-mono);
+    font-size: 0.95em;
+    background: var(--mn-surface-muted);
+    border-radius: var(--mn-radius-sm);
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .mn-prosemirror pre[class^="language-"] code,
+  .mn-prosemirror pre[class*=" language-"] code {
+    font-family: inherit;
+  }
+
+}

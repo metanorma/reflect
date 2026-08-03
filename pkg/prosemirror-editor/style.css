@@ -1,133 +1,32 @@
 /*
- * Metanorma ProseMirror — editor + node-view styling (§9).
+ * Metanorma ProseMirror — editor + node-view styling entry point (§9).
  *
  * Plain CSS, no CSS-in-JS runtime. Consistent with pkg/editor-gui/style.module.css.
- * This stylesheet is imported (side-effect) by MetanormaProseMirror.tsx.
+ *
+ * The styling is split into three concerns, each in its own file, ordered in
+ * a cascade designed so that each concern never accidentally shadows another:
+ *
+ *   tokens.css        — `--mn-*` custom properties (colour/spacing/radii/font),
+ *                       the single source of truth for every literal. Themes
+ *                       (OS + host-forced) are defined here.
+ *   editor-chrome.css — affordances the EDITOR needs to function (editable
+ *                       surface, placeholders, SectionNodeView title strip).
+ *   document.css      — how a Metanorma document LOOKS (figure/formula/
+ *                       sourcecode panels, floating titles, list typography).
+ *
+ * Cascade priority (low → high) is declared once below via `@layer`:
+ *
+ *   tokens < chrome < document < layout
+ *
+ * `layout` is reserved for the consumer's layout layer
+ * (pkg/editor-gui/style.module.css): the host wins on equal specificity, so
+ * overrides never need `!important`.
+ *
+ * This file is imported (side-effect) by MetanormaProseMirror.tsx.
  */
 
-/* ---- Editor surface wrapper ---- */
+@layer tokens, chrome, document, layout;
 
-.mn-prosemirror {
-  min-height: 1.5em;
-  outline: none;
-}
-
-.mn-prosemirror:focus {
-  outline: none;
-}
-
-/* ---- The contenteditable element ---- */
-
-.mn-prosemirror .ProseMirror {
-  padding: 0.75em 1em;
-  min-height: 4em;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: 1.5;
-  outline: none;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-/* Placeholder colour for the empty default clause */
-.mn-prosemirror .ProseMirror p:first-child:empty::before {
-  color: #aaa;
-  content: attr(data-placeholder);
-  cursor: text;
-}
-
-/* ---- Node-view affordances ---- */
-
-/* image placeholder (empty src) */
-.mn-image-placeholder {
-  display: inline-block;
-  min-width: 4em;
-  min-height: 4em;
-  border: 1px dashed #ccc;
-  background: #f9f9f9;
-  border-radius: 2px;
-}
-
-/* figure */
-.mn-prosemirror figure.figure {
-  margin: 1em 0;
-  text-align: center;
-}
-
-/* formula */
-.mn-prosemirror .formula {
-  margin: 1em 0;
-  padding: 0.5em 0.75em;
-  font-family: monospace;
-  font-size: 0.95em;
-  background: #f7f7f9;
-  border-radius: 2px;
-  white-space: pre-wrap;
-}
-
-/* floating title */
-.mn-prosemirror .floating-title {
-  font-weight: 600;
-  font-size: 1.15em;
-  margin: 1em 0 0.5em;
-}
-
-/* section node view — editable title strip above each section's content */
-.mn-prosemirror section[class^="mn-"],
-.mn-prosemirror section[class*=" mn-"] {
-  margin: 0.5em 0;
-}
-
-.mn-section-title {
-  padding: 0.25em 0;
-  margin-bottom: 0.25em;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.mn-section-title-input {
-  /* Sized to content; styled as a heading. */
-  font-weight: 600;
-  font-size: 1.1em;
-  line-height: 1.3;
-  width: 100%;
-  padding: 0.1em 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: inherit;
-  font-family: inherit;
-}
-
-.mn-section-title-input::placeholder {
-  color: #b0b0b0;
-  font-weight: 400;
-  font-style: italic;
-}
-
-.mn-section-title-input:focus {
-  /* Subtle focus affordance without the default text-input ring. */
-  background: #f7f7f9;
-  border-radius: 2px;
-}
-
-.mn-section-content {
-  /* Content host for the section's editable children. */
-}
-
-/* sourcecode */
-.mn-prosemirror pre[class^="language-"],
-.mn-prosemirror pre[class*=" language-"] {
-  margin: 1em 0;
-  padding: 0.75em 1em;
-  font-family: monospace;
-  font-size: 0.95em;
-  background: #f7f7f9;
-  border-radius: 2px;
-  overflow-x: auto;
-  white-space: pre;
-}
-
-.mn-prosemirror pre[class^="language-"] code,
-.mn-prosemirror pre[class*=" language-"] code {
-  font-family: inherit;
-}
+@import "./tokens.css";
+@import "./editor-chrome.css";
+@import "./document.css";

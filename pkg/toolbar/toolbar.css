@@ -4,71 +4,63 @@
  * Plain CSS, no CSS-in-JS runtime — consistent with `style.css`. All classes
  * are prefixed `mn-toolbar` to avoid collisions. Imported as a side-effect by
  * `MetanormaToolbar.tsx`.
+ *
+ * Consumes the `--mn-*` design tokens defined by `@metanorma/prosemirror-editor`
+ * (tokens.css); light/dark themes are handled centrally there, so no
+ * `prefers-color-scheme` blocks are needed here.
  */
 
-/* ---- Toolbar root ---- */
+@layer chrome {
 
-.mn-toolbar {
-  display: flex;
-  gap: 0.25rem;
-  padding: 0.5em;
-  border-bottom: 1px solid var(--mn-border, #ccc);
-}
+  /* ---- Toolbar root ---- */
 
-/* ---- Group container + divider ---- */
-
-.mn-toolbar-group {
-  display: flex;
-  gap: 0.125rem;
-}
-
-.mn-toolbar-divider {
-  width: 1px;
-  background: var(--mn-border, #ccc);
-  margin: 0 0.25em;
-}
-
-/* ---- Buttons ---- */
-
-.mn-toolbar-btn {
-  min-width: 2em;
-  padding: 0.25em 0.5em;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  background: transparent;
-  cursor: pointer;
-  font-size: inherit;
-  font-family: inherit;
-  line-height: 1;
-  color: inherit;
-}
-
-.mn-toolbar-btn:focus-visible {
-  outline: 2px solid var(--mn-focus, #4a90d9);
-  outline-offset: 1px;
-}
-
-.mn-toolbar-btn--active {
-  background: var(--mn-active, #e0e0e0);
-}
-
-.mn-toolbar-btn--disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* ---- Dark mode ---- */
-
-@media (prefers-color-scheme: dark) {
   .mn-toolbar {
-    border-bottom-color: var(--mn-border, #444);
+    display: flex;
+    gap: var(--mn-space-1);
+    padding: var(--mn-space-2);
+    border-bottom: 1px solid var(--mn-border);
+  }
+
+  /* ---- Group container + divider ---- */
+
+  .mn-toolbar-group {
+    display: flex;
+    gap: 0.125rem;
   }
 
   .mn-toolbar-divider {
-    background: var(--mn-border, #444);
+    width: 1px;
+    background: var(--mn-border);
+    margin: 0 var(--mn-space-1);
+  }
+
+  /* ---- Buttons ---- */
+
+  .mn-toolbar-btn {
+    min-width: 2em;
+    padding: var(--mn-space-1) var(--mn-space-2);
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    font-size: inherit;
+    font-family: inherit;
+    line-height: 1;
+    color: var(--mn-text);
+  }
+
+  .mn-toolbar-btn:focus-visible {
+    outline: 2px solid var(--mn-focus);
+    outline-offset: 1px;
   }
 
   .mn-toolbar-btn--active {
-    background: var(--mn-active, #3a3a3a);
+    background: var(--mn-active);
   }
+
+  .mn-toolbar-btn--disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
 }

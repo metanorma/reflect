@@ -1,47 +1,48 @@
-/* image-dialog.css — URL/upload dialog for image insertion (images-figures.md §11). */
+/*
+ * image-dialog.css — URL/upload dialog for image insertion (images-figures.md §11).
+ *
+ * Consumes the `--mn-*` design tokens defined by `@metanorma/prosemirror-editor`
+ * (tokens.css); light/dark themes are handled centrally there.
+ */
 
-.mn-toolbar-image {
-  display: inline-block;
-  position: relative;
-}
+@layer chrome {
 
-.mn-toolbar-dialog {
-  position: absolute;
-  z-index: 10;
-  background: var(--mn-surface, #fff);
-  border: 1px solid var(--mn-border, #ccc);
-  border-radius: 4px;
-  padding: 0.5em;
-  display: grid;
-  gap: 0.4em;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  min-width: 16em;
-}
-
-.mn-toolbar-dialog-field {
-  display: grid;
-  gap: 0.15em;
-}
-
-.mn-toolbar-dialog-field label {
-  font-size: 0.85em;
-}
-
-.mn-toolbar-dialog-error {
-  color: var(--mn-danger, #b00);
-  font-size: 0.85em;
-}
-
-.mn-toolbar-dialog-actions {
-  display: flex;
-  gap: 0.25em;
-  justify-content: flex-end;
-}
-
-@media (prefers-color-scheme: dark) {
-  .mn-toolbar-dialog {
-    background: var(--mn-surface, #1e1e1e);
-    border-color: var(--mn-border, #444);
-    color: #eee;
+  .mn-toolbar-image {
+    display: inline-block;
+    position: relative;
   }
+
+  .mn-toolbar-dialog {
+    position: absolute;
+    z-index: 10;
+    background: var(--mn-surface);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-md);
+    padding: var(--mn-space-2);
+    display: grid;
+    gap: 0.4em;
+    box-shadow: 0 2px 8px var(--mn-shadow);
+    min-width: 16em;
+  }
+
+  .mn-toolbar-dialog-field {
+    display: grid;
+    gap: 0.15em;
+  }
+
+  .mn-toolbar-dialog-field label {
+    font-size: 0.85em;
+  }
+
+  .mn-toolbar-dialog-error {
+    color: var(--mn-danger);
+    font-size: 0.85em;
+  }
+
+  .mn-toolbar-dialog-actions {
+    display: flex;
+    gap: var(--mn-space-1);
+    justify-content: flex-end;
+  }
+
 }
