@@ -1,7 +1,7 @@
 /**
  * Public API for `@metanorma/prosemirror-schema` (§11).
  *
- * Implements [`docs/schema.spec.md`](../../docs/schema.spec.md) **v2** — the
+ * Implements [`docs/schema.spec.md`](../../docs/schema.spec.md) **v3** — the
  * source of truth for the document model (43 node types, 14 mark types,
  * content model, attributes, and DOM serialization rules).
  *

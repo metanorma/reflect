@@ -2,7 +2,7 @@
  * Public API for `@metanorma/prosemirror-editor` (§11).
  *
  * Implements [`docs/MetanormaProseMirror.spec.md`](../../docs/MetanormaProseMirror.spec.md)
- * v2 — the `MetanormaProseMirror` React editor component (§5), editor-state
+ * v3 — the `MetanormaProseMirror` React editor component (§5), editor-state
  * factory, and React node-view components.
  *
  * The `MetanormaToolbar` lives in its own package, `@metanorma/toolbar`
