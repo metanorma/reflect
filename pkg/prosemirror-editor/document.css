@@ -61,4 +61,104 @@
     font-family: inherit;
   }
 
+  /* ---- tables ---- */
+  /*
+   * The table nodes (schema §8.5) emit bare <table>/<thead>/<tbody>/<tfoot>/
+   * <tr>/<td> with no classes, so these selectors work on tag names. Headers
+   * (in <thead>) get a muted background + bold weight to distinguish them from
+   * body cells.
+   */
+
+  .mn-prosemirror table {
+    border-collapse: collapse;
+    margin: var(--mn-space-4) 0;
+    width: 100%;
+  }
+
+  .mn-prosemirror th,
+  .mn-prosemirror td {
+    border: 1px solid var(--mn-border);
+    padding: var(--mn-space-1) var(--mn-space-2);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .mn-prosemirror thead th {
+    background: var(--mn-surface-muted);
+    font-weight: 600;
+  }
+
+  /* ---- callout boxes: note / example / admonition / review ---- */
+  /*
+   * Schema emits <div class="mn-note">, <div class="mn-example">,
+   * <div class="mn-admonition [type]"> (with data-type), <div class="mn-review">.
+   * A shared left-border + muted-surface pattern gives each a visual identity;
+   * the accent border colour varies by callout kind. Admonition variants are
+   * distinguished via the data-type attribute the schema already emits.
+   */
+
+  .mn-prosemirror .mn-note,
+  .mn-prosemirror .mn-example,
+  .mn-prosemirror .mn-admonition,
+  .mn-prosemirror .mn-review {
+    margin: var(--mn-space-4) 0;
+    padding: var(--mn-space-3) var(--mn-space-4);
+    border-left: 3px solid var(--mn-border);
+    background: var(--mn-surface-muted);
+    border-radius: var(--mn-radius-sm);
+  }
+
+  .mn-prosemirror .mn-admonition {
+    border-left-color: var(--mn-accent);
+  }
+
+  .mn-prosemirror .mn-review {
+    border-left-color: var(--mn-danger);
+  }
+
+  /* Admonition variants — data-type is emitted on the node (schema §8.3). */
+  .mn-prosemirror .mn-admonition[data-type="warning"],
+  .mn-prosemirror .mn-admonition[data-type="danger"],
+  .mn-prosemirror .mn-admonition[data-type="caution"] {
+    border-left-color: var(--mn-danger);
+  }
+
+  .mn-prosemirror .mn-admonition[data-type="tip"],
+  .mn-prosemirror .mn-admonition[data-type="important"],
+  .mn-prosemirror .mn-admonition[data-type="note"] {
+    border-left-color: var(--mn-accent);
+  }
+
+  /* ---- blockquote (quote node) ---- */
+  /*
+   * The quote node (schema §8.3) emits a bare <blockquote> with no class.
+   * A left border + muted text distinguishes it from body paragraphs.
+   */
+
+  .mn-prosemirror blockquote {
+    margin: var(--mn-space-4) 0;
+    padding-left: var(--mn-space-4);
+    border-left: 3px solid var(--mn-border);
+    color: var(--mn-text-muted);
+  }
+
+  /* ---- nested clause indentation ---- */
+  /*
+   * Schema emits <section class="mn-clause"> nested as the document's clause
+   * hierarchy dictates. SectionNodeView wraps each section's editable content
+   * in a .mn-section-content host, so a clause nested inside another clause
+   * sits at: .mn-clause > .mn-section-content > .mn-clause.
+   *
+   * Each nesting level indents the inner clause's margin-box by one spacing
+   * step, giving the document a readable depth hierarchy without any schema or
+   * node-view change. The selector is structural and capped by CSS cascade
+   * (deeper levels just compound the indent through repeated margins).
+   */
+
+  .mn-prosemirror .mn-clause > .mn-section-content > .mn-clause,
+  .mn-prosemirror .mn-annex > .mn-section-content > .mn-clause,
+  .mn-prosemirror .mn-terms > .mn-section-content > .mn-clause {
+    margin-left: var(--mn-space-4);
+  }
+
 }
