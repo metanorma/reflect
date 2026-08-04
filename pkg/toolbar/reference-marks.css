@@ -7,6 +7,47 @@
 
 @layer chrome {
 
+  /* ---- Footnote trigger button: anchor for the picker popover ---- */
+
+  .mn-toolbar-footnote {
+    display: inline-block;
+    position: relative;
+  }
+
+  /* Anchor the picker to this button via CSS Anchor Positioning.
+     The dashed-ident is consumed by `position-anchor` on .mn-footnote-picker. */
+  .mn-toolbar-footnote .mn-toolbar-btn {
+    anchor-name: --mn-footnote-anchor;
+  }
+
+  /* ---- Footnote picker popover (top-layer via Popover API) ---- */
+
+  /* Self-contained popover styling. Deliberately does NOT reuse the shared
+     .mn-toolbar-popover class — the consumer's vertical-toolbar override
+     targets .mn-toolbar-popover with `right: 100%`, which would conflict
+     with anchor positioning. */
+  .mn-footnote-picker {
+    position-anchor: --mn-footnote-anchor;
+    position-area: inline-end span-block-end;
+    margin: 2px;
+    background: var(--mn-surface);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-md);
+    padding: 0.4em;
+    box-shadow: 0 2px 8px var(--mn-shadow);
+    min-width: 14em;
+  }
+
+  /* When anchor positioning is unavailable, fall back to positioning relative
+     to .mn-toolbar-footnote (position: relative). */
+  @supports not (anchor-name: --x) {
+    .mn-footnote-picker {
+      position: absolute;
+      top: 100%;
+      left: 0;
+    }
+  }
+
   .mn-toolbar-popover.mn-toolbar-popover--ref {
     min-width: 14em;
   }
@@ -42,6 +83,22 @@
   .mn-toolbar-popover__item:hover,
   .mn-toolbar-popover__item:focus-visible {
     background: var(--mn-active);
+  }
+
+  .mn-toolbar-popover__actions {
+    display: flex;
+    gap: var(--mn-space-1);
+    margin-top: var(--mn-space-1);
+    padding-top: var(--mn-space-1);
+    border-top: 1px solid var(--mn-border);
+  }
+
+  .mn-toolbar-popover__actions .mn-toolbar-popover__item {
+    flex: 1;
+    text-align: center;
+    border: 1px solid var(--mn-border);
+    border-radius: 3px;
+    background: var(--mn-surface);
   }
 
 }

@@ -9,10 +9,13 @@
  */
 
 import type { EditorState, Transaction } from "prosemirror-state";
-import { TextSelection } from "prosemirror-state";
+import { TextSelection, NodeSelection } from "prosemirror-state";
 import type { MarkType } from "prosemirror-model";
 
 import { generateId } from "../util.js";
+
+/** Placeholder text inserted into a newly-created `footnote_entry` (§5.5). */
+const PLACEHOLDER_TEXT = "Footnote text.";
 
 /** Attribute map for a reference mark (reference-marks.md §6.1). */
 type RefAttrs = Record<string, unknown>;
@@ -185,6 +188,7 @@ export function insertFootnoteMarker(
   const entryType = state.schema.nodes["footnote_entry"];
   const footnotesType = state.schema.nodes["footnotes"];
   const paragraphType = state.schema.nodes["paragraph"];
+  let createdEntry = false; // true when a new entry was created in this tx
   if (entryType !== undefined && footnotesType !== undefined && paragraphType !== undefined) {
     let entryExists = false;
     state.doc.descendants((node) => {
@@ -205,9 +209,10 @@ export function insertFootnoteMarker(
           break;
         }
       }
+      const placeholderText = state.schema.text(PLACEHOLDER_TEXT);
       const placeholder = entryType.create(
         { id: target },
-        [paragraphType.create()],
+        [paragraphType.create(null, placeholderText)],
       );
       if (footnotesPos < 0) {
         // Create the footnotes container as the last child of doc.
@@ -220,16 +225,47 @@ export function insertFootnoteMarker(
         for (let i = 0; i < footnotesPos; i++) {
           pos += tr.doc.child(i).nodeSize;
         }
-        // Position inside the container (after existing entries).
+        // pos is now at the start of the footnotes container node (before its
+        // open token). The insertion point for a new last child is at
+        // pos + content.size — this lands just before the container's close
+        // token, inside the content range.
         const containerNode = tr.doc.child(footnotesPos);
-        pos += containerNode.nodeSize - 1; // end of container content
+        pos += containerNode.content.size;
         tr.insert(pos, placeholder);
       }
+      createdEntry = true;
     }
   }
 
-  // Place the cursor after the inserted marker.
-  tr.setSelection(TextSelection.near(tr.doc.resolve(tr.selection.from)));
+  if (createdEntry) {
+    // Place the cursor inside the new entry's placeholder text, selecting it so
+    // the user can immediately type to replace it. Walk tr.doc to find the
+    // entry by id, then compute the text range.
+    let textStart = -1;
+    tr.doc.descendants((node, pos) => {
+      if (node.type.name === "footnote_entry" && node.attrs["id"] === target) {
+        // pos = entry start (before open token).
+        // +1 = entry content start, +1 = paragraph content start (text).
+        textStart = pos + 2;
+        return false;
+      }
+      return true;
+    });
+    if (textStart >= 0) {
+      const textEnd = textStart + PLACEHOLDER_TEXT.length;
+      const $end = tr.doc.resolve(textEnd);
+      if ($end.parent.isTextblock) {
+        tr.setSelection(TextSelection.create(tr.doc, textStart, textEnd));
+      } else {
+        tr.setSelection(TextSelection.near(tr.doc.resolve(textStart)));
+      }
+    } else {
+      tr.setSelection(TextSelection.near(tr.doc.resolve(tr.selection.from)));
+    }
+  } else {
+    // Place the cursor after the inserted marker.
+    tr.setSelection(TextSelection.near(tr.doc.resolve(tr.selection.from)));
+  }
   tr.scrollIntoView();
   dispatch(tr);
   return true;
@@ -267,6 +303,33 @@ export function insertStem(
 
   // Place the cursor after the inserted stem node.
   tr.setSelection(TextSelection.near(tr.doc.resolve(tr.selection.from)));
+  tr.scrollIntoView();
+  dispatch(tr);
+  return true;
+}
+
+/**
+ * Remove a `footnote_marker` node from the document (reference-marks.md §7).
+ *
+ * Applicable only when the selection is a `NodeSelection` on a
+ * `footnote_marker` node. Deletes the node but **never** touches its
+ * `footnote_entry` — the entry may hold authored content or be referenced by
+ * other markers (§5.5).
+ *
+ * @returns `true` if a transaction was / would be dispatched, `false` if not
+ *          applicable (no marker selected).
+ */
+export function removeFootnoteMarker(
+  state: EditorState,
+  dispatch: ((tr: Transaction) => void) | undefined,
+): boolean {
+  if (!(state.selection instanceof NodeSelection)) return false;
+  if (state.selection.node.type.name !== "footnote_marker") return false;
+
+  if (dispatch === undefined) return true;
+
+  const tr = state.tr;
+  tr.deleteSelection();
   tr.scrollIntoView();
   dispatch(tr);
   return true;

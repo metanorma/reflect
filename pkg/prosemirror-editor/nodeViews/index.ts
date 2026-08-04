@@ -18,6 +18,8 @@ import { FormulaNodeView } from "./FormulaNodeView.js";
 import { FloatingTitleNodeView } from "./FloatingTitleNodeView.js";
 import { SourcecodeNodeView } from "./SourcecodeNodeView.js";
 import { SectionNodeView } from "./SectionNodeView.js";
+import { FootnoteMarkerNodeView } from "./FootnoteMarkerNodeView.js";
+import { FootnoteEntryNodeView } from "./FootnoteEntryNodeView.js";
 
 export { ImageNodeView } from "./ImageNodeView.js";
 export { FigureNodeView } from "./FigureNodeView.js";
@@ -25,6 +27,8 @@ export { FormulaNodeView } from "./FormulaNodeView.js";
 export { FloatingTitleNodeView } from "./FloatingTitleNodeView.js";
 export { SourcecodeNodeView } from "./SourcecodeNodeView.js";
 export { SectionNodeView } from "./SectionNodeView.js";
+export { FootnoteMarkerNodeView } from "./FootnoteMarkerNodeView.js";
+export { FootnoteEntryNodeView } from "./FootnoteEntryNodeView.js";
 
 /**
  * The default node-view component map. Node types not present here fall back to
@@ -44,6 +48,8 @@ export const nodeViewComponents: Readonly<
   formula: FormulaNodeView,
   floating_title: FloatingTitleNodeView,
   sourcecode: SourcecodeNodeView,
+  footnote_marker: FootnoteMarkerNodeView,
+  footnote_entry: FootnoteEntryNodeView,
   clause: SectionNodeView,
   annex: SectionNodeView,
   content_section: SectionNodeView,

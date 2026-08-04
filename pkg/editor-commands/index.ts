@@ -66,6 +66,7 @@ export {
   toggleConcept,
   toggleBcp14,
   insertFootnoteMarker,
+  removeFootnoteMarker,
   insertStem,
 } from "./commands/referenceMarks.js";
 

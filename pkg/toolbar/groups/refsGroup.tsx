@@ -8,6 +8,7 @@
  * `onFootnotePrompt` / `onStemPrompt` (or defaults).
  */
 
+import React from "react";
 import type { EditorView } from "prosemirror-view";
 import type { EditorState } from "prosemirror-state";
 
@@ -16,9 +17,7 @@ import {
   toggleEref,
   toggleConcept,
   toggleBcp14,
-  insertFootnoteMarker,
   insertStem,
-  generateId,
 } from "@metanorma/editor-commands";
 
 import type { ToolbarGroupDef } from "../types.js";
@@ -29,6 +28,7 @@ import type {
   StemResult,
 } from "../AdvancedMetanormaToolbar.js";
 import { isInlineContext } from "../predicates.js";
+import { FootnoteButton } from "../FootnotePicker.js";
 
 import "../reference-marks.css"; // re-uses the popover styles for the stem menu
 
@@ -249,30 +249,12 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
         },
       },
       // ── footnote ──
+      // Stateful control: detects NodeSelection on a marker (toggle-off →
+      // removeFootnoteMarker), creates new immediately when no entries exist,
+      // or opens a picker dialog for reuse (reference-marks.md §5.5, §7).
       {
-        kind: "button",
-        descriptor: {
-          key: "refs-footnote",
-          label: "Footnote",
-          title: "Insert footnote",
-          isActive: (_state) => false,
-          isEnabled: isInlineContext,
-          run: (view: EditorView) => {
-            const { state, dispatch } = view;
-            // Default: generate a fresh id for a new footnote entry.
-            const target = generateId();
-            if (getFootnotePrompt !== undefined) {
-              void getFootnotePrompt().then((id) => {
-                if (id === null) return;
-                insertFootnoteMarker(state, dispatch, id);
-                view.focus();
-              });
-            } else {
-              insertFootnoteMarker(state, dispatch, target);
-              view.focus();
-            }
-          },
-        },
+        kind: "control",
+        render: () => <FootnoteButton onFootnotePrompt={getFootnotePrompt} />,
       },
       // ── stem ──
       {

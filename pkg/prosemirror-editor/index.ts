@@ -35,6 +35,8 @@ export {
   FormulaNodeView,
   FloatingTitleNodeView,
   SourcecodeNodeView,
+  FootnoteMarkerNodeView,
+  FootnoteEntryNodeView,
   nodeViewComponents,
 } from "./nodeViews/index.js";
 

@@ -52,13 +52,17 @@ const NON_DELETABLE_NAMES: ReadonlySet<string> = new Set([
  * would be emptied by the deletion, the command refuses entirely (`false`). The
  * up-front `dl` guard (§4.4.4) prevents reaching `dl`/`dt`/`dd` in practice;
  * `table_cell` can be reached when the textblock is nested inside other
- * containers within a cell.
+ * containers within a cell. `footnotes` is included so Backspacing through the
+ * last entry's empty paragraph refuses rather than cascading to delete the
+ * entire footnotes container (analogous to `table_cell`'s "must retain one
+ * block" rule).
  */
 const REFUSE_NAMES: ReadonlySet<string> = new Set([
   NODE_NAME.dl,
   NODE_NAME.dt,
   NODE_NAME.dd,
   NODE_NAME.table_cell,
+  NODE_NAME.footnotes,
 ]);
 
 /** Outcome of the container-stack walk (spec §4.7.3). */

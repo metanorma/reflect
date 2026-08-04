@@ -85,7 +85,7 @@ export interface AdvancedFeatureOptions {
   readonly onErefPrompt?: ((context: RefPromptContext) => Promise<string | null>) | undefined;
   readonly onConceptPrompt?: ((context: RefPromptContext) => Promise<{ ref: string; kind: "eref" | "xref" | "termref" } | null>) | undefined;
   readonly onBcp14Prompt?: ((context: RefPromptContext) => Promise<string | null>) | undefined;
-  readonly onFootnotePrompt?: (() => Promise<string | null>) | undefined;
+    readonly onFootnotePrompt?: ((context: RefPromptContext) => Promise<string | null>) | undefined;
   readonly onStemPrompt?: ((context: StemPromptContext) => Promise<StemResult | null>) | undefined;
 }
 
