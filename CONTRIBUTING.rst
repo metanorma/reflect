@@ -81,8 +81,7 @@ Types & schema
 Style guidelines
 ^^^^^^^^^^^^^^^^
 
-* JSDoc-style docstrings (excluding type annotations),
-  except where it duplicates typings
+* JSDoc-style docstrings, except where it duplicates typings
 
 * Three blank lines between imports and code
 
