@@ -161,4 +161,129 @@
     margin-left: var(--mn-space-4);
   }
 
+  /* ---- reference marks: xref / eref / concept / bcp14 ---- */
+  /*
+   * Schema emits <a class="mn-xref">, <cite class="mn-eref">,
+   * <span class="mn-concept">, <span class="mn-bcp14"> (marks.ts). Without
+   * styling these read as plain body text — a cross-reference is
+   * indistinguishable from a normal link, a BCP14 keyword isn't emphasised.
+   * The accent colour + dotted underline signals "clickable reference";
+   * bcp14 gets bold weight per RFC 2119 / BCP14 convention.
+   */
+
+  .mn-prosemirror .mn-xref,
+  .mn-prosemirror .mn-eref,
+  .mn-prosemirror .mn-concept {
+    color: var(--mn-accent);
+    text-decoration: underline dotted;
+    cursor: pointer;
+  }
+
+  .mn-prosemirror .mn-bcp14 {
+    font-weight: 600;
+  }
+
+  /* ---- footnotes: marker / entries / container ---- */
+  /*
+   * Schema emits <sup class="mn-footnote-marker"> (inline reference),
+   * <section class="mn-footnotes"> (container at end of doc), and
+   * <div class="mn-footnote-entry"> (each entry). The marker is styled as a
+   * small accent superscript; the container gets a top rule to separate it
+   * from the body; entries are compacted.
+   */
+
+  .mn-prosemirror .mn-footnote-marker {
+    color: var(--mn-accent);
+    cursor: pointer;
+    font-size: 0.75em;
+    padding: 0 0.1em;
+  }
+
+  .mn-prosemirror .mn-footnotes {
+    margin-top: var(--mn-space-6);
+    padding-top: var(--mn-space-2);
+    border-top: 1px solid var(--mn-border);
+    font-size: 0.85em;
+  }
+
+  .mn-prosemirror .mn-footnote-entry {
+    margin: var(--mn-space-1) 0;
+  }
+
+  /* ---- definition lists ---- */
+  /*
+   * Schema emits bare <dl>/<dt>/<dd> (nodes.ts §8.4). Terms get bold weight
+   * and a top gap so each term/description pair reads as a unit; descriptions
+   * indent by one spacing step.
+   */
+
+  .mn-prosemirror dl {
+    margin: var(--mn-space-4) 0;
+  }
+
+  .mn-prosemirror dt {
+    font-weight: 600;
+    margin-top: var(--mn-space-2);
+  }
+
+  .mn-prosemirror dd {
+    margin-left: var(--mn-space-4);
+    margin-bottom: var(--mn-space-1);
+  }
+
+  /* ---- lists: indent refinement ---- */
+  /*
+   * Schema emits bare <ul>/<ol>/<li>. Browser default works but the padding
+   * can collide with the contenteditable edge inside .ProseMirror; this gives
+   * consistent vertical rhythm and a predictable left padding.
+   */
+
+  .mn-prosemirror ul,
+  .mn-prosemirror ol {
+    margin: var(--mn-space-2) 0;
+    padding-left: var(--mn-space-5);
+  }
+
+  .mn-prosemirror li {
+    margin: var(--mn-space-1) 0;
+  }
+
+  /* ---- smallcap mark ---- */
+  /*
+   * Schema emits <span class="mn-smallcap"> but document.css had no rule for
+   * it — the mark was visually a no-op. font-variant: small-caps renders it
+   * per its name. (parseDOM also accepts the inline style as a fallback.)
+   */
+
+  .mn-prosemirror .mn-smallcap {
+    font-variant: small-caps;
+  }
+
+  /* ---- stem (inline math) ---- */
+  /*
+   * Schema emits <span class="mn-stem"> for inline formulas. Unstyled, it
+   * reads as plain inline text. Mirrors the muted-box treatment block
+   * formulas get above so inline and block math share a visual language.
+   */
+
+  .mn-prosemirror .mn-stem {
+    font-family: var(--mn-font-mono);
+    font-size: 0.95em;
+    background: var(--mn-surface-muted);
+    padding: 0 0.2em;
+    border-radius: var(--mn-radius-sm);
+  }
+
+  /* ---- image inside figure (overflow safety) ---- */
+  /*
+   * figure.mn-figure sets text-align: center; this is fine for small images
+   * but a large <img> would overflow the viewport horizontally. Cap at the
+   * figure's content width.
+   */
+
+  .mn-prosemirror figure.mn-figure img {
+    max-width: 100%;
+    height: auto;
+  }
+
 }
