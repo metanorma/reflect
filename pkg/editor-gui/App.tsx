@@ -68,6 +68,19 @@ function ({ onDoneLoading }) {
     onDoneLoading();
   }, [onDoneLoading]);
 
+  // Test-only hook: when the page is loaded with ?e2e=1, expose the current
+  // document as JSON on window so Playwright specs can assert structural state
+  // (node types, attributes, marks) without scraping the DOM. Re-attaches on
+  // every state change so callers always see the latest doc. Read-only.
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('e2e')) return;
+    const w = window as unknown as { __mnGetDoc?: () => unknown };
+    w.__mnGetDoc = () => editorState.doc.toJSON();
+    return () => {
+      delete w.__mnGetDoc;
+    };
+  }, [editorState]);
+
   return <div className={classNames.app}>
     <MetanormaProseMirror
         state={editorState}

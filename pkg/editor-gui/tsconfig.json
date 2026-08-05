@@ -1,5 +1,6 @@
 {
   "include": ["*.tsx", "*.mts", "*.d.ts"],
+  "exclude": ["compiled", "e2e"],
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "target": "es2020",
