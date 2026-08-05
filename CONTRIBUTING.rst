@@ -81,20 +81,20 @@ Types & schema
 Style guidelines
 ^^^^^^^^^^^^^^^^
 
-* JSDoc-style docstrings, except where it duplicates typings
+* JSDoc-style docstrings (excluding type annotations)
 
 * Three blank lines between imports and code
 
 * Two-space indentation
 
-* 80-character line length limit
+* 80-character line length limit should be observed when feasible & non-ugly
 
 * Single quotes for identifier-like strings
-  (imports, object keys, internal enum values, etc.),
+  (imports, object keys, internal enum values, event names, etc.),
   double quotes for displayed text-like strings
-  (log messages, visible text)
+  (log messages, user-visible text)
 
-* Trailing semicolons preferred
+* Do use trailing semicolons, commas
 
 * Split ternaries into lines like this::
 
