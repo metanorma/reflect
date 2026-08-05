@@ -2,10 +2,10 @@
 /**
  * Build script for the editor-gui static web app.
  *
- * Bundles `pkg/editor-gui/bootstrap.tsx` into `dist/` using esbuild, producing:
- *   - dist/bootstrap.js   (all JS, tree-shaken; minified unless --dev)
- *   - dist/bootstrap.css  (all CSS, extracted from JS)
- *   - dist/index.html     (loads the JS + CSS)
+ * Bundles `pkg/editor-gui/bootstrap.tsx` into `pkg/editor-gui/dist/` using esbuild, producing:
+ *   - pkg/editor-gui/dist/bootstrap.js   (all JS, tree-shaken; minified unless --dev)
+ *   - pkg/editor-gui/dist/bootstrap.css  (all CSS, extracted from JS)
+ *   - pkg/editor-gui/dist/index.html     (loads the JS + CSS)
  *
  * Yarn PnP stores dependencies in zip archives that esbuild's native Go
  * resolver cannot read. The `pnp` plugin bridges this gap by resolving bare
@@ -29,7 +29,9 @@ const dev = process.argv.includes('--dev') || process.argv.includes('dev');
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const entry = path.join(projectRoot, 'pkg', 'editor-gui', 'bootstrap.tsx');
-const outdir = path.join(projectRoot, 'dist');
+// Emit into the editor-gui workspace so the build output, static server, and
+// e2e suite are all colocated under pkg/editor-gui/.
+const outdir = path.join(projectRoot, 'pkg', 'editor-gui', 'dist');
 
 // ── esbuild loader per file extension (for PnP-loaded files) ───────────
 
@@ -126,4 +128,4 @@ const html = `<!DOCTYPE html>
 `;
 
 await fs.writeFile(path.join(outdir, 'index.html'), html);
-console.log(`✓ editor-gui built → dist/${dev ? ' (dev)' : ''}`);
+console.log(`✓ editor-gui built → pkg/editor-gui/dist/${dev ? ' (dev)' : ''}`);
