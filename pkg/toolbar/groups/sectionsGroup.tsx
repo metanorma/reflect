@@ -4,31 +4,25 @@
  * Four buttons: Insert clause, Promote, Demote, Change section type. The
  * `run(view)` adapters delegate to the pure commands and re-focuses. The
  * heading `title` is collected via `window.prompt` (§7 option 2 baseline); a
- * host may upgrade via `onHeadingPrompt`.
+ * host may upgrade via `onHeadingPrompt`. The "Type" button is a stateful
+ * control that opens a `SectionTypePicker` popover.
  */
 
+import React from "react";
 import type { EditorView } from "prosemirror-view";
 import type { EditorState } from "prosemirror-state";
-import type { NodeType } from "prosemirror-model";
 
 import {
   wrapInClause,
   promoteClause,
   demoteClause,
-  setSectionType,
   canWrapInClause,
-  nearestSectionAncestor,
   findNearestSectionOfType,
   metanormaSchema,
 } from "@metanorma/editor-commands";
 
 import type { ToolbarGroupDef } from "../types.js";
-
-/** The ten section node names in fixed menu order (sections.md §4.2). */
-const SECTION_TYPE_NAMES: readonly string[] = [
-  "clause", "annex", "terms", "definitions", "references",
-  "content_section", "abstract", "foreword", "introduction", "acknowledgements",
-];
+import { SectionTypeButton } from "../SectionTypePicker.js";
 
 /** Default heading prompt: `window.prompt` (sections.md §7 option 2). */
 function defaultHeadingPrompt(): Promise<string | null> {
@@ -70,35 +64,6 @@ function canDemote(state: EditorState): boolean {
     if (sibling.type.contentMatch.matchType(clauseType) !== null) return true;
   }
   return false;
-}
-
-/** Whether at least one legal alternative section type exists. */
-function canChangeType(state: EditorState): boolean {
-  const { $from } = state.selection;
-  const hit = nearestSectionAncestor($from);
-  if (hit === null) return false;
-  for (const name of SECTION_TYPE_NAMES) {
-    const t = metanormaSchema.nodes[name];
-    if (t === undefined) continue;
-    if (t === hit.node.type) continue;
-    if (t.validContent(hit.node.content)) return true;
-  }
-  return false;
-}
-
-/** Resolve the list of legal target types for the "Change type" menu. */
-function legalTargetTypes(state: EditorState): readonly NodeType[] {
-  const { $from } = state.selection;
-  const hit = nearestSectionAncestor($from);
-  if (hit === null) return [];
-  const result: NodeType[] = [];
-  for (const name of SECTION_TYPE_NAMES) {
-    const t = metanormaSchema.nodes[name];
-    if (t === undefined) continue;
-    if (t === hit.node.type) continue;
-    if (t.validContent(hit.node.content)) result.push(t);
-  }
-  return result;
 }
 
 /**
@@ -167,26 +132,10 @@ export function sectionsGroup(
           },
         },
       },
+      // ── Change section type — stateful control with a picker popover ──
       {
-        kind: "button",
-        descriptor: {
-          key: "sections-set-type",
-          label: "Type",
-          title: "Change section type…",
-          isActive: (_state: EditorState) => false,
-          isEnabled: canChangeType,
-          run: (view: EditorView) => {
-            const targets = legalTargetTypes(view.state);
-            if (targets.length === 0) return;
-            // Minimal-v1: cycle to the first legal alternative. A host can
-            // upgrade to a listbox menu; this keeps the baseline functional.
-            const target = targets[0];
-            if (target !== undefined) {
-              setSectionType(view.state, target, view.dispatch);
-              view.focus();
-            }
-          },
-        },
+        kind: "control",
+        render: () => <SectionTypeButton />,
       },
     ],
   };

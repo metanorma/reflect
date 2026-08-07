@@ -1,0 +1,78 @@
+/*
+ * section-type-picker.css — section-type conversion picker (sections.md §4.5).
+ *
+ * Consumes the `--mn-*` design tokens defined by `@metanorma/prosemirror-editor`
+ * (tokens.css); light/dark themes are handled centrally there.
+ */
+
+@layer chrome {
+
+  .mn-toolbar-section-type {
+    display: inline-block;
+    position: relative;
+  }
+
+  /* Anchor the picker to the trigger button via CSS Anchor Positioning. */
+  .mn-toolbar-section-type .mn-toolbar-btn {
+    anchor-name: --mn-section-type-anchor;
+  }
+
+  /* ---- Section-type picker popover (top-layer via Popover API) ---- */
+
+  .mn-section-type-picker {
+    position-anchor: --mn-section-type-anchor;
+    position-area: inline-end span-block-end;
+    margin: 2px;
+    background: var(--mn-surface);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-md);
+    padding: 0.4em;
+    box-shadow: 0 2px 8px var(--mn-shadow);
+    min-width: 12em;
+  }
+
+  /* When anchor positioning is unavailable, fall back to positioning relative
+     to .mn-toolbar-section-type (position: relative). */
+  @supports not (anchor-name: --x) {
+    .mn-section-type-picker {
+      position: absolute;
+      top: 100%;
+      left: 0;
+    }
+  }
+
+  .mn-section-type-picker__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .mn-section-type-picker__item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.2em 0.4em;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: inherit;
+    border-radius: 3px;
+    font-size: inherit;
+  }
+
+  .mn-section-type-picker__item:hover:not(:disabled),
+  .mn-section-type-picker__item:focus-visible:not(:disabled) {
+    background: var(--mn-active);
+  }
+
+  .mn-section-type-picker__item--active {
+    font-weight: 600;
+    color: var(--mn-accent);
+  }
+
+  .mn-section-type-picker__item:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+}
