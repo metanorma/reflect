@@ -8,6 +8,10 @@
  * `readAsDataURL` or the `onImageUpload` hook), then dispatches the pure
  * `insertImage` command. The `EditorView`/async/DOM concerns stay in this
  * adapter; the pure command is synchronous.
+ *
+ * Uses the HTML Popover API (`popover="manual"`) with CSS Anchor Positioning
+ * so the dialog renders in the browser's **top layer** — escaping all ancestor
+ * overflow clipping regardless of toolbar/layout CSS.
  */
 
 import React, { useRef, useState } from "react";
@@ -45,10 +49,12 @@ export function ImageInsertDialog({
   onImageUpload,
   onCommit,
   onCancel,
+  ref,
 }: {
   readonly onImageUpload?: OnImageUpload | undefined;
   readonly onCommit: () => void;
   readonly onCancel: () => void;
+  readonly ref?: React.Ref<HTMLDivElement> | undefined;
 }): React.JSX.Element {
   const [url, setUrl] = useState("");
   const [alt, setAlt] = useState("");
@@ -92,11 +98,25 @@ export function ImageInsertDialog({
   }
 
   return (
+    // `popover="manual"`: top-layer rendering, no light-dismiss (we handle
+    // close ourselves via Cancel / Insert / Escape callbacks).
+    // The CSS class `mn-image-dialog` is self-contained — it does NOT use
+    // the shared `.mn-toolbar-dialog` base class because the consumer's
+    // vertical-toolbar override targets `.mn-toolbar-dialog` with `right: 100%`,
+    // which would conflict with anchor positioning.
     <div
-      className="mn-toolbar-dialog"
+      popover="manual"
+      className="mn-image-dialog"
       role="dialog"
       aria-label="Insert image"
       aria-modal="false"
+      ref={ref}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
     >
       <div className="mn-toolbar-dialog-field">
         <label htmlFor="mn-img-src">Image URL</label>
@@ -157,9 +177,14 @@ export function InsertImageButton({
 }: {
   readonly onImageUpload?: OnImageUpload | undefined;
 }): React.JSX.Element {
-  const [open, setOpen] = useState(false);
   const enabled = useEditorStateSelector(canInsertFigure);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  const closeDialog = (): void => {
+    dialogRef.current?.hidePopover();
+    triggerRef.current?.focus();
+  };
 
   return (
     <div className="mn-toolbar-image">
@@ -168,26 +193,18 @@ export function InsertImageButton({
         type="button"
         className="mn-toolbar-btn"
         aria-haspopup="dialog"
-        aria-expanded={open}
         disabled={!enabled}
         title="Insert image"
-          onClick={() => setOpen((v) => !v)}
-        >
-          Image
-        </button>
-      {open ? (
-        <ImageInsertDialog
-          onImageUpload={onImageUpload}
-          onCommit={() => {
-            setOpen(false);
-            triggerRef.current?.focus();
-          }}
-          onCancel={() => {
-            setOpen(false);
-            triggerRef.current?.focus();
-          }}
-        />
-      ) : null}
+        onClick={() => dialogRef.current?.togglePopover()}
+      >
+        Image
+      </button>
+      <ImageInsertDialog
+        ref={dialogRef}
+        onImageUpload={onImageUpload}
+        onCommit={closeDialog}
+        onCancel={closeDialog}
+      />
     </div>
   );
 }

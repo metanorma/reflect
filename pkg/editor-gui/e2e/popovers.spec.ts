@@ -7,9 +7,12 @@
  * loudly ("other element would receive the click") if the editor intercepts
  * the click because the dialog is obscured.
  *
- * Do NOT rely on `toBeVisible()` alone for occlusion — it checks the element's
- * own geometry, not whether it's covered, and passes when the editor is on
- * top. The `click()` on an inner control IS the occlusion assertion.
+ * All three popovers now use the HTML Popover API (`popover="manual"`,
+ * top-layer rendering) with CSS Anchor Positioning. The popover elements are
+ * always present in the DOM; when hidden they have `display: none` from the
+ * user-agent stylesheet. Tests locate them by CSS class + `[popover]` attribute
+ * (which always matches) and assert visibility with `toBeVisible()` /
+ * `toBeHidden()` — not `toHaveCount(0)`.
  */
 import { expect, test } from '@playwright/test';
 import { getDoc, openEditor, toolbarButton, typeInEditor, editor } from './helpers.js';
@@ -17,8 +20,7 @@ import { getDoc, openEditor, toolbarButton, typeInEditor, editor } from './helpe
 test.describe('popovers', () => {
 
   // -------------------------------------------------------------------------
-  // TableSizePicker — plain `role="dialog"` div (NOT top-layer). Vulnerable
-  // to occlusion by CSS positioning/stacking.
+  // TableSizePicker — `popover="manual"` (HTML Popover API, top-layer).
   // -------------------------------------------------------------------------
   test.describe('TableSizePicker', () => {
     test('grid hover updates the readout; clicking a cell inserts a table', async ({ page }) => {
@@ -27,7 +29,7 @@ test.describe('popovers', () => {
 
       // Open the picker.
       await toolbarButton(page, 'Table').click();
-      const dialog = page.getByRole('dialog', { name: 'Table size' });
+      const dialog = page.locator('.mn-table-picker[popover]');
       await expect(dialog).toBeVisible();
 
       // Hover a grid cell at row 2, col 3 — the readout should update.
@@ -38,7 +40,7 @@ test.describe('popovers', () => {
       // Click the cell — this is the occlusion assertion. If the editor
       // intercepts the click (dialog behind it), Playwright throws.
       await cell.click();
-      await expect(dialog).toHaveCount(0);
+      await expect(dialog).toBeHidden();
 
       // The doc JSON should now contain a table with 2 rows × 3 cols.
       const doc = await getDoc(page);
@@ -50,9 +52,7 @@ test.describe('popovers', () => {
   });
 
   // -------------------------------------------------------------------------
-  // FootnotePicker — `popover="manual"` (HTML Popover API, top-layer). Lower
-  // occlusion risk, but tested for completeness: the top-layer guarantee only
-  // holds in browsers that implement the Popover API.
+  // FootnotePicker — `popover="manual"` (HTML Popover API, top-layer).
   // -------------------------------------------------------------------------
   test.describe('FootnotePicker', () => {
     test('first click creates a marker; second click opens picker; "Create new" inserts another', async ({ page }) => {
@@ -75,7 +75,7 @@ test.describe('popovers', () => {
 
       // Click "+ Create new" inside the picker — occlusion assertion.
       await picker.getByRole('button', { name: /Create new/ }).click();
-      await expect(picker).toHaveCount(0);
+      await expect(picker).toBeHidden();
 
       // Two markers now in the doc.
       doc = await getDoc(page);
@@ -86,8 +86,7 @@ test.describe('popovers', () => {
   });
 
   // -------------------------------------------------------------------------
-  // ImageInsertDialog — plain `role="dialog"` div (NOT top-layer). Vulnerable
-  // to occlusion.
+  // ImageInsertDialog — `popover="manual"` (HTML Popover API, top-layer).
   // -------------------------------------------------------------------------
   test.describe('ImageInsertDialog', () => {
     test('URL + alt text flow inserts a figure with an image', async ({ page }) => {
@@ -96,7 +95,7 @@ test.describe('popovers', () => {
 
       // Open the dialog.
       await toolbarButton(page, 'Image').click();
-      const dialog = page.getByRole('dialog', { name: 'Insert image' });
+      const dialog = page.locator('.mn-image-dialog[popover]');
       await expect(dialog).toBeVisible();
 
       // Fill the URL and alt fields — these clicks/types are occlusion
@@ -107,7 +106,7 @@ test.describe('popovers', () => {
 
       // Click Insert — final occlusion assertion.
       await dialog.getByRole('button', { name: 'Insert' }).click();
-      await expect(dialog).toHaveCount(0);
+      await expect(dialog).toBeHidden();
 
       // The doc JSON should contain a figure > image with the src and alt.
       const doc = await getDoc(page);

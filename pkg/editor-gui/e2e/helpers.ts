@@ -23,9 +23,16 @@ export function toolbar(page: Page): Locator {
   return page.getByRole('toolbar');
 }
 
-/** A toolbar button by its visible label (e.g. "Bold", "Clause", "Table"). */
+/**
+ * A toolbar button by its visible label (e.g. "Bold", "Clause", "Table").
+ *
+ * Uses exact name matching so that always-rendered (but hidden) popover
+ * controls whose accessible names happen to contain a button label (e.g.
+ * `<input type="file" name="Image file">` vs the "Image" button) don't
+ * produce ambiguous matches.
+ */
 export function toolbarButton(page: Page, name: string): Locator {
-  return page.getByRole('button', { name });
+  return page.getByRole('button', { name, exact: true });
 }
 
 /**

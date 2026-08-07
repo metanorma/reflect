@@ -7,6 +7,10 @@
  * `role="grid"` of `MAX_ROWS × MAX_COLS` tiles; pointer-move and arrow keys
  * drive a `{ row, col }` highlight, and a click/Enter commits the dimension
  * via the pure `insertTable` command through a `useEditorEventCallback`.
+ *
+ * Uses the HTML Popover API (`popover="manual"`) with CSS Anchor Positioning
+ * so the picker renders in the browser's **top layer** — escaping all ancestor
+ * overflow clipping regardless of toolbar/layout CSS.
  */
 
 import React, { useRef, useState } from "react";
@@ -25,9 +29,11 @@ import "./table-picker.css";
 export function TableSizePicker({
   onCommit,
   onCancel,
+  ref,
 }: {
   readonly onCommit: (rows: number, cols: number) => void;
   readonly onCancel: () => void;
+  readonly ref?: React.Ref<HTMLDivElement> | undefined;
 }): React.JSX.Element {
   const [row, setRow] = useState(1);
   const [col, setCol] = useState(1);
@@ -83,11 +89,20 @@ export function TableSizePicker({
   };
 
   return (
+    // `popover="manual"`: top-layer rendering, no light-dismiss (we handle
+    // close ourselves via cell click / Escape / Tab callbacks).
+    // The CSS class `mn-table-picker` is self-contained — it does NOT use
+    // the shared `.mn-toolbar-popover` base class because the consumer's
+    // vertical-toolbar override targets `.mn-toolbar-popover` with `right: 100%`,
+    // which would conflict with anchor positioning.
     <div
-      className="mn-toolbar-popover"
+      popover="manual"
+      className="mn-table-picker"
       role="dialog"
       aria-label="Table size"
       aria-modal="false"
+      ref={ref}
+      onKeyDown={handleKey}
     >
       <div
         ref={gridRef}
@@ -96,7 +111,6 @@ export function TableSizePicker({
         aria-readonly="true"
         aria-rowcount={MAX_ROWS}
         aria-colcount={MAX_COLS}
-        onKeyDown={handleKey}
         style={{ ["--cols" as string]: MAX_COLS, ["--rows" as string]: MAX_ROWS }}
       >
         {Array.from({ length: MAX_ROWS }, (_, r) =>
@@ -137,9 +151,9 @@ export function TableSizePicker({
  * and calls the pure `insertTable` command via `useEditorEventCallback`.
  */
 export function InsertTableButton(): React.JSX.Element {
-  const [open, setOpen] = useState(false);
   const enabled = useEditorStateSelector(canInsertTable);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   const insert = useEditorEventCallback(
     (view: EditorView | null, r: number, c: number) => {
@@ -149,6 +163,11 @@ export function InsertTableButton(): React.JSX.Element {
     },
   );
 
+  const closePicker = (): void => {
+    pickerRef.current?.hidePopover();
+    triggerRef.current?.focus();
+  };
+
   return (
     <div className="mn-toolbar-table">
       <button
@@ -156,26 +175,20 @@ export function InsertTableButton(): React.JSX.Element {
         type="button"
         className="mn-toolbar-btn"
         aria-haspopup="dialog"
-        aria-expanded={open}
         disabled={!enabled}
         title="Insert table"
-          onClick={() => setOpen((v) => !v)}
-        >
-          Table
-        </button>
-      {open ? (
-        <TableSizePicker
-          onCommit={(r, c) => {
-            setOpen(false);
-            void insert(r, c);
-            triggerRef.current?.focus();
-          }}
-          onCancel={() => {
-            setOpen(false);
-            triggerRef.current?.focus();
-          }}
-        />
-      ) : null}
+        onClick={() => pickerRef.current?.togglePopover()}
+      >
+        Table
+      </button>
+      <TableSizePicker
+        ref={pickerRef}
+        onCommit={(r, c) => {
+          closePicker();
+          void insert(r, c);
+        }}
+        onCancel={closePicker}
+      />
     </div>
   );
 }

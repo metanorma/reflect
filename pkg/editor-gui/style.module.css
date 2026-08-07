@@ -95,16 +95,6 @@
   flex-shrink: 0; /* keep the 1px height; the empty span would otherwise collapse to 0 in a shrinking flex column */
 }
 
-/* Stateful popovers/dialogs (table grid picker, image dialog, reference-mark
- * popovers) are `position: absolute`; flip them to open leftward so they don't
- * overflow the right viewport edge when the bar is docked right. */
-:global(.mn-toolbar--vertical .mn-toolbar-popover),
-:global(.mn-toolbar--vertical .mn-toolbar-dialog) {
-  right: 100%;
-  left: auto;
-  margin-right: 2px;
-}
-
 @media (prefers-color-scheme: dark) {
   :global(.mn-toolbar--vertical) {
     border-left-color: var(--mn-border);

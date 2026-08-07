@@ -7,14 +7,42 @@
 
 @layer chrome {
 
-  .mn-toolbar-popover {
-    position: absolute;
-    z-index: 10;
+  .mn-toolbar-table {
+    display: inline-block;
+    position: relative;
+  }
+
+  /* Anchor the picker to the trigger button via CSS Anchor Positioning.
+     The dashed-ident is consumed by `position-anchor` on .mn-table-picker. */
+  .mn-toolbar-table .mn-toolbar-btn {
+    anchor-name: --mn-table-anchor;
+  }
+
+  /* ---- Table picker popover (top-layer via Popover API) ---- */
+
+  /* Self-contained popover styling. Deliberately does NOT reuse the shared
+     .mn-toolbar-popover class — the consumer's vertical-toolbar override
+     (style.module.css) targets .mn-toolbar-popover with `right: 100%`, which
+     would conflict with anchor positioning. */
+  .mn-table-picker {
+    position-anchor: --mn-table-anchor;
+    position-area: inline-end span-block-end;
+    margin: 2px;
     background: var(--mn-surface);
     border: 1px solid var(--mn-border);
     border-radius: var(--mn-radius-md);
     padding: 0.4em;
     box-shadow: 0 2px 8px var(--mn-shadow);
+  }
+
+  /* When anchor positioning is unavailable, fall back to positioning relative
+     to .mn-toolbar-table (position: relative). */
+  @supports not (anchor-name: --x) {
+    .mn-table-picker {
+      position: absolute;
+      top: 100%;
+      left: 0;
+    }
   }
 
   .mn-toolbar-grid {

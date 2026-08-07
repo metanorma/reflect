@@ -12,17 +12,46 @@
     position: relative;
   }
 
-  .mn-toolbar-dialog {
-    position: absolute;
-    z-index: 10;
+  /* Anchor the dialog to the trigger button via CSS Anchor Positioning.
+     The dashed-ident is consumed by `position-anchor` on .mn-image-dialog. */
+  .mn-toolbar-image .mn-toolbar-btn {
+    anchor-name: --mn-image-anchor;
+  }
+
+  /* ---- Image dialog popover (top-layer via Popover API) ---- */
+
+  /* Self-contained popover styling. Deliberately does NOT reuse the shared
+     .mn-toolbar-dialog class — the consumer's vertical-toolbar override
+     (style.module.css) targets .mn-toolbar-dialog with `right: 100%`, which
+     would conflict with anchor positioning. */
+  .mn-image-dialog {
+    position-anchor: --mn-image-anchor;
+    position-area: inline-end span-block-end;
+    margin: 2px;
     background: var(--mn-surface);
     border: 1px solid var(--mn-border);
     border-radius: var(--mn-radius-md);
     padding: var(--mn-space-2);
-    display: grid;
     gap: 0.4em;
     box-shadow: 0 2px 8px var(--mn-shadow);
     min-width: 16em;
+  }
+
+  /* `display: grid` only when the popover is open — the UA stylesheet sets
+     `display: none` on hidden [popover] elements, but an author `display`
+     declaration would override it and keep the dialog visible. */
+  .mn-image-dialog:popover-open {
+    display: grid;
+  }
+
+  /* When anchor positioning is unavailable, fall back to positioning relative
+     to .mn-toolbar-image (position: relative). */
+  @supports not (anchor-name: --x) {
+    .mn-image-dialog {
+      position: absolute;
+      top: 100%;
+      left: 0;
+    }
   }
 
   .mn-toolbar-dialog-field {
