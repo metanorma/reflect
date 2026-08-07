@@ -30,10 +30,23 @@ import {
 
 import "./section-type-picker.css";
 
-/** The ten section node names in fixed menu order (sections.md §4.2). */
+/**
+ * The ten section node names in **document order** — the sequence in which
+ * section types tend to appear in an ISO-style document (front-matter → main
+ * body → back matter → annexes → generic). This gives the picker a spatially
+ * predictable layout that mirrors the document's structure.
+ */
 const SECTION_TYPE_NAMES: readonly string[] = [
-  "clause", "annex", "terms", "definitions", "references",
-  "content_section", "abstract", "foreword", "introduction", "acknowledgements",
+  // Front matter (preface)
+  "abstract", "foreword", "introduction", "acknowledgements",
+  // Main body (sections)
+  "clause", "terms", "definitions",
+  // Back matter
+  "references",
+  // Annexes
+  "annex",
+  // Generic container
+  "content_section",
 ];
 
 /**
@@ -41,16 +54,16 @@ const SECTION_TYPE_NAMES: readonly string[] = [
  * Uses title-case words with spaces for readability.
  */
 const SECTION_LABELS: Readonly<Record<string, string>> = {
-  clause: "Clause",
-  annex: "Annex",
-  terms: "Terms",
-  definitions: "Definitions",
-  references: "References",
-  content_section: "Content section",
   abstract: "Abstract",
   foreword: "Foreword",
   introduction: "Introduction",
   acknowledgements: "Acknowledgements",
+  clause: "Clause",
+  terms: "Terms",
+  definitions: "Definitions",
+  references: "References",
+  annex: "Annex",
+  content_section: "Content section",
 };
 
 /** Whether the cursor is inside a section node (enables the button). */
