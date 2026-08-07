@@ -11,6 +11,7 @@
 import React from "react";
 import type { EditorView } from "prosemirror-view";
 import type { EditorState } from "prosemirror-state";
+import { TextSelection } from "prosemirror-state";
 
 import {
   toggleXref,
@@ -242,7 +243,22 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
             const ctx = buildRefContext(state, "bcp14");
             void getBcp14Prompt(ctx).then((type) => {
               if (type === null) return;
-              toggleBcp14(state, dispatch, type);
+              if (state.selection.empty) {
+                // Unlike xref/eref/concept (whose prompt value is metadata —
+                // a reference target), bcp14's keyword IS the displayed text.
+                // With an empty selection, applying the mark as a stored mark
+                // is invisible (docChanged:false). Insert the keyword text and
+                // apply the mark to it in one transaction, then select it so
+                // the user can immediately retype or extend it (§5.4, §6.1).
+                const { from } = state.selection;
+                const tr = state.tr;
+                tr.insertText(type, from);
+                tr.addMark(from, from + type.length, state.schema.marks["bcp14"]!.create({ type }));
+                tr.setSelection(TextSelection.create(tr.doc, from, from + type.length));
+                dispatch(tr);
+              } else {
+                toggleBcp14(state, dispatch, type);
+              }
               view.focus();
             });
           },
