@@ -342,6 +342,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"browser-fs-access@npm:^0.38.0":
+  version: 0.38.0
+  resolution: "browser-fs-access@npm:0.38.0"
+  checksum: 10c0/ceb31e6e73c7e0a976317f675d0ded17919c0165ec4b12c214166e54577ac768f25ab1178563cba671f6f077446ead113842b638afaf16b1b63534bf2adc1af9
+  languageName: node
+  linkType: hard
+
 "chownr@npm:^3.0.0":
   version: 3.0.0
   resolution: "chownr@npm:3.0.0"
@@ -373,6 +380,7 @@ __metadata:
     "@playwright/test": "npm:^1.49.0"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
+    browser-fs-access: "npm:^0.38.0"
     prosemirror-commands: "npm:^1.7.1"
     prosemirror-keymap: "npm:^1.2.2"
     react: "npm:^19.2.7"

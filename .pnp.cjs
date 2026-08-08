@@ -200,6 +200,10 @@ const RAW_RUNTIME_STATE =
       "npm:5.0.0"\
     ],\
     [\
+      "browser-fs-access",\
+      "npm:0.38.0"\
+    ],\
+    [\
       "chownr",\
       "npm:3.0.0"\
     ],\
@@ -849,6 +853,15 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["browser-fs-access", [\
+      ["npm:0.38.0", {\
+        "packageLocation": "./.yarn/cache/browser-fs-access-npm-0.38.0-4f2f3c14a9-ceb31e6e73.zip/node_modules/browser-fs-access/",\
+        "packageDependencies": [\
+          ["browser-fs-access", "npm:0.38.0"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["chownr", [\
       ["npm:3.0.0", {\
         "packageLocation": "./.yarn/cache/chownr-npm-3.0.0-5275e85d25-43925b8770.zip/node_modules/chownr/",\
@@ -886,6 +899,7 @@ const RAW_RUNTIME_STATE =
           ["@playwright/test", "npm:1.62.1"],\
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
+          ["browser-fs-access", "npm:0.38.0"],\
           ["editor-gui", "workspace:pkg/editor-gui"],\
           ["prosemirror-commands", "npm:1.7.1"],\
           ["prosemirror-keymap", "npm:1.2.3"],\

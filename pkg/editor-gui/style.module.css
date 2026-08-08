@@ -2,7 +2,7 @@
   body {
     margin: 0;
     padding: 0;
-    padding-left: 68px;
+    padding-left: 0;
     /*
     @media (prefers-color-scheme: light) {
       & {
@@ -28,6 +28,8 @@
 .app {
   position: absolute;
   inset: 0;
+  display: flex;
+  flex-direction: row;
 }
 
 /*
@@ -53,6 +55,8 @@
  * independent scrolling: the children cannot overflow-scroll unless their
  * parent's cross/block size is constrained. */
 :global(.mn-prosemirror) {
+  flex: 1 1 auto;
+  min-width: 0; /* allow shrink so the sidebar gets its space */
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -110,4 +114,133 @@
   :global(.mn-toolbar--vertical) {
     border-left-color: var(--mn-border);
   }
+}
+
+/*
+ * Left hover-expand sidebar (document-level actions: Save / Open).
+ *
+ * The rail (`.sidebar`) is a fixed-width flex child of `.app`. Its inner panel
+ * (`.sidebarPanel`) is absolutely positioned so it can widen on hover WITHOUT
+ * reflowing the editor — the panel overlays the editor's left edge in the
+ * expanded state. Collapsed (48px) shows icons only; expanded (168px) reveals
+ * the labels. Colour/spacing values come from the editor token palette
+ * (pkg/prosemirror-editor/tokens.css).
+ *
+ * `pointer-events: none` on the panel (with `auto` re-enabled on buttons)
+ * ensures the overlay area never steals clicks from the editor — important
+ * because the panel expands on `:hover` and can momentarily overlay the
+ * editor surface during mouse transit.
+ */
+
+.sidebar {
+  flex: 0 0 48px;
+  position: relative;
+  height: 100%;
+}
+
+.sidebarPanel {
+  position: absolute;
+  inset: 0;
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 120ms ease, box-shadow 120ms ease;
+  z-index: 10;
+  background: var(--mn-surface);
+  border-right: 1px solid var(--mn-border);
+  pointer-events: none; /* let clicks pass through to editor; buttons re-enable */
+}
+
+/* TEMPORARILY DISABLED — sidebar is fixed in collapsed state until
+ * functionality above the buttons is added. Re-enable by un-commenting.
+ .sidebar:hover .sidebarPanel {
+  width: 168px;
+  box-shadow: var(--mn-shadow);
+}
+*/
+
+/* Reserved top region for future document-structure navigation. Empty for now. */
+.sidebarNav {
+  flex: 0 0 auto;
+}
+
+/* Button group anchored to the bottom of the panel. */
+.sidebarButtonGroup {
+  margin-top: auto;
+  padding-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* A sidebar button: fills the panel width so it grows from icon-only (48px
+ * panel) to full icon+label (168px panel). The left padding (15px) centers the
+ * 18px icon in the 48px collapsed panel: (48 - 18) / 2 = 15. The same padding
+ * is kept in the expanded state so the icon never shifts position. The label
+ * is hidden (display:none) when collapsed and revealed when expanded. */
+.sidebarButton {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px 6px 15px; /* 15px left centers the icon in 48px */
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  color: var(--mn-text);
+  cursor: pointer;
+  border-radius: var(--mn-radius-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: auto; /* re-enable on buttons (panel is click-through) */
+}
+
+.sidebarButton:hover {
+  background: var(--mn-surface-muted);
+}
+
+.sidebarButton:focus-visible {
+  outline: 2px solid var(--mn-focus);
+  outline-offset: -2px;
+}
+
+/* Icon: fixed 18px, never shrinks so the size is identical in collapsed and
+ * expanded states. */
+.sidebarButtonIcon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+/* The label span. Hidden (display:none) in collapsed state so the icon can
+ * center; revealed as an inline label when the panel expands on hover. */
+.sidebarButtonLabel {
+  font-size: 0.85em;
+  color: var(--mn-text);
+  display: none;
+}
+
+/* TEMPORARILY DISABLED — sidebar is fixed in collapsed state until
+ * functionality above the buttons is added. Re-enable by un-commenting.
+.sidebar:hover .sidebarButtonLabel {
+  display: inline;
+}
+*/
+
+/* Inline status line for Save/Load errors (rendered in App.tsx). */
+.status {
+  position: absolute;
+  top: 4px;
+  left: 56px;
+  z-index: 20;
+  padding: 4px 8px;
+  background: var(--mn-surface-muted);
+  color: var(--mn-danger);
+  border-radius: var(--mn-radius-sm);
+  font-size: 0.85em;
+  pointer-events: none;
+  max-width: 60%;
 }
