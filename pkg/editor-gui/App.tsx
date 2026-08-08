@@ -138,7 +138,6 @@ function ({ onDoneLoading }) {
       setStatus(null);
       const file = await fileOpen({
         extensions: ['.mn.json', '.json'],
-        mimeTypes: ['application/json'],
         description: 'Metanorma document',
       });
       const text = await file.text();
