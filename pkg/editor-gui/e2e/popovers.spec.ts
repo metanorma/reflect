@@ -116,4 +116,82 @@ test.describe('popovers', () => {
       expect(docStr).toContain('test alt');
     });
   });
+
+  // -------------------------------------------------------------------------
+  // TargetPicker (Xref) — doc-anchored target picker popover.
+  // -------------------------------------------------------------------------
+  test.describe('XrefPicker', () => {
+    test('pick a doc target applies the xref mark', async ({ page }) => {
+      await openEditor(page);
+      await typeInEditor(page, 'see ');
+      // Select the typed text so the mark applies to it.
+      await page.keyboard.press('Shift+Home');
+
+      // Open the picker.
+      await toolbarButton(page, 'Xref').click();
+      const picker = page.locator('.mn-target-picker--xref[popover]');
+      await expect(picker).toBeVisible();
+
+      // The default doc's clause (id "_document_container") should appear.
+      const item = picker.locator('.mn-toolbar-popover__item', { hasText: '_document_container' });
+      await expect(item).toBeVisible();
+
+      // Click the item — occlusion assertion. If the editor intercepts the
+      // click (picker behind it), Playwright throws.
+      await item.click();
+      await expect(picker).toBeHidden();
+
+      const docStr = JSON.stringify(await getDoc(page));
+      expect(docStr).toContain('"xref"');
+      expect(docStr).toContain('_document_container');
+    });
+
+    test('free-text entry commits a typed id', async ({ page }) => {
+      await openEditor(page);
+      await typeInEditor(page, 'forward ');
+      await page.keyboard.press('Shift+Home');
+
+      await toolbarButton(page, 'Xref').click();
+      const picker = page.locator('.mn-target-picker--xref[popover]');
+      await expect(picker).toBeVisible();
+
+      // Type a custom id not present in the doc and press Enter — the free-text
+      // fallback path (Tier-2 forward reference). This typing is an occlusion
+      // assertion: if the editor is on top, the input won't receive keys.
+      const search = picker.locator('.mn-target-picker__search');
+      await search.fill('future-anchor');
+      await search.press('Enter');
+
+      await expect(picker).toBeHidden();
+      const docStr = JSON.stringify(await getDoc(page));
+      expect(docStr).toContain('"xref"');
+      expect(docStr).toContain('future-anchor');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // TargetPicker (Concept) — doc-anchored target picker popover.
+  // -------------------------------------------------------------------------
+  test.describe('ConceptPicker', () => {
+    test('pick a doc target applies the concept mark with kind "xref"', async ({ page }) => {
+      await openEditor(page);
+      await typeInEditor(page, 'term ');
+      await page.keyboard.press('Shift+Home');
+
+      await toolbarButton(page, 'Concept').click();
+      const picker = page.locator('.mn-target-picker--concept[popover]');
+      await expect(picker).toBeVisible();
+
+      const item = picker.locator('.mn-toolbar-popover__item', { hasText: '_document_container' });
+      await expect(item).toBeVisible();
+
+      await item.click();
+      await expect(picker).toBeHidden();
+
+      const docStr = JSON.stringify(await getDoc(page));
+      expect(docStr).toContain('"concept"');
+      expect(docStr).toContain('_document_container');
+      expect(docStr).toContain('"xref"'); // default kind discriminator
+    });
+  });
 });

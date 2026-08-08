@@ -101,4 +101,101 @@
     background: var(--mn-surface);
   }
 
+  /* ---- Target picker (xref / concept) trigger buttons + popover ---- */
+
+  /* Trigger-button wrappers: each anchors its own picker via CSS Anchor
+     Positioning. One wrapper per button so each gets a unique anchor name. */
+  .mn-toolbar-xref,
+  .mn-toolbar-concept {
+    display: inline-block;
+    position: relative;
+  }
+
+  .mn-toolbar-xref .mn-toolbar-btn {
+    anchor-name: --mn-xref-anchor;
+  }
+
+  .mn-toolbar-concept .mn-toolbar-btn {
+    anchor-name: --mn-concept-anchor;
+  }
+
+  /* Self-contained popover styling. Deliberately does NOT reuse the shared
+     .mn-toolbar-popover class — the consumer's vertical-toolbar override
+     targets .mn-toolbar-popover with `right: 100%`, which would conflict
+     with anchor positioning. */
+  .mn-target-picker {
+    position-area: inline-end span-block-end;
+    margin: 2px;
+    background: var(--mn-surface);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-md);
+    padding: 0.4em;
+    box-shadow: 0 2px 8px var(--mn-shadow);
+    min-width: 16em;
+  }
+
+  /* Per-button anchor binding. */
+  .mn-target-picker--xref {
+    position-anchor: --mn-xref-anchor;
+  }
+
+  .mn-target-picker--concept {
+    position-anchor: --mn-concept-anchor;
+  }
+
+  /* When anchor positioning is unavailable, fall back to positioning relative
+     to the trigger wrapper (position: relative). */
+  @supports not (anchor-name: --x) {
+    .mn-target-picker {
+      position: absolute;
+      top: 100%;
+      left: 0;
+    }
+  }
+
+  /* Search / free-text input — doubles as the Tier-2 manual-entry field
+     (Enter with no highlighted list item commits the typed text). */
+  .mn-target-picker__search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.25em 0.4em;
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-sm);
+    background: var(--mn-surface);
+    color: inherit;
+    margin-bottom: var(--mn-space-1);
+  }
+
+  .mn-target-picker__search:focus {
+    outline: 2px solid var(--mn-active);
+  }
+
+  /* Target list reuses .mn-toolbar-popover__list / __item from above. Active
+     (keyboard-highlighted) items get a distinct highlight so the user can see
+     which item Enter will pick. */
+  .mn-target-picker__item--active {
+    background: var(--mn-active);
+  }
+
+  /* Each entry: readable label + the id in monospace. */
+  .mn-target-picker__item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+  }
+
+  .mn-target-picker__id {
+    font-family: var(--mn-font-mono);
+    font-size: 0.85em;
+    color: var(--mn-text-muted);
+  }
+
+  .mn-target-picker__empty {
+    padding: 0.2em 0.4em;
+    color: var(--mn-text-muted);
+    list-style: none;
+  }
+
 }

@@ -1,11 +1,17 @@
 /**
- * `window.prompt` flow tests (link, xref, eref, concept, clause heading).
+ * `window.prompt` flow tests (link, eref, clause heading).
  *
  * Uses `page.on('dialog', ...)` for deterministic native-prompt interception.
  * Also guards the async stale-view fix: the clause button captures
  * `{ state, dispatch }` synchronously before the `.then()` that fires after the
  * prompt closes. (These flows are unaffected by the popover occlusion bug
  * because `window.prompt` is a native OS dialog, not a DOM popover.)
+ *
+ * Note: `xref` and `concept` no longer use `window.prompt` by default — they
+ * open a doc-anchored target picker popover instead (see popovers.spec.ts,
+ * 'XrefPicker' / 'ConceptPicker'). Only the host-hook path (`onXrefPrompt` /
+ * `onConceptPrompt`) would trigger a prompt, and the e2e mount does not supply
+ * those hooks.
  */
 import { expect, test } from '@playwright/test';
 import { editor, getDoc, openEditor, toolbarButton, typeInEditor } from './helpers.js';
@@ -41,19 +47,6 @@ test.describe('prompts', () => {
     expect(docStr).toContain('https://example.com');
   });
 
-  test('Xref: prompt accepts an id and applies the xref mark', async ({ page }) => {
-    await openEditor(page);
-    await typeInEditor(page, 'see ');
-    await page.keyboard.press('Shift+Home');
-
-    acceptNextPrompt(page, 'sec-intro');
-    await toolbarButton(page, 'Xref').click();
-
-    const docStr = JSON.stringify(await getDoc(page));
-    expect(docStr).toContain('"xref"');
-    expect(docStr).toContain('sec-intro');
-  });
-
   test('Eref: prompt accepts a citation key and applies the eref mark', async ({ page }) => {
     await openEditor(page);
     await typeInEditor(page, 'cite ');
@@ -65,20 +58,6 @@ test.describe('prompts', () => {
     const docStr = JSON.stringify(await getDoc(page));
     expect(docStr).toContain('"eref"');
     expect(docStr).toContain('iso1234');
-  });
-
-  test('Concept: prompt accepts an id; kind defaults to "xref"', async ({ page }) => {
-    await openEditor(page);
-    await typeInEditor(page, 'term ');
-    await page.keyboard.press('Shift+Home');
-
-    acceptNextPrompt(page, 'foo-bar');
-    await toolbarButton(page, 'Concept').click();
-
-    const docStr = JSON.stringify(await getDoc(page));
-    expect(docStr).toContain('"concept"');
-    expect(docStr).toContain('foo-bar');
-    expect(docStr).toContain('"xref"'); // default kind discriminator
   });
 
   test('Clause: prompt accepts a heading and wraps selection in a titled clause', async ({ page }) => {

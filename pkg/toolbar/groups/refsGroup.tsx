@@ -2,10 +2,12 @@
  * `refs` group — reference marks + inline atom nodes (reference-marks.md §4).
  *
  * Six buttons: four mark toggles (`xref`, `eref`, `concept`, `bcp14`) plus two
- * inline-atom node insertions (`footnote_marker`, `stem`). The mark buttons
- * collect their attribute via an async prompt hook (`onXrefPrompt`, etc.) before
- * calling the pure command. The node buttons resolve their attrs via
- * `onFootnotePrompt` / `onStemPrompt` (or defaults).
+ * inline-atom node insertions (`footnote_marker`, `stem`). `xref` and `concept`
+ * resolve their target via a doc-anchored picker popover (`XrefButton` /
+ * `ConceptButton` in `TargetPicker.tsx`), bypassed when a host `onXrefPrompt` /
+ * `onConceptPrompt` hook is supplied. `eref` and `bcp14` collect their attribute
+ * via an async prompt hook before calling the pure command. The node buttons
+ * resolve their attrs via `onFootnotePrompt` / `onStemPrompt` (or defaults).
  */
 
 import React from "react";
@@ -14,9 +16,7 @@ import type { EditorState } from "prosemirror-state";
 import { TextSelection } from "prosemirror-state";
 
 import {
-  toggleXref,
   toggleEref,
-  toggleConcept,
   toggleBcp14,
   insertStem,
 } from "@metanorma/editor-commands";
@@ -30,6 +30,7 @@ import type {
 } from "../AdvancedMetanormaToolbar.js";
 import { isInlineContext } from "../predicates.js";
 import { FootnoteButton } from "../FootnotePicker.js";
+import { XrefButton, ConceptButton } from "../TargetPicker.js";
 
 import "../reference-marks.css"; // re-uses the popover styles for the stem menu
 
@@ -51,30 +52,10 @@ function refMarkActive(state: EditorState, name: string): boolean {
 // Default prompt implementations (reference-marks.md §5)
 // ---------------------------------------------------------------------------
 
-function defaultXrefPrompt(): Promise<string | null> {
-  return Promise.resolve(
-    typeof window !== "undefined" && typeof window.prompt === "function"
-      ? window.prompt("Cross-reference target id:")
-      : null,
-  );
-}
-
 function defaultErefPrompt(): Promise<string | null> {
   return Promise.resolve(
     typeof window !== "undefined" && typeof window.prompt === "function"
       ? window.prompt("Citation key:")
-      : null,
-  );
-}
-
-function defaultConceptPrompt(): Promise<{ ref: string; kind: "eref" | "xref" | "termref" } | null> {
-  return Promise.resolve(
-    typeof window !== "undefined" && typeof window.prompt === "function"
-      ? (() => {
-          const ref = window.prompt("Concept id:");
-          if (ref === null) return null;
-          return { ref, kind: "xref" as const };
-        })()
       : null,
   );
 }
@@ -137,9 +118,7 @@ function buildStemContext(state: EditorState): StemPromptContext {
  * Build the `refs` group, threading the prompt hooks.
  */
 export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
-  const getXrefPrompt = opts.onXrefPrompt ?? defaultXrefPrompt;
   const getErefPrompt = opts.onErefPrompt ?? defaultErefPrompt;
-  const getConceptPrompt = opts.onConceptPrompt ?? defaultConceptPrompt;
   const getBcp14Prompt = opts.onBcp14Prompt ?? defaultBcp14Prompt;
   const getFootnotePrompt = opts.onFootnotePrompt;
   const getStemPrompt = opts.onStemPrompt ?? defaultStemPrompt;
@@ -148,31 +127,14 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
     id: "refs",
     label: "References",
     entries: [
-      // ── xref ──
-      {
-        kind: "button",
-        descriptor: {
-          key: "refs-xref",
-          label: "Xref",
-          title: "Insert cross-reference",
-          isActive: (state) => refMarkActive(state, "xref"),
-          isEnabled: isInlineContext,
-          run: (view: EditorView) => {
-            const { state, dispatch } = view;
-            if (refMarkActive(state, "xref")) {
-              toggleXref(state, dispatch, null);
-              view.focus();
-              return;
-            }
-            const ctx = buildRefContext(state, "xref");
-            void getXrefPrompt(ctx).then((target) => {
-              if (target === null) return;
-              toggleXref(state, dispatch, target);
-              view.focus();
-            });
-          },
+        // ── xref ──
+        // Doc-anchored target picker (reference-marks.md §5.1). The dedicated
+        // component owns the picker popover and toggle-off; onXrefPrompt, when
+        // supplied, bypasses the picker for a host-provided picker.
+        {
+          kind: "control",
+          render: () => <XrefButton onXrefPrompt={opts.onXrefPrompt} />,
         },
-      },
       // ── eref ──
       {
         kind: "button",
@@ -198,32 +160,14 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
           },
         },
       },
-      // ── concept ──
-      {
-        kind: "button",
-        descriptor: {
-          key: "refs-concept",
-          label: "Concept",
-          title: "Insert concept reference",
-          isActive: (state) => refMarkActive(state, "concept"),
-          isEnabled: isInlineContext,
-          run: (view: EditorView) => {
-            const { state, dispatch } = view;
-            if (refMarkActive(state, "concept")) {
-              toggleConcept(state, dispatch, null);
-              view.focus();
-              return;
-            }
-            const ctx = buildRefContext(state, "concept");
-            void getConceptPrompt(ctx).then((res) => {
-              if (res === null) return;
-              const { ref, kind } = res;
-              toggleConcept(state, dispatch, ref, kind);
-              view.focus();
-            });
-          },
+        // ── concept ──
+        // Doc-anchored target picker (reference-marks.md §5.3). The picker
+        // path uses kind "xref" (document-internal); onConceptPrompt bypasses
+        // the picker for a host-provided one returning { ref, kind }.
+        {
+          kind: "control",
+          render: () => <ConceptButton onConceptPrompt={opts.onConceptPrompt} />,
         },
-      },
       // ── bcp14 ──
       {
         kind: "button",
