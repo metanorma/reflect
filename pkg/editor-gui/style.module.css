@@ -139,6 +139,10 @@
  * ensures the overlay area never steals clicks from the editor — important
  * because the panel expands on `:hover` and can momentarily overlay the
  * editor surface during mouse transit.
+ *
+ * NOTE: colours use plain values (not --mn-* tokens) because the rest of the
+ * editor-gui doesn't yet apply the token theme. This keeps the sidebar
+ * visually consistent with the editor surface.
  */
 
 .sidebar {
@@ -156,8 +160,7 @@
   overflow: hidden;
   transition: width 120ms ease, box-shadow 120ms ease;
   z-index: 10;
-  background: var(--mn-surface);
-  border-right: 1px solid var(--mn-border);
+  border-right: 1px solid #ccc;
   pointer-events: none; /* let clicks pass through to editor; buttons re-enable */
 }
 
@@ -199,20 +202,20 @@
   box-sizing: border-box;
   border: none;
   background: transparent;
-  color: var(--mn-text);
+  color: inherit;
   cursor: pointer;
-  border-radius: var(--mn-radius-sm);
+  border-radius: 2px;
   white-space: nowrap;
   overflow: hidden;
   pointer-events: auto; /* re-enable on buttons (panel is click-through) */
 }
 
 .sidebarButton:hover {
-  background: var(--mn-surface-muted);
+  background: #f0f0f0;
 }
 
 .sidebarButton:focus-visible {
-  outline: 2px solid var(--mn-focus);
+  outline: 2px solid #4a90d9;
   outline-offset: -2px;
 }
 
@@ -228,7 +231,7 @@
  * center; revealed as an inline label when the panel expands on hover. */
 .sidebarButtonLabel {
   font-size: 0.85em;
-  color: var(--mn-text);
+  color: inherit;
   display: none;
 }
 
@@ -246,9 +249,9 @@
   left: 56px;
   z-index: 20;
   padding: 4px 8px;
-  background: var(--mn-surface-muted);
-  color: var(--mn-danger);
-  border-radius: var(--mn-radius-sm);
+  background: #f0f0f0;
+  color: #b00020;
+  border-radius: 2px;
   font-size: 0.85em;
   pointer-events: none;
   max-width: 60%;
