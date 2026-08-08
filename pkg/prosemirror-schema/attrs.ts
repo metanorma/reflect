@@ -17,13 +17,14 @@ export const DATA_ATTR = { data: { default: {} } } as const;
 
 /**
  * Attribute specs for the {@link SectionAttrs} shape —
- * `id`, `number`, `title` (all default `null`) plus the `data` catch-all.
+ * `id`, `number` (both default `null`) plus the `data` catch-all. Same shape
+ * as {@link baseAttrs}; kept as a semantic alias for the ten section node types.
+ * The section heading is now a `section_title` child node (§8.2), not an attr.
  */
 export function sectionAttrs(): Record<string, AttributeSpec> {
   return {
     id: { default: null },
     number: { default: null },
-    title: { default: null },
     ...DATA_ATTR,
   };
 }

@@ -1,15 +1,21 @@
 import { expect, test } from '@playwright/test';
 import { openEditor, toolbarButton, typeInEditor, getDoc } from './helpers.js';
 
+/** Locator for the RAC prompt popover. */
+function promptPopover(page: import('@playwright/test').Page) {
+  return page.locator('.mn-prompt-popover');
+}
+
 test.describe('bcp14', () => {
-  test('empty selection: prompt inserts the keyword text with the mark', async ({ page }) => {
+  test('empty selection: dialog inserts the keyword text with the mark', async ({ page }) => {
     await openEditor(page);
     await typeInEditor(page, 'hello ');
 
-    page.once('dialog', async (dialog) => {
-      await dialog.accept('MUST');
-    });
     await toolbarButton(page, 'Bcp14').click();
+    const dialog = promptPopover(page);
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('textbox').fill('MUST');
+    await dialog.getByRole('button', { name: 'OK' }).click();
 
     const docStr = JSON.stringify(await getDoc(page));
     // The keyword text must appear in the document
@@ -19,7 +25,7 @@ test.describe('bcp14', () => {
     expect(docStr).toContain('"type":"MUST"');
   });
 
-  test('non-empty selection: prompt wraps the selection with the mark', async ({ page }) => {
+  test('non-empty selection: dialog wraps the selection with the mark', async ({ page }) => {
     await openEditor(page);
     await typeInEditor(page, 'this MUST be done');
     // Select "MUST"
@@ -30,26 +36,27 @@ test.describe('bcp14', () => {
     await page.keyboard.press('Shift+ArrowRight');
     await page.keyboard.press('Shift+ArrowRight');
 
-    page.once('dialog', async (dialog) => {
-      await dialog.accept('MUST');
-    });
     await toolbarButton(page, 'Bcp14').click();
+    const dialog = promptPopover(page);
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('textbox').fill('MUST');
+    await dialog.getByRole('button', { name: 'OK' }).click();
 
     const docStr = JSON.stringify(await getDoc(page));
     expect(docStr).toContain('"bcp14"');
     expect(docStr).toContain('"type":"MUST"');
   });
 
-  test('cancel: dismissed prompt leaves the document unchanged', async ({ page }) => {
+  test('cancel: dismissed dialog leaves the document unchanged', async ({ page }) => {
     await openEditor(page);
     await typeInEditor(page, 'plain text');
 
     const before = JSON.stringify(await getDoc(page));
 
-    page.once('dialog', async (dialog) => {
-      await dialog.dismiss();
-    });
     await toolbarButton(page, 'Bcp14').click();
+    const dialog = promptPopover(page);
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
 
     const after = JSON.stringify(await getDoc(page));
     expect(after).toBe(before);

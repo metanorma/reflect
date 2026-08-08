@@ -13,7 +13,7 @@
  *     the hook exercises the same `loadDocFromJson` path the Open button uses).
  */
 import { expect, test } from '@playwright/test';
-import { getDoc, openEditor, typeInEditor } from './helpers.js';
+import { getDoc, openEditor, typeInEditor, editor } from './helpers.js';
 
 test.describe('sidebar', () => {
 
@@ -52,30 +52,30 @@ test.describe('sidebar', () => {
 
   test('load-via-hook replaces editor content', async ({ page }) => {
     await openEditor(page);
-    await typeInEditor(page, 'original content');
+    // Navigate past the section_title into the paragraph, then type.
+    await editor(page).click();
+    await page.keyboard.press('Enter'); // exit section_title → body paragraph
+    await page.keyboard.type('original content');
 
     // Capture the baseline doc and confirm it has the typed text.
-    const baseline = await getDoc(page) as Record<string, unknown>;
+    const baseline = await getDoc(page as any) as Record<string, unknown>;
     expect(JSON.stringify(baseline)).toContain('original content');
 
-    // Mutate the baseline: inject different text into the paragraph's text node.
-    const mutated = JSON.parse(JSON.stringify(baseline)) as {
-      content: Array<{
-        content: Array<{
-          content: Array<{
-            content: Array<{ text?: string; type: string }>;
-            type: string;
-          }>;
-          type: string;
-        }>;
-        type: string;
-      }>;
+    // Deep-walk the baseline JSON to find the first text node and replace its
+    // text. The structure is doc > sections > clause > [section_title,
+    // paragraph > text], so we recurse instead of hard-coding the path.
+    const mutated = JSON.parse(JSON.stringify(baseline));
+    const replaceText = (node: any): boolean => {
+      if (node?.type === 'text' && typeof node.text === 'string') {
+        node.text = 'loaded replacement text';
+        return true;
+      }
+      for (const child of node?.content ?? []) {
+        if (replaceText(child)) return true;
+      }
+      return false;
     };
-    // Walk to the first text node and replace its text.
-    const para = mutated.content[0].content[0].content[0];
-    if (para.type === 'paragraph' && Array.isArray(para.content) && para.content[0]) {
-      para.content[0].text = 'loaded replacement text';
-    }
+    replaceText(mutated);
 
     // Drive the rehydration hook (same path the Open button uses).
     const ok = await page.evaluate((json) => {

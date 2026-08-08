@@ -52,21 +52,22 @@ child of `doc`".
 ### 2.2 Section nodes — group `"section"`
 
 All ten section nodes carry `group: SECTION_GROUP` and
-`attrs: sectionAttrs()` = `{ id, number, title, data }` (all four default
-`null` except `data` which defaults to `{}`).
+`attrs: sectionAttrs()` = `{ id, number, data }` (the `title` attribute was
+removed in schema v5 — the heading is now a `section_title` child textblock;
+`id` and `number` default `null`, `data` defaults to `{}`).
 
 | Section node | Content expression | Can nest section children? |
 |---|---|---|
-| `clause` | `(clause \| block)*` | ✅ yes (`clause`) |
-| `annex` | `(annex \| clause \| block)*` | ✅ yes (`annex`, `clause`) |
-| `content_section` | `(section \| block)*` | ✅ yes (any `section`) |
-| `terms` | `(clause \| block)*` | ✅ yes (`clause`) |
-| `definitions` | `(clause \| block)*` | ✅ yes (`clause`) |
-| `references` | `(clause \| block)*` | ✅ yes (`clause`) |
-| `abstract` | `block+` | ❌ leaf only |
-| `foreword` | `block+` | ❌ leaf only |
-| `introduction` | `block+` | ❌ leaf only |
-| `acknowledgements` | `block+` | ❌ leaf only |
+| `clause` | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
+| `annex` | `section_title? (annex \| clause \| block)*` | ✅ yes (`annex`, `clause`) |
+| `content_section` | `section_title? (section \| block)*` | ✅ yes (any `section`) |
+| `terms` | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
+| `definitions` | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
+| `references` | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
+| `abstract` | `section_title? block+` | ❌ leaf only |
+| `foreword` | `section_title? block+` | ❌ leaf only |
+| `introduction` | `section_title? block+` | ❌ leaf only |
+| `acknowledgements` | `section_title? block+` | ❌ leaf only |
 
 **Key distinction.** Six section types (`clause`, `annex`,
 `content_section`, `terms`, `definitions`, `references`) may contain nested
@@ -79,14 +80,14 @@ must be disabled when the insertion or demotion target is a leaf section or a
 #### floating_title is a distinct concept, not a section
 
 The schema also defines a `floating_title` block node (`group: "block"`,
-`atom: true`, `content: ""`, `sectionAttrs()` — i.e. it carries
-`id`/`number`/`title`/`data` but has no children). It renders as a
-non-`<section>` `<div class="mn-floating-title">` and is deliberately placed
-**outside the numbered section hierarchy** — per
+`content: "inline*"`, attrs `{ id, depth, data }` — i.e. it carries
+`id`/`depth`/`data` but its heading text is inline content, not an attribute).
+It renders as a non-`<section>` `<div class="mn-floating-title">` and is
+deliberately placed **outside the numbered section hierarchy** — per
 [Metanorma's documentation](https://www.metanorma.org/author/topics/sections/),
 "a floating title is a title that is placed outside the numbered hierarchy of
 clauses … not uniquely referable like normal clauses." It is therefore **not**
-an alternative to a clause `title` (which is the heading *of* a numbered
+an alternative to a `section_title` (which is the heading *of* a numbered
 section node that participates in nesting and cross-referencing) but a
 free-standing, unnumbered heading block.
 
@@ -100,8 +101,10 @@ does not insert it.
 
 ### 2.3 Attributes
 
-- `title` — the clause **heading text**, user-facing. The toolbar may prompt for
-  or default this on insert (§7).
+- `section_title` child node — the clause **heading textblock** (`content:
+  "inline*"`), the optional leading child of every section node. The user types
+  the heading directly into it after clause insertion (§7); no prompt dialog is
+  used. It supports full inline markup (emphasis, links, etc.).
 - `id` — stable identifier. **Tooling-assigned** (§7), never typed by the user.
 - `number` — display number ("3.2.1"). **Tooling-assigned**; the user does not
   edit it. The editor does **not** implement auto-numbering; all section
@@ -154,7 +157,7 @@ between section node types where the content model permits). The proposed set:
 
 | # | Button | Label | Purpose |
 |---|---|---|---|
-| 1 | Insert clause | `Clause` | Wrap the selected block(s) in a new `clause` node containing a leading child paragraph; place the cursor in that paragraph. The primary structural "add a subsection here" action. |
+| 1 | Insert clause | `Clause` | Wrap the selected block(s) in a new `clause` node containing a leading `section_title` heading and a child `paragraph`; place the cursor in the `section_title` so the user can type the heading immediately. The primary structural "add a subsection here" action. |
 | 2 | Promote clause | `Promote` | Lift the nearest enclosing clause out one nesting level (move it to be a sibling of its parent clause). Disabled at the top structural level. |
 | 3 | Demote clause | `Demote` | Nest the nearest enclosing clause as the last child of its preceding sibling clause (one level deeper). Disabled when no legal deeper target exists. |
 | 4 | Change section type | `Type` | Convert the nearest enclosing section node into another section type whose content expression is satisfied by the node's current children (e.g. `clause` → `terms`). Disabled for leaf-only or unsatisfiable conversions. |
@@ -187,7 +190,7 @@ the most common type, `clause`, in one action; a dropdown caret opens a menu of
 | `title` | `"Insert clause (wrap selection in a new clause)"` |
 | `isActive` | `false` — insertion is not a toggle. (See note below.) |
 | `isEnabled` | `canWrapInClause(state)` (§5.1): the resolved selection's ancestor chain contains a container that permits a `clause` child (or the doc-top-level fallback applies). |
-| `run` | Toolbar adapter calls `wrapInClause(view.state, view.dispatch, { title })` (§5.2), then `view.focus()`. Prompts for the heading `title` per §7, wraps the selection in a new `clause` (with a child paragraph), and places the cursor in that paragraph. |
+| `run` | Toolbar adapter calls `wrapInClause(view.state, view.dispatch)` (§5.2), then `view.focus()`. The clause is created synchronously with an empty `section_title` child and a `paragraph` body; the cursor lands in the `section_title` so the user types the heading inline. No prompt dialog, no async capture. |
 
 **Dropdown menu (other section types):**
 
@@ -345,27 +348,25 @@ type).
 ```typescript
 /**
  * Wrap the block(s) covered by the selection in a new `clause` node that
- * contains a leading empty `paragraph`, then place the selection in that
- * paragraph. The heading `title` attribute is set from `opts.title`
- * (defaulting to null / empty — see §7). `id` and `number` are left null
- * (tooling-assigned). Conforms to the Command contract (README §6.2;
- * EditorCommands.spec.md §1.5); the `title` is threaded as a plain optional
- * argument — not via a view wrapper.
+ * contains a leading empty `section_title` (the heading textblock) and an
+ * empty `paragraph` body, then place the selection in the `section_title`.
+ * The user types the heading inline — no prompt, no title argument. `id` and
+ * `number` are left null (tooling-assigned). Conforms to the Command contract
+ * (README §6.2; EditorCommands.spec.md §1.5).
  */
 export function wrapInClause(
   state: EditorState,
   dispatch?: (tr: Transaction) => void,
-  opts?: { readonly title?: string | null },
 ): boolean;
 ```
 
 **No `wrapInClauseView` overload.** An earlier draft specified a
 `wrapInClauseView(view: EditorView, title): void` adapter in this module. That
 is a UI concern and is **not** exported from `editor-commands`: the toolbar
-button's `run(view)` adapter (which lives in `@metanorma/toolbar`) resolves the
-heading `title` per §7, calls `wrapInClause(view.state, view.dispatch, { title })`,
-and then `view.focus()`. The pure command takes `title` as an ordinary optional
-argument so no `EditorView` ever enters the command.
+button's `run(view)` adapter (which lives in `@metanorma/toolbar`) calls
+`wrapInClause(view.state, view.dispatch)` and then `view.focus()`. The pure
+command takes no heading argument — the heading is typed into the `section_title`
+child after insertion, not passed as a parameter.
 
 **Algorithm (`wrapInClause`):**
 
@@ -375,12 +376,11 @@ argument so no `EditorView` ever enters the command.
    wrap the single block containing the cursor. Derive a `NodeRange` via
    `$from.blockRange($to)`.
 3. Build the new clause:
-   `schema.nodes.clause.create({ title: opts?.title ?? null, id: generateId(), number: null, data: {} }, [schema.nodes.paragraph.create()])`.
-   The leading empty paragraph is the cursor landing site and ensures the
-   clause is never empty (content `(clause | block)*` allows zero children, but
-   an empty clause is a poor editing target). The `id` is **generated at
-   insertion time** via the shared `generateId()` helper from
-   `@metanorma/editor-commands` (`util.ts`).
+   `schema.nodes.clause.create({ id: generateId(), number: null, data: {} }, [schema.nodes.section_title.create(), schema.nodes.paragraph.create()])`.
+   The leading `section_title` is the heading (where the cursor lands so the
+   user can type the heading immediately); the `paragraph` is the body. The
+   `id` is **generated at insertion time** via the shared `generateId()` helper
+   from `@metanorma/editor-commands` (`util.ts`).
 4. **Doc-top-level fallback.** If the block range's parent is the `doc` (i.e.
    no section-bearing ancestor exists) and no `sections` container is present
    in the document, first insert a `sections` node at the schema-mandated
@@ -391,13 +391,13 @@ argument so no `EditorView` ever enters the command.
    container creation, the wrap, and the selection move are all part of the
    same transaction.
 5. Wrap the range with the clause using `tr.wrap(range, [{ type: clause, attrs }])`,
-   **or**, when wrapping a collapsed cursor, insert the clause + paragraph via
+   **or**, when wrapping a collapsed cursor, insert the clause + children via
    `tr.replaceSelectionWith` / a manual `ReplaceAroundStep` that preserves the
    surrounding block. (The exact step shape is an implementation detail; the
    invariant is: the original block content ends up as a child of the new
-   clause, preceded by the empty paragraph.)
-6. Map the selection into the new paragraph (`TextSelection.near` on the
-   mapped position inside the clause).
+   clause, preceded by the `section_title` and `paragraph`.)
+6. Map the selection into the new `section_title` (`TextSelection.near` on the
+   mapped position `range.start + 2`, inside the section_title).
 7. `dispatch(tr.scrollIntoView())`; return `true`.
 
 **Selection-shape handling.** Standard `tr.wrap` over the `NodeRange` from
@@ -415,9 +415,11 @@ returns `false` when `$from` and `$to` are in different section ancestors, so
 `wrapInClause` never receives a cross-section range. No clamp or partial-wrap
 fallback is provided.
 
-**Cursor placement.** The empty leading paragraph is where the cursor lands so
-the user can immediately type the clause body; the heading `title` is captured
-separately (§7) and written to the attribute, not into the paragraph.
+**Cursor placement.** The cursor lands in the `section_title` so the user can
+immediately type the clause heading. Pressing Enter inside the `section_title`
+exits to the body paragraph (via the `exitSectionTitle` command,
+`EditorCommands.spec.md` §2.7), and the user types the body content there. The
+heading is typed inline — no separate prompt or dialog.
 
 ### 5.3 `promoteClause` / `demoteClause`
 
@@ -489,7 +491,7 @@ intermediate steps so the one-undo-per-action invariant is preserved.
 ```typescript
 /**
  * Convert the nearest enclosing section node into `targetType`, preserving
- * its `id`, `title`, `data`, and (optionally) `number`, and keeping its
+ * its `id`, `data`, and (optionally) `number`, and keeping its
  * children iff `targetType.validContent(current.content)`. If the children
  * are not legal under `targetType` (e.g. converting a `clause` with nested
  * clauses into an `abstract`, which is block+-only), return false (disabled).
@@ -599,30 +601,18 @@ re-renders, matching the base toolbar's performance contract.
 | Demote | No preceding sibling section that can legally hold a clause; or inside a leaf section. |
 | Change section type | No legal alternative type exists for the current section's content; or not inside any section. |
 
-## 7. The `title` attribute (heading text)
+## 7. The section heading (`section_title` child node)
 
-`sectionAttrs.title` is the user-facing clause heading. On **Insert clause** the
-toolbar must obtain a value for it. Three options are considered; the spec
-recommends the popover for the advanced toolbar and keeps `window.prompt` as a
-fallback hook, mirroring the base toolbar's `onLinkPrompt` pattern
-(MetanormaToolbar.spec.md §6):
-
-1. **Popover input (recommended).** A small absolutely-positioned input
-   anchored to the button / selection, with an explicit "Confirm" / "Cancel".
-   This is accessible (§9), dismissible, and composes with the existing React
-   tree. Recommended for the advanced toolbar.
-2. **`window.prompt('Clause heading:')`.** Deliberately simple; the baseline.
-   Reuses the same escape-hatch prop pattern as the link prompt:
-   ```typescript
-   /** Optional custom heading prompt. Default: window.prompt. */
-   readonly onHeadingPrompt?: () => Promise<string | null>;
-   ```
-   When it resolves `null`, the insert is cancelled. When it resolves a string,
-   that becomes `title` (empty string → `title: null`).
-3. **Empty default.** Skip the prompt; insert with `title: null`. The heading
-   is then edited elsewhere (e.g. a node-view title field). Lowest friction but
-   yields untitled clauses; suitable only if a downstream node view renders an
-   editable title.
+The section heading is a `section_title` child textblock (schema §8.2 — the
+optional leading child of every section node's content expression). It is no
+longer a `title` **attribute** on the section node (that model was replaced in
+schema v5). On **Insert clause**, the toolbar creates the clause synchronously
+with an empty `section_title` and a `paragraph` body, and the cursor lands in
+the `section_title`. The user types the heading directly into it — **no prompt
+dialog, no `window.prompt`, no async capture**. The heading supports full
+inline markup (emphasis, links, reference marks, etc.) because it is an ordinary
+`inline*` textblock. Pressing Enter inside the `section_title` exits to the body
+(via the `exitSectionTitle` command, `EditorCommands.spec.md` §2.7).
 
 `id` and `number` are **never** user input: `id` is **generated at insertion
 time** via the shared `generateId()` helper (a `crypto.randomUUID()`-based
@@ -673,7 +663,6 @@ and `mn-toolbar-divider` classes. Feature-specific additions for this group:
 |---|---|
 | `.mn-toolbar-btn--sections` | Optional modifier marking buttons belonging to the `sections` group (for targeted group-specific styling). |
 | `.mn-toolbar-section-menu` | The `<select>` or sub-menu (`role="listbox"`) listing section node types. Shared by the §4.2 insert split-button dropdown and the §4.5 "Change section type" menu. |
-| `.mn-toolbar-heading-popover` | The popover `<div>` containing the heading `<input>` (§7 option 1). Anchored, with `role="dialog"`. |
 
 No new root or group-container classes are required beyond the base
 `.mn-toolbar-group`.
@@ -694,11 +683,6 @@ Feature-specific accessibility additions beyond the baseline (README §2.5 /
   Enter and dismissing with Escape.
 - **Promote / Demote** — `aria-describedby` can point at a hidden live region
   announcing the current nesting depth (e.g. "Clause at level 2").
-- **Heading popover (§7 option 1)** — `role="dialog"`,
-  `aria-modal="false"` (non-blocking), `aria-label="Clause heading"`. Focus
-  moves to the `<input>` on open and returns to the Insert-clause button on
-  close. The `<input>` has an associated `<label>` ("Heading text"). Enter
-  confirms, Escape cancels.
 
 **Nesting depth and heading-level representation.** There is **no depth cap**:
 the schema permits unbounded `clause`-within-`clause` nesting, and the toolbar
@@ -706,8 +690,8 @@ never disables Demote based on depth (Metanorma documents legitimately nest
 beyond 6, e.g. annex sub-clauses; capping would reject valid documents).
 Because HTML has only six heading elements (`<h1>`–`<h6>`), heading level is
 conveyed via **`aria-level`** set to the clause's true nesting depth on the
-rendered `<section>` element (computed from the node tree by a node view or
-decoration, never stored on the node). `aria-level` accepts any positive
+rendered `<section>` element (computed from the node tree by a decoration,
+never stored on the node). `aria-level` accepts any positive
 integer, so it remains accurate past level 6. A visual `<hN>` may optionally
 be synthesised for display, clamped to `<h6>` past level 6, but `aria-level`
 carries the true depth to assistive tech. Depth is **derived**, not stored:

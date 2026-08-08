@@ -51,6 +51,9 @@ export const CLASS = {
   definitions:      "mn-definitions",
   references:       "mn-references",
 
+  // Section title child node (§8.2)
+  sectionTitle: "mn-section-title",
+
   // Block nodes (§8.3)
   note:          "mn-note",
   admonition:    "mn-admonition",

@@ -1,8 +1,8 @@
 /**
  * Public API for `@metanorma/prosemirror-schema` (§11).
  *
- * Implements [`docs/schema.spec.md`](../../docs/schema.spec.md) **v4** — the
- * source of truth for the document model (43 node types, 14 mark types,
+ * Implements [`docs/schema.spec.md`](../../docs/schema.spec.md) **v5** — the
+ * source of truth for the document model (44 node types, 14 mark types,
  * content model, attributes, and DOM serialization rules).
  *
  * Assembles the single ProseMirror `Schema` whose node/mark vocabulary,
@@ -42,7 +42,7 @@ export type { ClassName } from "./classes.js";
 // ---------------------------------------------------------------------------
 
 /**
- * The 43 node names, in §3.1 group order. The authoritative list that the
+ * The 44 node names, in §3.1 group order. The authoritative list that the
  * schema's `nodes` map must contain exactly.
  */
 export const NODE_NAMES: readonly string[] = [
@@ -51,9 +51,11 @@ export const NODE_NAMES: readonly string[] = [
   // SECTION_TYPES (10)
   "clause", "annex", "content_section", "abstract", "foreword",
   "introduction", "acknowledgements", "terms", "definitions", "references",
-  // BLOCK_TYPES (8)
+  // SECTION_TITLE_TYPES (1)
+  "section_title",
+  // BLOCK_TYPES (9)
   "paragraph", "note", "admonition", "example", "sourcecode",
-  "formula", "quote", "review",
+  "formula", "quote", "review", "floating_title",
   // LIST_TYPES (6)
   "bullet_list", "ordered_list", "list_item", "dl", "dt", "dd",
   // TABLE_TYPES (6)
@@ -64,8 +66,8 @@ export const NODE_NAMES: readonly string[] = [
   "footnotes", "footnote_marker", "footnote_entry",
   // INLINE_ATOM_TYPES (1)
   "stem",
-  // LEAF_TYPES (3)
-  "text", "soft_break", "floating_title",
+  // LEAF_TYPES (2)
+  "text", "soft_break",
 ];
 
 /**

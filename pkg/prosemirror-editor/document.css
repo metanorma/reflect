@@ -9,7 +9,7 @@
  *
  * Cascade: declared in the `document` layer (see style.css), which sits ABOVE
  * `chrome` so document rules can refine chrome defaults for the elements that
- * have both (e.g. a section's title strip is chrome; a section's body
+ * have both (e.g. a section's spacing is chrome; a section's body
  * typography is document). Loaded as a side-effect through style.css.
  */
 
@@ -32,6 +32,24 @@
     background: var(--mn-surface-muted);
     border-radius: var(--mn-radius-sm);
     white-space: pre-wrap;
+  }
+
+  /* ---- section title ---- */
+
+  .mn-prosemirror .mn-section-title {
+    font-weight: 600;
+    font-size: 1.2em;
+    line-height: 1.3;
+    margin: var(--mn-space-1) 0;
+    padding: var(--mn-space-1) 0;
+    border-bottom: 1px solid var(--mn-border);
+  }
+
+  .mn-prosemirror .mn-section-title:empty::before {
+    content: "Section heading";
+    color: var(--mn-text-placeholder);
+    font-weight: 400;
+    font-style: italic;
   }
 
   /* ---- floating title ---- */
@@ -145,19 +163,18 @@
   /* ---- nested clause indentation ---- */
   /*
    * Schema emits <section class="mn-clause"> nested as the document's clause
-   * hierarchy dictates. SectionNodeView wraps each section's editable content
-   * in a .mn-section-content host, so a clause nested inside another clause
-   * sits at: .mn-clause > .mn-section-content > .mn-clause.
+   * hierarchy dictates. A clause nested inside another clause sits at:
+   * .mn-clause > .mn-clause.
    *
    * Each nesting level indents the inner clause's margin-box by one spacing
-   * step, giving the document a readable depth hierarchy without any schema or
-   * node-view change. The selector is structural and capped by CSS cascade
-   * (deeper levels just compound the indent through repeated margins).
+   * step, giving the document a readable depth hierarchy without any schema
+   * change. The selector is structural and capped by CSS cascade (deeper
+   * levels just compound the indent through repeated margins).
    */
 
-  .mn-prosemirror .mn-clause > .mn-section-content > .mn-clause,
-  .mn-prosemirror .mn-annex > .mn-section-content > .mn-clause,
-  .mn-prosemirror .mn-terms > .mn-section-content > .mn-clause {
+  .mn-prosemirror .mn-clause > .mn-clause,
+  .mn-prosemirror .mn-annex > .mn-clause,
+  .mn-prosemirror .mn-terms > .mn-clause {
     margin-left: var(--mn-space-4);
   }
 

@@ -2,13 +2,11 @@
  * `sections` group — clause nesting structural operations (sections.md §4).
  *
  * Four entries: Insert clause (split-button control), Promote, Demote, Change
- * section type (stateful control). The `run(view)` adapters delegate to the
- * pure commands and re-focus. The heading `title` is collected via
- * `window.prompt` (§7 option 2 baseline); a host may upgrade via
- * `onHeadingPrompt`. The "Type" button is a stateful control that opens a
- * `SectionTypePicker` popover. The "Clause" button is a split-button control
- * (`ClauseSplitButton`) with a context-sensitive primary action (nested vs
- * sibling) plus an explicit dropdown menu.
+ * section type (stateful control). The "Clause" button is a split-button
+ * control (`ClauseSplitButton`) with a context-sensitive primary action (nested
+ * vs sibling) plus an explicit dropdown menu. Clause insertion is synchronous —
+ * the new clause gets an empty `section_title` and the cursor lands there for
+ * direct heading editing.
  */
 
 import React from "react";
@@ -26,25 +24,12 @@ import type { ToolbarGroupDef } from "../types.js";
 import { SectionTypeButton } from "../SectionTypePicker.js";
 import { ClauseSplitButton } from "../ClauseSplitButton.js";
 
-/** Default heading prompt: `window.prompt` (sections.md §7 option 2). */
-function defaultHeadingPrompt(): Promise<string | null> {
-  return Promise.resolve(
-    typeof window !== "undefined" && typeof window.prompt === "function"
-      ? window.prompt("Clause heading:")
-      : null,
-  );
-}
-
 /** Whether promote is enabled: mirrors `promoteClause`'s applicability. */
 function canPromote(state: EditorState): boolean {
   // Query the command without a dispatch: it returns true iff a promotion is
   // legal at the current selection (nearest clause's parent is itself a
   // section). This keeps the button's `isEnabled` exactly in sync with the
-  // command — the contract per MetanormaToolbar.spec.md §5.4. The previous
-  // hand-rolled check (`nearestSectionAncestor($from)?.depth === parentDepth`)
-  // compared the cursor's nearest section (always the clause itself, at
-  // hit.depth) against the clause's parent depth (hit.depth - 1), which is
-  // never equal, so the button was permanently disabled.
+  // command — the contract per MetanormaToolbar.spec.md §5.4.
   return promoteClause(state) === true;
 }
 
@@ -69,11 +54,9 @@ function canDemote(state: EditorState): boolean {
 }
 
 /**
- * Build the `sections` group, parameterised by the heading prompt.
+ * Build the `sections` group.
  */
-export function sectionsGroup(
-  getHeadingPrompt: () => () => Promise<string | null> = () => defaultHeadingPrompt,
-): ToolbarGroupDef {
+export function sectionsGroup(): ToolbarGroupDef {
   return {
     id: "sections",
     label: "Section structure",
@@ -81,7 +64,7 @@ export function sectionsGroup(
       // ── Insert clause — split-button with context-sensitive primary ──
       {
         kind: "control",
-        render: () => <ClauseSplitButton getHeadingPrompt={getHeadingPrompt} />,
+        render: () => <ClauseSplitButton />,
       },
       {
         kind: "button",

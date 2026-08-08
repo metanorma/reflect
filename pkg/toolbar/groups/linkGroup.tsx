@@ -1,72 +1,175 @@
 /**
  * `link` group — hyperlink (§5.4, §6).
  *
- * Extracted from the former `buildButtons()` monolith. The `link` mark carries
- * an `href` attribute (default `null`), so a simple `toggleMark` is
- * insufficient — the user must supply a URL. The group is parameterised by a
- * prompt callback: `makeLinkGroup(onLinkPrompt)` produces a `ToolbarGroupDef`
- * that reads the latest prompt lazily.
+ * The `link` mark carries an `href` attribute (default `null`), so a simple
+ * `toggleMark` is insufficient — the user must supply a URL. The Link button is
+ * a `kind: "control"` entry rendering `<LinkButton>`, which opens a
+ * `<PromptPopover>` to collect the URL. When a host supplies `onLinkPrompt`,
+ * the popover is bypassed and the hook resolves the URL instead.
  */
 
+import React, { useRef, useState } from "react";
 import { toggleMark } from "prosemirror-commands";
+import type { EditorState, Transaction } from "prosemirror-state";
+
+import {
+  useEditorStateSelector,
+  useEditorEventCallback,
+} from "@handlewithcare/react-prosemirror";
+import type { EditorView } from "prosemirror-view";
 
 import type { ToolbarGroupDef } from "../types.js";
 import { isInlineContext, isMarkActive, requireMark } from "../predicates.js";
+import { PromptPopover } from "../PromptPopover.js";
 
-/** Default link-URL prompt: `window.prompt` (§6). */
-export function defaultLinkPrompt(): Promise<string | null> {
-  return Promise.resolve(
-    typeof window !== "undefined" && typeof window.prompt === "function"
-      ? window.prompt("Link URL:")
-      : null,
-  );
+// ---------------------------------------------------------------------------
+// LinkButton — stateful control component
+// ---------------------------------------------------------------------------
+
+/** Props for {@link LinkButton}. */
+interface LinkButtonProps {
+  /** Optional host hook. When provided, bypasses the built-in popover. */
+  readonly onLinkPrompt?: (() => Promise<string | null>) | undefined;
 }
 
 /**
- * Build the `link` group, parameterised by the URL-prompt callback (§5.4, §6).
+ * The "Link" trigger button + `PromptPopover`.
  *
- * The prompt is read lazily by the button's `run`, so a ref can always supply
- * the latest value without rebuilding the descriptor.
+ * - **Active (link mark present)**: click toggles the mark off.
+ * - **`onLinkPrompt` hook provided**: delegates to the async hook.
+ * - **Otherwise**: opens the `PromptPopover` to collect a URL.
+ *
+ * When opening the popover, `{ state, dispatch }` are captured synchronously
+ * at click time (stale-view guard). The submit handler dispatches against the
+ * captured state — same pattern as `TargetButton` and `ClauseSplitButton`.
+ */
+function LinkButton({ onLinkPrompt }: LinkButtonProps): React.JSX.Element {
+  const linkMark = requireMark("link");
+  const [isOpen, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // Capture state/dispatch at click time so the submit handler dispatches
+  // against the state that was current when the user opened the popover.
+  // Reading `view.state` at submit time races against controlled-mode React
+  // state invalidation (project memory: stale-view guard).
+  const capturedRef = useRef<{
+    readonly state: EditorState;
+    readonly dispatch: (tr: Transaction) => void;
+    readonly focus: () => void;
+  } | null>(null);
+
+  const isActive = useEditorStateSelector((s) => isMarkActive(s, linkMark));
+  const isEnabled = useEditorStateSelector((s) => {
+    if (isMarkActive(s, linkMark)) return true;
+    return isInlineContext(s) && !s.selection.empty;
+  });
+
+  const toggleOff = useEditorEventCallback((view: EditorView | null) => {
+    if (view === null) return;
+    toggleMark(linkMark)(view.state, view.dispatch);
+    view.focus();
+  });
+
+  const viaHook = useEditorEventCallback(async (view: EditorView | null) => {
+    if (view === null) return;
+    const { state, dispatch } = view;
+    const href = await onLinkPrompt?.();
+    if (href === null || href === undefined || href === "") {
+      view.focus();
+      return;
+    }
+    toggleMark(linkMark, { href })(state, dispatch);
+    view.focus();
+  });
+
+  // Capture the live view at click time (before the popover opens and focus
+  // potentially moves to the popover's text field).
+  const captureAndOpen = useEditorEventCallback((view: EditorView | null) => {
+    if (view === null) return;
+    capturedRef.current = {
+      state: view.state,
+      dispatch: view.dispatch,
+      focus: () => view.focus(),
+    };
+    setOpen(true);
+  });
+
+  const handleClick = (): void => {
+    if (isActive) {
+      void toggleOff();
+      return;
+    }
+    if (onLinkPrompt !== undefined) {
+      void viaHook();
+      return;
+    }
+    void captureAndOpen();
+  };
+
+  const handleSubmit = (href: string): void => {
+    setOpen(false);
+    const captured = capturedRef.current;
+    if (captured !== null && href !== "") {
+      toggleMark(linkMark, { href })(captured.state, captured.dispatch);
+      captured.focus();
+    }
+    capturedRef.current = null;
+  };
+
+  const handleCancel = (): void => {
+    setOpen(false);
+    capturedRef.current = null;
+  };
+
+  return (
+    <div className="mn-toolbar-link">
+      <button
+        ref={triggerRef}
+        type="button"
+        className={
+          isActive
+            ? "mn-toolbar-btn mn-toolbar-btn--active"
+            : "mn-toolbar-btn"
+        }
+        aria-pressed={isActive}
+        disabled={!isEnabled}
+        title="Link"
+        onClick={handleClick}
+      >
+        Link
+      </button>
+      <PromptPopover
+        isOpen={isOpen}
+        onOpenChange={setOpen}
+        triggerRef={triggerRef}
+        label="Link URL"
+        placeholder="https://"
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Group factory
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the `link` group, parameterised by the URL-prompt hook.
+ *
+ * When `onLinkPrompt` is undefined, the built-in `<PromptPopover>` is used.
  */
 export function makeLinkGroup(
-  getLinkPrompt: () => () => Promise<string | null>,
+  onLinkPrompt?: (() => Promise<string | null>) | undefined,
 ): ToolbarGroupDef {
-  const linkMark = requireMark("link");
   return {
     id: "link",
     label: "Hyperlink",
     entries: [
       {
-        kind: "button",
-        descriptor: {
-          key: "link",
-          label: "Link",
-          title: "Link",
-          isActive: (state) => isMarkActive(state, linkMark),
-          isEnabled: (state) => {
-            // Removal is always available when a link is active. Adding a link
-            // requires a non-empty text selection in inline content (links
-            // attach to text — §5.4 enabled rule).
-            if (isMarkActive(state, linkMark)) return true;
-            return isInlineContext(state) && !state.selection.empty;
-          },
-          run: (view) => {
-            const { state } = view;
-            // If a link is already present, remove it (toggleMark with no attrs).
-            if (isMarkActive(state, linkMark)) {
-              toggleMark(linkMark)(state, view.dispatch);
-              return;
-            }
-            // Adding: prompt for a URL, then apply against the latest state.
-            void getLinkPrompt()().then((href) => {
-              if (href === null || href === "") return;
-              // Dispatch against `view.state` — the selection may have changed
-              // across the async prompt. toggleMark returns false if it no
-              // longer applies.
-              toggleMark(linkMark, { href })(view.state, view.dispatch);
-            });
-          },
-        },
+        kind: "control",
+        render: () => <LinkButton onLinkPrompt={onLinkPrompt} />,
       },
     ],
   };

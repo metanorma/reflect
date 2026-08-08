@@ -137,8 +137,8 @@ function containsNamedChild(parent: Node, name: string): boolean {
 
 /**
  * Wrap the block(s) covered by the selection in a new `clause` node containing
- * a leading empty `paragraph`, then place the selection in that paragraph
- * (sections.md §5.2).
+ * an empty `section_title` (for the heading) and a leading empty `paragraph`,
+ * then place the selection in the `section_title` (sections.md §5.2).
  *
  * @returns `true` if a transaction was / would be dispatched, `false` if
  *          wrapping is not legal at the current selection.
@@ -146,7 +146,6 @@ function containsNamedChild(parent: Node, name: string): boolean {
 export function wrapInClause(
   state: EditorState,
   dispatch?: (tr: Transaction) => void,
-  opts?: { readonly title?: string | null },
 ): boolean {
   if (!canWrapInClause(state)) return false;
   if (dispatch === undefined) return true;
@@ -155,15 +154,19 @@ export function wrapInClause(
   const clauseType = schema.nodes["clause"];
   const paragraphType = schema.nodes["paragraph"];
   const sectionsType = schema.nodes["sections"];
+  const sectionTitleType = schema.nodes["section_title"];
   if (clauseType === undefined || paragraphType === undefined) return false;
 
   const { $from, $to } = state.selection;
   const tr = state.tr;
 
-  // The new clause: a leading empty paragraph + generated id. The selection's
-  // block content becomes the clause's remaining children (§5.2 step 3).
-  const clauseAttrs = { id: generateId(), title: opts?.title ?? null };
+  // The new clause: an empty section_title (heading placeholder) + a leading
+  // empty paragraph. The selection's block content becomes the clause's
+  // remaining children (§5.2 step 3). The section_title is created if the
+  // schema has it; otherwise the clause has just the paragraph.
+  const clauseAttrs = { id: generateId() };
   const leadingParagraph = paragraphType.create();
+  const sectionTitle = sectionTitleType?.create();
 
   // Determine the block range to wrap. For a collapsed cursor, wrap the single
   // block containing the cursor.
@@ -212,23 +215,29 @@ export function wrapInClause(
   }
 
   // Wrap the range with the clause (a single node wrapping). The clause's
-  // children are the wrapped blocks; the leading empty paragraph is inserted
-  // as its first child below.
+  // children are the wrapped blocks; the section_title and leading empty
+  // paragraph are inserted as its first children below.
   tr.wrap(range, [{ type: clauseType, attrs: clauseAttrs }]);
 
   // The wrap inserts the clause around `range`. After the wrap, position
   // `range.start + 1` is just inside the new clause's opening token, before its
-  // first child. Insert the leading empty paragraph there so it becomes the
-  // clause's first child (§5.2 step 3) — the cursor landing site. `range.start`
-  // is `range.$from.before(range.depth + 1)`, a position derived from the
-  // pre-wrap resolution; the wrap does not shift it (it inserts *around* the
-  // range, leaving `range.start` as the position just before the wrapped
-  // content, now inside the new clause).
-  tr.insert(range.start + 1, leadingParagraph);
+  // first child. Insert the section_title (heading placeholder) and the leading
+  // empty paragraph there so they become the clause's first children.
+  // `range.start` is `range.$from.before(range.depth + 1)`, a position derived
+  // from the pre-wrap resolution; the wrap does not shift it (it inserts
+  // *around* the range, leaving `range.start` as the position just before the
+  // wrapped content, now inside the new clause).
+  if (sectionTitle !== undefined) {
+    tr.insert(range.start + 1, sectionTitle);
+  }
+  tr.insert(range.start + 1 + (sectionTitle?.nodeSize ?? 0), leadingParagraph);
 
-  // Place the cursor inside the leading paragraph (one past its opening token).
-  const paraPos = range.start + 2;
-  tr.setSelection(TextSelection.near(tr.doc.resolve(paraPos), 1));
+  // Place the cursor inside the section_title if it exists (heading first),
+  // otherwise inside the leading paragraph.
+  const titleOffset = sectionTitle !== undefined ? 1 : 0;
+  const paraOffset = titleOffset + (sectionTitle?.nodeSize ?? 0) + 1;
+  const cursorPos = range.start + (sectionTitle !== undefined ? 2 : paraOffset);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(cursorPos), 1));
 
   tr.scrollIntoView();
   dispatch(tr);
@@ -423,11 +432,11 @@ export function setSectionType(
 export function insertClauseAfter(
   state: EditorState,
   dispatch?: (tr: Transaction) => void,
-  opts?: { readonly title?: string | null },
 ): boolean {
   const { $from } = state.selection;
   const clauseType = state.schema.nodes["clause"];
   const paragraphType = state.schema.nodes["paragraph"];
+  const sectionTitleType = state.schema.nodes["section_title"];
   if (clauseType === undefined || paragraphType === undefined) return false;
 
   const hit = nearestSectionAncestor($from);
@@ -447,18 +456,29 @@ export function insertClauseAfter(
 
   if (dispatch === undefined) return true;
 
+  // Build the new clause's children: section_title (heading placeholder) +
+  // empty paragraph.
+  const children = [];
+  if (sectionTitleType !== undefined) {
+    children.push(sectionTitleType.create());
+  }
+  children.push(paragraphType.create());
+
   const tr = state.tr;
   const newClause = clauseType.create(
-    { id: generateId(), title: opts?.title ?? null },
-    [paragraphType.create()],
+    { id: generateId() },
+    children,
   );
 
   // Insert after the current section's closing token, inside the parent.
   const insertAt = $from.after(hit.depth);
   tr.insert(insertAt, newClause);
 
-  // Cursor inside the new clause's leading paragraph.
-  tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 2)));
+  // Cursor inside the new clause's section_title (if present), otherwise the
+  // leading paragraph. After insertion, `insertAt` is the clause's opening
+  // token position. `+1` enters the clause, `+1` more enters the section_title.
+  const cursorOffset = sectionTitleType !== undefined ? 2 : 2;
+  tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + cursorOffset)));
   tr.scrollIntoView();
   dispatch(tr);
   return true;

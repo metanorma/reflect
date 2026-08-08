@@ -8,12 +8,16 @@ test.describe('clause insertion', () => {
   // -------------------------------------------------------------------------+
   test('Primary click on non-empty paragraph creates a nested clause', async ({ page }) => {
     await openEditor(page);
-    await typeInEditor(page, 'some content');
+    // Navigate past the section_title into the paragraph.
+    await editor(page).click();
+    await page.keyboard.press('Enter'); // exit section_title → body paragraph
+    await page.keyboard.type('some content');
 
-    page.once('dialog', async (dialog) => {
-      await dialog.accept('Sub heading');
-    });
     await toolbarButton(page, 'Clause').click();
+
+    // Clause is created immediately — cursor lands in section_title.
+    // Type the heading directly into the editor.
+    await page.keyboard.type('Sub heading');
 
     const docStr = JSON.stringify(await getDoc(page));
     // The original clause should now contain a nested clause
@@ -28,14 +32,16 @@ test.describe('clause insertion', () => {
   // -------------------------------------------------------------------------+
   test('Primary click on empty trailing paragraph creates a sibling clause', async ({ page }) => {
     await openEditor(page);
-    // Type content, then press Enter to create an empty trailing paragraph
-    await typeInEditor(page, 'first clause');
+    // Navigate past the section_title into the paragraph, then type.
+    await editor(page).click();
+    await page.keyboard.press('Enter'); // exit section_title → body paragraph
+    await page.keyboard.type('first clause');
     await page.keyboard.press('Enter');
 
-    page.once('dialog', async (dialog) => {
-      await dialog.accept('Second');
-    });
     await toolbarButton(page, 'Clause').click();
+
+    // Cursor lands in the new clause's section_title — type heading.
+    await page.keyboard.type('Second');
 
     const docStr = JSON.stringify(await getDoc(page));
     // Should have two top-level clauses in sections (sibling, not nested)
@@ -43,7 +49,6 @@ test.describe('clause insertion', () => {
     expect(clauses).toBe(2);
     expect(docStr).toContain('Second');
     // The new clause should be a sibling, not nested inside the first
-    // Verify: "first clause" and "Second" are in separate clauses at the same depth
     expect(docStr).toContain('first clause');
   });
 
@@ -52,20 +57,22 @@ test.describe('clause insertion', () => {
   // -------------------------------------------------------------------------+
   test('Dropdown "Sibling clause" inserts a sibling even from non-empty paragraph', async ({ page }) => {
     await openEditor(page);
-    await typeInEditor(page, 'content here');
+    // Navigate past the section_title into the paragraph.
+    await editor(page).click();
+    await page.keyboard.press('Enter'); // exit section_title → body paragraph
+    await page.keyboard.type('content here');
 
     // Open the dropdown
     await page.locator('button[aria-label="Clause options"]').click();
     const menu = page.locator('.mn-clause-menu[popover]');
     await expect(menu).toBeVisible();
 
-    page.once('dialog', async (dialog) => {
-      await dialog.accept('Sibling');
-    });
-
-    // Click "Sibling clause"
+    // Click "Sibling clause" — creates clause immediately, cursor in title.
     await menu.getByRole('menuitem', { name: 'Sibling clause' }).click();
     await expect(menu).toBeHidden();
+
+    // Type heading directly.
+    await page.keyboard.type('Sibling');
 
     const docStr = JSON.stringify(await getDoc(page));
     const clauses = (docStr.match(/"clause"/g) ?? []).length;
@@ -78,15 +85,16 @@ test.describe('clause insertion', () => {
   // -------------------------------------------------------------------------+
   test('Dropdown "Leading paragraph" inserts a paragraph before subclauses', async ({ page }) => {
     await openEditor(page);
-    // First create a nested clause so the outer clause has a subclause
-    await typeInEditor(page, 'intro');
+    // Navigate past the section_title into the paragraph.
+    await editor(page).click();
+    await page.keyboard.press('Enter'); // exit section_title → body paragraph
+    await page.keyboard.type('intro');
 
-    page.once('dialog', async (dialog) => {
-      await dialog.accept('Sub');
-    });
     await toolbarButton(page, 'Clause').click();
 
-    // Now the outer clause has: paragraph("intro"), clause("Sub")
+    // The outer clause now has: paragraph("intro"), clause(section_title + paragraph).
+    await page.keyboard.type('Sub');
+
     // Move cursor back to the outer paragraph
     await editor(page).click();
     await page.keyboard.press('ArrowLeft');
@@ -110,7 +118,10 @@ test.describe('clause insertion', () => {
   // -------------------------------------------------------------------------+
   test('Dropdown "Nested clause" forces nesting even from empty trailing paragraph', async ({ page }) => {
     await openEditor(page);
-    await typeInEditor(page, 'content');
+    // Navigate past the section_title into the paragraph.
+    await editor(page).click();
+    await page.keyboard.press('Enter'); // exit section_title → body paragraph
+    await page.keyboard.type('content');
     await page.keyboard.press('Enter'); // empty trailing paragraph
 
     // Open dropdown and select "Nested clause" explicitly
@@ -118,12 +129,11 @@ test.describe('clause insertion', () => {
     const menu = page.locator('.mn-clause-menu[popover]');
     await expect(menu).toBeVisible();
 
-    page.once('dialog', async (dialog) => {
-      await dialog.accept('Nested');
-    });
-
     await menu.getByRole('menuitem', { name: 'Nested clause' }).click();
     await expect(menu).toBeHidden();
+
+    // Type heading directly into the new section_title.
+    await page.keyboard.type('Nested');
 
     const docStr = JSON.stringify(await getDoc(page));
     const clauses = (docStr.match(/"clause"/g) ?? []).length;

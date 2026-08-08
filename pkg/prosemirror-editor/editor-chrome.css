@@ -2,9 +2,9 @@
  * editor-chrome.css — affordances the EDITOR needs to function (§9).
  *
  * Everything here exists because the editor has UI that the source document
- * does not: the editable surface, the empty-clause placeholder, the
- * `SectionNodeView` title strip, the image-src placeholder. These rules change
- * when editor UX changes, not when document presentation changes.
+ * does not: the editable surface, the empty-clause placeholder, the image-src
+ * placeholder. These rules change when editor UX changes, not when document
+ * presentation changes.
  *
  * Cascade: declared in the `chrome` layer (see style.css), which sits ABOVE
  * `tokens` (so it can consume them) and BELOW `document` (so a document rule
@@ -56,47 +56,11 @@
     border-radius: var(--mn-radius-sm);
   }
 
-  /* ---- SectionNodeView: editable title strip above each section's content ---- */
+  /* ---- Section spacing ---- */
 
   .mn-prosemirror section[class^="mn-"],
   .mn-prosemirror section[class*=" mn-"] {
     margin: var(--mn-space-2) 0;
-  }
-
-  .mn-section-title {
-    padding: var(--mn-space-1) 0;
-    margin-bottom: var(--mn-space-1);
-    border-bottom: 1px solid var(--mn-border);
-  }
-
-  .mn-section-title-input {
-    /* Sized to content; styled as a heading. */
-    font-weight: 600;
-    font-size: 1.1em;
-    line-height: 1.3;
-    width: 100%;
-    padding: 0.1em 0;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: var(--mn-text);
-    font-family: var(--mn-font-body);
-  }
-
-  .mn-section-title-input::placeholder {
-    color: var(--mn-text-placeholder);
-    font-weight: 400;
-    font-style: italic;
-  }
-
-  .mn-section-title-input:focus {
-    /* Subtle focus affordance without the default text-input ring. */
-    background: var(--mn-surface-muted);
-    border-radius: var(--mn-radius-sm);
-  }
-
-  .mn-section-content {
-    /* Content host for the section's editable children. */
   }
 
 }

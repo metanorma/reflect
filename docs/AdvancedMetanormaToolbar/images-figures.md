@@ -577,8 +577,8 @@ The button is enabled when a `figure` may legally be inserted at the selection
 (§6.3 `canInsertFigure`). Because `figure` is a `block`, this is true whenever an
 ancestor of the cursor accepts block children — i.e. inside a `paragraph`,
 `note`, `example`, `quote`, list item, or `table_cell`, but **not** inside an
-atom node (`formula`, `floating_title`, `image`) or inside `sourcecode`
-(`text*`-only).
+atom node (`formula`, `image`) or inside `sourcecode`
+(`text*`-only) or `floating_title` (`inline*`-only).
 
 `canInsertFigure` is a pure function of `EditorState`, so it plugs directly into
 `useEditorStateSelector`, exactly like `canInsertTable` in `tables.md` §7.2.

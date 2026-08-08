@@ -1,5 +1,5 @@
 /**
- * Node specifications — the 43-node `nodes` map passed to `new Schema` (§8).
+ * Node specifications — the 44-node `nodes` map passed to `new Schema` (§8).
  *
  * Order follows the group order in §3.1. `text` is declared explicitly with
  * `group: "inline"` so that `inline*` content expressions resolve.
@@ -17,9 +17,10 @@ import { CLASS } from "./classes.js";
 
 /**
  * Build a `<section class=cls data-id data-number>` toDOM spec for a section
- * node (§8.2). `null` attributes are kept out of the object so that
- * `exactOptionalPropertyTypes` is satisfied; ProseMirror drops `null`/`undefined`
- * attribute values during rendering anyway.
+ * node (§8.2). The section's content (including the optional `section_title`
+ * child) is rendered via the content hole `0`. `null` attributes are kept out
+ * of the object so that `exactOptionalPropertyTypes` is satisfied; ProseMirror
+ * drops `null`/`undefined` attribute values during rendering anyway.
  */
 function sectionToDOM(cls: string): (node: Node) => DOMOutputSpec {
   return (node) => {
@@ -83,72 +84,89 @@ const structuralNodes: Record<string, NodeSpec> = {
 // 2. Section nodes (§8.2) — group: "section"
 // ---------------------------------------------------------------------------
 
+/**
+ * The `section_title` child node — a textblock whose inline content is the
+ * section heading. Permitted as an optional first child of every section node
+ * (§8.2). Has no group membership so it cannot be inserted as a general block;
+ * it is created only by the clause-insertion commands (sections.ts).
+ *
+ * Mirrors Metanorma's `<title>` child element (TextElement content, §17).
+ */
+const sectionTitleNode: Record<string, NodeSpec> = {
+  section_title: {
+    content: `${INLINE_GROUP}*`,
+    attrs: { ...DATA_ATTR },
+    toDOM: () => ["div", { class: CLASS.sectionTitle }, 0],
+    parseDOM: [{ tag: `div.${CLASS.sectionTitle}` }],
+  },
+};
+
 const sectionNodes: Record<string, NodeSpec> = {
     clause: {
-      content: `(clause | ${BLOCK_GROUP})*`,
+      content: `section_title? (clause | ${BLOCK_GROUP})*`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.clause),
       parseDOM: sectionParseRule(CLASS.clause),
     },
     annex: {
-      content: `(annex | clause | ${BLOCK_GROUP})*`,
+      content: `section_title? (annex | clause | ${BLOCK_GROUP})*`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.annex),
       parseDOM: sectionParseRule(CLASS.annex),
     },
     content_section: {
-      content: `(section | ${BLOCK_GROUP})*`,
+      content: `section_title? (section | ${BLOCK_GROUP})*`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.contentSection),
       parseDOM: sectionParseRule(CLASS.contentSection),
     },
     abstract: {
-      content: `${BLOCK_GROUP}+`,
+      content: `section_title? ${BLOCK_GROUP}+`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.abstract),
       parseDOM: sectionParseRule(CLASS.abstract),
     },
     foreword: {
-      content: `${BLOCK_GROUP}+`,
+      content: `section_title? ${BLOCK_GROUP}+`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.foreword),
       parseDOM: sectionParseRule(CLASS.foreword),
     },
     introduction: {
-      content: `${BLOCK_GROUP}+`,
+      content: `section_title? ${BLOCK_GROUP}+`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.introduction),
       parseDOM: sectionParseRule(CLASS.introduction),
     },
     acknowledgements: {
-      content: `${BLOCK_GROUP}+`,
+      content: `section_title? ${BLOCK_GROUP}+`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.acknowledgements),
       parseDOM: sectionParseRule(CLASS.acknowledgements),
     },
     terms: {
-      content: `(clause | ${BLOCK_GROUP})*`,
+      content: `section_title? (clause | ${BLOCK_GROUP})*`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.terms),
       parseDOM: sectionParseRule(CLASS.terms),
     },
     definitions: {
-      content: `(clause | ${BLOCK_GROUP})*`,
+      content: `section_title? (clause | ${BLOCK_GROUP})*`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.definitions),
       parseDOM: sectionParseRule(CLASS.definitions),
     },
     references: {
-      content: `(clause | ${BLOCK_GROUP})*`,
+      content: `section_title? (clause | ${BLOCK_GROUP})*`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.references),
@@ -280,23 +298,25 @@ const blockNodes: Record<string, NodeSpec> = {
       parseDOM: [{ tag: `div.${CLASS.review}` }],
     },
     floating_title: {
-      content: "",
+      content: `${INLINE_GROUP}*`,
       group: BLOCK_GROUP,
-      atom: true,
-      attrs: sectionAttrs(),
+      attrs: { id: { default: null }, depth: { default: 1 }, ...DATA_ATTR },
       toDOM: (node) => {
         const attrs: Record<string, string> = { class: CLASS.floatingTitle };
         const id = node.attrs["id"] as string | null;
         if (id !== null) {
           attrs["data-id"] = id;
         }
-        const title = node.attrs["title"] as string | null;
-        return ["div", attrs, title ?? ""];
+        attrs["data-depth"] = String(node.attrs["depth"]);
+        return ["div", attrs, 0];
       },
       parseDOM: [
         {
           tag: `.${CLASS.floatingTitle}`,
-          getAttrs: (el) => ({ title: el.textContent, id: el.getAttribute("data-id") }),
+          getAttrs: (el) => ({
+            id: el.getAttribute("data-id"),
+            depth: Number(el.getAttribute("data-depth") ?? "1"),
+          }),
         },
       ],
     },
@@ -575,12 +595,13 @@ const leafInlineNodes: Record<string, NodeSpec> = {
 // ---------------------------------------------------------------------------
 
 /**
- * The 43 node specs, in §3.1 group order.
+ * The 44 node specs, in §3.1 group order.
  *
  * Exposed for consumers that compose a modified schema.
  */
 export const metanormaNodes: Record<string, NodeSpec> = {
   ...structuralNodes,
+  ...sectionTitleNode,
   ...sectionNodes,
   ...blockNodes,
   ...listNodes,

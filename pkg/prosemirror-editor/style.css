@@ -10,9 +10,10 @@
  *                       the single source of truth for every literal. Themes
  *                       (OS + host-forced) are defined here.
  *   editor-chrome.css — affordances the EDITOR needs to function (editable
- *                       surface, placeholders, SectionNodeView title strip).
+ *                       surface, placeholders).
  *   document.css      — how a Metanorma document LOOKS (figure/formula/
- *                       sourcecode panels, floating titles, list typography).
+ *                       sourcecode panels, section titles, floating titles,
+ *                       list typography).
  *
  * Cascade priority (low → high) is declared once below via `@layer`:
  *

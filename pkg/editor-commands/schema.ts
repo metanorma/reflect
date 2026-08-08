@@ -43,6 +43,7 @@ export const NODE_NAME = Object.freeze({
   terms: "terms",
   definitions: "definitions",
   references: "references",
+  section_title: "section_title",
   paragraph: "paragraph",
   note: "note",
   admonition: "admonition",
@@ -125,7 +126,6 @@ export const CONTAINER_BLOCK_NAMES = Object.freeze([
 export const BLOCK_ATOM_NAMES = Object.freeze([
   NODE_NAME.image,
   NODE_NAME.formula,
-  NODE_NAME.floating_title,
 ] as const);
 
 // ---------------------------------------------------------------------------

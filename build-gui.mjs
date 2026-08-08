@@ -23,6 +23,7 @@ import { build } from 'esbuild';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dev = process.argv.includes('--dev') || process.argv.includes('dev');
@@ -58,10 +59,28 @@ const pnpPlugin = {
   setup(b) {
     // Resolve bare specifiers (e.g. "react", "@metanorma/prosemirror-editor")
     // through PnP using createRequire seeded with the importer's resolveDir.
+    //
+    // PnP's createRequire resolves to the CJS (.cjs) entry, but many packages
+    // also ship granular ESM (.mjs) builds that enable tree-shaking. This is
+    // critical for react-aria-components: its .cjs entry is pre-bundled
+    // (~1.3 MB, no tree-shaking), while the .mjs entry lets esbuild drop unused
+    // components (~100 KB for the 6 components used here). Redirect .cjs → .mjs
+    // when a .mjs counterpart exists.
     b.onResolve({ filter: /^[^./]/ }, (args) => {
       const resolveDir = args.resolveDir || projectRoot;
       const req = createRequire(resolveDir + '/');
-      return { path: req.resolve(args.path), namespace: 'pnp' };
+      const resolved = req.resolve(args.path);
+      let finalPath = resolved;
+      if (resolved.endsWith('.cjs')) {
+        const mjsCandidate = resolved.slice(0, -4) + '.mjs';
+        try {
+          statSync(mjsCandidate);
+          finalPath = mjsCandidate;
+        } catch {
+          // No .mjs counterpart — keep the .cjs
+        }
+      }
+      return { path: finalPath, namespace: 'pnp' };
     });
 
     // Load resolved files from the PnP virtual filesystem (zip archives)

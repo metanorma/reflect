@@ -86,23 +86,31 @@ schema- definition time (`toDOM`/`parseDOM` describe structure only).
 
 ## 3. Vocabulary (derived from `types.ts`)
 
-### 3.1 Node types (43)
+### 3.1 Node types (44)
 
 | Group constant | Members |
 |---|---|
 | `STRUCTURAL_TYPES` (4) | `doc`, `preface`, `sections`, `bibliography` |
 | `SECTION_TYPES` (10) | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` |
-| `BLOCK_TYPES` (8) | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review` |
+| `BLOCK_TYPES` (9) | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `floating_title` |
 | `LIST_TYPES` (6) | `bullet_list`, `ordered_list`, `list_item`, `dl`, `dt`, `dd` |
 | `TABLE_TYPES` (6) | `table`, `table_head`, `table_body`, `table_foot`, `table_row`, `table_cell` |
 | `MEDIA_TYPES` (2) | `figure`, `image` |
 | `FOOTNOTE_TYPES` (3) | `footnotes`, `footnote_marker`, `footnote_entry` |
 | `INLINE_ATOM_TYPES` (1) | `stem` |
-| `LEAF_TYPES` (3) | `text`, `soft_break`, `floating_title` |
+| `SECTION_TITLE_TYPES` (1) | `section_title` |
+| `LEAF_TYPES` (2) | `text`, `soft_break` |
 
-> `floating_title` is listed in `LEAF_TYPES` but carries `SectionAttrs` in
-> `NodeAttrsByType`. It is modelled as a **block leaf** whose visible text lives
-> in its `title` attribute (§8.4).
+> `section_title` is a standalone textblock (content `inline*`) that appears
+> only as the optional leading child of a section node (§8.2). It is not a
+> member of any PM content group (neither `block` nor `inline`), so it cannot
+> be inserted as a general block or appear in arbitrary containers — only the
+> section content expressions reference it (§8.2).
+
+> `floating_title` is listed in `BLOCK_TYPES` and is modelled as a **block
+> textblock** with `content: "inline*"` and a `depth` attribute (§8.3). It
+> carries `id` and `depth` (not `SectionAttrs`). Its inline content is the
+> heading text, so it supports full inline markup (emphasis, links, etc.).
 
 ### 3.2 Mark types (14)
 
@@ -128,7 +136,7 @@ not prescribe content expressions). Three groups are introduced:
 | PM group | Members | Notes |
 |---|---|---|
 | `inline` | `text`, `soft_break`, `footnote_marker`, `stem` | Inline content of paragraphs / terms. |
-| `block` | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `bullet_list`, `ordered_list`, `dl`, `table`, `figure`, `floating_title` | General block-level children of sections, list items, cells, etc. Deliberately **excludes** `image`, `list_item`, `dt`, `dd`, `table_*` parts, and `footnote_entry` (contextual only). |
+| `block` | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `bullet_list`, `ordered_list`, `dl`, `table`, `figure`, `floating_title` | General block-level children of sections, list items, cells, etc. Deliberately **excludes** `image`, `list_item`, `dt`, `dd`, `table_*` parts, `footnote_entry`, and `section_title` (contextual only — `section_title` appears solely as the optional leading child of a section node). |
 | `section` | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` | Nestable section nodes. |
 
 ---
@@ -141,13 +149,14 @@ not prescribe content expressions). Three groups are introduced:
 | `preface` | `(section \| block)*` | Front-matter sections (abstract/foreword/…) plus blocks. |
 | `sections` | `(section \| block)*` | Main body. |
 | `bibliography` | `(section \| block)*` | Back matter; `references` is in the `section` group. |
-| `clause` | `(clause \| block)*` | Clauses nest clauses + blocks. |
-| `annex` | `(annex \| clause \| block)*` | Annexes may contain annexes, clauses, blocks. |
-| `content_section` | `(section \| block)*` | Generic nestable container. |
-| `abstract`, `foreword`, `introduction`, `acknowledgements` | `block+` | Front-matter leaves: blocks only, no nesting. |
-| `terms`, `definitions` | `(clause \| block)*` | Term/definition containers may nest `clause`. |
-| `references` | `(clause \| block)*` | Bibliography entries (often nested clauses). |
-| `floating_title` | *(empty)* | Leaf; text in `title` attr. |
+| `clause` | `section_title? (clause \| block)*` | Clauses nest clauses + blocks; optional leading heading textblock. |
+| `annex` | `section_title? (annex \| clause \| block)*` | Annexes may contain annexes, clauses, blocks; optional leading heading. |
+| `content_section` | `section_title? (section \| block)*` | Generic nestable container; optional leading heading. |
+| `abstract`, `foreword`, `introduction`, `acknowledgements` | `section_title? block+` | Front-matter leaves: optional heading + blocks only, no nesting. |
+| `terms`, `definitions` | `section_title? (clause \| block)*` | Term/definition containers may nest `clause`; optional leading heading. |
+| `references` | `section_title? (clause \| block)*` | Bibliography entries (often nested clauses); optional leading heading. |
+| `section_title` | `inline*` | Standalone textblock: the heading of its parent section. Appears only as the optional leading child of a section node (no group membership). |
+| `floating_title` | `inline*` | Block textblock; free-standing unnumbered heading. Carries `id` and `depth` attrs. |
 | `paragraph` | `inline*` | |
 | `note`, `example`, `quote`, `review` | `block+` | Container blocks. |
 | `admonition` | `block+` | Container; `type` attr classifies it. |
@@ -201,7 +210,9 @@ following rules:
 
 | Node | Declared attributes (beyond `data`) | Source interface |
 |---|---|---|
-| `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references`, `floating_title` | `id`, `number`, `title` | `SectionAttrs` (extends `BaseAttrs`) |
+| `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` | `id`, `number` | `SectionAttrs` (= `BaseAttrs`; `title` is no longer an attribute — the heading is a `section_title` child node, §8.2) |
+| `floating_title` | `id`, `depth` (default `1`) | Metanorma `<floating-title>` (RequiredId + required `depth` int + TextElement inline content) |
+| `section_title` | *(none beyond `data`)* | open — the heading text is inline content, not an attribute |
 | `preface`, `sections`, `bibliography` | `id`, `number` | `BaseAttrs` |
 | `formula` | `id`, `number`, `type` (enum `asciimath` \| `mathml`, default `"asciimath"`), `asciimath`, `mathml` | `FormulaAttrs` |
 | `stem` | `type` (enum `asciimath` \| `mathml`, default `"asciimath"`), `asciimath`, `mathml` | open |
@@ -264,6 +275,7 @@ Every CSS class emitted by a `toDOM` (and matched by the corresponding
 ```ts
 export const CLASS = {
   doc: "mn-doc", preface: "mn-preface", /* …sections… */
+  sectionTitle: "mn-section-title",
   note: "mn-note", formula: "mn-formula", figure: "mn-figure",
   smallcap: "mn-smallcap", xref: "mn-xref", /* … */
 } as const;
@@ -279,7 +291,7 @@ updated in lockstep.
 
 **Scope.** `CLASS` covers ONLY classes emitted by a schema `toDOM`.
 Editor-chrome classes that exist solely for editor UX (e.g.
-`mn-image-placeholder`, `mn-section-title-input`) are NOT in the const — they
+`mn-image-placeholder`) are NOT in the const — they
 belong to `@metanorma/prosemirror-editor`, not to the schema's serialization
 contract. `sourcecode`'s dynamic `language-${language}` class is a Prism /
 highlight.js interop convention and is likewise absent.
@@ -312,27 +324,25 @@ function sectionToDOM(cls: string) {
 
 | Node | `content` | class |
 |---|---|---|
-| `clause` | `(clause \| block)*` | `mn-clause` |
-| `annex` | `(annex \| clause \| block)*` | `mn-annex` |
-| `content_section` | `(section \| block)*` | `mn-content-section` |
-| `abstract` | `block+` | `mn-abstract` |
-| `foreword` | `block+` | `mn-foreword` |
-| `introduction` | `block+` | `mn-introduction` |
-| `acknowledgements` | `block+` | `mn-acknowledgements` |
-| `terms` | `(clause \| block)*` | `mn-terms` |
-| `definitions` | `(clause \| block)*` | `mn-definitions` |
-| `references` | `(clause \| block)*` | `mn-references` |
+| `clause` | `section_title? (clause \| block)*` | `mn-clause` |
+| `annex` | `section_title? (annex \| clause \| block)*` | `mn-annex` |
+| `content_section` | `section_title? (section \| block)*` | `mn-content-section` |
+| `abstract` | `section_title? block+` | `mn-abstract` |
+| `foreword` | `section_title? block+` | `mn-foreword` |
+| `introduction` | `section_title? block+` | `mn-introduction` |
+| `acknowledgements` | `section_title? block+` | `mn-acknowledgements` |
+| `terms` | `section_title? (clause \| block)*` | `mn-terms` |
+| `definitions` | `section_title? (clause \| block)*` | `mn-definitions` |
+| `references` | `section_title? (clause \| block)*` | `mn-references` |
 
-> **Editor rendering note.** The `sectionToDOM` shape above is the
-> **headless / export serialization path** (clipboard, `Node.toJSON`, headless
-> conversion) and deliberately does NOT render `title` — in Metanorma
-> Presentation XML a section heading is a `<title>`/`<name>` child element, not
-> an attribute (§17). In the **editor**, the ten content-bearing section nodes
-> are rendered by a React node view (`SectionNodeView`,
-> `MetanormaProseMirror.spec.md` §7.3) that surfaces the typed `title`
-> attribute as an editable heading above the content. That node view is a
-> rendering override only; it does not change this schema, the `toDOM`/`parseDOM`
-> rules, or the `SectionAttrs` shape.
+> **Heading model.** Every section node's content expression begins with an
+> optional `section_title` child — the heading textblock. The `section_title`
+> renders through the section's content hole (`0` in `sectionToDOM`)
+> automatically; no special-cased rendering is needed. The heading is editable
+> inline like any other textblock and supports full inline markup (emphasis,
+> links, etc.), matching Metanorma Presentation XML's `<title>` child element
+> (§17). Prior to v5 the heading was a `title` **attribute** on the section
+> node (a plain string with no inline markup); it is now a child node.
 
 ### 8.3 Block nodes
 
@@ -346,7 +356,8 @@ function sectionToDOM(cls: string) {
 | `admonition` | `block+` | `["div", {class: \`mn-admonition ${type}\`, "data-type": type}, 0]` (function) | `[{tag: "div.mn-admonition", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
 | `sourcecode` | `text*`, `code: true` | `["pre", {class: \`language-${language}\`}, ["code", 0]]` (function) | `[{tag: "pre", getAttrs: el => ({ language: /language-(\S+)/.exec(el.className)?.[1] ?? null })}]` |
 | `formula` | *(empty)* atom | `["div", {class: CLASS.formula, "data-type": type, "data-asciimath": asciimath, "data-mathml": mathml, "data-number": number}]` (function; no content slot; only the encoding selected by `type` is authoritative — see §17.2) | `[{tag: "div.mn-formula", getAttrs: el => ({ type: el.getAttribute("data-type") ?? "asciimath", asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml"), number: el.getAttribute("data-number") })}]` |
-| `floating_title` | *(empty)* atom, `group: "block"` | `["div", {class: CLASS.floatingTitle, "data-id": id}, title ?? ""]` (function) | `[{tag: ".mn-floating-title", getAttrs: el => ({ title: el.textContent, id: el.getAttribute("data-id") })}]` |
+| `floating_title` | `inline*`, `group: "block"` | `["div", {class: CLASS.floatingTitle, "data-id": id, "data-depth": depth}, 0]` (function) | `[{tag: "div.mn-floating-title", getAttrs: el => ({ id: el.getAttribute("data-id"), depth: Number(el.getAttribute("data-depth") ?? "1") })}]` |
+| `section_title` | `inline*` (no group) | `["div", {class: CLASS.sectionTitle}, 0]` | `[{tag: "div.mn-section-title"}]` |
 
 > **`sourcecode.code: true`.** The `sourcecode` node spec sets `code: true`, the
 > ProseMirror convention marking a textblock as a code block. This is what makes
@@ -451,7 +462,7 @@ export const metanormaSchema = new Schema({
 });
 ```
 
-`nodes` **must** contain exactly the 43 names in §3.1 (including `text`, which
+`nodes` **must** contain exactly the 44 names in §3.1 (including `text`, which
 ProseMirror requires). `marks` **must** contain exactly the 14 names in §3.2.
 The spec order is not semantically significant but should follow the group order
 in §3 for readability.
@@ -471,7 +482,7 @@ export const metanormaNodes: Record<string, NodeSpec>;
 export const metanormaMarks: Record<string, MarkSpec>;
 
 /** Convenience lookups derived from the schema. */
-export const NODE_NAMES: readonly string[];   // 43 entries, in §3.1 order
+export const NODE_NAMES: readonly string[];   // 44 entries, in §3.1 order
 export const MARK_NAMES: readonly string[];   // 14 entries, in §3.2 order
 
 /** The CSS class emitted by every `toDOM`/`parseDOM` rule (§8.0). */
@@ -497,7 +508,7 @@ reduces to:
 2. **`toJSON`** of a node loaded from a `MirrorDocument` reproduces the same
    `type`, the same typed attribute values, and the same extra keys (via
    `data`). `marks`, `content`, and `text` round-trip identically.
-3. The 43 node names and 14 mark names in the schema are the editor-side
+3. The 44 node names and 14 mark names in the schema are the editor-side
    vocabulary. They are derived from (but not identical to) the `MirrorNodeType`
    union and `MirrorMarkType` constant of `types.ts`: the `footnote` mark is
    dropped in favour of the `footnote_marker` node (§3.2), and `stem` is
@@ -530,7 +541,7 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 
 1. `yarn workspace @metanorma/prosemirror-schema compile` succeeds with **zero**
    TypeScript errors under the repo tsconfig.
-2. `metanormaSchema.spec.nodes` contains **exactly** the 43 names in §3.1 and
+2. `metanormaSchema.spec.nodes` contains **exactly** the 44 names in §3.1 and
    `metanormaSchema.spec.marks` contains **exactly** the 14 names in §3.2
    (asserted by a unit test against `NODE_NAMES` / `MARK_NAMES`).
 3. For every node type `T` with a typed attribute interface, constructing
@@ -565,8 +576,9 @@ For sanity checks and editor bootstrap:
       "content": [
         {
           "type": "clause",
-          "attrs": { "id": "_document_container", "title": null },
+          "attrs": { "id": "_document_container" },
           "content": [
+            { "type": "section_title" },
             { "type": "paragraph" }
           ]
         }
@@ -606,8 +618,8 @@ model. It is designed for **unambiguous convertibility**: every document the
 editor can produce must map to a single, well-defined Metanorma Presentation XML
 structure. A dedicated converter performs attribute/element renames and
 structural reshapes (e.g. `cite` → `citeas`, `href` → `target`, `number` →
-`reference`, a title attribute → a `<title>`/`<name>` child element, the
-doc-level `footnotes`/`footnote_entry`/`footnote_marker` split → a single inline
+`reference`, the `section_title` child node → a `<title>`/`<name>` child
+element, the doc-level `footnotes`/`footnote_entry`/`footnote_marker` split → a single inline
 `<fn>` with body). Name and shape differences are **not** incompatibilities.
 
 Two dual-source-of-truth issues are resolved in this spec so that conversion is
@@ -680,7 +692,6 @@ The following Metanorma features exist in the covered element families but have
 | List numbering style (`<ol type="…">`: roman/arabic/…) | `<ol>` | dropped — schema models `start` only |
 | Cell alignment (`align`, `valign`) | `<td>`/`<th>` | dropped |
 | Ordered-list `start`, section/block `obligation`, `unnumbered`, `inline-header`, `number` override | various | carried via the `data` catch-all if present on import; not typed or editable |
-| Rich inline markup inside titles/captions | `<title>`, `<name>` | flattened to plain text — the typed `title` attr is a string |
 
 ### 17.6 Over-permissive content (coerced on export)
 

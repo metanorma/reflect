@@ -178,7 +178,9 @@ account for them:
 | The inline line-break node is named `soft_break` (not `hardBreak`) | Any line-break command must insert `schema.nodes.soft_break`, not reference a `hardBreak` type. |
 | Definition lists use `dl` = `(dt dd)+` with `dt` (`inline*`) / `dd` (`block+`) | There is **no** upstream command for this model; definition-list flow is fully custom and must preserve the `(dt dd)+` pairing invariant. |
 | `sourcecode` has `code: true` | Code-newline behaviour applies inside `sourcecode`; stock code-newline detection works because `code: true` is honoured by `EditorState`. |
-| A defined set of **atom** nodes (`image`, `formula`, `floating_title`, `footnote_marker`, `soft_break`, `stem`) has `content: ""` | The cursor can never be *inside* these; commands must handle node-selections on and adjacency to atoms via `createParagraphNear`-style logic rather than attempting to split them. |
+| A defined set of **atom** nodes (`image`, `formula`, `footnote_marker`, `soft_break`, `stem`) has `content: ""` | The cursor can never be *inside* these; commands must handle node-selections on and adjacency to atoms via `createParagraphNear`-style logic rather than attempting to split them. |
+| `section_title` is a textblock (`content: "inline*"`) that appears only as the optional leading child of a section node | Enter inside a `section_title` does not split it into two section_titles (that would produce two headings for one section); instead the `exitSectionTitle` command (§2.7) moves the cursor to the section's first body block or inserts one. Backspace on an empty `section_title` deletes the title but preserves the section (§4.4.9). |
+| `floating_title` is a textblock (`content: "inline*"`, not an atom) | It splits like a `paragraph` under Enter (the default `splitBlockKeepMarks` branch); it is no longer an atom, so `createParagraphNear` does not fire for it. |
 | Optional attrs default to `null`; the catch-all `data` attr exists on every node/mark | Commands that create nodes should rely on schema defaults (omit unset attrs) rather than constructing explicit `null`/`{}` attr maps, so `data` and defaults are preserved consistently. |
 
 Individual commands' detailed behaviour with respect to these facts is specified
@@ -430,9 +432,10 @@ chainCommands(
   newlineInCode,          // 1. inside sourcecode
   enterDefinitionList,    // 2. inside dl / dt / dd
   splitListItem,          // 3. inside a list_item
-  exitContainerBlock,     // 4. empty para at the end of a container block
-  createParagraphNear,    // 5. node-selection on / gap-cursor beside an atom
-  splitBlockKeepMarks,    // 6. default: split the innermost textblock
+  exitSectionTitle,       // 4. inside a section_title (move to body / insert body)
+  exitContainerBlock,     // 5. empty para at the end of a container block
+  createParagraphNear,    // 6. node-selection on / gap-cursor beside an atom
+  splitBlockKeepMarks,    // 7. default: split the innermost textblock
 )
 ```
 
@@ -441,7 +444,9 @@ generic split because their textblocks (`sourcecode`, `dt`, the boundary cases
 of `dd`) are not plain splittable paragraphs; list and container exit must
 preempt the default split so that pressing Enter on an empty list item or empty
 trailing paragraph exits the construct rather than adding yet another empty
-paragraph inside it; `createParagraphNear` must preempt the split for node
+paragraph inside it; `exitSectionTitle` must preempt the default split so that
+pressing Enter inside a section heading moves to the body rather than producing
+a second heading textblock; `createParagraphNear` must preempt the split for node
 selections on atoms (which have no inline content to split). The generic split
 is the fallback.
 
@@ -579,17 +584,19 @@ cell management**.
 The deliberate choice here is predictability over cleverness: Enter inside a
 table does what it does in a paragraph, nothing more.
 
-#### 2.4.7 Atoms and node selections (`image`, `formula`, `floating_title`)
+#### 2.4.7 Atoms and node selections (`image`, `formula`)
 
-`image`, `formula`, and `floating_title` are block-level atoms (empty content,
-`atom: true`). The cursor cannot rest *inside* them; it can only node-select
-them or sit in a gap cursor beside them. (`footnote_marker` and `soft_break`
-are *inline* atoms and are never the target of Enter — Enter inside a paragraph
-that contains them just splits the paragraph around them.)
+`image` and `formula` are block-level atoms (empty content, `atom: true`). The
+cursor cannot rest *inside* them; it can only node-select them or sit in a gap
+cursor beside them. (`footnote_marker` and `soft_break` are *inline* atoms and
+are never the target of Enter — Enter inside a paragraph that contains them
+just splits the paragraph around them. `floating_title` is no longer an atom as
+of schema v5 — it is a textblock with `inline*` content, so Enter inside it
+splits it via the default `splitBlockKeepMarks` branch, just like a paragraph.)
 
 | Selection | Context | Effect | Invariant |
 |---|---|---|---|
-| Node selection on an atom | `image` / `formula` / `floating_title` | **`createParagraphNear`**: insert an empty paragraph adjacent to the atom (before it if the selection is at the front, after it otherwise); cursor in the new paragraph. | New paragraph is a legal sibling; atom untouched. |
+| Node selection on an atom | `image` / `formula` | **`createParagraphNear`**: insert an empty paragraph adjacent to the atom (before it if the selection is at the front, after it otherwise); cursor in the new paragraph. | New paragraph is a legal sibling; atom untouched. |
 | Gap cursor immediately before/after an atom | — | Same: create an adjacent empty paragraph on the cursor's side; cursor in it. | New paragraph is a legal child of the atom's parent. |
 | Node selection on a **non-atom** block (`paragraph`, `sourcecode`, `note`, `clause`, …) | — | Return `false` (Enter does nothing). Restructuring whole blocks or sections on Enter is surprising; dedicated commands handle those, and the user can arrow into the block to type. | — |
 
@@ -602,11 +609,17 @@ The cursor is always inside some textblock; it is never "inside" a `clause`,
   introduced by dedicated commands/toolbars, not by Enter, because auto-creating
   sections on Enter would violate user expectation in a hierarchical document.
 - Enter **never splits a section node.**
-- For leaf sections whose content is `block+` (`abstract`, `foreword`,
-  `introduction`, `acknowledgements`), Enter on the last empty paragraph simply
-  adds another paragraph inside; it does not exit into the parent. The
-  schema-safety rule below still applies: the section is never left with zero
-  blocks.
+- **`section_title`** (the optional leading heading textblock of a section) is
+  handled by the dedicated `exitSectionTitle` command (§2.7, chain position 4),
+  which preempts the generic split: Enter inside a `section_title` moves the
+  cursor to the section's first body block, or inserts an empty paragraph as
+  the body if none exists. Enter never splits a `section_title` into two (a
+  section has at most one heading).
+- For leaf sections whose content is `section_title? block+` (`abstract`,
+  `foreword`, `introduction`, `acknowledgements`), Enter on the last empty
+  paragraph simply adds another paragraph inside; it does not exit into the
+  parent. The schema-safety rule below still applies: the section is never left
+  with zero blocks.
 
 ### 2.5 Schema-preservation guarantees
 
@@ -623,9 +636,11 @@ behaviour:
 2. **The `(dt dd)+` alternation of `dl` is never broken.** No transaction
    produced by Enter contains two adjacent `dt` nodes or two adjacent `dd`
    nodes, nor a trailing `dt` without a `dd`.
-3. **Atoms are never split or entered.** `image`, `formula`, `floating_title`,
+3. **Atoms are never split or entered.** `image`, `formula`,
    `footnote_marker`, `soft_break`, `stem` are never given content; Enter beside one
-   creates an adjacent paragraph instead.
+   creates an adjacent paragraph instead. (`floating_title` and `section_title`
+   are textblocks, not atoms — Enter splits `floating_title` normally and exits
+   `section_title` to the body via `exitSectionTitle`.)
 4. **No transaction leaves the selection on a forbidden position.** After any
    structural step the selection resolves to a valid cursor (typically via
    `TextSelection.near`), never inside an atom or between two structural nodes
@@ -669,6 +684,7 @@ The Enter feature introduces the following commands in
 | `newlineInCode` | `Command` | adapted from `prosemirror-commands` | Insert a `\n` when the cursor is inside a `code: true` block (only `sourcecode`). Preempts all other branches. |
 | `enterDefinitionList` | `Command` | custom | Manage the `(dt dd)+` flow: commit a term to its `dd`, start a new `(dt dd)` entry, or exit the `dl`. Preempts the generic split. |
 | `splitListItem` | `(schema) => Command` | adapted from `prosemirror-schema-list` | Continue a `bullet_list`/`ordered_list` by splitting the item's inner block into a new item, or exit the list (one level) on an empty trailing item. Generalised for `list_item` content `block+`. |
+| `exitSectionTitle` | `Command` | custom | When the cursor is inside a `section_title` textblock (the heading of a section node), move the cursor to the section's first body block, or insert an empty `paragraph` as the first body block if none exists. Preempts the generic split so Enter inside a heading does not produce a second heading textblock. |
 | `exitContainerBlock` | `Command` | custom | Lift an empty trailing paragraph out of a `block+` container (`note`, `example`, `quote`, `review`, `admonition`, `figure`), removing the container if it would become empty. |
 | `createParagraphNear` | `Command` | re-exported from `prosemirror-commands` | Create an empty paragraph adjacent to a node-selected atom or at a gap cursor beside one. |
 | `splitBlockKeepMarks` | `Command` | adapted from `prosemirror-commands` | Default fallback: split the innermost textblock (typically a `paragraph`) carrying active marks, after deleting any ranged selection. |
@@ -711,6 +727,7 @@ import {
   newlineInCode,
   enterDefinitionList,
   splitListItem,
+  exitSectionTitle,
   exitContainerBlock,
   createParagraphNear,
   splitBlockKeepMarks,
@@ -723,6 +740,7 @@ const enterBinding = chainCommands(
   newlineInCode,
   enterDefinitionList,
   splitListItem(metanormaSchema),
+  exitSectionTitle,
   exitContainerBlock,
   createParagraphNear,
   splitBlockKeepMarks,
@@ -790,7 +808,7 @@ rows:
   row/cell count unchanged.
 - **T2** empty paragraph in a `table_cell` → no exit; another paragraph in the
   cell (or no-op); cell/row count unchanged.
-- **A1** node-selected `image` / `formula` / `floating_title` → adjacent empty
+- **A1** node-selected `image` / `formula` → adjacent empty
   paragraph created on the selection's side.
 - **A2** gap cursor beside an atom → adjacent empty paragraph on that side.
 - **A3** node-selected non-atom block (a `paragraph`, a `clause`, …) → no-op
@@ -800,6 +818,10 @@ rows:
   content expression requires.
 - **S2** every `dl`-affecting branch: assert no two adjacent `dt` or `dd`, and
   no trailing `dt` without a `dd`.
+- **ST1** cursor inside a `section_title` that has a following body block →
+  cursor moves to the start of that body block; no new node.
+- **ST2** cursor inside a `section_title` with no body block → empty `paragraph`
+  inserted as the first body block; cursor in it.
 
 Every row must also satisfy the global Acceptance criteria: single dispatch, no
 throw, valid resulting selection, query/dispatch parity, and headless
@@ -953,7 +975,7 @@ dispatched, on `tr.doc.toJSON()` and the selection. Representative rows:
   `dispatch` dispatches nothing.
 - **X2** ranged selection spanning from a paragraph into a `dd`, any
   `listType` → **not applicable** (`false`) — the span touches a `dl`.
-- **X3** node selection on an `image`/`formula`/`floating_title` atom →
+- **X3** node selection on an `image`/`formula` atom →
   `false`.
 
 Every row must also satisfy the global Acceptance criteria: single dispatch,
@@ -1252,16 +1274,19 @@ inside a table deletes characters or an empty paragraph (when the cell has
 more content), never a cell, row, or the table. The cursor cannot escape the
 cell by deletion; arrow keys or a dedicated toolbar are the way out.
 
-#### 4.4.7 Atoms and node selections (`image`, `formula`, `floating_title`)
+#### 4.4.7 Atoms and node selections (`image`, `formula`)
 
-`image`, `formula`, and `floating_title` are block-level atoms (empty content,
-`atom: true`); the cursor cannot rest *inside* them. (`footnote_marker` and
-`soft_break` are inline atoms; Backspace at the cursor immediately after one
-deletes it via default character handling, not this feature.)
+`image` and `formula` are block-level atoms (empty content, `atom: true`);
+the cursor cannot rest *inside* them. (`footnote_marker` and `soft_break` are
+inline atoms; Backspace at the cursor immediately after one deletes it via
+default character handling, not this feature. `floating_title` is no longer an
+atom as of schema v5 — it is a textblock with `inline*` content, so Backspace
+on an empty `floating_title` deletes the block via the §4.7.3 walk, just like
+an empty paragraph.)
 
 | Selection | Context | Effect | Invariant |
 |---|---|---|---|
-| Node selection on a block atom | `image` / `formula` / `floating_title` | **No-op** (`false`) for this feature; the chain's `deleteSelection` step (§4.3) then deletes the atom. Cursor lands at the merge of the surrounding textblocks, or at the start/end of the surrounding container if the atom was its only child. | Atom removed in one transaction by the chain; surrounding content model honoured. |
+| Node selection on a block atom | `image` / `formula` | **No-op** (`false`) for this feature; the chain's `deleteSelection` step (§4.3) then deletes the atom. Cursor lands at the merge of the surrounding textblocks, or at the start/end of the surrounding container if the atom was its only child. | Atom removed in one transaction by the chain; surrounding content model honoured. |
 | Node selection on a **non-atom** block (`paragraph`, `sourcecode`, `note`, `clause`, …) | — | `false`. Default handling may delete the node (per ProseMirror's stock node-deletion behaviour). Restructuring sections on Backspace is left to dedicated commands. | — |
 | Gap cursor immediately before/after an atom | — | `false` for this feature; chain's `deleteSelection` may delete the adjacent atom. | As above. |
 
@@ -1308,18 +1333,46 @@ textblock empties a section**:
   below still applies: the document is never left with no editable position.
 
 > **Doc-start anchor.** The default document (schema.spec.md §15) is
-> `doc > sections > clause > paragraph`. Pressing Backspace at the start of that
-> paragraph deletes the paragraph, which empties the `clause`, which is deleted;
-> the walk then reaches `sections`, a structural container that the rule above
-> refuses to delete. To keep the document editable, the command **re-creates a
-> minimal valid content** for the emptied container: an empty `paragraph` inside
-> the `clause` (or, if the `clause` was also deleted, a fresh `clause` with an
-> empty paragraph inside the `sections`). The user observes a no-op at the
-> document start — the cursor stays in an empty paragraph at the same screen
-> position — but no invariant is violated. This is the one case where
-> `emptyTextblockBackspace` dispatches a transaction that *adds* a node rather
-> than only deleting; it is the dual of the Enter feature's §2.4.7
-> `createParagraphNear` rule ("Enter near an atom makes a place to type").
+> `doc > sections > clause > (section_title, paragraph)`. Pressing Backspace at
+> the start of that paragraph deletes the paragraph, which empties the
+> `clause`'s body (the `section_title` is a heading, not a body block); the
+> `clause` is deleted; the walk then reaches `sections`, a structural container
+> that the rule above refuses to delete. To keep the document editable, the
+> command **re-creates a minimal valid content** for the emptied container: an
+> empty `paragraph` inside the `clause` (or, if the `clause` was also deleted, a
+> fresh `clause` with a `section_title` and an empty paragraph inside the
+> `sections`). The user observes a no-op at the document start — the cursor
+> stays in an empty paragraph at the same screen position — but no invariant is
+> violated. This is the one case where `emptyTextblockBackspace` dispatches a
+> transaction that *adds* a node rather than only deleting; it is the dual of
+> the Enter feature's §2.4.7 `createParagraphNear` rule ("Enter near an atom
+> makes a place to type").
+
+#### 4.4.9 Section titles (`section_title`)
+
+A `section_title` is the optional leading heading textblock of a section node
+(schema §8.2). It is an ordinary textblock (`content: "inline*"`) but occupies a
+special role: it is the section's heading, not a body block. Backspace on an
+empty `section_title` must therefore **delete only the title, not the section** —
+the section's body blocks are preserved.
+
+| Selection | Zone | Context | Effect | Invariant |
+|---|---|---|---|---|
+| Collapsed | start-of-empty | the empty `section_title` has following body blocks | **Delete the `section_title` only.** The cursor lands at the start of the section's first remaining body block. The section node and all its body content are untouched. | Section content model (`section_title? …`) still satisfied (zero-or-one heading). |
+| Collapsed | start-of-empty | the empty `section_title` is the **only** child of the section (no body blocks) | **Delete the `section_title`, then insert an empty `paragraph`** as the section's body so the section is never left with zero body blocks. Cursor in the new paragraph. | Section always has at least one body block. |
+| Collapsed | start (non-empty) | inside a `section_title` with text content | No-op (`false`). Default deletion runs (deletes a character). | `inline*` intact. |
+| Collapsed | middle / end | inside a `section_title` | No-op (`false`). Default character deletion runs. | `inline*` intact. |
+| Ranged | any | within a `section_title` | No-op (`false`). `deleteSelection` runs. | `inline*`. |
+| Node | — | node-selected `section_title` | See §4.4.7 (`section_title` is a non-atom block — `false` for this feature; default handling may delete it). | — |
+
+The `section_title` guard fires **before** the general §4.7.3 container-stack
+walk: the walk would otherwise treat the empty `section_title` as a generic
+empty textblock, delete it, and then (if it was the only child) proceed to
+delete the parent section. The guard intercepts this case to preserve the
+section and re-seed a body paragraph when needed. It is the structural dual of
+the Enter feature's `exitSectionTitle` command (§2.7): just as Enter inside a
+heading exits to the body, Backspace on an empty heading removes the heading
+but keeps the body.
 
 ### 4.5 Schema-preservation guarantees
 
@@ -1335,9 +1388,10 @@ Every branch of the Backspace chain upholds invariants dual to §2.5's:
    produced by Backspace deletes a `dt` or `dd` such that the remaining dl has
    two adjacent `dt` or two adjacent `dd`, or a trailing `dt` without a `dd`.
    Inside a `dt`/`dd`, Backspace at start is a no-op (§4.4.4).
-3. **Atoms are never entered or split.** Block atoms (`image`, `formula`,
-   `floating_title`) are removed only by the chain's `deleteSelection` step
-   under a node selection; the structural branch never enters them.
+3. **Atoms are never entered or split.** Block atoms (`image`, `formula`)
+   are removed only by the chain's `deleteSelection` step under a node
+   selection; the structural branch never enters them. (`floating_title` and
+   `section_title` are textblocks, not atoms — see §4.4.7 and §4.4.9.)
 4. **No transaction leaves the selection on a forbidden position.** After any
    structural step the selection resolves to a valid cursor (typically via
    `Selection.near` / `TextSelection.near` at the computed predecessor end),
@@ -1421,9 +1475,10 @@ import type { Command } from "prosemirror-state";
  * Refuses (returns false, dispatches nothing) when the cursor is inside a `dl`
  * (`dt` or `dd`), inside the last block of a `table_cell`, or when the
  * container-stack walk (§4.7.3) reaches a non-deletable container without a
- * predecessor. In all other positions — non-empty textblock, cursor not at
- * start, ranged or node selection — returns false so the chain's stock
- * deletion steps run.
+ * predecessor. When the empty textblock is a `section_title`, the §4.4.9 guard
+ * applies instead of the general walk. In all other positions — non-empty
+ * textblock, cursor not at start, ranged or node selection — returns false so
+ * the chain's stock deletion steps run.
  *
  * Conforms to the Command contract (§1.5): pure predicate when queried
  * (without `dispatch`), single transaction when dispatched.
@@ -1449,10 +1504,13 @@ would dispatch, i.e. when **all** of:
    `dd` whose parent is a `dl`);
 5. the textblock is not the last block of a `table_cell` (the parent
    `table_cell`'s `childCount === 1` and that child is the textblock);
-6. simulating the §4.7.3 walk from this position reaches a deletion set that
-   either terminates with a predecessor (some non-deleted ancestor has a
-   previous sibling) **or** terminates at a non-deletable container that would
-   be re-seeded per §4.4.8 (the doc-start anchor case).
+6. **either** (a) the empty textblock is a `section_title` — the §4.4.9 guard
+   applies (delete the title, re-seed a body paragraph if needed), **or**
+   (b) the textblock is not a `section_title` and simulating the §4.7.3 walk
+   from this position reaches a deletion set that either terminates with a
+   predecessor (some non-deleted ancestor has a previous sibling) **or**
+   terminates at a non-deletable container that would be re-seeded per §4.4.8
+   (the doc-start anchor case).
 
 In every other state, the query form returns `false` and dispatches nothing,
 so the chain's `joinBackward` / `deleteSelection` steps run.
@@ -1462,6 +1520,12 @@ so the chain's `joinBackward` / `deleteSelection` steps run.
 When the applicability predicate holds and `dispatch` is provided, the command
 builds a single transaction (§1.7) that performs the walk:
 
+0. **`section_title` guard (§4.4.9).** If the empty textblock is a
+   `section_title`, execute the §4.4.9 logic instead of the general walk below:
+   delete the `section_title`; if it was the section's only child, insert an
+   empty `paragraph` as the body; place the cursor at the start of the first
+   body block (the re-seeded paragraph or the pre-existing first body block).
+   Dispatch and return. The general walk does not run for `section_title`.
 1. **Initialise the deletion set** to the empty textblock's range (its start and
    end positions in the document).
 2. **Walk up:** for the textblock's parent, ask:
@@ -1494,10 +1558,11 @@ builds a single transaction (§1.7) that performs the walk:
    - If the walk stopped at a non-deletable container (step 2's bullet 5) and
      the container now has **no children** (the doc-start anchor case) →
      **re-seed** the container with a minimal valid child: for `sections`/
-     `preface`/`bibliography`, insert a fresh `clause` containing an empty
-     `paragraph`; for `doc`, insert the default skeleton. Place the cursor at
-     the start of that re-seeded paragraph. This is the only transaction the
-     command dispatches that *adds* nodes (§4.4.8 doc-start anchor).
+     `preface`/`bibliography`, insert a fresh `clause` containing a
+     `section_title` and an empty `paragraph`; for `doc`, insert the default
+     skeleton. Place the cursor at the start of that re-seeded paragraph. This
+     is the only transaction the command dispatches that *adds* nodes (§4.4.8
+     doc-start anchor).
    - If the walk stopped because the parent still has other children (step 2's
      last bullet) but the deleted textblock was that parent's **first** child
      (so there is no previous sibling at this level) → the cursor lands at the
@@ -1551,6 +1616,7 @@ import {
   newlineInCode,
   enterDefinitionList,
   splitListItem,
+  exitSectionTitle,
   exitContainerBlock,
   createParagraphNear,
   splitBlockKeepMarks,
@@ -1572,6 +1638,7 @@ export function metanormaKeymap() {
       newlineInCode,
       enterDefinitionList,
       splitListItem(metanormaSchema),
+      exitSectionTitle,
       exitContainerBlock,
       createParagraphNear,
       splitBlockKeepMarks,
@@ -1614,9 +1681,10 @@ rows:
   `clause` both deleted in one transaction; cursor at the end of the previous
   clause's last descendant paragraph.
 - **BP3** empty paragraph at the default document start
-  (`doc > sections > clause > paragraph`) → paragraph deleted, clause deleted,
-  walk stops at `sections`; `sections` re-seeded with a fresh `clause > empty
-  paragraph`; cursor at the start of that paragraph (observed no-op).
+  (`doc > sections > clause > (section_title, paragraph)`) → paragraph deleted,
+  clause deleted, walk stops at `sections`; `sections` re-seeded with a fresh
+  `clause > (section_title, empty paragraph)`; cursor at the start of that
+  paragraph (observed no-op).
 - **BP4** non-empty paragraph, cursor at start → no-op for this feature
   (`false`); default handling runs and itself no-ops at the boundary.
 - **BP5** paragraph, cursor mid-text → no-op for this feature (`false`);
@@ -1656,6 +1724,16 @@ rows:
   `deleteSelection` deletes the atom.
 - **BA2** node selection on a non-atom block (`paragraph`) → `false` for this
   feature; default handling.
+- **BST1** empty `section_title` (cursor at start) with following body blocks →
+  `section_title` deleted only; cursor at start of the section's first remaining
+  body block; section node and body content untouched (§4.4.9).
+- **BST2** empty `section_title` (cursor at start) that is the **only** child of
+  the section → `section_title` deleted, empty `paragraph` inserted as body;
+  cursor in the new paragraph; section preserved (§4.4.9).
+- **BST3** non-empty `section_title`, cursor at start → no-op (`false`); default
+  character deletion runs.
+- **BST4** ranged selection within a `section_title` → no-op (`false`);
+  `deleteSelection` runs.
 - **BS1** empty paragraph, sole child of a `clause`, sole child of an outer
   `clause` (two-level nesting) → both clauses and the paragraph deleted in one
   transaction; cursor at end of the previous sibling of the outer clause (or

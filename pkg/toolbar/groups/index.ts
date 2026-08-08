@@ -12,7 +12,7 @@ import type { ToolbarGroupDef } from "../types.js";
 import { marksGroup } from "./marksGroup.js";
 import { blocksGroup } from "./blocksGroup.js";
 import { listsGroup } from "./listsGroup.js";
-import { makeLinkGroup, defaultLinkPrompt } from "./linkGroup.js";
+import { makeLinkGroup } from "./linkGroup.js";
 import { refsGroup } from "./refsGroup.js";
 import { sectionsGroup } from "./sectionsGroup.js";
 import { definitionListGroup } from "./definitionListGroup.js";
@@ -22,20 +22,18 @@ import { historyGroup } from "./historyGroup.js";
 import { outdentGroup } from "./outdentGroup.js";
 import type { AdvancedFeatureOptions } from "../AdvancedMetanormaToolbar.js";
 
-export { defaultLinkPrompt } from "./linkGroup.js";
 export { makeLinkGroup } from "./linkGroup.js";
 
 /**
  * Build the four base groups, threading the link prompt (§10.6).
  *
- * @param onLinkPrompt — the link-URL prompt callback (defaults to
- *   `defaultLinkPrompt` / `window.prompt`).
+ * @param onLinkPrompt — optional link-URL prompt callback. When undefined, the
+ *   built-in `<PromptPopover>` dialog is used.
  */
 export function baseGroups(
-  onLinkPrompt: () => Promise<string | null> = defaultLinkPrompt,
+  onLinkPrompt?: (() => Promise<string | null>) | undefined,
 ): readonly ToolbarGroupDef[] {
-  // Wrap the prompt in the lazy-getter shape that `makeLinkGroup` expects.
-  const linkGroup = makeLinkGroup(() => onLinkPrompt);
+  const linkGroup = makeLinkGroup(onLinkPrompt);
   return [marksGroup, blocksGroup, listsGroup, linkGroup];
 }
 

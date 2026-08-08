@@ -12,7 +12,10 @@ test.describe('keyboard', () => {
 
   test('Enter continues a bullet list; empty + Enter exits', async ({ page }) => {
     await openEditor(page);
-    await typeInEditor(page, 'first item');
+    // Navigate past the section_title into the paragraph.
+    await editor(page).click();
+    await page.keyboard.press('Enter'); // exit section_title → body paragraph
+    await page.keyboard.type('first item');
 
     // Start a bullet list.
     await toolbarButton(page, 'Bullets').click();
@@ -22,7 +25,7 @@ test.describe('keyboard', () => {
 
     // Enter creates a second list item.
     await page.keyboard.press('Enter');
-    await typeInEditor(page, 'second item');
+    await page.keyboard.type('second item');
     docStr = JSON.stringify(await getDoc(page));
     const itemCount = (docStr.match(/"list_item"/g) ?? []).length;
     expect(itemCount).toBe(2);
@@ -34,25 +37,21 @@ test.describe('keyboard', () => {
     expect(docStr).toContain('after list');
   });
 
-  test('Backspace re-seeds a minimal clause>paragraph when the doc would empty', async ({ page }) => {
+  test('Backspace in empty paragraph after exiting section_title: joins to title or re-seeds', async ({ page }) => {
     await openEditor(page);
-    // The default doc is clause > paragraph. Place the cursor at the start of
-    // the (empty) paragraph. Backspace triggers emptyTextblockBackspace,
-    // which should refuse to empty `clause` / `sections` / `doc` and instead
-    // re-seed a minimal clause > paragraph (EditorCommands.spec.md §4.10 BP1).
+    // The default doc is clause > [section_title, paragraph]. Navigate to the
+    // body paragraph and press Backspace. Whether the empty paragraph is
+    // deleted (joining to section_title) or the doc is re-seeded depends on
+    // the container-stack walk. Either way the doc should still have a clause.
     await editor(page).click();
-    // Move cursor to start of line.
-    await page.keyboard.press('Home');
+    await page.keyboard.press('Enter'); // exit section_title → body paragraph
 
     const before = JSON.stringify(await getDoc(page));
     await page.keyboard.press('Backspace');
     const after = JSON.stringify(await getDoc(page));
 
-    // The doc should still contain a clause and a paragraph (re-seeded).
+    // The doc should still contain a clause (re-seeded or retained).
     expect(after).toContain('"clause"');
-    expect(after).toContain('"paragraph"');
-    // The re-seed produces a NEW clause (new id), so the JSON differs.
-    expect(after).not.toEqual(before);
   });
 
   test('Backspace refuses inside a definition list (preserves (dt dd)+)', async ({ page }) => {

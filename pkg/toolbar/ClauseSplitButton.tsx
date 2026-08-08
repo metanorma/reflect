@@ -17,18 +17,22 @@
  * - **Leading paragraph** → calls `insertLeadingParagraph` (adds intro text
  *   before subclauses).
  *
- * Uses the HTML Popover API (`popover="manual"`) + CSS Anchor Positioning,
- * same as the other toolbar pickers.
+ * Both `wrapInClause` and `insertClauseAfter` create the clause with an empty
+ * `section_title` child and place the cursor there — the user types the heading
+ * and applies marks directly in the document. No prompt dialog is needed.
+ *
+ * Uses the HTML Popover API (`popover="manual"`) + CSS Anchor Positioning for
+ * the dropdown menu, same as the other toolbar pickers.
  */
 
 import React, { useRef } from "react";
+import type { EditorState } from "prosemirror-state";
 
 import {
   useEditorStateSelector,
   useEditorEventCallback,
 } from "@handlewithcare/react-prosemirror";
 import type { EditorView } from "prosemirror-view";
-import type { EditorState } from "prosemirror-state";
 
 import {
   wrapInClause,
@@ -146,72 +150,41 @@ export function ClauseDropdownMenu({
 // Split-button trigger
 // ---------------------------------------------------------------------------
 
-/** Resolve heading title from the prompt, then dispatch a clause command. */
-function resolveTitle(
-  getHeadingPrompt: () => () => Promise<string | null>,
-  cb: (opts: { readonly title: string | null }) => void,
-): void {
-  void getHeadingPrompt()().then((title) => {
-    const opts = title === null
-      ? { title: null }
-      : { title: title === "" ? null : title };
-    cb(opts);
-  });
-}
-
 /**
- * The "Clause" split button (sections.md §4.2). Owns the heading prompt flow,
- * the dropdown open state, and the context-sensitive primary action.
+ * The "Clause" split button (sections.md §4.2). Synchronous — no prompt dialog.
+ * The primary click dispatches `wrapInClause` or `insertClauseAfter` (based on
+ * context), and the cursor lands in the new clause's empty `section_title`.
  */
-export function ClauseSplitButton({
-  getHeadingPrompt,
-}: {
-  readonly getHeadingPrompt: () => () => Promise<string | null>;
-}): React.JSX.Element {
+export function ClauseSplitButton(): React.JSX.Element {
   const enabled = useEditorStateSelector(canInsertClause);
   const siblingEnabled = useEditorStateSelector(canInsertSibling);
   const leadingEnabled = useEditorStateSelector(canInsertLeadingPara);
   const primaryTriggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Context-sensitive primary click: reads live view state at click time to
-  // decide nested vs sibling. State/dispatch captured synchronously before the
-  // async prompt (stale-view guard).
   const primaryClick = useEditorEventCallback((view: EditorView | null) => {
     if (view === null) return;
-    const { state, dispatch } = view;
-    const isSibling = isInEmptyTrailingParagraph(state);
-    resolveTitle(getHeadingPrompt, (opts) => {
-      if (isSibling) {
-        insertClauseAfter(state, dispatch, opts);
-      } else {
-        wrapInClause(state, dispatch, opts);
-      }
-      view.focus();
-    });
+    if (isInEmptyTrailingParagraph(view.state)) {
+      insertClauseAfter(view.state, view.dispatch);
+    } else {
+      wrapInClause(view.state, view.dispatch);
+    }
+    view.focus();
   });
 
-  // Dropdown: explicit nested clause.
   const nestedClick = useEditorEventCallback((view: EditorView | null) => {
     if (view === null) return;
-    const { state, dispatch } = view;
-    resolveTitle(getHeadingPrompt, (opts) => {
-      wrapInClause(state, dispatch, opts);
-      view.focus();
-    });
+    wrapInClause(view.state, view.dispatch);
+    view.focus();
   });
 
-  // Dropdown: explicit sibling clause.
   const siblingClick = useEditorEventCallback((view: EditorView | null) => {
     if (view === null) return;
-    const { state, dispatch } = view;
-    resolveTitle(getHeadingPrompt, (opts) => {
-      insertClauseAfter(state, dispatch, opts);
-      view.focus();
-    });
+    insertClauseAfter(view.state, view.dispatch);
+    view.focus();
   });
 
-  // Dropdown: leading paragraph (no heading prompt needed).
+  // Leading paragraph (no heading prompt needed).
   const leadingParaClick = useEditorEventCallback((view: EditorView | null) => {
     if (view === null) return;
     insertLeadingParagraph(view.state, view.dispatch);
@@ -251,18 +224,9 @@ export function ClauseSplitButton({
         canNested={enabled}
         canSibling={siblingEnabled}
         canLeading={leadingEnabled}
-        onNested={() => {
-          closeMenu();
-          void nestedClick();
-        }}
-        onSibling={() => {
-          closeMenu();
-          void siblingClick();
-        }}
-        onLeadingPara={() => {
-          closeMenu();
-          void leadingParaClick();
-        }}
+        onNested={() => { closeMenu(); void nestedClick(); }}
+        onSibling={() => { closeMenu(); void siblingClick(); }}
+        onLeadingPara={() => { closeMenu(); void leadingParaClick(); }}
         onCancel={closeMenu}
       />
     </div>

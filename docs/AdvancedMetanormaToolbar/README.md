@@ -152,7 +152,7 @@ Governed by `schema.spec.md` §6 (Attribute conventions):
 
 - `DATA_ATTR` — `{ data: { default: {} } }`, universal catch-all.
 - `baseAttrs()` — `{ id, number, data }`, all defaulting `null`/`{}`.
-- `sectionAttrs()` — `{ id, number, title, data }`, all defaulting `null`/`{}`.
+- `sectionAttrs()` — `{ id, number, data }`, all defaulting `null`/`{}` (same as `baseAttrs()`; the `title` attribute was removed in schema v5 — the heading is now a `section_title` child node).
 
 ### 4.3 Runtime guards
 

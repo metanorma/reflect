@@ -13,10 +13,10 @@
  */
 
 import React from "react";
-import { useRef, useMemo } from "react";
+import { useMemo } from "react";
 
 import { Toolbar } from "./Toolbar.js";
-import { baseGroups, defaultLinkPrompt } from "./groups/index.js";
+import { baseGroups } from "./groups/index.js";
 import type { BaseToolbarGroup } from "./types.js";
 
 /** The four toolbar groups, rendered in declaration order (§4.2). */
@@ -33,7 +33,7 @@ export interface MetanormaToolbarProps {
   /** Class applied to the toolbar root `<div>`. Defaults to `"mn-toolbar"`. */
   readonly className?: string;
 
-  /** Optional custom link-URL prompt. Default: `window.prompt` (§6). */
+  /** Optional custom link-URL prompt. Default: built-in `<PromptPopover>`. */
   readonly onLinkPrompt?: () => Promise<string | null>;
 }
 
@@ -51,14 +51,9 @@ export function MetanormaToolbar({
   className,
   onLinkPrompt,
 }: MetanormaToolbarProps): React.JSX.Element {
-  // Keep the latest link prompt in a ref so the group descriptors (built via
-  // useMemo) always read the current value without being rebuilt.
-  const linkPromptRef = useRef(onLinkPrompt ?? defaultLinkPrompt);
-  linkPromptRef.current = onLinkPrompt ?? defaultLinkPrompt;
-
   const groups = useMemo(
-    () => baseGroups(() => linkPromptRef.current()),
-    [],
+    () => baseGroups(onLinkPrompt),
+    [onLinkPrompt],
   );
 
   return (

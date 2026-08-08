@@ -1,0 +1,92 @@
+/*
+ * prompt-popover.css — styling for the PromptPopover RAC dialog.
+ *
+ * Consumes the `--mn-*` design tokens defined by `@metanorma/prosemirror-editor`
+ * (tokens.css); light/dark themes are handled centrally there.
+ *
+ * RAC renders the popover in a portal at <body> and applies inline positioning
+ * styles, so the consumer's vertical-toolbar CSS overrides do not conflict.
+ */
+
+@layer chrome {
+
+  /* ---- Popover container ---- */
+
+  .mn-prompt-popover {
+    background: var(--mn-surface);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-md);
+    padding: var(--mn-space-2);
+    box-shadow: 0 2px 8px var(--mn-shadow);
+    min-width: 16em;
+  }
+
+  /* ---- Form field ---- */
+
+  .mn-prompt-popover__field {
+    display: grid;
+    gap: 0.2em;
+    margin-bottom: var(--mn-space-2);
+  }
+
+  .mn-prompt-popover__label {
+    font-size: 0.85em;
+    color: var(--mn-text);
+  }
+
+  .mn-prompt-popover__input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.25em 0.4em;
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-sm);
+    background: var(--mn-surface);
+    color: var(--mn-text);
+    font-size: inherit;
+    font-family: inherit;
+  }
+
+  .mn-prompt-popover__input:focus {
+    outline: 2px solid var(--mn-active);
+    outline-offset: 1px;
+  }
+
+  /* ---- Actions ---- */
+
+  .mn-prompt-popover__actions {
+    display: flex;
+    gap: var(--mn-space-1);
+    justify-content: flex-end;
+  }
+
+  .mn-prompt-popover__btn {
+    padding: var(--mn-space-1) var(--mn-space-2);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-sm);
+    background: var(--mn-surface);
+    color: var(--mn-text);
+    font-size: inherit;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .mn-prompt-popover__btn[data-focus-visible] {
+    outline: 2px solid var(--mn-focus);
+    outline-offset: 1px;
+  }
+
+  .mn-prompt-popover__btn[data-pressed] {
+    background: var(--mn-active);
+  }
+
+  .mn-prompt-popover__btn--primary {
+    border-color: var(--mn-accent);
+    background: var(--mn-accent);
+    color: var(--mn-on-dark, #fff);
+  }
+
+  .mn-prompt-popover__btn--primary[data-pressed] {
+    opacity: 0.85;
+  }
+
+}

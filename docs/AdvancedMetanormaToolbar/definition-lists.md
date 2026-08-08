@@ -167,8 +167,8 @@ function canInsertBlock(state: EditorState): boolean {
 }
 ```
 
-Inside atom/inline-only nodes (`formula`, `floating_title`, `image`,
-`sourcecode`, a `dt`) the parent does not accept `block`, so the check
+Inside atom/inline-only nodes (`formula`, `image`,
+`sourcecode`, `floating_title`, a `dt`) the parent does not accept `block`, so the check
 correctly returns `false`.
 
 **Note on nesting:** `dd` has content `block+`, so a `dl` is legal *inside*

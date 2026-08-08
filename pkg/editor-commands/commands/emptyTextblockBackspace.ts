@@ -30,7 +30,7 @@
 
 import type { Command } from "prosemirror-state";
 import { TextSelection } from "prosemirror-state";
-import type { ResolvedPos } from "prosemirror-model";
+import type { ResolvedPos, Node } from "prosemirror-model";
 
 import { NODE_NAME, nodeType, isEmptyTextblock } from "../schema.js";
 import { generateId } from "../util.js";
@@ -137,6 +137,90 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
     }
   }
 
+  // §4.4.9 — section_title guard. If the empty textblock is a section_title,
+  // there are two cases:
+  //
+  // 1. The section has **meaningful body content** (any non-empty block after
+  //    the title): delete only the title node and move the cursor to the
+  //    section's first body block. This prevents the container-stack walk from
+  //    deleting a section just because its title is empty.
+  //
+  // 2. The section is **effectively empty** (all body children are empty
+  //    paragraphs, or there are no body children): delete the entire section
+  //    node so no empty shell (a clause with a bare empty paragraph and no
+  //    heading) remains in the DOM. This mirrors what the container-stack walk
+  //    does for a single-child clause, but handles the [section_title,
+  //    paragraph] pair that the walk cannot collapse (it sees childCount > 1).
+  if ($from.parent.type.name === NODE_NAME.section_title) {
+    if (dispatch === undefined) return true;
+
+    const sectionDepth = $from.depth - 1;
+    const titleStart = $from.before($from.depth);
+    const titleEnd = $from.after($from.depth);
+    const sectionNode = $from.node(sectionDepth);
+    const titleIndex = $from.index(sectionDepth);
+
+    // Check whether the section has meaningful body content: any child after
+    // the title that is not an empty paragraph. An empty paragraph is the
+    // default trailing block created by wrapInClause/insertClauseAfter and is
+    // not meaningful.
+    let hasMeaningfulBody = false;
+    for (let i = titleIndex + 1; i < sectionNode.childCount; i++) {
+      const child = sectionNode.child(i);
+      if (!(child.type.name === NODE_NAME.paragraph && child.content.size === 0)) {
+        hasMeaningfulBody = true;
+        break;
+      }
+    }
+
+    const tr = state.tr;
+
+    if (hasMeaningfulBody) {
+      // Case 1 — delete only the title, move cursor to first body block.
+      tr.delete(titleStart, titleEnd);
+      tr.setSelection(TextSelection.near(tr.doc.resolve(titleStart), 1));
+    } else {
+      // Case 2 — delete the entire section node.
+      const sectionStart = $from.before(sectionDepth);
+      const sectionEnd = $from.after(sectionDepth);
+      const parentDepth = sectionDepth - 1;
+      const sectionIndex = $from.index(parentDepth);
+      const parentNode = parentDepth >= 1 ? $from.node(parentDepth) : null;
+      const isOnlyChild = parentNode !== null && parentNode.childCount === 1;
+      const parentIsNonDeletable =
+        parentNode !== null && NON_DELETABLE_NAMES.has(parentNode.type.name);
+
+      tr.delete(sectionStart, sectionEnd);
+
+      if (isOnlyChild && parentIsNonDeletable) {
+        // Re-seed with a minimal clause > [section_title, paragraph].
+        const clauseType = nodeType(state.schema, NODE_NAME.clause);
+        const paraType = nodeType(state.schema, NODE_NAME.paragraph);
+        const sectionTitleType = nodeType(state.schema, NODE_NAME.section_title);
+        if (clauseType !== null && paraType !== null) {
+          const children: Node[] = [];
+          if (sectionTitleType !== null) {
+            children.push(sectionTitleType.create());
+          }
+          children.push(paraType.create());
+          const clause = clauseType.create({ id: generateId() }, children);
+          tr.insert(sectionStart, clause);
+          // Cursor inside the section_title (position +2: clause open + title open).
+          tr.setSelection(TextSelection.near(tr.doc.resolve(sectionStart + 2)));
+        }
+      } else {
+        // Land at predecessor's last descendant textblock (dir -1) or next
+        // sibling's first textblock (dir +1).
+        const dir = sectionIndex > 0 ? -1 : 1;
+        tr.setSelection(TextSelection.near(tr.doc.resolve(sectionStart), dir));
+      }
+    }
+
+    tr.scrollIntoView();
+    dispatch(tr);
+    return true;
+  }
+
   // §4.7.3 — walk the container stack.
   const result = walkContainerStack($from);
   if (result.kind === "refuse") return false;
@@ -159,7 +243,7 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
     const paraType = nodeType(state.schema, NODE_NAME.paragraph);
     if (clauseType !== null && paraType !== null) {
       const para = paraType.create();
-      const clause = clauseType.create({ id: generateId(), title: null }, para);
+      const clause = clauseType.create({ id: generateId() }, para);
       tr.insert(delStart, clause);
       tr.setSelection(TextSelection.near(tr.doc.resolve(delStart + 2)));
     }

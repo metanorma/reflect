@@ -33,7 +33,6 @@ export {
   ImageNodeView,
   FigureNodeView,
   FormulaNodeView,
-  FloatingTitleNodeView,
   SourcecodeNodeView,
   FootnoteMarkerNodeView,
   FootnoteEntryNodeView,

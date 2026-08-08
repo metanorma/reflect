@@ -11,13 +11,13 @@
  */
 
 import React from "react";
-import { useRef, useMemo } from "react";
+import { useMemo } from "react";
 
 import type { EditorState } from "prosemirror-state";
 import type { HistoryOptions } from "@metanorma/editor-commands";
 
 import { Toolbar } from "./Toolbar.js";
-import { baseGroups, defaultLinkPrompt, buildAdvancedGroups } from "./groups/index.js";
+import { baseGroups, buildAdvancedGroups } from "./groups/index.js";
 import type { BaseToolbarGroup } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -132,14 +132,9 @@ export function AdvancedMetanormaToolbar({
   onFootnotePrompt,
   onStemPrompt,
 }: AdvancedMetanormaToolbarProps): React.JSX.Element {
-  // Keep the latest link prompt in a ref so the base groups (built once) always
-  // read the current value.
-  const linkPromptRef = useRef(onLinkPrompt ?? defaultLinkPrompt);
-  linkPromptRef.current = onLinkPrompt ?? defaultLinkPrompt;
-
   const base = useMemo(
-    () => baseGroups(() => linkPromptRef.current()),
-    [],
+    () => baseGroups(onLinkPrompt),
+    [onLinkPrompt],
   );
 
   // Feature opts are stable per render; the group factory reads them eagerly.

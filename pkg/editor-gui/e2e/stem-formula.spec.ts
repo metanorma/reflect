@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, typeInEditor, getDoc, editor } from './helpers.js';
+import { openEditor, toolbarButton, typeInEditor, getDoc } from './helpers.js';
+
+/** Locator for the RAC prompt popover. */
+function promptPopover(page: import('@playwright/test').Page) {
+  return page.locator('.mn-prompt-popover');
+}
 
 test.describe('stem-formula', () => {
   test('Formula button inserts a stem node with visible AsciiMath source', async ({ page }) => {
@@ -7,11 +12,11 @@ test.describe('stem-formula', () => {
     await typeInEditor(page, 'before ');
 
     // Click Formula, enter AsciiMath, confirm.
-    page.once('dialog', async (dialog) => {
-      expect(dialog.type()).toBe('prompt');
-      await dialog.accept('x = y');
-    });
     await toolbarButton(page, 'Formula').click();
+    const dialog = promptPopover(page);
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('textbox').fill('x = y');
+    await dialog.getByRole('button', { name: 'Insert' }).click();
 
     // The stem node should be in the document model.
     const docStr = JSON.stringify(await getDoc(page));
@@ -29,10 +34,11 @@ test.describe('stem-formula', () => {
     await openEditor(page);
     await typeInEditor(page, 'math ');
 
-    page.once('dialog', async (dialog) => {
-      await dialog.accept('a^2 + b^2');
-    });
     await toolbarButton(page, 'Formula').click();
+    const dialog = promptPopover(page);
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('textbox').fill('a^2 + b^2');
+    await dialog.getByRole('button', { name: 'Insert' }).click();
 
     const stemEl = page.locator('.mn-stem');
     await expect(stemEl).toHaveAttribute('data-type', 'asciimath');
