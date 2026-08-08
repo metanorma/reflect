@@ -95,6 +95,17 @@
   flex-shrink: 0; /* keep the 1px height; the empty span would otherwise collapse to 0 in a shrinking flex column */
 }
 
+/* Uniform button widths in the vertical layout. Plain buttons (.mn-toolbar-btn)
+ * are direct flex children of .mn-toolbar-group and stretch by default. But
+ * stateful controls (Footnote, Table, Image, Type) wrap their button inside a
+ * container div (.mn-toolbar-footnote, .mn-toolbar-table, etc.) — the wrapper
+ * stretches, but the button inside it shrink-to-fits its content. Make every
+ * button fill its container so all buttons share the same width. */
+:global(.mn-toolbar--vertical .mn-toolbar-btn) {
+  width: 100%;
+  text-align: left;
+}
+
 @media (prefers-color-scheme: dark) {
   :global(.mn-toolbar--vertical) {
     border-left-color: var(--mn-border);
