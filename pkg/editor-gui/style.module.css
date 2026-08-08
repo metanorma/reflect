@@ -105,7 +105,16 @@
  * container div (.mn-toolbar-footnote, .mn-toolbar-table, etc.) — the wrapper
  * stretches, but the button inside it shrink-to-fits its content. Make every
  * button fill its container so all buttons share the same width. */
-:global(.mn-toolbar--vertical .mn-toolbar-btn) {
+/* Uniform button widths in the vertical layout. Plain buttons (.mn-toolbar-btn)
+ * are direct flex children of .mn-toolbar-group and stretch by default. But
+ * stateful controls (Footnote, Table, Image, Type) wrap their button inside a
+ * container div (.mn-toolbar-footnote, .mn-toolbar-table, etc.) — the wrapper
+ * stretches, but the button inside it shrink-to-fits its content. Make every
+ * button fill its container so all buttons share the same width.
+ *
+ * Exception: the Clause split-button's caret (.mn-clause-split-caret) is a
+ * fixed-width chevron — it must not stretch to 100%. */
+:global(.mn-toolbar--vertical .mn-toolbar-btn:not(.mn-clause-split-caret)) {
   width: 100%;
   text-align: left;
 }

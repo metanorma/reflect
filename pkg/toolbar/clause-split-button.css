@@ -1,0 +1,92 @@
+/*
+ * clause-split-button.css — split-button for clause insertion (sections.md §4.2).
+ *
+ * Consumes the `--mn-*` design tokens defined by `@metanorma/prosemirror-editor`
+ * (tokens.css); light/dark themes are handled centrally there.
+ */
+
+@layer chrome {
+
+  .mn-toolbar-clause-split {
+    display: flex;
+    width: 100%;
+    gap: 2px;
+  }
+
+  /* Primary button fills available width; caret button is fixed-width. */
+  .mn-toolbar-clause-split .mn-toolbar-btn:first-child {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .mn-clause-split-caret {
+    flex: 0 0 auto;
+    min-width: 1.5em;
+    padding: var(--mn-space-1);
+    border-left: 1px solid var(--mn-border);
+    border-radius: 0 3px 3px 0;
+  }
+
+  /* Anchor the dropdown to the caret button via CSS Anchor Positioning. */
+  .mn-clause-split-caret {
+    anchor-name: --mn-clause-menu-anchor;
+  }
+
+  /* ---- Clause dropdown menu popover (top-layer via Popover API) ---- */
+
+  .mn-clause-menu {
+    position-anchor: --mn-clause-menu-anchor;
+    position-area: inline-end span-block-end;
+    margin: 2px;
+    background: var(--mn-surface);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-md);
+    padding: 0.4em;
+    box-shadow: 0 2px 8px var(--mn-shadow);
+    min-width: 12em;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* `display` only when the popover is open — the UA stylesheet sets
+     `display: none` on hidden [popover] elements, but an author `display`
+     declaration would override it and keep the menu visible. */
+  .mn-clause-menu:popover-open {
+    display: flex;
+  }
+
+  /* When anchor positioning is unavailable, fall back to positioning relative
+     to .mn-toolbar-clause-split (position: relative via flex). */
+  @supports not (anchor-name: --x) {
+    .mn-clause-menu {
+      position: absolute;
+      top: 100%;
+      right: 0;
+    }
+  }
+
+  .mn-clause-menu__item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.2em 0.4em;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: inherit;
+    border-radius: 3px;
+    font-size: inherit;
+  }
+
+  .mn-clause-menu__item:hover:not(:disabled),
+  .mn-clause-menu__item:focus-visible:not(:disabled) {
+    background: var(--mn-active);
+  }
+
+  .mn-clause-menu__item:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+}

@@ -405,3 +405,97 @@ export function setSectionType(
   dispatch(tr);
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// insertClauseAfter (sections.md §5.5)
+// ---------------------------------------------------------------------------
+
+/**
+ * Insert a new `clause` as a **sibling** following the nearest enclosing
+ * section node (sections.md §5.5). Unlike `wrapInClause` (which creates a
+ * child), this inserts at the same depth as the current section — a direct
+ * one-step way to add a following clause without wrap-then-promote.
+ *
+ * @returns `true` if a transaction was / would be dispatched, `false` if no
+ *          enclosing section, the section is a top-level child of `doc`, or
+ *          the parent cannot legally accept a clause after it.
+ */
+export function insertClauseAfter(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+  opts?: { readonly title?: string | null },
+): boolean {
+  const { $from } = state.selection;
+  const clauseType = state.schema.nodes["clause"];
+  const paragraphType = state.schema.nodes["paragraph"];
+  if (clauseType === undefined || paragraphType === undefined) return false;
+
+  const hit = nearestSectionAncestor($from);
+  if (hit === null) return false;
+
+  // The section's parent must be at depth >= 1 (not a direct child of doc —
+  // doc's content expression does not permit bare clause children).
+  const parentDepth = hit.depth - 1;
+  if (parentDepth < 1) return false;
+
+  const parent = $from.node(parentDepth);
+  const sectionIndex = $from.index(parentDepth);
+
+  // Validate that the parent can legally accept a clause child after the
+  // current section.
+  if (!parentAccepts(parent, clauseType, sectionIndex + 1)) return false;
+
+  if (dispatch === undefined) return true;
+
+  const tr = state.tr;
+  const newClause = clauseType.create(
+    { id: generateId(), title: opts?.title ?? null },
+    [paragraphType.create()],
+  );
+
+  // Insert after the current section's closing token, inside the parent.
+  const insertAt = $from.after(hit.depth);
+  tr.insert(insertAt, newClause);
+
+  // Cursor inside the new clause's leading paragraph.
+  tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 2)));
+  tr.scrollIntoView();
+  dispatch(tr);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// insertLeadingParagraph (sections.md §5.6)
+// ---------------------------------------------------------------------------
+
+/**
+ * Insert an empty paragraph at the **start** of the nearest enclosing section,
+ * before any subclauses (sections.md §5.6). Addresses the case where a clause
+ * contains only nested subclauses and the user wants to add introductory text
+ * above them. The clause content model `(clause | block)*` permits this mix.
+ *
+ * @returns `true` if a transaction was / would be dispatched, `false` if no
+ *          enclosing section.
+ */
+export function insertLeadingParagraph(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+): boolean {
+  const { $from } = state.selection;
+  const paragraphType = state.schema.nodes["paragraph"];
+  if (paragraphType === undefined) return false;
+
+  const hit = nearestSectionAncestor($from);
+  if (hit === null) return false;
+
+  if (dispatch === undefined) return true;
+
+  const tr = state.tr;
+  // Just inside the section's opening token, before its first child.
+  const pos = $from.before(hit.depth) + 1;
+  tr.insert(pos, paragraphType.create());
+  tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 1)));
+  tr.scrollIntoView();
+  dispatch(tr);
+  return true;
+}

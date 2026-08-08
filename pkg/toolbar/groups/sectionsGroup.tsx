@@ -1,11 +1,14 @@
 /**
  * `sections` group — clause nesting structural operations (sections.md §4).
  *
- * Four buttons: Insert clause, Promote, Demote, Change section type. The
- * `run(view)` adapters delegate to the pure commands and re-focuses. The
- * heading `title` is collected via `window.prompt` (§7 option 2 baseline); a
- * host may upgrade via `onHeadingPrompt`. The "Type" button is a stateful
- * control that opens a `SectionTypePicker` popover.
+ * Four entries: Insert clause (split-button control), Promote, Demote, Change
+ * section type (stateful control). The `run(view)` adapters delegate to the
+ * pure commands and re-focus. The heading `title` is collected via
+ * `window.prompt` (§7 option 2 baseline); a host may upgrade via
+ * `onHeadingPrompt`. The "Type" button is a stateful control that opens a
+ * `SectionTypePicker` popover. The "Clause" button is a split-button control
+ * (`ClauseSplitButton`) with a context-sensitive primary action (nested vs
+ * sibling) plus an explicit dropdown menu.
  */
 
 import React from "react";
@@ -13,16 +16,15 @@ import type { EditorView } from "prosemirror-view";
 import type { EditorState } from "prosemirror-state";
 
 import {
-  wrapInClause,
   promoteClause,
   demoteClause,
-  canWrapInClause,
   findNearestSectionOfType,
   metanormaSchema,
 } from "@metanorma/editor-commands";
 
 import type { ToolbarGroupDef } from "../types.js";
 import { SectionTypeButton } from "../SectionTypePicker.js";
+import { ClauseSplitButton } from "../ClauseSplitButton.js";
 
 /** Default heading prompt: `window.prompt` (sections.md §7 option 2). */
 function defaultHeadingPrompt(): Promise<string | null> {
@@ -76,33 +78,10 @@ export function sectionsGroup(
     id: "sections",
     label: "Section structure",
     entries: [
+      // ── Insert clause — split-button with context-sensitive primary ──
       {
-        kind: "button",
-        descriptor: {
-          key: "sections-insert-clause",
-          label: "Clause",
-          title: "Insert clause (wrap selection in a new clause)",
-          isActive: (_state: EditorState) => false,
-          isEnabled: canWrapInClause,
-          run: (view: EditorView) => {
-            // Capture state/dispatch synchronously, BEFORE the awaited prompt.
-            // Reading `view.state` inside the `.then()` (after `window.prompt`
-            // closes) races against controlled-mode React state invalidation:
-            // `useEditor`'s `dispatchTransaction` callback closes over the
-            // `stateValue` from the render that built it, and `ReactEditorView`
-            // eagerly swaps `view.state`. Capturing the references on the
-            // synchronous event tick keeps the dispatch coherent.
-            const { state, dispatch } = view;
-            void getHeadingPrompt()().then((title) => {
-              const opts =
-                title === null
-                  ? { title: null }
-                  : { title: title === "" ? null : title };
-              wrapInClause(state, dispatch, opts);
-              view.focus();
-            });
-          },
-        },
+        kind: "control",
+        render: () => <ClauseSplitButton getHeadingPrompt={getHeadingPrompt} />,
       },
       {
         kind: "button",
