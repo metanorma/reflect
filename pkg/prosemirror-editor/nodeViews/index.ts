@@ -20,6 +20,7 @@ import { SourcecodeNodeView } from "./SourcecodeNodeView.js";
 import { SectionNodeView } from "./SectionNodeView.js";
 import { FootnoteMarkerNodeView } from "./FootnoteMarkerNodeView.js";
 import { FootnoteEntryNodeView } from "./FootnoteEntryNodeView.js";
+import { StemNodeView } from "./StemNodeView.js";
 
 export { ImageNodeView } from "./ImageNodeView.js";
 export { FigureNodeView } from "./FigureNodeView.js";
@@ -29,6 +30,7 @@ export { SourcecodeNodeView } from "./SourcecodeNodeView.js";
 export { SectionNodeView } from "./SectionNodeView.js";
 export { FootnoteMarkerNodeView } from "./FootnoteMarkerNodeView.js";
 export { FootnoteEntryNodeView } from "./FootnoteEntryNodeView.js";
+export { StemNodeView } from "./StemNodeView.js";
 
 /**
  * The default node-view component map. Node types not present here fall back to
@@ -50,6 +52,7 @@ export const nodeViewComponents: Readonly<
   sourcecode: SourcecodeNodeView,
   footnote_marker: FootnoteMarkerNodeView,
   footnote_entry: FootnoteEntryNodeView,
+  stem: StemNodeView,
   clause: SectionNodeView,
   annex: SectionNodeView,
   content_section: SectionNodeView,

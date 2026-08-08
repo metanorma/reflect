@@ -24,7 +24,7 @@ test.describe('section-type-picker', () => {
     expect(docStr).not.toContain('"clause"');
   });
 
-  test('Type button opens and closes the picker', async ({ page }) => {
+  test('Type button is enabled inside a section; picker shows current type', async ({ page }) => {
     await openEditor(page);
     // The default doc has a clause, so the button should be enabled.
     const typeBtn = toolbarButton(page, 'Type');
@@ -35,9 +35,10 @@ test.describe('section-type-picker', () => {
     const picker = page.locator('.mn-section-type-picker[popover]');
     await expect(picker).toBeVisible();
 
-    // Close by clicking the trigger again (toggle).
-    await typeBtn.click();
-    await expect(picker).toBeHidden();
+    // The current type (clause) is highlighted and disabled (can't convert to self).
+    const clauseItem = picker.getByRole('option', { name: 'Clause', exact: true });
+    await expect(clauseItem).toBeDisabled();
+    await expect(clauseItem).toHaveAttribute('aria-selected', 'true');
   });
 
   test('Multiple conversions: clause → annex → terms → clause', async ({ page }) => {

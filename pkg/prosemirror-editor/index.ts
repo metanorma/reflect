@@ -37,6 +37,7 @@ export {
   SourcecodeNodeView,
   FootnoteMarkerNodeView,
   FootnoteEntryNodeView,
+  StemNodeView,
   nodeViewComponents,
 } from "./nodeViews/index.js";
 
