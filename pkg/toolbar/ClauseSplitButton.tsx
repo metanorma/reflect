@@ -14,8 +14,6 @@
  * **Dropdown menu:**
  * - **Nested clause** → always calls `wrapInClause` (forces nesting).
  * - **Sibling clause** → always calls `insertClauseAfter` (forces sibling).
- * - **Leading paragraph** → calls `insertLeadingParagraph` (adds intro text
- *   before subclauses).
  *
  * Both `wrapInClause` and `insertClauseAfter` create the clause with an empty
  * `section_title` child and place the cursor there — the user types the heading
@@ -38,7 +36,6 @@ import {
   wrapInClause,
   canWrapInClause,
   insertClauseAfter,
-  insertLeadingParagraph,
   nearestSectionAncestor,
 } from "@metanorma/editor-commands";
 
@@ -68,11 +65,6 @@ function canInsertSibling(state: EditorState): boolean {
   return insertClauseAfter(state, undefined);
 }
 
-/** Whether a leading paragraph can be inserted (inside any section). */
-function canInsertLeadingPara(state: EditorState): boolean {
-  return nearestSectionAncestor(state.selection.$from) !== null;
-}
-
 // ---------------------------------------------------------------------------
 // Dropdown popover
 // ---------------------------------------------------------------------------
@@ -83,19 +75,15 @@ function canInsertLeadingPara(state: EditorState): boolean {
 export function ClauseDropdownMenu({
   onNested,
   onSibling,
-  onLeadingPara,
   canNested,
   canSibling,
-  canLeading,
   onCancel,
   ref,
 }: {
   readonly onNested: () => void;
   readonly onSibling: () => void;
-  readonly onLeadingPara: () => void;
   readonly canNested: boolean;
   readonly canSibling: boolean;
-  readonly canLeading: boolean;
   readonly onCancel: () => void;
   readonly ref?: React.Ref<HTMLDivElement> | undefined;
 }): React.JSX.Element {
@@ -133,15 +121,6 @@ export function ClauseDropdownMenu({
       >
         Sibling clause
       </button>
-      <button
-        type="button"
-        role="menuitem"
-        className="mn-clause-menu__item"
-        disabled={!canLeading}
-        onClick={onLeadingPara}
-      >
-        Leading paragraph
-      </button>
     </div>
   );
 }
@@ -158,7 +137,6 @@ export function ClauseDropdownMenu({
 export function ClauseSplitButton(): React.JSX.Element {
   const enabled = useEditorStateSelector(canInsertClause);
   const siblingEnabled = useEditorStateSelector(canInsertSibling);
-  const leadingEnabled = useEditorStateSelector(canInsertLeadingPara);
   const primaryTriggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -181,13 +159,6 @@ export function ClauseSplitButton(): React.JSX.Element {
   const siblingClick = useEditorEventCallback((view: EditorView | null) => {
     if (view === null) return;
     insertClauseAfter(view.state, view.dispatch);
-    view.focus();
-  });
-
-  // Leading paragraph (no heading prompt needed).
-  const leadingParaClick = useEditorEventCallback((view: EditorView | null) => {
-    if (view === null) return;
-    insertLeadingParagraph(view.state, view.dispatch);
     view.focus();
   });
 
@@ -223,10 +194,8 @@ export function ClauseSplitButton(): React.JSX.Element {
         ref={menuRef}
         canNested={enabled}
         canSibling={siblingEnabled}
-        canLeading={leadingEnabled}
         onNested={() => { closeMenu(); void nestedClick(); }}
         onSibling={() => { closeMenu(); void siblingClick(); }}
-        onLeadingPara={() => { closeMenu(); void leadingParaClick(); }}
         onCancel={closeMenu}
       />
     </div>

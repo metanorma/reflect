@@ -483,39 +483,3 @@ export function insertClauseAfter(
   dispatch(tr);
   return true;
 }
-
-// ---------------------------------------------------------------------------
-// insertLeadingParagraph (sections.md §5.6)
-// ---------------------------------------------------------------------------
-
-/**
- * Insert an empty paragraph at the **start** of the nearest enclosing section,
- * before any subclauses (sections.md §5.6). Addresses the case where a clause
- * contains only nested subclauses and the user wants to add introductory text
- * above them. The clause content model `(clause | block)*` permits this mix.
- *
- * @returns `true` if a transaction was / would be dispatched, `false` if no
- *          enclosing section.
- */
-export function insertLeadingParagraph(
-  state: EditorState,
-  dispatch?: (tr: Transaction) => void,
-): boolean {
-  const { $from } = state.selection;
-  const paragraphType = state.schema.nodes["paragraph"];
-  if (paragraphType === undefined) return false;
-
-  const hit = nearestSectionAncestor($from);
-  if (hit === null) return false;
-
-  if (dispatch === undefined) return true;
-
-  const tr = state.tr;
-  // Just inside the section's opening token, before its first child.
-  const pos = $from.before(hit.depth) + 1;
-  tr.insert(pos, paragraphType.create());
-  tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 1)));
-  tr.scrollIntoView();
-  dispatch(tr);
-  return true;
-}

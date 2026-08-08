@@ -81,39 +81,6 @@ test.describe('clause insertion', () => {
   });
 
   // -------------------------------------------------------------------------+
-  // Dropdown: "Leading paragraph"                                            |
-  // -------------------------------------------------------------------------+
-  test('Dropdown "Leading paragraph" inserts a paragraph before subclauses', async ({ page }) => {
-    await openEditor(page);
-    // Navigate past the section_title into the paragraph.
-    await editor(page).click();
-    await page.keyboard.press('Enter'); // exit section_title → body paragraph
-    await page.keyboard.type('intro');
-
-    await toolbarButton(page, 'Clause').click();
-
-    // The outer clause now has: paragraph("intro"), clause(section_title + paragraph).
-    await page.keyboard.type('Sub');
-
-    // Move cursor back to the outer paragraph
-    await editor(page).click();
-    await page.keyboard.press('ArrowLeft');
-    await page.keyboard.press('Home');
-
-    // Open dropdown and insert leading paragraph
-    await page.locator('button[aria-label="Clause options"]').click();
-    const menu = page.locator('.mn-clause-menu[popover]');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'Leading paragraph' }).click();
-    await expect(menu).toBeHidden();
-
-    // The doc should now have an additional empty paragraph
-    const docStr = JSON.stringify(await getDoc(page));
-    // Verify a new empty paragraph was inserted
-    expect(docStr).toContain('"paragraph"');
-  });
-
-  // -------------------------------------------------------------------------+
   // Dropdown: "Nested clause" (forces nesting)                               |
   // -------------------------------------------------------------------------+
   test('Dropdown "Nested clause" forces nesting even from empty trailing paragraph', async ({ page }) => {
