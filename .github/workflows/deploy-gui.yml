@@ -35,7 +35,7 @@ jobs:
           cache: yarn
 
       - name: Install dependencies
-        run: yarn install # add --immutable after updating yarn.lock
+        run: yarn install --no-immutable # change to --immutable after updating yarn.lock
 
       - name: Build editor-gui
         # esbuild bundles pkg/editor-gui/bootstrap.tsx into
