@@ -1,0 +1,64 @@
+name: Deploy editor-gui
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# GITHUB_TOKEN permissions required by configure-pages/upload/deploy-pages.
+# id-token: write is needed for OIDC to the Pages deployment API.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one in-flight deploy at a time; a new push cancels a stale run.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Enable Yarn 4 via Corepack
+        # The runner ships Yarn Classic on PATH; Corepack activates the
+        # version pinned in the root packageManager field (yarn@4.17.0).
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build editor-gui
+        # esbuild bundles pkg/editor-gui/bootstrap.tsx into
+        # pkg/editor-gui/dist/ (index.html + bootstrap.js + bootstrap.css).
+        # index.html uses relative paths (./bootstrap.js, ./bootstrap.css),
+        # so no base-path rewrite is needed for project or user Pages.
+        run: yarn build-gui
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pkg/editor-gui/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
