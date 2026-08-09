@@ -23,16 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable Yarn 4 via Corepack
+        # The runner ships Yarn Classic on PATH; Corepack activates the
+        # version pinned in the root packageManager field (yarn@4.17.0).
+        run: corepack enable
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: yarn
-
-      - name: Enable Yarn 4 via Corepack
-        # The runner ships Yarn Classic on PATH; Corepack activates the
-        # version pinned in the root packageManager field (yarn@4.17.0).
-        run: corepack enable
 
       - name: Install dependencies
         run: yarn install --immutable
