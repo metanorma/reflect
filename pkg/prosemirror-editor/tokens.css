@@ -12,8 +12,10 @@
  *
  * Theme hooks (in priority order, highest wins):
  *   1. `data-mn-theme="light"|"dark"` on `.mn-prosemirror` (host-forced,
- *      declared after the media query so it wins on equal specificity).
- *   2. `@media (prefers-color-scheme: dark)` (OS default).
+ *      declared after the defaults so it wins on equal specificity).
+ *   2. Light defaults (`:root` — the values below). OS dark mode is NOT
+ *      applied automatically; a host opts into dark mode explicitly via the
+ *      `theme` prop.
  *
  * Loaded as a side-effect through style.css, which is imported by
  * MetanormaProseMirror.tsx.
@@ -56,21 +58,6 @@
 
     --mn-font-body: inherit;
     --mn-font-mono: monospace;
-  }
-
-  /* ---- OS dark mode ---- */
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --mn-surface:          #1e1e1e;
-      --mn-surface-muted:    #252526;
-      --mn-border:           #444444;
-      --mn-text-muted:       #aaaaaa;
-      --mn-text-placeholder: #666666;
-      --mn-empty-marker:     #666666;
-      --mn-active:           #3a3a3a;
-      --mn-danger:           #ff6b6b;
-    }
   }
 
   /* ---- Host-forced themes ---- */

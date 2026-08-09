@@ -119,12 +119,6 @@
   text-align: left;
 }
 
-@media (prefers-color-scheme: dark) {
-  :global(.mn-toolbar--vertical) {
-    border-left-color: var(--mn-border);
-  }
-}
-
 /*
  * Left hover-expand sidebar (document-level actions: Save / Open).
  *
