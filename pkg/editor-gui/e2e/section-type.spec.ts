@@ -64,4 +64,29 @@ test.describe('section-type-picker', () => {
     docStr = JSON.stringify(await getDoc(page));
     expect(docStr).toContain('"clause"');
   });
+
+  test('References is not offered as a section type', async ({ page }) => {
+    await openEditor(page);
+    await typeInEditor(page, 'content');
+
+    await toolbarButton(page, 'Type').click();
+    const picker = page.locator('.mn-section-type-picker[popover]');
+    await expect(picker).toBeVisible();
+
+    // "References" should not be in the list
+    await expect(picker.getByRole('option', { name: 'References', exact: true })).toHaveCount(0);
+  });
+
+  test('References button inserts a references section inside bibliography', async ({ page }) => {
+    await openEditor(page);
+    await typeInEditor(page, 'content');
+
+    await toolbarButton(page, 'References').click();
+
+    const docStr = JSON.stringify(await getDoc(page));
+    // bibliography container should exist
+    expect(docStr).toContain('"bibliography"');
+    // references node should exist inside bibliography
+    expect(docStr).toContain('"references"');
+  });
 });

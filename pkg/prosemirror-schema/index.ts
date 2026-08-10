@@ -48,9 +48,11 @@ export type { ClassName } from "./classes.js";
 export const NODE_NAMES: readonly string[] = [
   // STRUCTURAL_TYPES (5)
   "doc", "bibdata", "preface", "sections", "bibliography",
-  // SECTION_TYPES (10)
+  // SECTION_TYPES (9)
   "clause", "annex", "content_section", "abstract", "foreword",
-  "introduction", "acknowledgements", "terms", "definitions", "references",
+  "introduction", "acknowledgements", "terms", "definitions",
+  // REFERENCES_TYPES (1)
+  "references",
   // BIBITEM_TYPES (1)
   "bibitem",
   // SECTION_TITLE_TYPES (1)

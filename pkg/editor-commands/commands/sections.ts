@@ -27,7 +27,7 @@ import { generateId } from "../util.js";
 /** The ten section node names (group "section"), excluding `floating_title`. */
 const SECTION_NAMES: ReadonlySet<string> = new Set([
   "clause", "annex", "content_section", "abstract", "foreword",
-  "introduction", "acknowledgements", "terms", "definitions", "references",
+  "introduction", "acknowledgements", "terms", "definitions",
 ]);
 
 /**
@@ -479,6 +479,142 @@ export function insertClauseAfter(
   // token position. `+1` enters the clause, `+1` more enters the section_title.
   const cursorOffset = sectionTitleType !== undefined ? 2 : 2;
   tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + cursorOffset)));
+  tr.scrollIntoView();
+  dispatch(tr);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// insertLeadingParagraph (sections.md §5.6)
+// ---------------------------------------------------------------------------
+
+/**
+ * Insert an empty paragraph at the **start** of the nearest enclosing section,
+ * before any subclauses (sections.md §5.6). Addresses the case where a clause
+ * contains only nested subclauses and the user wants to add introductory text
+ * above them. The clause content model `(clause | block)*` permits this mix.
+ *
+ * @returns `true` if a transaction was / would be dispatched, `false` if no
+ *          enclosing section.
+ */
+export function insertLeadingParagraph(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+): boolean {
+  const { $from } = state.selection;
+  const paragraphType = state.schema.nodes["paragraph"];
+  if (paragraphType === undefined) return false;
+
+  const hit = nearestSectionAncestor($from);
+  if (hit === null) return false;
+
+  if (dispatch === undefined) return true;
+
+  const tr = state.tr;
+  // Just inside the section's opening token, before its first child.
+  const pos = $from.before(hit.depth) + 1;
+  tr.insert(pos, paragraphType.create());
+  tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 1)));
+  tr.scrollIntoView();
+  dispatch(tr);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// insertReferences (sections.md §5.7)
+// ---------------------------------------------------------------------------
+
+/**
+ * Insert a new `references` node as a child of `bibliography`, creating the
+ * `bibliography` container if it does not exist. The `references` node gets a
+ * generated id and an empty `section_title` + `paragraph` (prefatory text slot).
+ *
+ * Per the Metanorma RNG model, `references` is NOT a section type — it lives
+ * inside `bibliography` (or at doc-level as a sibling of `sections`). This
+ * command always targets `bibliography` as the parent, creating it at the
+ * schema-mandated position if absent (after `sections`, before `footnotes`).
+ *
+ * @returns `true` if a transaction was / would be dispatched, `false` if the
+ *          schema is missing the `references` or `bibliography` node type.
+ */
+export function insertReferences(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+): boolean {
+  const referencesType = state.schema.nodes["references"];
+  const bibliographyType = state.schema.nodes["bibliography"];
+  const sectionTitleType = state.schema.nodes["section_title"];
+  const paragraphType = state.schema.nodes["paragraph"];
+  if (referencesType === undefined || bibliographyType === undefined || paragraphType === undefined) {
+    return false;
+  }
+
+  if (dispatch === undefined) return true;
+
+  const tr = state.tr;
+  const doc = state.doc;
+
+  // Build the references node: section_title + paragraph (prefatory text).
+  const refsChildren: Node[] = [];
+  if (sectionTitleType !== undefined) {
+    refsChildren.push(sectionTitleType.create());
+  }
+  refsChildren.push(paragraphType.create());
+  const refsNode = referencesType.create(
+    { id: generateId() },
+    refsChildren,
+  );
+
+  // Find or create the bibliography container.
+  let bibPos = -1;
+  for (let i = 0; i < doc.childCount; i++) {
+    if (doc.child(i).type.name === "bibliography") {
+      bibPos = i;
+      break;
+    }
+  }
+
+  if (bibPos < 0) {
+    // Create the bibliography container at the schema-mandated position:
+    // after `sections` (or `preface` if no sections), before `footnotes`.
+    let insertAt = 0;
+    for (let i = 0; i < doc.childCount; i++) {
+      const child = doc.child(i);
+      const name = child.type.name;
+      if (name === "bibdata") insertAt = i + 1;
+      if (name === "preface") insertAt = i + 1;
+      if (name === "sections") insertAt = i + 1;
+    }
+    // Compute absolute position inside doc.content.
+    let absPos = 0;
+    for (let i = 0; i < insertAt; i++) {
+      absPos += doc.child(i).nodeSize;
+    }
+    const bibNode = bibliographyType.create({ id: generateId() }, refsNode);
+    tr.insert(absPos, bibNode);
+    // Cursor inside the new references' paragraph (after section_title).
+    const refsContentStart = absPos + 2; // bib open + refs open
+    const paraPos = sectionTitleType !== undefined
+      ? refsContentStart + (refsChildren[0]?.nodeSize ?? 0) + 1
+      : refsContentStart;
+    tr.setSelection(TextSelection.near(tr.doc.resolve(paraPos)));
+  } else {
+    // Bibliography exists — compute its position and append the references.
+    let absPos = 0;
+    for (let i = 0; i < bibPos; i++) {
+      absPos += doc.child(i).nodeSize;
+    }
+    const bibNode = doc.child(bibPos);
+    // Inside bibliography, after existing content (before close token).
+    const insertAt = absPos + 1 + bibNode.content.size;
+    tr.insert(insertAt, refsNode);
+    // Cursor inside the new references' paragraph.
+    const paraPos = sectionTitleType !== undefined
+      ? insertAt + 1 + (refsChildren[0]?.nodeSize ?? 0) + 1
+      : insertAt + 1;
+    tr.setSelection(TextSelection.near(tr.doc.resolve(paraPos)));
+  }
+
   tr.scrollIntoView();
   dispatch(tr);
   return true;

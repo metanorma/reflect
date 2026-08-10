@@ -41,8 +41,6 @@ const SECTION_TYPE_NAMES: readonly string[] = [
   "abstract", "foreword", "introduction", "acknowledgements",
   // Main body (sections)
   "clause", "terms", "definitions",
-  // Back matter
-  "references",
   // Annexes
   "annex",
   // Generic container
@@ -61,7 +59,6 @@ const SECTION_LABELS: Readonly<Record<string, string>> = {
   clause: "Clause",
   terms: "Terms",
   definitions: "Definitions",
-  references: "References",
   annex: "Annex",
   content_section: "Content section",
 };

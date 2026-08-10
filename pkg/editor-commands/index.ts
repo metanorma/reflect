@@ -57,6 +57,8 @@ export {
   demoteClause,
   setSectionType,
   insertClauseAfter,
+  insertLeadingParagraph,
+  insertReferences,
   canWrapInClause,
   nearestSectionAncestor,
   findNearestSectionOfType,

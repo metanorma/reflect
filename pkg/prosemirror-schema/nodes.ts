@@ -81,7 +81,7 @@ const structuralNodes: Record<string, NodeSpec> = {
       parseDOM: [{ tag: `section.${CLASS.sections}` }],
     },
     bibliography: {
-      content: `(section | ${BLOCK_GROUP})*`,
+      content: `(references | ${BLOCK_GROUP})*`,
       attrs: baseAttrs(),
       toDOM: () => ["section", { class: CLASS.bibliography }, 0],
       parseDOM: [{ tag: `section.${CLASS.bibliography}` }],
@@ -174,8 +174,7 @@ const sectionNodes: Record<string, NodeSpec> = {
       parseDOM: sectionParseRule(CLASS.definitions),
     },
     references: {
-      content: `section_title? (clause | bibitem | ${BLOCK_GROUP})*`,
-      group: SECTION_GROUP,
+      content: `section_title? (bibitem | ${BLOCK_GROUP})*`,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.references),
       parseDOM: sectionParseRule(CLASS.references),

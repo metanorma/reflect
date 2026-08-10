@@ -16,6 +16,7 @@ import type { EditorState } from "prosemirror-state";
 import {
   promoteClause,
   demoteClause,
+  insertReferences,
   findNearestSectionOfType,
   metanormaSchema,
 } from "@metanorma/editor-commands";
@@ -98,6 +99,21 @@ export function sectionsGroup(): ToolbarGroupDef {
       {
         kind: "control",
         render: () => <SectionTypeButton />,
+      },
+      // ── Insert references (bibliography section) ──
+      {
+        kind: "button",
+        descriptor: {
+          key: "sections-insert-references",
+          label: "References",
+          title: "Insert a references (bibliography) section",
+          isActive: (_state: EditorState) => false,
+          isEnabled: () => true,
+          run: (view: EditorView) => {
+            insertReferences(view.state, view.dispatch);
+            view.focus();
+          },
+        },
       },
     ],
   };
