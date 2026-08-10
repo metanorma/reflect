@@ -68,8 +68,8 @@ pkg/prosemirror-schema/
 └── groups.ts             ← group-name constants
 ```
 
-> The implementer may choose a different package path, but the **public
-> exports** (§11) and the schema contents must match this spec exactly.
+**Note.** The implementer may choose a different package path, but the **public
+exports** (§11) and the schema contents must match this spec exactly.
 
 ### 2.1 Dependencies
 
@@ -100,29 +100,28 @@ schema- definition time (`toDOM`/`parseDOM` describe structure only).
 | `SECTION_TITLE_TYPES` (1) | `section_title` |
 | `LEAF_TYPES` (2) | `text`, `soft_break` |
 
-> `section_title` is a standalone textblock (content `inline*`) that appears
-> only as the optional leading child of a section node (§8.2). It is not a
-> member of any PM content group (neither `block` nor `inline`), so it cannot
-> be inserted as a general block or appear in arbitrary containers — only the
-> section content expressions reference it (§8.2).
+**Note.** `section_title` is a standalone textblock (content `inline*`) that
+appears only as the optional leading child of a section node (§8.2). It is not
+a member of any PM content group (neither `block` nor `inline`), so it cannot be
+inserted as a general block or appear in arbitrary containers — only the section
+content expressions reference it (§8.2).
 
-> `floating_title` is listed in `BLOCK_TYPES` and is modelled as a **block
-> textblock** with `content: "inline*"` and a `depth` attribute (§8.3). It
-> carries `id` and `depth` (not `SectionAttrs`). Its inline content is the
-> heading text, so it supports full inline markup (emphasis, links, etc.).
+**Note.** `floating_title` is listed in `BLOCK_TYPES` and is modelled as a
+**block textblock** with `content: "inline*"` and a `depth` attribute (§8.3). It
+carries `id` and `depth` (not `SectionAttrs`). Its inline content is the heading
+text, so it supports full inline markup (emphasis, links, etc.).
 
 ### 3.2 Mark types (14)
 
 `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`,
 `strike`, `smallcap`, `link`, `xref`, `eref`, `concept`, `bcp14`, `span`.
 
-> Footnote references are modelled by the `footnote_marker` **inline node**
-> (§3.1, §8.7), which directly mirrors the inline Presentation-XML `<fn>`
-> element (body co-located at the reference site). There is **no** `footnote`
-> mark: an earlier draft carried both representations, which created a dual
-> source of truth for the same fact — a converter could not decide which was
-> authoritative. The mark has been removed to keep conversion unambiguous
-> (§1.1).
+**Note.** Footnote references are modelled by the `footnote_marker` **inline
+node** (§3.1, §8.7), which directly mirrors the inline Presentation-XML `<fn>`
+element (body co-located at the reference site). There is **no** `footnote` mark:
+an earlier draft carried both representations, which created a dual source of
+truth for the same fact — a converter could not decide which was authoritative.
+The mark has been removed to keep conversion unambiguous (§1.1).
 
 ---
 
@@ -230,10 +229,10 @@ following rules:
 | `footnote_marker` | `id`, `target` | open |
 | `paragraph`, `note`, `example`, `quote`, `review`, `bullet_list`, `list_item`, `dl`, `dt`, `dd`, `table_head`, `table_body`, `table_foot`, `table_row`, `footnotes`, `soft_break` | *(none beyond `data`)* | open |
 
-> **`image.src` validation.** Because `ImageAttrs.src` is required in TypeScript
-> but ProseMirror needs a default, `src` defaults to `""` and the module exports
-> a runtime guard `assertValidImageAttrs(attrs)` used by input rules / paste
-> handling to reject empty `src`.
+**`image.src` validation.** Because `ImageAttrs.src` is required in TypeScript
+but ProseMirror needs a default, `src` defaults to `""` and the module exports a
+runtime guard `assertValidImageAttrs(attrs)` used by input rules / paste handling
+to reject empty `src`.
 
 ### 6.2 Attribute map by mark
 
@@ -258,8 +257,8 @@ following rules:
 
 `code` is modelled as **non-exclusive** (it may co-exist with other marks) to
 match the open mark model of `types.ts`; no `excludes` is set on any mark.
-> Implementer note: if strict inline-code behaviour is later required, set
-> `excludes` on `code` to the full mark-name list. Out of scope for v1.
+**Implementer note.** If strict inline-code behaviour is later required, set
+`excludes` on `code` to the full mark-name list. Out of scope for v1.
 
 ---
 
@@ -341,21 +340,21 @@ function sectionToDOM(cls: string) {
 | `references` | `section_title? (clause \| bibitem \| block)*` | `mn-references` |
 | `bibitem` | *(empty atom, no group)* | `mn-bibitem` |
 
-> **Heading model.** Every section node's content expression begins with an
-> optional `section_title` child — the heading textblock. The `section_title`
-> renders through the section's content hole (`0` in `sectionToDOM`)
-> automatically; no special-cased rendering is needed. The heading is editable
-> inline like any other textblock and supports full inline markup (emphasis,
-> links, etc.), matching Metanorma Presentation XML's `<title>` child element
-> (§17). Prior to v5 the heading was a `title` **attribute** on the section
-> node (a plain string with no inline markup); it is now a child node.
+**Heading model.** Every section node's content expression begins with an
+optional `section_title` child — the heading textblock. The `section_title`
+renders through the section's content hole (`0` in `sectionToDOM`) automatically;
+no special-cased rendering is needed. The heading is editable inline like any
+other textblock and supports full inline markup (emphasis, links, etc.),
+matching Metanorma Presentation XML's `<title>` child element (§17). Prior to v5
+the heading was a `title` **attribute** on the section node (a plain string with
+no inline markup); it is now a child node.
 
-> **Bibliography entries.** The `references` section node's content expression
-> permits `bibitem` atom nodes alongside clauses and blocks. Each `bibitem`
-> stores a `BibliographicItem` (from `@metanorma/relaton`) as a single JSON
-> `item` attr and renders as a compact summary via a NodeView. `bibitem` has
-> no group membership — it is insertable only inside `references` via a
-> dedicated command, not as a general block.
+**Bibliography entries.** The `references` section node's content expression
+permits `bibitem` atom nodes alongside clauses and blocks. Each `bibitem` stores
+a `BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item` attr
+and renders as a compact summary via a NodeView. `bibitem` has no group
+membership — it is insertable only inside `references` via a dedicated command,
+not as a general block.
 
 ### 8.3 Block nodes
 
@@ -372,11 +371,11 @@ function sectionToDOM(cls: string) {
 | `floating_title` | `inline*`, `group: "block"` | `["div", {class: CLASS.floatingTitle, "data-id": id, "data-depth": depth}, 0]` (function) | `[{tag: "div.mn-floating-title", getAttrs: el => ({ id: el.getAttribute("data-id"), depth: Number(el.getAttribute("data-depth") ?? "1") })}]` |
 | `section_title` | `inline*` (no group) | `["div", {class: CLASS.sectionTitle}, 0]` | `[{tag: "div.mn-section-title"}]` |
 
-> **`sourcecode.code: true`.** The `sourcecode` node spec sets `code: true`, the
-> ProseMirror convention marking a textblock as a code block. This is what makes
-> `EditorState`'s code-context detection (`isInCode`) and the stock code-newline
-> command work inside `sourcecode`; the editor-commands package relies on it
-> (`EditorCommands.spec.md` §1.6.3).
+**`sourcecode.code: true`.** The `sourcecode` node spec sets `code: true`, the
+ProseMirror convention marking a textblock as a code block. This is what makes
+`EditorState`'s code-context detection (`isInCode`) and the stock code-newline
+command work inside `sourcecode`; the editor-commands package relies on it
+(`EditorCommands.spec.md` §1.6.3).
 
 ### 8.4 List nodes
 
@@ -400,7 +399,8 @@ function sectionToDOM(cls: string) {
 | `table_row` | `table_cell+` | `["tr", 0]` | `[{tag: "tr"}]` |
 | `table_cell` | `block+` | `["td", {colspan, rowspan}, 0]` (function) | `[{tag: "td"}, {tag: "th"}]` (both map to `table_cell`) |
 
-> The catalog has no `th` type; both `<td>` and `<th>` parse to `table_cell`.
+**Note.** The catalog has no `th` type; both `<td>` and `<th>` parse to
+`table_cell`.
 
 ### 8.6 Media nodes
 
@@ -456,9 +456,9 @@ with the mark tag and `0` (content hole), and `parseDOM` uses the tag.
 | `bcp14` | `type` | `["span", {class: CLASS.bcp14, "data-type": type}, 0]` (function) | `[{tag: "span.mn-bcp14", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
 | `span` | `class` | `["span", {class}, 0]` (function) | `[{tag: "span[data-class]", getAttrs: el => ({ class: el.getAttribute("data-class") }), priority: 1}]` |
 
-> **`span` parse priority.** The generic `span` mark parses with low priority
-> (`priority: 1`) so that the more specific `span.mn-smallcap` /
-> `span.mn-concept` / `span.mn-bcp14` rules win during HTML ingestion.
+**`span` parse priority.** The generic `span` mark parses with low priority
+(`priority: 1`) so that the more specific `span.mn-smallcap` / `span.mn-concept`
+/ `span.mn-bcp14` rules win during HTML ingestion.
 
 ---
 
@@ -527,10 +527,10 @@ reduces to:
    dropped in favour of the `footnote_marker` node (§3.2), and `stem` is
    reclassified from mark to node (§3.1).
 
-> Because `data` is itself a JSON object, deeply nested extra attributes survive
-> the round-trip. The module **must not** flatten `data` into top-level attrs on
-> output — `toJSON` emits typed attrs at the top level and everything else under
-> `data`, matching the open-attribute shape of `types.ts`.
+**Note.** Because `data` is itself a JSON object, deeply nested extra
+attributes survive the round-trip. The module **must not** flatten `data` into
+top-level attrs on output — `toJSON` emits typed attrs at the top level and
+everything else under `data`, matching the open-attribute shape of `types.ts`.
 
 ---
 

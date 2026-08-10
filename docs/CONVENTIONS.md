@@ -1,7 +1,7 @@
 # Spec governance conventions
 
 This document is the authority for how the specs under `docs/` are governed:
-versioning, cross-referencing, change tracking, and the tooling that enforces
+cross-referencing, change tracking, and the tooling that enforces
 consistency. It supersedes any earlier governance conventions that lived in
 session memory.
 
@@ -143,6 +143,7 @@ given spec. Use it to find what to review when changing a spec:
 ```
 $ node scripts/spec-impact.mjs docs/schema.spec.md
 Referenced by:
+  docs/CONVENTIONS.md
   docs/MetanormaProseMirror.spec.md
   docs/EditorCommands.spec.md
   docs/Relaton.spec.md

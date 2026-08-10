@@ -5,11 +5,11 @@ for the Metanorma Mirror document model. It is the command-logic companion to
 [`@metanorma/prosemirror-schema`](./schema.spec.md); its commands are wired into
 the `MetanormaProseMirror` editor mount via the consumer's `plugins` prop.
 
-> **Scope of this document.** This revision specifies only the **general,
-> cross-cutting aspects** of command implementation — the contract every command
-> obeys, how commands couple to the schema, transaction discipline, testability,
-> and the public-API conventions. The definitions of **individual commands** and
-> **keymap / input-rule wiring** are deferred to later sections.
+**Scope of this document.** This revision specifies only the **general,
+cross-cutting aspects** of command implementation — the contract every command
+obeys, how commands couple to the schema, transaction discipline, testability,
+and the public-API conventions. The definitions of **individual commands** and
+**keymap / input-rule wiring** are deferred to later sections.
 
 ---
 
@@ -71,11 +71,11 @@ pkg/editor-commands/
 └── commands/             ← individual command modules (reserved for later sections)
 ```
 
-> The package path and name are **decisions, not constraints.** The recommended
-> name `@metanorma/editor-commands` is chosen over `@metanorma/prosemirror-commands`
-> to avoid confusion with the upstream `prosemirror-commands` dependency (which
-> this package itself consumes). The implementer may rename, provided the public
-> exports and contract are honoured.
+**Note.** The package path and name are **decisions, not constraints.** The
+recommended name `@metanorma/editor-commands` is chosen over
+`@metanorma/prosemirror-commands` to avoid confusion with the upstream
+`prosemirror-commands` dependency (which this package itself consumes). The
+implementer may rename, provided the public exports and contract are honoured.
 
 The package must be registered as a Yarn workspace by adding `"pkg/editor-commands"`
 to the `workspaces` array in the root `package.json`.
@@ -131,9 +131,9 @@ All commands obey these invariants:
    `$from`/`$to` context. A command documents, at minimum, which selection kinds
    it handles.
 
-> A corollary of (1) and (2): a command may safely be called twice in quick
-> succession — once without `dispatch` to test, then once with `dispatch` to
-> act — and both calls are deterministic.
+**Note.** A corollary of (1) and (2): a command may safely be called twice in
+quick succession — once without `dispatch` to test, then once with `dispatch`
+to act — and both calls are deterministic.
 
 ---
 
@@ -348,10 +348,10 @@ a paragraph, continue or exit a list, commit a definition term, start a new
 definition entry, insert a newline inside source code, create a paragraph next
 to an atom, or lift the cursor out of a container. The governing rule is:
 
-> **Enter never produces a transaction the schema would reject, and never does
-> something the user does not expect for the context.** When the two could
-> conflict, schema safety wins; when several behaviours are schema-legal, the
-> least surprising one for a word-processor user wins.
+**Enter never produces a transaction the schema would reject, and never does
+something the user does not expect for the context.** When the two could
+conflict, schema safety wins; when several behaviours are schema-legal, the
+least surprising one for a word-processor user wins.
 
 The feature is delivered as a set of commands in
 `@metanorma/editor-commands`, composed into a single dispatch chain (§2.3) and
@@ -560,11 +560,11 @@ The exit rule is what lets the user "press Enter on the last empty line to leave
 the note/quote/figure." For `figure`, exiting leaves the figure (with its image
 and caption blocks) intact and creates a paragraph after it.
 
-> `footnote_entry` also has content `block+` but is **excluded** from the exit
-> rule: its parent `footnotes` requires `footnote_entry+` and does not accept a
-> stray paragraph, so there is no valid place to lift to. Enter inside a
-> `footnote_entry` therefore only ever splits the inner block (or adds a
-> paragraph); exiting a footnote is left to dedicated commands / arrow keys.
+**Note.** `footnote_entry` also has content `block+` but is **excluded** from
+the exit rule: its parent `footnotes` requires `footnote_entry+` and does not
+accept a stray paragraph, so there is no valid place to lift to. Enter inside a
+`footnote_entry` therefore only ever splits the inner block (or adds a
+paragraph); exiting a footnote is left to dedicated commands / arrow keys.
 
 #### 2.4.6 Tables (`table`, `table_cell`)
 
@@ -888,12 +888,12 @@ selects one branch. The three branches are mutually exclusive and dispatch
 | inside a **different** list type | **switch** | `lift` out of the current list, then `wrapIn(listType)` — both steps composed into one transaction. |
 | not in a list | **wrap** | `wrapIn(listType)` via ProseMirror's `findWrapping`, producing the full `list > list_item > <selected block>` chain in one step. |
 
-> The lift+wrap sequence of the **switch** branch is composed *within one
-> transaction*, not as two separate dispatches (§1.7.1). This differs from a
-> naïve implementation that calls `lift` then `wrapIn` as independent
-> commands, which would dispatch twice; the single-transaction composition is
-> the reason the query form (no `dispatch`) must recompute the post-lift
-> position before testing `wrapIn` applicability.
+**Note.** The lift+wrap sequence of the **switch** branch is composed *within
+one transaction*, not as two separate dispatches (§1.7.1). This differs from a
+naïve implementation that calls `lift` then `wrapIn` as independent commands,
+which would dispatch twice; the single-transaction composition is the reason
+the query form (no `dispatch`) must recompute the post-lift position before
+testing `wrapIn` applicability.
 
 ### 3.4 Selection handling and schema safety
 
@@ -928,10 +928,10 @@ per `MetanormaToolbar.spec.md` §5.3): the bullet/ordered-list toggle cannot
 wrap a definition list. Pre-existing documents containing such nesting still
 render — this is an authoring constraint, not a render-time rejection.
 
-> This is the single behavioural exception the Metanorma schema imposes on an
-> otherwise stock list-toggle. It is recorded here, at the command, so that
-> every consumer (toolbar, keymap, menu) sees the same applicability rather
-> than each consumer re-implementing a `dl` guard.
+**Note.** This is the single behavioural exception the Metanorma schema imposes
+on an otherwise stock list-toggle. It is recorded here, at the command, so that
+every consumer (toolbar, keymap, menu) sees the same applicability rather than
+each consumer re-implementing a `dl` guard.
 
 ### 3.6 Command-contract conformance
 
@@ -1004,12 +1004,12 @@ has a non-deletable predecessor.
 
 The governing rule is the dual of §2's:
 
-> **Backspace at the start of an empty textblock deletes the textblock and, when
-> that would empty its parent, deletes the parent too — walking up the container
-> stack until a node is reached that the schema or this spec refuses to
-> remove.** When the cursor is not at the start of an empty textblock, Backspace
-> performs ordinary character deletion (delegated to the editor view's default
-> handler). Schema safety always wins.
+**Backspace at the start of an empty textblock deletes the textblock and, when
+that would empty its parent, deletes the parent too — walking up the container
+stack until a node is reached that the schema or this spec refuses to remove.**
+When the cursor is not at the start of an empty textblock, Backspace performs
+ordinary character deletion (delegated to the editor view's default handler).
+Schema safety always wins.
 
 The feature is delivered as a single command in `@metanorma/editor-commands`
 (`emptyTextblockBackspace`, §4.7), placed at the front of the Backspace dispatch
@@ -1127,14 +1127,14 @@ particular, the structural branch first verifies that the cursor is at the start
 of an empty textblock; if not, it returns `false` so that the ranged/character
 branches run.
 
-> **Interaction with `definitionListKeymap` (definition-lists.md §6.2).** That
-> keymap binds Backspace-at-start inside `dt`/`dd` to a uniform **no-op** to
-> preserve `(dt dd)+`. When `definitionListKeymap()` is registered with higher
-> precedence than the §4.8 chain (as its spec requires), it claims the event
-> first and `emptyTextblockBackspace` never runs inside a `dt`/`dd`. When it is
-> *not* registered, `emptyTextblockBackspace` itself refuses inside a `dl`
-> (§4.4.4) so the invariant holds regardless. The two are therefore composable
-> in either order; the dl invariant is never violated.
+**Interaction with `definitionListKeymap` (definition-lists.md §6.2).** That
+keymap binds Backspace-at-start inside `dt`/`dd` to a uniform **no-op** to
+preserve `(dt dd)+`. When `definitionListKeymap()` is registered with higher
+precedence than the §4.8 chain (as its spec requires), it claims the event
+first and `emptyTextblockBackspace` never runs inside a `dt`/`dd`. When it is
+*not* registered, `emptyTextblockBackspace` itself refuses inside a `dl`
+(§4.4.4) so the invariant holds regardless. The two are therefore composable
+in either order; the dl invariant is never violated.
 
 ### 4.4 Behaviour by context
 
@@ -1203,13 +1203,13 @@ Backspace continues to delete backward inside that item). When the whole list is
 deleted, the walk continues from the list's former position (the cursor lands at
 the end of whatever predecessor the walk finds next).
 
-> The "delete the item" rule applies specifically when deleting the empty
-> paragraph would leave the item with no valid content. The Metanorma
-> `list_item` (`block+`) permits multiple blocks, so an item with a note *and* a
-> trailing empty paragraph only loses the paragraph (first row); an item whose
-> only child is the empty paragraph loses the item (second row). This mirrors
-> the Enter feature's list-exit rule (§2.4.3) and shares its rationale: a list
-> item is never left empty.
+**Note.** The "delete the item" rule applies specifically when deleting the
+empty paragraph would leave the item with no valid content. The Metanorma
+`list_item` (`block+`) permits multiple blocks, so an item with a note *and* a
+trailing empty paragraph only loses the paragraph (first row); an item whose
+only child is the empty paragraph loses the item (second row). This mirrors the
+Enter feature's list-exit rule (§2.4.3) and shares its rationale: a list item
+is never left empty.
 
 #### 4.4.4 Definition lists (`dl`, `dt`, `dd`)
 
@@ -1245,12 +1245,12 @@ Enter's `exitContainerBlock` (§2.4.5).
 | Ranged | any | within the container | No-op (`false`). `deleteSelection` runs. | `block+`. |
 | Node | — | — | See §4.4.7. | — |
 
-> `footnote_entry` (content `block+`, parent `footnotes` requires
-> `footnote_entry+`) is handled by the §4.7.3 walk, not specially: deleting its
-> last block deletes the entry, and if that empties `footnotes`, the
-> `footnotes` container is deleted too. The cursor lands at the end of the
-> previous `footnote_entry`, or — if the `footnotes` was the only child of the
-> document root's tail — the walk stops at the document body (§4.4.8).
+**Note.** `footnote_entry` (content `block+`, parent `footnotes` requires
+`footnote_entry+`) is handled by the §4.7.3 walk, not specially: deleting its
+last block deletes the entry, and if that empties `footnotes`, the `footnotes`
+container is deleted too. The cursor lands at the end of the previous
+`footnote_entry`, or — if the `footnotes` was the only child of the document
+root's tail — the walk stops at the document body (§4.4.8).
 
 #### 4.4.6 Tables (`table`, `table_cell`)
 
@@ -1329,21 +1329,20 @@ textblock empties a section**:
   delete the last block → section deleted → walk upward. The schema-safety rule
   below still applies: the document is never left with no editable position.
 
-> **Doc-start anchor.** The default document (schema.spec.md §15) is
-> `doc > sections > clause > (section_title, paragraph)`. Pressing Backspace at
-> the start of that paragraph deletes the paragraph, which empties the
-> `clause`'s body (the `section_title` is a heading, not a body block); the
-> `clause` is deleted; the walk then reaches `sections`, a structural container
-> that the rule above refuses to delete. To keep the document editable, the
-> command **re-creates a minimal valid content** for the emptied container: an
-> empty `paragraph` inside the `clause` (or, if the `clause` was also deleted, a
-> fresh `clause` with a `section_title` and an empty paragraph inside the
-> `sections`). The user observes a no-op at the document start — the cursor
-> stays in an empty paragraph at the same screen position — but no invariant is
-> violated. This is the one case where `emptyTextblockBackspace` dispatches a
-> transaction that *adds* a node rather than only deleting; it is the dual of
-> the Enter feature's §2.4.7 `createParagraphNear` rule ("Enter near an atom
-> makes a place to type").
+**Doc-start anchor.** The default document (schema.spec.md §15) is `doc >
+sections > clause > (section_title, paragraph)`. Pressing Backspace at the
+start of that paragraph deletes the paragraph, which empties the `clause`'s
+body (the `section_title` is a heading, not a body block); the `clause` is
+deleted; the walk then reaches `sections`, a structural container that the
+rule above refuses to delete. To keep the document editable, the command
+**re-creates a minimal valid content** for the emptied container: an empty
+`paragraph` inside the `clause` (or, if the `clause` was also deleted, a fresh
+`clause` with a `section_title` and an empty paragraph inside the `sections`).
+The user observes a no-op at the document start — the cursor stays in an empty
+paragraph at the same screen position — but no invariant is violated. This is
+the one case where `emptyTextblockBackspace` dispatches a transaction that
+*adds* a node rather than only deleting; it is the dual of the Enter feature's
+§2.4.7 `createParagraphNear` rule ("Enter near an atom makes a place to type").
 
 #### 4.4.9 Section titles (`section_title`)
 
@@ -1444,17 +1443,17 @@ exported: per §1.10.2 the chain is composed at the call site (the keymap plugin
 of §4.8), which also keeps composition explicit (§1.9.3) and keymap wiring
 outside the package (§1.13). Consumers may reorder or substitute commands.
 
-> **Why a single command, not a per-context family like Enter (§2.7)?** Enter's
-> branches are *constructive* — each creates different nodes (a newline, a list
-> item, a dl pair, an adjacent paragraph) — so they are naturally separate
-> commands composed by `chainCommands`. Backspace's structural branch is
-> *destructive* and uniform: regardless of context, it deletes the empty
-> textblock and recurses upward while the parent would be emptied. The
-> per-context variation (lists vs. containers vs. sections) is captured in the
-> walk's *stopping conditions* (§4.7.3), not in separate commands. The few
-> contexts that genuinely differ in kind — `dl` (refuse) and `table_cell`'s
-> last block (refuse) — are handled as early-return guards inside the single
-> command, not as separate commands in the chain.
+**Why a single command, not a per-context family like Enter (§2.7)?** Enter's
+branches are *constructive* — each creates different nodes (a newline, a list
+item, a dl pair, an adjacent paragraph) — so they are naturally separate
+commands composed by `chainCommands`. Backspace's structural branch is
+*destructive* and uniform: regardless of context, it deletes the empty
+textblock and recurses upward while the parent would be emptied. The
+per-context variation (lists vs. containers vs. sections) is captured in the
+walk's *stopping conditions* (§4.7.3), not in separate commands. The few
+contexts that genuinely differ in kind — `dl` (refuse) and `table_cell`'s last
+block (refuse) — are handled as early-return guards inside the single command,
+not as separate commands in the chain.
 
 #### 4.7.1 Signature
 
@@ -1574,12 +1573,12 @@ The walk composes all deletions and (in the re-seed case) insertions into
 **one transaction** (§1.7.1), never multiple dispatches. The query form
 re-simulates the walk to decide applicability without dispatching.
 
-> The "end of the last descendant textblock" cursor rule is what gives
-> Backspace its natural feel: deleting an empty paragraph that was the sole
-> child of a `clause` places the cursor at the end of the *previous clause's*
-> last paragraph, exactly where the user's eye already is. It is the same
-> "deepest editable position of the predecessor" idea used by the Enter
-> feature's exit branches (§2.4.3, §2.4.5).
+**Note.** The "end of the last descendant textblock" cursor rule is what gives
+Backspace its natural feel: deleting an empty paragraph that was the sole child
+of a `clause` places the cursor at the end of the *previous clause's* last
+paragraph, exactly where the user's eye already is. It is the same "deepest
+editable position of the predecessor" idea used by the Enter feature's exit
+branches (§2.4.3, §2.4.5).
 
 ### 4.8 Keymap binding
 

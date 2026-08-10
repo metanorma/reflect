@@ -24,7 +24,7 @@ Provide a single, reusable React component — `MetanormaProseMirror` — that:
 
 1. Mounts a ProseMirror editor driven by `metanormaSchema`
    (`@metanorma/prosemirror-schema`), so the editable document vocabulary is
-   **exactly** the 44 node types and 14 mark types of `schema.spec.md` §3.
+   **exactly** the 46 node types and 14 mark types of `schema.spec.md` §3.
 2. Renders the editor through React using
    `@handlewithcare/react-prosemirror@3.2.7` (the `ProseMirror` +
    `ProseMirrorDoc` components, the `reactKeys` plugin, and the React node-view
@@ -66,8 +66,8 @@ pkg/prosemirror-editor/
 └── document.css          ← document presentation (§9)
 ```
 
-> The implementer may choose a different package path, but the **public exports**
-> (§11) and the component contract must match this spec exactly.
+The implementer may choose a different package path, but the **public exports**
+(§11) and the component contract must match this spec exactly.
 
 The package must be registered as a Yarn workspace by adding `"pkg/prosemirror-editor"`
 to the `workspaces` array in the root `package.json` (which currently lists
@@ -227,10 +227,11 @@ export interface MirrorDocument {
 }
 ```
 
-> `MirrorDocument` is an editor-local convenience type. It is structurally
-> compatible with the JSON that `Node.toJSON()` emits, but it is intentionally
-> loose (`attrs?: Record<string, unknown>`) so callers can supply partial or
-> hand-authored documents without satisfying a per-node-type attribute type.
+**Note.** `MirrorDocument` is an editor-local convenience type. It is
+structurally compatible with the JSON that `Node.toJSON()` emits, but it is
+intentionally loose (`attrs?: Record<string, unknown>`) so callers can supply
+partial or hand-authored documents without satisfying a per-node-type attribute
+type.
 
 ### 6.2 `createInitialEditorState` and the default document (`state.ts`)
 

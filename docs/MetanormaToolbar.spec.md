@@ -27,30 +27,28 @@ shape.
 package, `@metanorma/toolbar` (`pkg/toolbar/`), separated from
 `@metanorma/prosemirror-editor` (§2). §11 also covers the package move.
 
-> **Recent change (assembler refactor).** The component was reshaped from a
-> self-contained monolith into a thin assembler over shared primitives
-> (§10); the button/predicate/render logic was extracted into shared
-> modules; `toggleList` was rewritten as a pure
-> `(state, dispatch?) => boolean` command and relocated to
-> `@metanorma/editor-commands` (§5.3, §12); and the whole toolbar —
-> assembler plus shared primitives — was moved into its own package,
-> `@metanorma/toolbar` (`pkg/toolbar/`). The public component API
-> (`MetanormaToolbar`, `MetanormaToolbarProps`, `ToolbarGroup`) is unchanged.
+**Recent change (assembler refactor).** The component was reshaped from a
+self-contained monolith into a thin assembler over shared primitives (§10); the
+button/predicate/render logic was extracted into shared modules; `toggleList`
+was rewritten as a pure `(state, dispatch?) => boolean` command and relocated to
+`@metanorma/editor-commands` (§5.3, §12); and the whole toolbar — assembler plus
+shared primitives — was moved into its own package, `@metanorma/toolbar`
+(`pkg/toolbar/`). The public component API (`MetanormaToolbar`,
+`MetanormaToolbarProps`, `ToolbarGroup`) is unchanged.
 
-> **Recent change (textual labels).** The visible `label` of every toolbar button
-> changed from a glyph/emoji/short token (e.g. `❝`, `🔗`, `B`, `x₂`) to a
-> **short legible word** (e.g. `Quote`, `Link`, `Bold`, `Sub`). The `title`
-> field (the `<button title>` tooltip) is unchanged and is now the sole
-> channel for the longer per-button description. Consequences for this
-> document: the §5 button tables are restructured so each row carries
-> explicit `Label` (= the short visible word) and `Title` (= the tooltip)
-> columns, replacing the old tables that specified only a glyph `Label` (and,
-> in §5.1, a separate `Icon/text` glyph column). The `ToolbarButton.label`
-> and `ToolbarButton.title` field semantics (§5) are unchanged — `label`
-> was always "the text shown as button text"; only the *recommended values*
-> changed. The styling baseline in §8 is unchanged (no `min-width` bump is
-> mandated; consumers that find word-labels too wide for their layout
-> override `.mn-toolbar-btn` as needed).
+**Recent change (textual labels).** The visible `label` of every toolbar button
+changed from a glyph/emoji/short token (e.g. `❝`, `🔗`, `B`, `x₂`) to a **short
+legible word** (e.g. `Quote`, `Link`, `Bold`, `Sub`). The `title` field (the
+`<button title>` tooltip) is unchanged and is now the sole channel for the
+longer per-button description. Consequences for this document: the §5 button
+tables are restructured so each row carries explicit `Label` (= the short
+visible word) and `Title` (= the tooltip) columns, replacing the old tables that
+specified only a glyph `Label` (and, in §5.1, a separate `Icon/text` glyph
+column). The `ToolbarButton.label` and `ToolbarButton.title` field semantics
+(§5) are unchanged — `label` was always "the text shown as button text"; only
+the *recommended values* changed. The styling baseline in §8 is unchanged (no
+`min-width` bump is mandated; consumers that find word-labels too wide for their
+layout override `.mn-toolbar-btn` as needed).
 
 ## 2. Package and export
 
@@ -81,10 +79,10 @@ layer.
 on `@metanorma/prosemirror-editor`: the toolbar is a *child* rendered inside
 the editor context, not a code-level dependent of it.
 
-> **Consumer import change.** Historically the toolbar was imported from
-> `@metanorma/prosemirror-editor`. Now `@metanorma/prosemirror-editor`
-> no longer exports or references the toolbar; consumers import it from
-> `@metanorma/toolbar` directly (§3).
+**Consumer import change.** Historically the toolbar was imported from
+`@metanorma/prosemirror-editor`. Now `@metanorma/prosemirror-editor` no longer
+exports or references the toolbar; consumers import it from
+`@metanorma/toolbar` directly (§3).
 
 ## 3. Integration model
 
@@ -353,8 +351,8 @@ const isBoldActive = useEditorStateSelector((state) => {
 Each button subscribes via its own `useEditorStateSelector` call, so only
 the buttons whose active/enabled state actually changed re-render.
 
-> **Implementation note:** `marks()` on a ResolvedPos returns an array;
-> for `$to.marks()` use the `MarkType.isInSet()` method to test membership.
+**Implementation note.** `marks()` on a ResolvedPos returns an array; for
+`$to.marks()` use the `MarkType.isInSet()` method to test membership.
 
 Commands are dispatched through `useEditorEventCallback`, which provides
 the `EditorView`:
@@ -857,12 +855,12 @@ advanced spec) imports them by relative path.
 toolbar at all: the `MetanormaToolbar`, `MetanormaToolbarProps`,
 `ToolbarGroup`, and `toggleList` re-exports are removed (clean break, §2).
 
-> **Export delta.** Historically the toolbar symbols were
-> imported from `@metanorma/prosemirror-editor`. They now move to
-> `@metanorma/toolbar`; `@metanorma/prosemirror-editor` drops them entirely.
-> `toggleList` is re-exported from `@metanorma/toolbar` (sourcing it from
-> `@metanorma/editor-commands`); its name is unchanged but its signature is
-> the pure `Command` form (§5.3).
+**Export delta.** Historically the toolbar symbols were imported from
+`@metanorma/prosemirror-editor`. They now move to `@metanorma/toolbar`;
+`@metanorma/prosemirror-editor` drops them entirely. `toggleList` is
+re-exported from `@metanorma/toolbar` (sourcing it from
+`@metanorma/editor-commands`); its name is unchanged but its signature is the
+pure `Command` form (§5.3).
 
 ## 13. File structure summary
 

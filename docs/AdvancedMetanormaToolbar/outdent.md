@@ -135,7 +135,7 @@ run: (view) => {
 ```
 
 A thin toolbar adapter: delegate to the pure command, passing the editor's
-real `state` and `dispatch`, then re-focus the editor (base spec §5.1.3).
+real `state` and `dispatch`, then re-focus the editor (base spec §5).
 No DOM, no selection rewriting, no transaction construction — all of that
 lives inside `lift`.
 

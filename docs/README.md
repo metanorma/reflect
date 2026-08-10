@@ -31,7 +31,7 @@ Defines the `prosemirror-model` `Schema` (`@metanorma/prosemirror-schema`) whose
 node and mark vocabulary, content model, attributes, and DOM serialization rules
 faithfully mirror the Metanorma Mirror document model derived from
 `metanorma-mirror-js`'s `types.ts`. This is the **source of truth** for the
-document model — 44 node types and 14 mark types.
+document model — 46 node types and 14 mark types.
 
 | § | Section |
 |---|---|

@@ -1,17 +1,15 @@
 # AdvancedMetanormaToolbar — Feature Specifications
 
-> **Recent change.** The visible `label` of every advanced
-> toolbar button changed from a glyph/emoji (e.g. `↩`, `↶`, `▦`, `🖼`,
-> `≡`, `↗`, `📕`, `⁺`, `∑`) to a **short legible word** (e.g. `Outdent`,
-> `Undo`, `Table`, `Image`, `Def list`, `Xref`, `Eref`, `Formula`), tracking
-> the textual-label convention
-> ([MetanormaToolbar.spec.md](../MetanormaToolbar.spec.md) §5).
-> The `title` field (tooltip) on every button is unchanged. Member-page
-> button tables and code blocks were updated in place to show the new word
-> labels; where a member page carried an "icon note" or arrow-glyph styling
-> rationale, that wording was removed or recast (decision history lives in
-> this block, not in the member pages). The `ToolbarButton` descriptor
-> shape (§2.3) is unchanged.
+**Recent change.** The visible `label` of every advanced toolbar button changed
+from a glyph/emoji (e.g. `↩`, `↶`, `▦`, `🖼`, `≡`, `↗`, `📕`, `⁺`, `∑`) to a
+**short legible word** (e.g. `Outdent`, `Undo`, `Table`, `Image`, `Def list`,
+`Xref`, `Eref`, `Formula`), tracking the textual-label convention
+([MetanormaToolbar.spec.md](../MetanormaToolbar.spec.md) §5). The `title` field
+(tooltip) on every button is unchanged. Member-page button tables and code
+blocks were updated in place to show the new word labels; where a member page
+carried an "icon note" or arrow-glyph styling rationale, that wording was removed
+or recast (decision history lives here, not in the member pages). The
+`ToolbarButton` descriptor shape (§2.3) is unchanged.
 
 This directory contains the feature specifications for **`AdvancedMetanormaToolbar`**,
 an extended version of the `MetanormaToolbar` component specified in
@@ -397,9 +395,9 @@ pkg/toolbar/                          ← @metanorma/toolbar (advanced additions
   index.ts                                ← re-exports advanced commands + UI components (§5.6)
 ```
 
-> The `toggleList` command already lives in `@metanorma/editor-commands` per
-> base spec §5.3; it is listed in the consolidated export map in §5.6 for
-> one-stop-import convenience.
+**Note.** The `toggleList` command already lives in `@metanorma/editor-commands`
+per base spec §5.3; it is listed in the consolidated export map in §5.6 for
+one-stop-import convenience.
 
 ### 5.6 Export changes
 
