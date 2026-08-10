@@ -198,19 +198,42 @@
     list-style: none;
   }
 
-  /* ---- Eref picker popover (bibliography entry selection) ---- */
+  /* ---- Eref picker trigger button + popover ---- */
+
+  .mn-toolbar-eref {
+    display: inline-block;
+    position: relative;
+  }
+
+  .mn-toolbar-eref .mn-toolbar-btn {
+    anchor-name: --mn-eref-anchor;
+  }
 
   .mn-eref-picker {
+    position-anchor: --mn-eref-anchor;
+    position-area: inline-end span-block-end;
+    margin: 2px;
     background: var(--mn-surface);
     border: 1px solid var(--mn-border);
     border-radius: var(--mn-radius-md);
     box-shadow: 0 4px 16px var(--mn-shadow);
     padding: var(--mn-space-2);
-    display: flex;
-    flex-direction: column;
     gap: var(--mn-space-1);
     min-width: 20em;
     max-width: 28em;
+  }
+
+  .mn-eref-picker:popover-open {
+    display: flex;
+    flex-direction: column;
+  }
+
+  @supports not (anchor-name: --x) {
+    .mn-eref-picker {
+      position: absolute;
+      top: 100%;
+      left: 0;
+    }
   }
 
   .mn-eref-picker__header {

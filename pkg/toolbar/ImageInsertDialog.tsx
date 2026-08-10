@@ -9,7 +9,7 @@
  * `insertImage` command. The `EditorView`/async/DOM concerns stay in this
  * adapter; the pure command is synchronous.
  *
- * Uses the HTML Popover API (`popover="manual"`) with CSS Anchor Positioning
+ * Uses the HTML Popover API (`popover="auto"`) with CSS Anchor Positioning
  * so the dialog renders in the browser's **top layer** — escaping all ancestor
  * overflow clipping regardless of toolbar/layout CSS.
  */
@@ -98,14 +98,14 @@ export function ImageInsertDialog({
   }
 
   return (
-    // `popover="manual"`: top-layer rendering, no light-dismiss (we handle
-    // close ourselves via Cancel / Insert / Escape callbacks).
+    // `popover="auto"`: top-layer rendering with light-dismiss (outside click,
+    // Escape, and auto-close when another popover opens).
     // The CSS class `mn-image-dialog` is self-contained — it does NOT use
     // the shared `.mn-toolbar-dialog` base class because the consumer's
     // vertical-toolbar override targets `.mn-toolbar-dialog` with `right: 100%`,
     // which would conflict with anchor positioning.
     <div
-      popover="manual"
+      popover="auto"
       className="mn-image-dialog"
       role="dialog"
       aria-label="Insert image"

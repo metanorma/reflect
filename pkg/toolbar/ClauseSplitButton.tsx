@@ -19,7 +19,7 @@
  * `section_title` child and place the cursor there — the user types the heading
  * and applies marks directly in the document. No prompt dialog is needed.
  *
- * Uses the HTML Popover API (`popover="manual"`) + CSS Anchor Positioning for
+ * Uses the HTML Popover API (`popover="auto"`) + CSS Anchor Positioning for
  * the dropdown menu, same as the other toolbar pickers.
  */
 
@@ -96,7 +96,7 @@ export function ClauseDropdownMenu({
 
   return (
     <div
-      popover="manual"
+      popover="auto"
       className="mn-clause-menu"
       role="menu"
       aria-label="Insert clause"

@@ -112,6 +112,7 @@ function ErefButton({
 }): React.JSX.Element {
   const [isOpen, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const capturedRef = useRef<Captured | null>(null);
 
   const isActive = useEditorStateSelector((s) => refMarkActive(s, "eref"));
@@ -144,6 +145,7 @@ function ErefButton({
     if (view === null) return;
     capturedRef.current = { state: view.state, dispatch: view.dispatch, focus: () => view.focus() };
     setOpen(true);
+    requestAnimationFrame(() => pickerRef.current?.showPopover());
   });
 
   const handleClick = (): void => {
@@ -152,16 +154,21 @@ function ErefButton({
     void captureAndOpen();
   };
 
-  const handlePick = (cite: string): void => {
+  const closePicker = (): void => {
+    pickerRef.current?.hidePopover();
     setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  const handlePick = (cite: string): void => {
     const c = capturedRef.current;
+    closePicker();
     if (c !== null && cite !== "") toggleEref(c.state, c.dispatch, cite);
     capturedRef.current = null;
-    c?.focus();
   };
 
   const handleCancel = (): void => {
-    setOpen(false);
+    closePicker();
     capturedRef.current = null;
   };
 
@@ -178,14 +185,12 @@ function ErefButton({
       >
         Eref
       </button>
-      {isOpen && capturedRef.current && (
-        <ErefPicker
-          items={collectBibliographyItems(capturedRef.current.state.doc)}
-          onPick={handlePick}
-          onCancel={handleCancel}
-          anchorRef={triggerRef}
-        />
-      )}
+      <ErefPicker
+        ref={pickerRef}
+        items={isOpen && capturedRef.current ? collectBibliographyItems(capturedRef.current.state.doc) : []}
+        onPick={handlePick}
+        onCancel={handleCancel}
+      />
       {/* Keep bibItemCount referenced so the selector re-evaluates */}
       <span hidden aria-hidden="true">{bibItemCount}</span>
     </div>
@@ -195,51 +200,28 @@ function ErefButton({
 /**
  * Eref picker popover — shows known bibliography items as a list, with a
  * free-text input for forward references (entries not yet entered).
+ *
+ * Uses the HTML Popover API (`popover="auto"`) with CSS Anchor Positioning,
+ * same as the other toolbar pickers. Always rendered in the DOM; open/close
+ * is controlled via `ref.showPopover()` / `ref.hidePopover()`.
  */
-function ErefPicker({
-  items,
-  onPick,
-  onCancel,
-  anchorRef,
-}: {
+const ErefPicker = React.forwardRef<HTMLDivElement, {
   readonly items: readonly BibliographicItem[];
   readonly onPick: (cite: string) => void;
   readonly onCancel: () => void;
-  readonly anchorRef: React.RefObject<HTMLButtonElement | null>;
-}): React.JSX.Element {
+}>(function ErefPicker({
+  items,
+  onPick,
+  onCancel,
+}, ref) {
   const [manual, setManual] = useState("");
-  const [style, setStyle] = useState<React.CSSProperties>({});
-  const pickerRef = useRef<HTMLDivElement>(null);
 
-  // Position below the trigger button.
-  useState(() => {
-    if (anchorRef.current) {
-      const rect = anchorRef.current.getBoundingClientRect();
-      setStyle({ position: "fixed", left: rect.left, top: rect.bottom + 4, zIndex: 9999 });
+  const handleKey = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
     }
-  });
-
-  React.useEffect(() => {
-    function onDown(e: MouseEvent): void {
-      const target = e.target;
-      if (
-        pickerRef.current &&
-        target instanceof Node &&
-        !pickerRef.current.contains(target)
-      ) {
-        onCancel();
-      }
-    }
-    function onKeyDown(e: KeyboardEvent): void {
-      if (e.key === "Escape") onCancel();
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [onCancel]);
+  };
 
   const dedupedItems = new Map<string, BibliographicItem>();
   for (const item of items) {
@@ -251,7 +233,14 @@ function ErefPicker({
   const knownItems = [...dedupedItems.values()];
 
   return (
-    <div ref={pickerRef} className="mn-eref-picker" style={style}>
+    <div
+      popover="auto"
+      className="mn-eref-picker"
+      role="dialog"
+      aria-label="Select a reference"
+      ref={ref}
+      onKeyDown={handleKey}
+    >
       <div className="mn-eref-picker__header">Select a reference</div>
       {knownItems.length > 0 ? (
         <ul className="mn-eref-picker__list">
@@ -303,7 +292,7 @@ function ErefPicker({
       </button>
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Bcp14Button — mark toggle + empty-selection insert logic + PromptPopover

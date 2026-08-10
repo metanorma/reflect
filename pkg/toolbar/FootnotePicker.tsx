@@ -15,7 +15,7 @@
  *
  * The `FootnoteEntryPicker` dialog lists existing `footnote_entry` nodes with
  * their auto-computed ordinal and a text preview, plus a "Create new" action.
- * It uses the HTML Popover API (`popover="manual"`) with CSS Anchor Positioning
+ * It uses the HTML Popover API (`popover="auto"`) with CSS Anchor Positioning
  * so it renders in the browser's **top layer** — escaping all ancestor overflow
  * clipping regardless of toolbar/layout CSS.
  */
@@ -141,7 +141,7 @@ function buildFootnoteContext(state: EditorState): RefPromptContext {
  * The footnote-entry picker popover (reference-marks.md §5.5).
  *
  * Lists existing entries for reuse, plus a "Create new" action. Uses the HTML
- * Popover API (`popover="manual"`) so the element renders in the browser's top
+ * Popover API (`popover="auto"`) so the element renders in the browser's top
  * layer — above all other content, regardless of ancestor overflow clipping.
  * CSS Anchor Positioning (`anchor-name` / `position-anchor`) ties the popover
  * to the trigger button without JavaScript positioning math.
@@ -167,14 +167,14 @@ export function FootnoteEntryPicker({
   };
 
   return (
-    // `popover="manual"`: top-layer rendering, no light-dismiss (we handle
-    // close ourselves via Cancel button / Escape / action callbacks).
+    // `popover="auto"`: top-layer rendering with light-dismiss (outside click,
+    // Escape, and auto-close when another popover opens).
     // The CSS class `mn-footnote-picker` is self-contained — it does NOT use
     // the shared `.mn-toolbar-popover` base class because the consumer's
     // vertical-toolbar override (style.module.css) targets `.mn-toolbar-popover`
     // with `right: 100%`, which would conflict with anchor positioning.
     <div
-      popover="manual"
+      popover="auto"
       className="mn-footnote-picker"
       ref={ref}
       onKeyDown={handleKey}

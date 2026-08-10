@@ -11,7 +11,7 @@
  * the typed text verbatim — the spec's Tier-2 free-text path (forward
  * references to anchors not yet in the doc) folded into the picker.
  *
- * Uses the HTML Popover API (`popover="manual"`) with CSS Anchor Positioning
+ * Uses the HTML Popover API (`popover="auto"`) with CSS Anchor Positioning
  * so the popover renders in the browser's **top layer** — escaping all
  * ancestor overflow clipping regardless of toolbar/layout CSS. Same pattern as
  * the footnote/table/image popovers.
@@ -145,7 +145,8 @@ function buildRefContext(state: EditorState, name: string): RefPromptContext {
  * navigates the filtered list; Enter on a highlighted item picks its `id`;
  * Escape cancels.
  *
- * `popover="manual"`: top-layer rendering, no light-dismiss (close is handled
+ * `popover="auto"`: top-layer rendering with light-dismiss (outside click,
+ * Escape, and auto-close when another popover opens). Close is also handled
  * via pick / Cancel / Escape). The CSS class `mn-target-picker` is
  * self-contained — it does NOT use the shared `.mn-toolbar-popover` base class
  * because the consumer's vertical-toolbar override targets `.mn-toolbar-popover`
@@ -216,7 +217,7 @@ export function TargetPicker({
 
   return (
     <div
-      popover="manual"
+      popover="auto"
       className={`mn-target-picker ${anchorClass}`}
       role="dialog"
       aria-label={ariaLabel}

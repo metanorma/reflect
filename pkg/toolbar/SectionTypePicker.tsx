@@ -7,7 +7,7 @@
  * (where `targetType.validContent(currentContent)` is false) are disabled.
  * Selecting a legal type calls the pure `setSectionType` command.
  *
- * Uses the HTML Popover API (`popover="manual"`) with CSS Anchor Positioning
+ * Uses the HTML Popover API (`popover="auto"`) with CSS Anchor Positioning
  * so the picker renders in the browser's **top layer** — escaping all ancestor
  * overflow clipping regardless of toolbar/layout CSS.
  */
@@ -142,7 +142,7 @@ export function SectionTypePicker({
 
   return (
     <div
-      popover="manual"
+      popover="auto"
       className="mn-section-type-picker"
       role="listbox"
       aria-label="Section type"

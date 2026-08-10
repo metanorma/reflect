@@ -8,7 +8,7 @@
  * drive a `{ row, col }` highlight, and a click/Enter commits the dimension
  * via the pure `insertTable` command through a `useEditorEventCallback`.
  *
- * Uses the HTML Popover API (`popover="manual"`) with CSS Anchor Positioning
+ * Uses the HTML Popover API (`popover="auto"`) with CSS Anchor Positioning
  * so the picker renders in the browser's **top layer** — escaping all ancestor
  * overflow clipping regardless of toolbar/layout CSS.
  */
@@ -89,14 +89,14 @@ export function TableSizePicker({
   };
 
   return (
-    // `popover="manual"`: top-layer rendering, no light-dismiss (we handle
-    // close ourselves via cell click / Escape / Tab callbacks).
+    // `popover="auto"`: top-layer rendering with light-dismiss (outside click,
+    // Escape, and auto-close when another popover opens).
     // The CSS class `mn-table-picker` is self-contained — it does NOT use
     // the shared `.mn-toolbar-popover` base class because the consumer's
     // vertical-toolbar override targets `.mn-toolbar-popover` with `right: 100%`,
     // which would conflict with anchor positioning.
     <div
-      popover="manual"
+      popover="auto"
       className="mn-table-picker"
       role="dialog"
       aria-label="Table size"
