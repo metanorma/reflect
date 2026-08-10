@@ -152,17 +152,46 @@
     content: "· ";
   }
 
+  .mn-bib-cover__type,
+  .mn-bib-cover__docnumber,
+  .mn-bib-cover__edition,
+  .mn-bib-cover__lang {
+    color: var(--mn-text-muted);
+  }
+
+  .mn-bib-cover__classification,
+  .mn-bib-cover__keywords,
+  .mn-bib-cover__abstract,
+  .mn-bib-cover__validity,
+  .mn-bib-cover__license {
+    font-size: 0.85em;
+    color: var(--mn-text-muted);
+    margin-top: var(--mn-space-1);
+  }
+
+  .mn-bib-cover__field-label {
+    font-weight: 600;
+  }
+
+  .mn-bib-cover__abstract {
+    font-style: italic;
+  }
+
   .mn-bib-cover__uris {
     margin-top: var(--mn-space-1);
     font-size: 0.85em;
   }
 
-  .mn-bib-cover__uri a {
+  .mn-bib-cover__uri a,
+  .mn-bib-cover__license a,
+  .mn-bib-cover__copyright a {
     color: var(--mn-accent);
     text-decoration: none;
   }
 
-  .mn-bib-cover__uri a:hover {
+  .mn-bib-cover__uri a:hover,
+  .mn-bib-cover__license a:hover,
+  .mn-bib-cover__copyright a:hover {
     text-decoration: underline;
   }
 

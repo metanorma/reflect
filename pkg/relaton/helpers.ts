@@ -105,7 +105,7 @@ function formatOrganization(org: Organization): string {
 function formatPerson(person: Person): string {
   const n = person.name;
   let base: string;
-  if (n.completename !== null) {
+  if (n.completename !== null && n.completename !== "") {
     base = n.completename;
   } else {
     base = formatDecomposedName(n);

@@ -246,8 +246,8 @@ export interface Copyright {
   from: string | null;
   /** End year of copyright (Relaton `<to>`). */
   to: string | null;
-  /** Owner organisations (at least one). */
-  owner: Organization[];
+  /** Owner entities (at least one; person or organization). */
+  owner: ContributorEntity[];
 }
 
 /**

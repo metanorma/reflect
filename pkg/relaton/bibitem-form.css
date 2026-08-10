@@ -148,9 +148,106 @@
     font-family: inherit;
   }
 
-  .mn-bibitem-form__add-btn:hover {
-    border-color: var(--mn-accent);
-    color: var(--mn-accent);
-  }
+    .mn-bibitem-form__add-btn:hover {
+      border-color: var(--mn-accent);
+      color: var(--mn-accent);
+    }
+
+    /* ---- Textarea (abstract) ---- */
+
+    .mn-bibitem-form__textarea {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 4em;
+      resize: vertical;
+      padding: 0.25em 0.4em;
+      border: 1px solid var(--mn-border);
+      border-radius: var(--mn-radius-sm);
+      background: var(--mn-surface);
+      color: var(--mn-text);
+      font-size: inherit;
+      font-family: inherit;
+    }
+
+    .mn-bibitem-form__textarea:focus {
+      outline: 2px solid var(--mn-active);
+      outline-offset: 1px;
+    }
+
+    /* ---- Compact row (tighter gap for nested multi-field rows) ---- */
+
+    .mn-bibitem-form__row--compact {
+      gap: 0.3em;
+    }
+
+    /* ---- Date-mode select + date text ---- */
+
+    .mn-bibitem-form__date-mode {
+      flex: 0 0 6em;
+    }
+
+    .mn-bibitem-form__date-text {
+      margin-top: 0.3em;
+    }
+
+    /* ---- Contact sub-section ---- */
+
+    .mn-bibitem-form__contact {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3em;
+    }
+
+    /* ---- Collapsible <details> sections ---- */
+
+    .mn-bibitem-form__details {
+      margin-top: var(--mn-space-1);
+      border: 1px solid var(--mn-border);
+      border-radius: var(--mn-radius-sm);
+      background: var(--mn-surface);
+      padding: var(--mn-space-1);
+    }
+
+    .mn-bibitem-form__details > summary {
+      font-size: 0.85em;
+      font-weight: 600;
+      color: var(--mn-text);
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+      margin-bottom: 0;
+    }
+
+    .mn-bibitem-form__details > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .mn-bibitem-form__details > summary::before {
+      content: "▸";
+      display: inline-block;
+      margin-right: 0.3em;
+      transition: transform 0.15s;
+    }
+
+    .mn-bibitem-form__details[open] > summary::before {
+      transform: rotate(90deg);
+    }
+
+    .mn-bibitem-form__details[open] > summary {
+      margin-bottom: var(--mn-space-1);
+    }
+
+    /* Inline variant — lighter styling for nested details inside a row */
+    .mn-bibitem-form__details--inline {
+      margin-top: 0.2em;
+      border: none;
+      background: transparent;
+      padding: 0;
+    }
+
+    .mn-bibitem-form__details--inline > summary {
+      font-weight: 400;
+      color: var(--mn-text-muted);
+    }
 
 }

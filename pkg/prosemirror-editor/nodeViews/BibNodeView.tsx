@@ -27,7 +27,7 @@ import {
 import type { EditorView } from "prosemirror-view";
 
 import { CLASS } from "@metanorma/prosemirror-schema";
-import type { BibliographicItem } from "@metanorma/relaton";
+import type { BibliographicItem, ContributorEntity } from "@metanorma/relaton";
 import {
   citeas,
   mainTitle,
@@ -88,17 +88,92 @@ function contributorsByRole(item: BibliographicItem | null): { role: string; nam
   return [...map.entries()].map(([role, names]) => ({ role, names }));
 }
 
-/** Format the copyright line for display: "© 2021 ISO". */
-function copyrightText(item: BibliographicItem | null): string | null {
+/** Format ALL copyright lines for display. Returns null if none populated. */
+function copyrightLines(item: BibliographicItem | null): string[] | null {
+  if (item === null || item.copyright.length === 0) return null;
+  const lines: string[] = [];
+  for (const c of item.copyright) {
+    const year = c.from ?? null;
+    const to = c.to ?? null;
+    const ownerEntity = c.owner[0] ?? null;
+    const owner = ownerEntity !== null ? ownerName(ownerEntity) : null;
+    const yearStr = year !== null && year !== ""
+      ? (to !== null && to !== "" ? `${year}–${to}` : year)
+      : null;
+    if (yearStr !== null && owner !== null && owner !== "") {
+      lines.push(`© ${yearStr} ${owner}`);
+    } else if (yearStr !== null) {
+      lines.push(`© ${yearStr}`);
+    } else if (owner !== null && owner !== "") {
+      lines.push(`© ${owner}`);
+    }
+  }
+  return lines.length > 0 ? lines : null;
+}
+
+/** Format edition + version for display, or null. */
+function editionText(item: BibliographicItem | null): string | null {
   if (item === null) return null;
-  const first = item.copyright.find((c) => c.from !== null && c.from !== "") ?? item.copyright[0];
-  if (first === undefined) return null;
-  const year = first.from ?? null;
-  const owner = first.owner[0]?.name ?? null;
-  if (year !== null && owner !== null && owner !== "") return `© ${year} ${owner}`;
-  if (year !== null) return `© ${year}`;
-  if (owner !== null && owner !== "") return `© ${owner}`;
-  return null;
+  const parts: string[] = [];
+  if (item.edition !== null && item.edition !== "") parts.push(`Edition ${item.edition}`);
+  if (item.version !== null && item.version !== "") parts.push(`Version ${item.version}`);
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+/** Format docnumber for display, or null. */
+function docnumberText(item: BibliographicItem | null): string | null {
+  if (item === null) return null;
+  return item.docnumber !== null && item.docnumber !== "" ? item.docnumber : null;
+}
+
+/** Format language + script for display, or null. */
+function languageText(item: BibliographicItem | null): string | null {
+  if (item === null) return null;
+  const parts: string[] = [];
+  if (item.language.length > 0) parts.push(item.language.join(", "));
+  if (item.script.length > 0) parts.push(item.script.join(", "));
+  return parts.length > 0 ? parts.join(" / ") : null;
+}
+
+/** Format keywords for display, or null. */
+function keywordsText(item: BibliographicItem | null): string | null {
+  if (item === null || item.keyword.length === 0) return null;
+  return item.keyword.join(", ");
+}
+
+/** Format classifications for display, or null. */
+function classificationText(item: BibliographicItem | null): string | null {
+  if (item === null || item.classification.length === 0) return null;
+  return item.classification.map((c) => `${c.type}: ${c.value}`).join("; ");
+}
+
+/** Format abstract for display (truncated), or null. */
+function abstractText(item: BibliographicItem | null): string | null {
+  if (item === null || item.abstract === null || item.abstract === "") return null;
+  return item.abstract;
+}
+
+/** Format validity for display, or null. */
+function validityText(item: BibliographicItem | null): string | null {
+  if (item === null || item.validity === null) return null;
+  const parts: string[] = [];
+  if (item.validity.begins !== null && item.validity.begins !== "") parts.push(`from ${item.validity.begins}`);
+  if (item.validity.ends !== null && item.validity.ends !== "") parts.push(`until ${item.validity.ends}`);
+  if (item.validity.revision !== null && item.validity.revision !== "") parts.push(`rev. ${item.validity.revision}`);
+  return parts.length > 0 ? `Valid ${parts.join(" ")}` : null;
+}
+
+/** Return non-empty license URLs, or null if none. */
+function licenseUrls(item: BibliographicItem | null): string[] | null {
+  if (item === null || item.license.length === 0) return null;
+  const urls = item.license.filter((l) => l !== "");
+  return urls.length > 0 ? urls : null;
+}
+
+/** Extract a display name from a copyright owner entity (Person or Organization). */
+function ownerName(entity: ContributorEntity): string | null {
+  if (typeof entity.name === "string") return entity.name;
+  return entity.name.completename;
 }
 
 // ---------------------------------------------------------------------------
@@ -201,9 +276,26 @@ const CoverPageSummary: React.FC<
   const id = docidText(item);
   const date = dateText(item);
   const status = statusText(item);
+  const substage = item?.status?.substage?.value ?? null;
+  const iteration = item?.status?.iteration ?? null;
   const groups = contributorsByRole(item);
   const uris = item !== null ? (item.uri ?? []).filter((u) => u.content !== "") : [];
-  const copy = copyrightText(item);
+  const copyLines = copyrightLines(item);
+  const edition = editionText(item);
+  const docnumber = docnumberText(item);
+  const lang = languageText(item);
+  const keywords = keywordsText(item);
+  const classifications = classificationText(item);
+  const abstract = abstractText(item);
+  const validity = validityText(item);
+  const license = licenseUrls(item);
+  const docType = item?.type ?? null;
+
+  const hasMeta = groups.length > 0 || id !== null || date !== null || status !== null
+    || copyLines !== null || edition !== null || docnumber !== null || lang !== null
+    || keywords !== null || classifications !== null || abstract !== null
+    || validity !== null || license !== null || docType !== null || uris.length > 0;
+
   return (
     <div
       className={`${className} mn-bib-cover`}
@@ -212,7 +304,11 @@ const CoverPageSummary: React.FC<
       role="button"
       tabIndex={0}
       title="Click to edit bibliographic data"
-      onClick={onOpen}
+      onClick={(e) => {
+        // Don't open the editor when clicking a link inside the cover page.
+        if ((e.target as HTMLElement).closest("a")) return;
+        onOpen();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -228,7 +324,7 @@ const CoverPageSummary: React.FC<
         </div>
       )}
 
-      {(groups.length > 0 || id !== null || date !== null || status !== null) && (
+      {hasMeta && (
         <div className="mn-bib-cover__meta">
           {groups.map((g) => (
             <div key={g.role} className="mn-bib-cover__contributor-group">
@@ -238,8 +334,9 @@ const CoverPageSummary: React.FC<
               </span>
             </div>
           ))}
-          {(id !== null || date !== null || status !== null) && (
+          {(id !== null || docnumber !== null || date !== null || status !== null || substage !== null || iteration !== null || docType !== null || edition !== null || lang !== null) && (
             <div className="mn-bib-cover__ids">
+              {docType !== null && <span className="mn-bib-cover__type">{docType}</span>}
               {id !== null && (
                 <span className="mn-bib-cover__id">
                   <span className="mn-bib-cover__id-type">{id.type}</span>
@@ -247,8 +344,44 @@ const CoverPageSummary: React.FC<
                   {id.id}
                 </span>
               )}
+              {docnumber !== null && <span className="mn-bib-cover__docnumber">{docnumber}</span>}
               {date !== null && <span className="mn-bib-cover__date">{date}</span>}
-              {status !== null && <span className="mn-bib-cover__status">stage {status}</span>}
+              {edition !== null && <span className="mn-bib-cover__edition">{edition}</span>}
+              {lang !== null && <span className="mn-bib-cover__lang">{lang}</span>}
+              {status !== null && (
+                <span className="mn-bib-cover__status">
+                  stage {status}
+                  {substage !== null && `.${substage}`}
+                  {iteration !== null && ` (iter. ${iteration})`}
+                </span>
+              )}
+            </div>
+          )}
+          {classifications !== null && (
+            <div className="mn-bib-cover__classification">
+              <span className="mn-bib-cover__field-label">Classification:</span> {classifications}
+            </div>
+          )}
+          {keywords !== null && (
+            <div className="mn-bib-cover__keywords">
+              <span className="mn-bib-cover__field-label">Keywords:</span> {keywords}
+            </div>
+          )}
+          {abstract !== null && (
+            <div className="mn-bib-cover__abstract">{abstract}</div>
+          )}
+          {validity !== null && (
+            <div className="mn-bib-cover__validity">{validity}</div>
+          )}
+          {license !== null && (
+            <div className="mn-bib-cover__license">
+              <span className="mn-bib-cover__field-label">License:</span>{" "}
+              {license.map((url, i) => (
+                <span key={i}>
+                  {i > 0 && "; "}
+                  <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+                </span>
+              ))}
             </div>
           )}
           {uris.length > 0 && (
@@ -261,8 +394,12 @@ const CoverPageSummary: React.FC<
               ))}
             </div>
           )}
-          {copy !== null && (
-            <div className="mn-bib-cover__copyright">{copy}</div>
+          {copyLines !== null && (
+            <div className="mn-bib-cover__copyright">
+              {copyLines.map((line, i) => (
+                <div key={i}>{line}</div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -325,7 +462,10 @@ const ReferenceSummary: React.FC<
       role="button"
       tabIndex={0}
       title="Click to edit bibliography entry"
-      onClick={onOpen}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("a")) return;
+        onOpen();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
