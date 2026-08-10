@@ -83,7 +83,7 @@ Style guidelines
 
 * JSDoc-style docstrings (excluding type annotations)
 
-* Three blank lines between imports and code
+* Two blank lines between imports and code
 
 * Two-space indentation
 
