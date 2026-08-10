@@ -24,8 +24,10 @@ import type {
   TypedTitle,
   DocId,
   Contributor,
+  Copyright,
   Person,
   Organization,
+  PersonName,
   BibDate,
   DocStatus,
   Uri,
@@ -107,13 +109,13 @@ function setDocIdValue(item: BibliographicItem, id: string): BibliographicItem {
 function ensurePublishedDate(item: BibliographicItem): BibDate {
   const pub = item.date.find((d) => d.type === "published");
   if (pub !== undefined) return pub;
-  return { type: 'published', on: '', from: null, to: null };
+  return { type: 'published', on: '', from: null, to: null, text: null };
 }
 
 /** Update the published date's `on` value. */
 function setPublishedDateOn(item: BibliographicItem, on: string): BibliographicItem {
   const rest = item.date.filter((d) => d.type !== "published");
-  return patch(item, { date: [{ type: "published", on, from: null, to: null }, ...rest] });
+  return patch(item, { date: [{ type: "published", on, from: null, to: null, text: null }, ...rest] });
 }
 
 // ---------------------------------------------------------------------------
@@ -128,13 +130,25 @@ const ROLES = [
 ] as const;
 
 /** Create a default empty organization contributor. */
-function emptyOrgContributor(role: string = "publisher"): Contributor {
-  return { role, entity: { name: '', abbreviation: null } };
+function emptyOrgContributor(roleType: string = "publisher"): Contributor {
+  return {
+    role: [{ type: roleType, description: null, abbreviation: null }],
+    entity: { name: '', abbreviation: null, subdivision: [], identifier: [], contact: null, logo: null },
+  };
 }
 
 /** Create a default empty person contributor. */
-function emptyPersonContributor(role: string = "author"): Contributor {
-  return { role, entity: { name: { completename: '', surname: null, given: null } } };
+function emptyPersonContributor(roleType: string = "author"): Contributor {
+  return {
+    role: [{ type: roleType, description: null, abbreviation: null }],
+    entity: {
+      name: { completename: '', surname: null, given: null, prefix: null, formattedInitials: null, addition: [] },
+      credential: [],
+      affiliation: [],
+      identifier: [],
+      contact: null,
+    },
+  };
 }
 
 /** Type guard: is this contributor's entity a Person? */
@@ -166,18 +180,23 @@ function addContributor(item: BibliographicItem, c: Contributor): BibliographicI
   return patch(item, { contributor: [...item.contributor, c] });
 }
 
-/** Change a contributor's role. */
-function setContributorRole(item: BibliographicItem, idx: number, role: string): BibliographicItem {
-  return updateContributor(item, idx, { ...item.contributor[idx]!, role });
+/** Change a contributor's first role type (reads/writes role[0].type). */
+function setContributorRole(item: BibliographicItem, idx: number, roleType: string): BibliographicItem {
+  const c = item.contributor[idx];
+  if (c === undefined) return item;
+  const roleHead = c.role[0] ?? { type: "author", description: null, abbreviation: null };
+  const role: typeof roleHead = { ...roleHead, type: roleType };
+  const newRoles = [role, ...c.role.slice(1)];
+  return updateContributor(item, idx, { ...c, role: newRoles });
 }
 
 /** Change a contributor's entity type (person ↔ organization). */
 function setContributorEntityType(item: BibliographicItem, idx: number, kind: "person" | "org"): BibliographicItem {
   const current = item.contributor[idx];
   if (current === undefined) return item;
-  const role = current.role;
+  const roleType = current.role[0]?.type ?? "author";
   return updateContributor(item, idx,
-    kind === "person" ? emptyPersonContributor(role) : emptyOrgContributor(role),
+    kind === "person" ? emptyPersonContributor(roleType) : emptyOrgContributor(roleType),
   );
 }
 
@@ -188,7 +207,7 @@ function setOrgName(item: BibliographicItem, idx: number, name: string): Bibliog
   const org = c.entity as Organization;
   return updateContributor(item, idx, {
     role: c.role,
-    entity: { name, abbreviation: org.abbreviation },
+    entity: { ...org, name },
   });
 }
 
@@ -199,14 +218,66 @@ function setPersonCompleteness(item: BibliographicItem, idx: number, completenam
   const person = c.entity as Person;
   return updateContributor(item, idx, {
     role: c.role,
-    entity: { name: { ...person.name, completename } },
+    entity: { ...person, name: { ...person.name, completename } },
   });
 }
 
-/** Update the status stage. */
-function setStatusStage(item: BibliographicItem, stage: string): BibliographicItem {
+/** Set a person contributor's surname. */
+function setPersonSurname(item: BibliographicItem, idx: number, surname: string): BibliographicItem {
+  const c = item.contributor[idx];
+  if (c === undefined || !isPerson(c)) return item;
+  const person = c.entity as Person;
+  const name: PersonName = { ...person.name, surname: surname || null };
+  return updateContributor(item, idx, {
+    role: c.role,
+    entity: { ...person, name },
+  });
+}
+
+/** Set a person contributor's given name. */
+function setPersonGiven(item: BibliographicItem, idx: number, given: string): BibliographicItem {
+  const c = item.contributor[idx];
+  if (c === undefined || !isPerson(c)) return item;
+  const person = c.entity as Person;
+  const name: PersonName = { ...person.name, given: given || null };
+  return updateContributor(item, idx, {
+    role: c.role,
+    entity: { ...person, name },
+  });
+}
+
+/** Set a person contributor's name prefix (honorific). */
+function setPersonPrefix(item: BibliographicItem, idx: number, prefix: string): BibliographicItem {
+  const c = item.contributor[idx];
+  if (c === undefined || !isPerson(c)) return item;
+  const person = c.entity as Person;
+  const name: PersonName = { ...person.name, prefix: prefix || null };
+  return updateContributor(item, idx, {
+    role: c.role,
+    entity: { ...person, name },
+  });
+}
+
+/** Set a person contributor's formatted initials. */
+function setPersonInitials(item: BibliographicItem, idx: number, formattedInitials: string): BibliographicItem {
+  const c = item.contributor[idx];
+  if (c === undefined || !isPerson(c)) return item;
+  const person = c.entity as Person;
+  const name: PersonName = { ...person.name, formattedInitials: formattedInitials || null };
+  return updateContributor(item, idx, {
+    role: c.role,
+    entity: { ...person, name },
+  });
+}
+
+/** Update the status stage value. */
+function setStatusStage(item: BibliographicItem, stageValue: string): BibliographicItem {
   const current: DocStatus = item.status ?? { stage: null, substage: null, iteration: null };
-  return patch(item, { status: { ...current, stage: stage || null } });
+  const stage = current.stage;
+  const nextStage = stage === null
+    ? { value: stageValue || null, abbreviation: null, name: null }
+    : { ...stage, value: stageValue || null };
+  return patch(item, { status: { ...current, stage: nextStage } });
 }
 
 /** Update the language array (single-value for v1). */
@@ -243,6 +314,57 @@ function removeUri(item: BibliographicItem, idx: number): BibliographicItem {
 }
 
 // ---------------------------------------------------------------------------
+// Copyright list helpers
+// ---------------------------------------------------------------------------
+
+/** Add a new empty copyright entry to the end of the list. */
+function addCopyright(item: BibliographicItem): BibliographicItem {
+  const empty: Copyright = {
+    from: '',
+    to: null,
+    owner: [{ name: '', abbreviation: null, subdivision: [], identifier: [], contact: null, logo: null }],
+  };
+  return patch(item, { copyright: [...item.copyright, empty] });
+}
+
+/** Update a single copyright entry at index `idx`. */
+function updateCopyright(item: BibliographicItem, idx: number, next: Copyright): BibliographicItem {
+  const entries = [...item.copyright];
+  if (idx < 0 || idx >= entries.length) return item;
+  entries[idx] = next;
+  return patch(item, { copyright: entries });
+}
+
+/** Remove the copyright entry at index `idx`. */
+function removeCopyright(item: BibliographicItem, idx: number): BibliographicItem {
+  return patch(item, { copyright: item.copyright.filter((_, i) => i !== idx) });
+}
+
+/** Set the `from` year of the copyright entry at `idx`. */
+function setCopyrightFrom(item: BibliographicItem, idx: number, from: string): BibliographicItem {
+  const c = item.copyright[idx];
+  if (c === undefined) return item;
+  return updateCopyright(item, idx, { ...c, from });
+}
+
+/** Set the `to` year of the copyright entry at `idx`. */
+function setCopyrightTo(item: BibliographicItem, idx: number, to: string): BibliographicItem {
+  const c = item.copyright[idx];
+  if (c === undefined) return item;
+  return updateCopyright(item, idx, { ...c, to: to || null });
+}
+
+/** Set the first owner's name of the copyright entry at `idx`. */
+function setCopyrightOwnerName(item: BibliographicItem, idx: number, name: string): BibliographicItem {
+  const c = item.copyright[idx];
+  if (c === undefined) return item;
+  const ownerHead = c.owner[0];
+  if (ownerHead === undefined) return item;
+  const owner: Organization = { ...ownerHead, name };
+  return updateCopyright(item, idx, { ...c, owner: [owner, ...c.owner.slice(1)] });
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -264,7 +386,7 @@ export function BibliographicItemForm({
   const mainTitleLang = draft.title.find((t) => t.type === 'main')?.language ?? 'en';
   const docid = ensureDocid(draft);
   const publishedOn = ensurePublishedDate(draft).on ?? '';
-  const statusStage = draft.status?.stage ?? '';
+  const statusStage = draft.status?.stage?.value ?? '';
   const language = draft.language[0] ?? '';
 
   return (
@@ -323,6 +445,10 @@ export function BibliographicItemForm({
             onTypeChange={(kind) => update(setContributorEntityType(draft, idx, kind))}
             onOrgNameChange={(name) => update(setOrgName(draft, idx, name))}
             onPersonNameChange={(name) => update(setPersonCompleteness(draft, idx, name))}
+            onPersonSurnameChange={(name) => update(setPersonSurname(draft, idx, name))}
+            onPersonGivenChange={(name) => update(setPersonGiven(draft, idx, name))}
+            onPersonPrefixChange={(name) => update(setPersonPrefix(draft, idx, name))}
+            onPersonInitialsChange={(name) => update(setPersonInitials(draft, idx, name))}
             onRemove={() => update(removeContributor(draft, idx))}
           />
         ))}
@@ -450,6 +576,55 @@ export function BibliographicItemForm({
           </button>
         </div>
       </div>
+
+      {/* ---- Copyright (repeating list) ---- */}
+      <div className="mn-bibitem-form__contributors">
+        <div className="mn-bibitem-form__section-header">Copyright</div>
+        {draft.copyright.map((c, idx) => (
+          <div key={idx} className="mn-bibitem-form__contributor">
+            <div className="mn-bibitem-form__contributor-row">
+              <input
+                type="text"
+                className="mn-bibitem-form__input"
+                value={c.from ?? ''}
+                placeholder="From year"
+                onChange={(e) => update(setCopyrightFrom(draft, idx, e.target.value))}
+              />
+              <input
+                type="text"
+                className="mn-bibitem-form__input"
+                value={c.to ?? ''}
+                placeholder="To year (opt.)"
+                onChange={(e) => update(setCopyrightTo(draft, idx, e.target.value))}
+              />
+              <input
+                type="text"
+                className="mn-bibitem-form__input"
+                value={c.owner[0]?.name ?? ''}
+                placeholder="Owner"
+                onChange={(e) => update(setCopyrightOwnerName(draft, idx, e.target.value))}
+              />
+              <button
+                type="button"
+                className="mn-bibitem-form__remove-btn"
+                title="Remove copyright"
+                onClick={() => update(removeCopyright(draft, idx))}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ))}
+        <div className="mn-bibitem-form__contributor-add">
+          <button
+            type="button"
+            className="mn-bibitem-form__add-btn"
+            onClick={() => update(addCopyright(draft))}
+          >
+            + Add copyright
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -464,6 +639,10 @@ function ContributorRow({
   onTypeChange,
   onOrgNameChange,
   onPersonNameChange,
+  onPersonSurnameChange,
+  onPersonGivenChange,
+  onPersonPrefixChange,
+  onPersonInitialsChange,
   onRemove,
 }: {
   readonly contributor: Contributor;
@@ -472,24 +651,26 @@ function ContributorRow({
   readonly onTypeChange: (kind: "person" | "org") => void;
   readonly onOrgNameChange: (name: string) => void;
   readonly onPersonNameChange: (name: string) => void;
+  readonly onPersonSurnameChange: (name: string) => void;
+  readonly onPersonGivenChange: (name: string) => void;
+  readonly onPersonPrefixChange: (name: string) => void;
+  readonly onPersonInitialsChange: (name: string) => void;
   readonly onRemove: () => void;
 }): React.JSX.Element {
   const person = isPerson(contributor);
   const org = isOrg(contributor);
 
-  const nameValue = org
-    ? (contributor.entity as Organization).name
-    : person
-      ? (contributor.entity as Person).name.completename ?? ''
-      : '';
+  const personName = person ? (contributor.entity as Person).name : null;
+  const orgName = org ? (contributor.entity as Organization).name : '';
   const entityType = person ? "person" : "org";
+  const roleType = contributor.role[0]?.type ?? "author";
 
   return (
     <div className="mn-bibitem-form__contributor">
       <div className="mn-bibitem-form__contributor-row">
         <select
           className="mn-bibitem-form__select mn-bibitem-form__contributor-role"
-          value={contributor.role}
+          value={roleType}
           onChange={(e) => onRoleChange(e.target.value)}
         >
           {ROLES.map((r) => (
@@ -513,16 +694,57 @@ function ContributorRow({
           ✕
         </button>
       </div>
-      <input
-        type="text"
-        className="mn-bibitem-form__input"
-        value={nameValue}
-        placeholder={entityType === "person" ? "Full name" : "Organization name"}
-        onChange={(e) => {
-          if (entityType === "person") onPersonNameChange(e.target.value);
-          else onOrgNameChange(e.target.value);
-        }}
-      />
+      {entityType === "person" ? (
+        <>
+          <div className="mn-bibitem-form__contributor-row">
+            <input
+              type="text"
+              className="mn-bibitem-form__input mn-bibitem-form__contributor-prefix"
+              value={personName?.prefix ?? ''}
+              placeholder="Prefix (Dr, Prof…)"
+              onChange={(e) => onPersonPrefixChange(e.target.value)}
+            />
+            <input
+              type="text"
+              className="mn-bibitem-form__input mn-bibitem-form__contributor-surname"
+              value={personName?.surname ?? ''}
+              placeholder="Surname"
+              onChange={(e) => onPersonSurnameChange(e.target.value)}
+            />
+            <input
+              type="text"
+              className="mn-bibitem-form__input mn-bibitem-form__contributor-given"
+              value={personName?.given ?? ''}
+              placeholder="Given"
+              onChange={(e) => onPersonGivenChange(e.target.value)}
+            />
+          </div>
+          <div className="mn-bibitem-form__contributor-row">
+            <input
+              type="text"
+              className="mn-bibitem-form__input mn-bibitem-form__contributor-initials"
+              value={personName?.formattedInitials ?? ''}
+              placeholder="Initials (J. R.)"
+              onChange={(e) => onPersonInitialsChange(e.target.value)}
+            />
+            <input
+              type="text"
+              className="mn-bibitem-form__input"
+              value={personName?.completename ?? ''}
+              placeholder="…or full name"
+              onChange={(e) => onPersonNameChange(e.target.value)}
+            />
+          </div>
+        </>
+      ) : (
+        <input
+          type="text"
+          className="mn-bibitem-form__input"
+          value={orgName}
+          placeholder="Organization name"
+          onChange={(e) => onOrgNameChange(e.target.value)}
+        />
+      )}
     </div>
   );
 }

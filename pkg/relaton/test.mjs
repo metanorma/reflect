@@ -22,7 +22,24 @@ import {
 import { collectBibliographyItems } from "./compiled/collect.js";
 import { emptyBibliographicItem } from "./compiled/types.js";
 
-// --- helpers --------------------------------------------------------------
+// --- entity helpers -------------------------------------------------------
+
+/** Build an Organization object with all fields. */
+function org(name, abbreviation = null, subdivision = []) {
+  return { name, abbreviation, subdivision, identifier: [], contact: null, logo: null };
+}
+
+/** Build a Person object with all fields. */
+function person(name, credential = []) {
+  return { name, credential, affiliation: [], identifier: [], contact: null };
+}
+
+/** Build a role array from a single role type. */
+function roles(type) {
+  return [{ type, description: null, abbreviation: null }];
+}
+
+// --- fixtures -------------------------------------------------------------
 
 function isoItem() {
   return {
@@ -32,15 +49,22 @@ function isoItem() {
       { type: "ISO", id: "ISO 17301-1:2021", primary: true, scope: null },
     ],
     contributor: [
-      { role: "publisher", entity: { name: "ISO", abbreviation: "ISO" } },
+      { role: roles("publisher"), entity: org("ISO", "ISO") },
     ],
-    date: [{ type: "published", on: "2021", from: null, to: null }],
-    status: { stage: "60", substage: "00", iteration: null },
+    date: [{ type: "published", on: "2021", from: null, to: null, text: null }],
+    status: { stage: { value: "60", abbreviation: null, name: null }, substage: { value: "00", abbreviation: null, name: null }, iteration: null },
     language: ["en"],
     script: ["Latn"],
     edition: "1",
-    copyright: { from: "2021", owner: { name: "ISO", abbreviation: "ISO" } },
+    copyright: [{ from: "2021", to: null, owner: [org("ISO", "ISO")] }],
     abstract: null,
+    uri: [],
+    docnumber: null,
+    version: null,
+    classification: [],
+    keyword: [],
+    validity: null,
+    license: [],
   };
 }
 
@@ -65,8 +89,14 @@ test("citeas — implicit primary (first docid)", () => {
   assert.equal(citeas(item), "ISO 12345");
 });
 
-test("citeas — no docids", () => {
-  assert.equal(citeas(emptyBibliographicItem()), null);
+test("citeas — seeded primary in emptyBibliographicItem", () => {
+  // emptyBibliographicItem now seeds a primary docid with empty id.
+  assert.equal(citeas(emptyBibliographicItem()), "");
+});
+
+test("citeas — no docids (explicit empty)", () => {
+  const item = { ...emptyBibliographicItem(), docid: [] };
+  assert.equal(citeas(item), null);
 });
 
 // --- primaryDocid ----------------------------------------------------------
@@ -78,7 +108,7 @@ test("primaryDocid — returns explicit primary", () => {
 });
 
 test("primaryDocid — null when empty", () => {
-  assert.equal(primaryDocid(emptyBibliographicItem()), null);
+  assert.equal(primaryDocid({ ...emptyBibliographicItem(), docid: [] }), null);
 });
 
 // --- mainTitle -------------------------------------------------------------
@@ -89,31 +119,78 @@ test("mainTitle — prefers type main", () => {
   assert.equal(result.content, "Rice model");
 });
 
-test("mainTitle — null when empty", () => {
-  assert.equal(mainTitle(emptyBibliographicItem()), null);
+test("mainTitle — emptyBibliographicItem seeds a main title", () => {
+  const result = mainTitle(emptyBibliographicItem());
+  assert.ok(result);
+  assert.equal(result.type, "main");
+  assert.equal(result.content, "");
 });
 
 // --- formatContributor -----------------------------------------------------
 
 test("formatContributor — person decomposed", () => {
   assert.equal(
-    formatContributor({ role: "author", entity: { name: { completename: null, surname: "Doe", given: "John" } } }),
+    formatContributor({ role: roles("author"), entity: person({ completename: null, surname: "Doe", given: "John", prefix: null, formattedInitials: null, addition: [] }) }),
     "Doe, John",
   );
 });
 
 test("formatContributor — person completename", () => {
   assert.equal(
-    formatContributor({ role: "author", entity: { name: { completename: "John Doe", surname: null, given: null } } }),
+    formatContributor({ role: roles("author"), entity: person({ completename: "John Doe", surname: null, given: null, prefix: null, formattedInitials: null, addition: [] }) }),
     "John Doe",
   );
 });
 
 test("formatContributor — organization", () => {
   assert.equal(
-    formatContributor({ role: "publisher", entity: { name: "ISO", abbreviation: "ISO" } }),
+    formatContributor({ role: roles("publisher"), entity: org("ISO", "ISO") }),
     "ISO",
   );
+});
+
+test("formatContributor — person with prefix", () => {
+  assert.equal(
+    formatContributor({ role: roles("author"), entity: person({ completename: null, surname: "Smith", given: "John", prefix: "Dr", formattedInitials: null, addition: [] }) }),
+    "Dr Smith, John",
+  );
+});
+
+test("formatContributor — person with initials", () => {
+  assert.equal(
+    formatContributor({ role: roles("author"), entity: person({ completename: null, surname: "Smith", given: "John", prefix: null, formattedInitials: "R.", addition: [] }) }),
+    "Smith, John R.",
+  );
+});
+
+test("formatContributor — person with credential", () => {
+  assert.equal(
+    formatContributor({ role: roles("author"), entity: person({ completename: null, surname: "Smith", given: "John", prefix: null, formattedInitials: null, addition: [] }, ["PhD"]) }),
+    "Smith, John, PhD",
+  );
+});
+
+test("formatContributor — organization with subdivision", () => {
+  assert.equal(
+    formatContributor({ role: roles("publisher"), entity: org("ISO", "ISO", [org("TC 154")]) }),
+    "ISO (TC 154)",
+  );
+});
+
+// --- Multi-role contributor scenarios ---
+
+test("primaryAuthor — contributor with author among multiple roles", () => {
+  const item = {
+    ...emptyBibliographicItem(),
+    contributor: [
+      { role: roles("publisher"), entity: org("ISO", "ISO") },
+      { role: [{ type: "author", description: null, abbreviation: null }, { type: "editor", description: null, abbreviation: null }], entity: person({ completename: "Dual Role", surname: null, given: null, prefix: null, formattedInitials: null, addition: [] }) },
+    ],
+  };
+  const result = primaryAuthor(item);
+  assert.ok(result);
+  assert.ok(result.role.some((r) => r.type === "author"));
+  assert.equal(formatContributor(result), "Dual Role");
 });
 
 // --- Multi-contributor scenarios ---
@@ -122,15 +199,15 @@ test("primaryAuthor — returns first author among mixed roles", () => {
   const item = {
     ...emptyBibliographicItem(),
     contributor: [
-      { role: "publisher", entity: { name: "ISO", abbreviation: "ISO" } },
-      { role: "editor", entity: { name: { completename: "Jane Editor", surname: null, given: null } } },
-      { role: "author", entity: { name: { completename: "John Author", surname: null, given: null } } },
-      { role: "author", entity: { name: { completename: "Second Author", surname: null, given: null } } },
+      { role: roles("publisher"), entity: org("ISO", "ISO") },
+      { role: roles("editor"), entity: person({ completename: "Jane Editor", surname: null, given: null, prefix: null, formattedInitials: null, addition: [] }) },
+      { role: roles("author"), entity: person({ completename: "John Author", surname: null, given: null, prefix: null, formattedInitials: null, addition: [] }) },
+      { role: roles("author"), entity: person({ completename: "Second Author", surname: null, given: null, prefix: null, formattedInitials: null, addition: [] }) },
     ],
   };
   const result = primaryAuthor(item);
   assert.ok(result);
-  assert.equal(result.role, "author");
+  assert.ok(result.role.some((r) => r.type === "author"));
   // formatContributor should render the person's completename
   assert.equal(formatContributor(result), "John Author");
 });
@@ -138,9 +215,11 @@ test("primaryAuthor — returns first author among mixed roles", () => {
 test("label — multiple contributors, no title/docid, uses first author", () => {
   const item = {
     ...emptyBibliographicItem(),
+    docid: [],
+    title: [],
     contributor: [
-      { role: "publisher", entity: { name: "ISO", abbreviation: null } },
-      { role: "author", entity: { name: { completename: "Jane Smith", surname: null, given: null } } },
+      { role: roles("publisher"), entity: org("ISO") },
+      { role: roles("author"), entity: person({ completename: "Jane Smith", surname: null, given: null, prefix: null, formattedInitials: null, addition: [] }) },
     ],
   };
   assert.equal(label(item), "Jane Smith");
@@ -149,9 +228,11 @@ test("label — multiple contributors, no title/docid, uses first author", () =>
 test("label — multiple organizations only, uses first contributor", () => {
   const item = {
     ...emptyBibliographicItem(),
+    docid: [],
+    title: [],
     contributor: [
-      { role: "publisher", entity: { name: "International Organization for Standardization", abbreviation: "ISO" } },
-      { role: "sponsor", entity: { name: "Another Org", abbreviation: null } },
+      { role: roles("publisher"), entity: org("International Organization for Standardization", "ISO") },
+      { role: roles("sponsor"), entity: org("Another Org") },
     ],
   };
   assert.equal(label(item), "International Organization for Standardization");
@@ -163,17 +244,17 @@ test("primaryAuthor — finds author role", () => {
   const item = {
     ...emptyBibliographicItem(),
     contributor: [
-      { role: "publisher", entity: { name: "ISO", abbreviation: null } },
-      { role: "author", entity: { name: { completename: "Jane Smith", surname: null, given: null } } },
+      { role: roles("publisher"), entity: org("ISO") },
+      { role: roles("author"), entity: person({ completename: "Jane Smith", surname: null, given: null, prefix: null, formattedInitials: null, addition: [] }) },
     ],
   };
   const result = primaryAuthor(item);
   assert.ok(result);
-  assert.equal(result.role, "author");
+  assert.ok(result.role.some((r) => r.type === "author"));
 });
 
 test("primaryAuthor — null when empty", () => {
-  assert.equal(primaryAuthor(emptyBibliographicItem()), null);
+  assert.equal(primaryAuthor({ ...emptyBibliographicItem(), contributor: [] }), null);
 });
 
 // --- label -----------------------------------------------------------------
@@ -182,9 +263,10 @@ test("label — docid + title", () => {
   assert.equal(label(isoItem()), "[ISO 17301-1:2021] Rice model");
 });
 
-test("label — title only", () => {
+test("label — title only (empty docid)", () => {
   const item = {
     ...emptyBibliographicItem(),
+    docid: [],
     title: [{ type: "main", language: "en", script: null, content: "Hello World" }],
   };
   assert.equal(label(item), "Hello World");
@@ -193,13 +275,15 @@ test("label — title only", () => {
 test("label — author only", () => {
   const item = {
     ...emptyBibliographicItem(),
-    contributor: [{ role: "author", entity: { name: { completename: "Jane Smith", surname: null, given: null } } }],
+    docid: [],
+    title: [],
+    contributor: [{ role: roles("author"), entity: person({ completename: "Jane Smith", surname: null, given: null, prefix: null, formattedInitials: null, addition: [] }) }],
   };
   assert.equal(label(item), "Jane Smith");
 });
 
 test("label — nothing", () => {
-  assert.equal(label(emptyBibliographicItem()), "(untitled)");
+  assert.equal(label({ ...emptyBibliographicItem(), docid: [], title: [] }), "(untitled)");
 });
 
 // --- collectBibliographyItems ---------------------------------------------

@@ -51,7 +51,8 @@ function titleText(item: BibliographicItem | null): string | null {
 function dateText(item: BibliographicItem | null): string | null {
   if (item === null) return null;
   const pub = item.date.find((d) => d.type === "published");
-  return pub?.on ?? null;
+  if (pub === undefined) return null;
+  return pub.text ?? pub.on ?? null;
 }
 
 /** Format the docid for display: type + id (e.g. "ISO 17301-1:2021"). */
@@ -65,7 +66,7 @@ function docidText(item: BibliographicItem | null): { type: string; id: string }
 /** Format the status stage for display. */
 function statusText(item: BibliographicItem | null): string | null {
   if (item === null) return null;
-  return item.status?.stage ?? null;
+  return item.status?.stage?.value ?? null;
 }
 
 /** Gather contributor display strings, grouped by role for the cover page. */
@@ -75,14 +76,29 @@ function contributorsByRole(item: BibliographicItem | null): { role: string; nam
   for (const c of item.contributor) {
     const name = formatContributor(c);
     if (name === "") continue;
-    const list = map.get(c.role);
-    if (list !== undefined) {
-      list.push(name);
-    } else {
-      map.set(c.role, [name]);
+    for (const r of c.role) {
+      const list = map.get(r.type);
+      if (list !== undefined) {
+        list.push(name);
+      } else {
+        map.set(r.type, [name]);
+      }
     }
   }
   return [...map.entries()].map(([role, names]) => ({ role, names }));
+}
+
+/** Format the copyright line for display: "© 2021 ISO". */
+function copyrightText(item: BibliographicItem | null): string | null {
+  if (item === null) return null;
+  const first = item.copyright.find((c) => c.from !== null && c.from !== "") ?? item.copyright[0];
+  if (first === undefined) return null;
+  const year = first.from ?? null;
+  const owner = first.owner[0]?.name ?? null;
+  if (year !== null && owner !== null && owner !== "") return `© ${year} ${owner}`;
+  if (year !== null) return `© ${year}`;
+  if (owner !== null && owner !== "") return `© ${owner}`;
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -187,6 +203,7 @@ const CoverPageSummary: React.FC<
   const status = statusText(item);
   const groups = contributorsByRole(item);
   const uris = item !== null ? (item.uri ?? []).filter((u) => u.content !== "") : [];
+  const copy = copyrightText(item);
   return (
     <div
       className={`${className} mn-bib-cover`}
@@ -244,6 +261,9 @@ const CoverPageSummary: React.FC<
               ))}
             </div>
           )}
+          {copy !== null && (
+            <div className="mn-bib-cover__copyright">{copy}</div>
+          )}
         </div>
       )}
     </div>
@@ -285,15 +305,15 @@ const ReferenceSummary: React.FC<
   const idType = id?.type ?? null;
   const idValue = id?.id ?? null;
   const pub = item.date.find((d) => d.type === "published");
-  const dateStr = pub?.on ?? null;
-  const stage = item.status?.stage ?? null;
+  const dateStr = pub?.text ?? pub?.on ?? null;
+  const stage = item.status?.stage?.value ?? null;
   const uris = (item.uri ?? []).filter((u) => u.content !== "");
 
   // Separate contributors by role for display.
-  const authors = item.contributor.filter((c) => c.role === "author").map(formatContributor).filter((n) => n !== "");
-  const publishers = item.contributor.filter((c) => c.role === "publisher").map(formatContributor).filter((n) => n !== "");
+  const authors = item.contributor.filter((c) => c.role.some((r) => r.type === "author")).map(formatContributor).filter((n) => n !== "");
+  const publishers = item.contributor.filter((c) => c.role.some((r) => r.type === "publisher")).map(formatContributor).filter((n) => n !== "");
   const otherContributors = item.contributor
-    .filter((c) => c.role !== "author" && c.role !== "publisher")
+    .filter((c) => !c.role.some((r) => r.type === "author" || r.type === "publisher"))
     .map(formatContributor)
     .filter((n) => n !== "");
 

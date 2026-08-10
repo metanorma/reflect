@@ -10,7 +10,16 @@
  * - Any future validation / reference-integrity decoration.
  */
 
-import type { BibliographicItem, Contributor, DocId, Person, TypedTitle } from './types.js';
+import type {
+  BibliographicItem,
+  Contributor,
+  ContributorEntity,
+  DocId,
+  Organization,
+  Person,
+  PersonName,
+  TypedTitle,
+} from './types.js';
 
 /**
  * Return the primary document identifier, if any (Relaton.spec.md §3.1).
@@ -50,42 +59,99 @@ export function mainTitle(item: BibliographicItem): TypedTitle | null {
 }
 
 /**
- * Format a contributor for display (Relaton.spec.md §3.4).
+ * Format a contributor's entity name for display (Relaton.spec.md §3.4).
  *
- * Persons render as "Surname, Given" (or `completename` when undecomposed).
- * Organisations render as their name.
+ * Persons render as `"Prefix Surname, Given, Credentials"` (or `completename`
+ * when undecomposed). Organisations render as their name, optionally followed
+ * by the first subdivision's name in parentheses, e.g. `"ISO (TC 154)"`.
+ *
+ * Note: role information is part of the `Contributor`, not the entity, and is
+ * handled separately by callers that group contributors by role.
  */
 export function formatContributor(contributor: Contributor): string {
   const { entity } = contributor;
-  if ("name" in entity && typeof entity.name === "string") {
-    return entity.name;
+  if (isOrganization(entity)) {
+    return formatOrganization(entity);
   }
-  return formatPerson(entity as Person);
+  return formatPerson(entity);
+}
+
+/** Type guard: is this entity an Organization (name is a string)? */
+function isOrganization(entity: ContributorEntity): entity is Organization {
+  return typeof (entity as Organization).name === "string";
+}
+
+/**
+ * Format an organisation name, appending the first subdivision's name in
+ * parentheses when present, e.g. `"ISO (TC 154)"`.
+ */
+function formatOrganization(org: Organization): string {
+  let name = org.name;
+  const sub = org.subdivision[0]?.name;
+  if (sub !== undefined && sub !== "") {
+    name = `${name} (${sub})`;
+  }
+  return name;
 }
 
 /**
  * Format a person's name for display.
  *
- * Prefers `completename`; falls back to "Surname, Given".
+ * - `completename` takes precedence when set.
+ * - Otherwise renders as `"Prefix Surname, Given"` with `formattedInitials`
+ *   appended after the given name; the `prefix` (honorific) leads when present.
+ * - Credentials (e.g. PhD) are appended after a trailing comma.
  */
 function formatPerson(person: Person): string {
-  const { completename, surname, given } = person.name;
-  if (completename !== null) return completename;
-  const parts: string[] = [];
-  if (surname !== null) parts.push(surname);
-  if (given !== null) parts.unshift(given);
-  if (parts.length === 0) return '';
-  // "Surname, Given" when both are present; otherwise whichever exists.
-  if (surname !== null && given !== null) return `${surname}, ${given}`;
-  return parts[0] ?? '';
+  const n = person.name;
+  let base: string;
+  if (n.completename !== null) {
+    base = n.completename;
+  } else {
+    base = formatDecomposedName(n);
+  }
+  const creds = person.credential.filter((c) => c !== "");
+  if (creds.length > 0) {
+    return `${base}, ${creds.join(" ")}`;
+  }
+  return base;
+}
+
+/** Format a decomposed name (surname/given) honouring prefix and initials. */
+function formatDecomposedName(n: PersonName): string {
+  const { prefix, surname, given, formattedInitials } = n;
+  // Build the "Surname, Given" core.
+  let core = "";
+  const givenParts: string[] = [];
+  if (given !== null) givenParts.push(given);
+  if (formattedInitials !== null) givenParts.push(formattedInitials);
+  const givenStr = givenParts.join(" ");
+
+  if (surname !== null && givenStr !== "") {
+    core = `${surname}, ${givenStr}`;
+  } else if (surname !== null) {
+    core = surname;
+  } else {
+    core = givenStr;
+  }
+
+  if (core === "") return "";
+  // Prefix leads when present: "Dr Smith, John"
+  if (prefix !== null && prefix !== "") {
+    return `${prefix} ${core}`;
+  }
+  return core;
 }
 
 /**
- * Return the primary author (first contributor with role `"author"`), if any
- * (Relaton.spec.md §3.5).
+ * Return the primary author (first contributor with an `"author"` role), if
+ * any (Relaton.spec.md §3.5). A contributor matches when any of its roles has
+ * `type === "author"`.
  */
 export function primaryAuthor(item: BibliographicItem): Contributor | null {
-  const author = item.contributor.find((c) => c.role === "author");
+  const author = item.contributor.find((c) =>
+    c.role.some((r) => r.type === "author"),
+  );
   if (author !== undefined) return author;
   return item.contributor[0] ?? null;
 }

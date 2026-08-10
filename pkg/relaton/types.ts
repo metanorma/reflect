@@ -61,6 +61,45 @@ export interface DocId {
 }
 
 /**
+ * Contact information shared by persons and organisations (Relaton.spec.md §2.3).
+ *
+ * Mirrors Relaton's `<contact>` element which collects address, phone, email
+ * and URI sub-elements. All fields optional.
+ */
+export interface ContactInfo {
+  /** URI / URL, e.g. `"https://www.iso.org"`. */
+  uri: string | null;
+  /** Postal address (free text). */
+  address: string | null;
+  /** Telephone number. */
+  phone: string | null;
+  /** Email address. */
+  email: string | null;
+}
+
+/**
+ * An organisation contributor (Relaton.spec.md §2.3).
+ *
+ * Mirrors Relaton's `<organization>`. Subdivisions recurse as nested
+ * `Organization` entries; the editor exposes the first-level name only, but
+ * the type preserves the recursive structure for fidelity.
+ */
+export interface Organization {
+  /** Organisation name. */
+  name: string;
+  /** Abbreviation, e.g. `"ISO"`. */
+  abbreviation: string | null;
+  /** Sub-organisations (recursive, Relaton `<subdivision>`). */
+  subdivision: Organization[];
+  /** External identifiers (Relaton `<identifier>`). */
+  identifier: string[];
+  /** Contact details. */
+  contact: ContactInfo | null;
+  /** Logo URI (Relaton `<logo>`). */
+  logo: string | null;
+}
+
+/**
  * A person's name, decomposed into parts (Relaton.spec.md §2.3).
  *
  * Mirrors Relaton's `<name>` inside `<person>`. Either `completename` or the
@@ -73,6 +112,26 @@ export interface PersonName {
   surname: string | null;
   /** Given / forename(s), including middle names. */
   given: string | null;
+  /** Name prefix / honorific, e.g. `"Dr"`, `"Prof"` (Relaton `<prefix>`). */
+  prefix: string | null;
+  /** Pre-formatted initials (Relaton `<formatted-initials>`). */
+  formattedInitials: string | null;
+  /** Suffix / addition strings (Relaton `<addition>`). */
+  addition: string[];
+}
+
+/**
+ * An organisational affiliation of a person (Relaton.spec.md §2.3).
+ *
+ * Mirrors Relaton's `<affiliation>` inside `<person>`.
+ */
+export interface Affiliation {
+  /** Affiliation name (Relaton `<name>` inside `<affiliation>`). */
+  name: string | null;
+  /** Description of the affiliation (Relaton `<description>`). */
+  description: string | null;
+  /** The organisation the person is affiliated with. */
+  organization: Organization;
 }
 
 /**
@@ -81,33 +140,44 @@ export interface PersonName {
 export interface Person {
   /** The person's name. */
   name: PersonName;
-}
-
-/**
- * An organisation contributor (Relaton.spec.md §2.3).
- *
- * Mirrors Relaton's `<organization>`. Subdivision recursion is flattened to a
- * single optional name string for the v1 subset.
- */
-export interface Organization {
-  /** Organisation name. */
-  name: string;
-  /** Abbreviation, e.g. `"ISO"`. */
-  abbreviation: string | null;
+  /** Credential / suffix strings, e.g. `["PhD"]` (Relaton `<credential>`). */
+  credential: string[];
+  /** Organisational affiliations. */
+  affiliation: Affiliation[];
+  /** Person identifiers (Relaton `<identifier>`). */
+  identifier: string[];
+  /** Contact details. */
+  contact: ContactInfo | null;
 }
 
 /** A contributor is either a person or an organisation, with a role. */
 export type ContributorEntity = Person | Organization;
 
 /**
+ * A role played by a contributor (Relaton.spec.md §2.3).
+ *
+ * Mirrors Relaton's `<role type="…">` element with a mandatory `type` attribute
+ * (controlled vocabulary: author, publisher, editor, …) and optional
+ * `<description>` / `<abbreviation>` children.
+ */
+export interface Role {
+  /** Role type from a controlled vocabulary (author, publisher, editor, …). */
+  type: string;
+  /** Human-readable description of the role. */
+  description: string | null;
+  /** Abbreviated role label. */
+  abbreviation: string | null;
+}
+
+/**
  * A contributor to the bibliographic item (Relaton.spec.md §2.3).
  *
- * Mirrors Relaton's `<contributor><role type="…"/>…</contributor>`. The
- * `role.type` is from a controlled vocabulary (author, publisher, editor, …).
+ * Mirrors Relaton's `<contributor><role type="…"/>…</contributor>`. A
+ * contributor has one or more roles; the `role` array is always non-empty.
  */
 export interface Contributor {
-  /** The role this contributor played. Common: `author`, `publisher`, `editor`, `translator`. */
-  role: string;
+  /** Roles this contributor played (at least one). */
+  role: Role[];
   /** The person or organisation that contributed. */
   entity: ContributorEntity;
 }
@@ -117,7 +187,8 @@ export interface Contributor {
  *
  * Mirrors Relaton's `<date type="…"><on>…</on></date>` (point) or
  * `<date type="…"><from>…</from><to>…</to></date>` (range). Dates are ISO 8601
- * strings (`YYYY`, `YYYY-MM`, or `YYYY-MM-DD`).
+ * strings (`YYYY`, `YYYY-MM`, or `YYYY-MM-DD`). A free-text `text` field is
+ * also supported for non-parseable date expressions.
  */
 export interface BibDate {
   /** Lifecycle phase. Common: `published`, `issued`, `circulated`, `updated`, `obsoleted`, `confirmed`. */
@@ -128,6 +199,23 @@ export interface BibDate {
   from: string | null;
   /** Range end (ISO 8601). Present for date ranges. */
   to: string | null;
+  /** Free-text date expression (Relaton `<text>` inside `<date>`). */
+  text: string | null;
+}
+
+/**
+ * A stage or substage value (Relaton.spec.md §2.5).
+ *
+ * Mirrors Relaton's `<stage>` / `<substage>` element which carries a value
+ * plus optional `abbreviation` attribute and `<name>` child.
+ */
+export interface Stage {
+  /** The stage/substage code (SDO-specific), e.g. `"60"`. */
+  value: string | null;
+  /** Abbreviation attribute. */
+  abbreviation: string | null;
+  /** Human-readable name (Relaton `<name>` child). */
+  name: string | null;
 }
 
 /**
@@ -138,10 +226,10 @@ export interface BibDate {
  * for published).
  */
 export interface DocStatus {
-  /** Stage code (SDO-specific), e.g. `"60"`. */
-  stage: string | null;
-  /** Substage code (SDO-specific), e.g. `"00"`. */
-  substage: string | null;
+  /** Stage (code + optional abbreviation/name). */
+  stage: Stage | null;
+  /** Substage (code + optional abbreviation/name). */
+  substage: Stage | null;
   /** Iteration number within the current stage, e.g. `1`. */
   iteration: string | null;
 }
@@ -149,13 +237,17 @@ export interface DocStatus {
 /**
  * Copyright information (Relaton.spec.md §2.6).
  *
- * Mirrors Relaton's `<copyright><from>…</from><owner>…</owner></copyright>`.
+ * Mirrors Relaton's `<copyright><from>…</from><to>…</to><owner>…</owner></copyright>`.
+ * An item may have multiple copyright entries (different owners / years); each
+ * has one or more owner organisations.
  */
 export interface Copyright {
-  /** Start year of copyright. */
+  /** Start year of copyright (Relaton `<from>`). */
   from: string | null;
-  /** Owner organisation. */
-  owner: Organization;
+  /** End year of copyright (Relaton `<to>`). */
+  to: string | null;
+  /** Owner organisations (at least one). */
+  owner: Organization[];
 }
 
 /**
@@ -173,6 +265,32 @@ export interface Uri {
   type: string | null;
   /** The URI content (an `xsd:anyURI`). */
   content: string;
+}
+
+/**
+ * A classification entry (Relaton.spec.md §2.8).
+ *
+ * Mirrors Relaton's `<classification type="…">value</classification>`.
+ */
+export interface Classification {
+  /** Classification scheme, e.g. `"iso"`, `"mehfam"`. */
+  type: string;
+  /** The classification value / code. */
+  value: string;
+}
+
+/**
+ * Validity period of a bibliographic item (Relaton.spec.md §2.8).
+ *
+ * Mirrors Relaton's `<validity>` element.
+ */
+export interface Validity {
+  /** Start of validity (ISO 8601). */
+  begins: string | null;
+  /** End of validity (ISO 8601). */
+  ends: string | null;
+  /** Revision date / identifier (ISO 8601). */
+  revision: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,33 +332,54 @@ export interface BibliographicItem {
   script: string[];
   /** Edition information. */
   edition: string | null;
-  /** Copyright holder and year. */
-  copyright: Copyright | null;
+  /** Copyright entries (holders and years). */
+  copyright: Copyright[];
   /** Abstract / summary text. */
   abstract: string | null;
   /** URI(s) associated with the item (Relaton `<uri type="…">`, zeroOrMore). */
   uri: Uri[];
+  /** Document number for numeric sorting (Relaton `<docnumber>`). */
+  docnumber: string | null;
+  /** Version identifier (Relaton `<version>`). */
+  version: string | null;
+  /** Classification entries (Relaton `<classification>`). */
+  classification: Classification[];
+  /** Keywords (Relaton `<keyword>`, zeroOrMore). */
+  keyword: string[];
+  /** Validity period (Relaton `<validity>`). */
+  validity: Validity | null;
+  /** Licence URIs (Relaton `<license>`, zeroOrMore). */
+  license: string[];
 }
 
 /**
  * A `BibliographicItem` with all array fields initialised and optional fields
  * nulled. Used as the default when creating a new `bibdata` or `bibitem` node.
  *
+ * Seeds a single empty main title and a single empty primary docid, per
+ * Relaton's `<oneOrMore>` cardinality for both `<title>` and `<docidentifier>`.
+ *
  * @see docs/Relaton.spec.md §2.7
  */
 export function emptyBibliographicItem(): BibliographicItem {
   return {
     type: null,
-    title: [],
-    docid: [],
+    title: [{ type: "main", language: "en", script: null, content: "" }],
+    docid: [{ type: "ISO", id: "", primary: true, scope: null }],
     contributor: [],
     date: [],
     status: null,
     language: [],
     script: [],
     edition: null,
-    copyright: null,
+    copyright: [],
     abstract: null,
     uri: [],
+    docnumber: null,
+    version: null,
+    classification: [],
+    keyword: [],
+    validity: null,
+    license: [],
   };
 }
