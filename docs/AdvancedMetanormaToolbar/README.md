@@ -1,14 +1,11 @@
 # AdvancedMetanormaToolbar — Feature Specifications
 
-**Spec version:** 2
-**Spec dependencies:** [`../MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) v3, [`../EditorCommands.spec.md`](../EditorCommands.spec.md) v1, [`../schema.spec.md`](../schema.spec.md) v5
-
-> **What changed in version 2.** The visible `label` of every advanced
+> **Recent change.** The visible `label` of every advanced
 > toolbar button changed from a glyph/emoji (e.g. `↩`, `↶`, `▦`, `🖼`,
 > `≡`, `↗`, `📕`, `⁺`, `∑`) to a **short legible word** (e.g. `Outdent`,
 > `Undo`, `Table`, `Image`, `Def list`, `Xref`, `Eref`, `Formula`), tracking
-> the base spec's v3 textual-label convention
-> (`MetanormaToolbar.spec.md` v3 §5 + its "What changed in version 3" block).
+> the textual-label convention
+> ([MetanormaToolbar.spec.md](../MetanormaToolbar.spec.md) §5).
 > The `title` field (tooltip) on every button is unchanged. Member-page
 > button tables and code blocks were updated in place to show the new word
 > labels; where a member page carried an "icon note" or arrow-glyph styling
@@ -28,7 +25,7 @@ that are intentionally deferred. `AdvancedMetanormaToolbar` is the component
 that picks up exactly those six areas — it does **not** rehash the contents of
 `MetanormaToolbar.spec.md`.
 
-As of `MetanormaToolbar.spec.md` v2, the base component is a **thin assembler**
+The base component is a **thin assembler**
 over a set of shared toolbar primitives — a generic `<Toolbar>` shell, a
 `<ToolbarButtonView>` renderer, a `baseGroups` registry, and supporting types
 (base spec §10). `AdvancedMetanormaToolbar` composes with that architecture by
@@ -152,7 +149,7 @@ Governed by `schema.spec.md` §6 (Attribute conventions):
 
 - `DATA_ATTR` — `{ data: { default: {} } }`, universal catch-all.
 - `baseAttrs()` — `{ id, number, data }`, all defaulting `null`/`{}`.
-- `sectionAttrs()` — `{ id, number, data }`, all defaulting `null`/`{}` (same as `baseAttrs()`; the `title` attribute was removed in schema v5 — the heading is now a `section_title` child node).
+- `sectionAttrs()` — `{ id, number, data }`, all defaulting `null`/`{}` (same as `baseAttrs()`; the `title` attribute was removed — the heading is now a `section_title` child node).
 
 ### 4.3 Runtime guards
 
@@ -168,7 +165,7 @@ every group the base toolbar renders (the `marks`, `blocks`, `lists`, and
 `link` groups from `MetanormaToolbar.spec.md` §5.1–5.4) **plus** the six
 advanced groups specified in this directory.
 
-`MetanormaToolbar.spec.md` v2 already specifies the shared architecture that
+[MetanormaToolbar.spec.md](../MetanormaToolbar.spec.md) already specifies the shared architecture that
 makes this possible — the `<Toolbar>` shell, `<ToolbarButtonView>`, the
 `ToolbarButton` / `ToolbarEntry` / `ToolbarGroupDef` types, and the
 `baseGroups` registry live in `@metanorma/toolbar` (`pkg/toolbar/`; base

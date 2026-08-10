@@ -53,7 +53,7 @@ child of `doc`".
 
 All ten section nodes carry `group: SECTION_GROUP` and
 `attrs: sectionAttrs()` = `{ id, number, data }` (the `title` attribute was
-removed in schema v5 — the heading is now a `section_title` child textblock;
+removed — the heading is now a `section_title` child textblock;
 `id` and `number` default `null`, `data` defaults to `{}`).
 
 | Section node | Content expression | Can nest section children? |
@@ -605,8 +605,8 @@ re-renders, matching the base toolbar's performance contract.
 
 The section heading is a `section_title` child textblock (schema §8.2 — the
 optional leading child of every section node's content expression). It is no
-longer a `title` **attribute** on the section node (that model was replaced in
-schema v5). On **Insert clause**, the toolbar creates the clause synchronously
+longer a `title` **attribute** on the section node (that model was replaced).
+On **Insert clause**, the toolbar creates the clause synchronously
 with an empty `section_title` and a `paragraph` body, and the cursor lands in
 the `section_title`. The user types the heading directly into it — **no prompt
 dialog, no `window.prompt`, no async capture**. The heading supports full

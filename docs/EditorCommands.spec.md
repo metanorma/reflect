@@ -5,9 +5,6 @@ for the Metanorma Mirror document model. It is the command-logic companion to
 [`@metanorma/prosemirror-schema`](./schema.spec.md); its commands are wired into
 the `MetanormaProseMirror` editor mount via the consumer's `plugins` prop.
 
-**Spec version:** 2
-**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v5
-
 > **Scope of this document.** This revision specifies only the **general,
 > cross-cutting aspects** of command implementation — the contract every command
 > obeys, how commands couple to the schema, transaction discipline, testability,
@@ -590,8 +587,8 @@ table does what it does in a paragraph, nothing more.
 cursor cannot rest *inside* them; it can only node-select them or sit in a gap
 cursor beside them. (`footnote_marker` and `soft_break` are *inline* atoms and
 are never the target of Enter — Enter inside a paragraph that contains them
-just splits the paragraph around them. `floating_title` is no longer an atom as
-of schema v5 — it is a textblock with `inline*` content, so Enter inside it
+just splits the paragraph around them. `floating_title` is no longer an atom
+  — it is a textblock with `inline*` content, so Enter inside it
 splits it via the default `splitBlockKeepMarks` branch, just like a paragraph.)
 
 | Selection | Context | Effect | Invariant |
@@ -1280,7 +1277,7 @@ cell by deletion; arrow keys or a dedicated toolbar are the way out.
 the cursor cannot rest *inside* them. (`footnote_marker` and `soft_break` are
 inline atoms; Backspace at the cursor immediately after one deletes it via
 default character handling, not this feature. `floating_title` is no longer an
-atom as of schema v5 — it is a textblock with `inline*` content, so Backspace
+  atom — it is a textblock with `inline*` content, so Backspace
 on an empty `floating_title` deletes the block via the §4.7.3 walk, just like
 an empty paragraph.)
 

@@ -5,9 +5,6 @@ This spec defines the React component package that wraps the
 library and binds it to the Metanorma Mirror schema defined in
 [`schema.spec.md`](./schema.spec.md).
 
-**Spec version:** 4
-**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v5
-
 **Pinned integration library:** `@handlewithcare/react-prosemirror` **exactly
 `3.2.7`**. No other version is permitted. React ProseMirror releases are tightly
 **coupled to a specific `prosemirror-view` release**; `3.2.7` declares
@@ -360,7 +357,7 @@ The component must not register node views for these by default.
   `type === "asciimath"`, `mathml` when `type === "mathml"`) as visible
   placeholder content. The non-selected attribute, if populated, is ignored by
   this view. Math **rendering** is out of scope (schema §16); this view only
-  surfaces the stored attributes (schema v3 §17.2). `CLASS.formula` is
+  surfaces the stored attributes (schema §17.2). `CLASS.formula` is
   `"mn-formula"` (schema §8.0).
 
 #### `SourcecodeNodeView`
@@ -434,7 +431,7 @@ in a single `@media (prefers-color-scheme: dark)` block. A host may force a
 theme by setting `data-mn-theme="light"` or `"dark"` on `.mn-prosemirror` (or
 any ancestor); these selectors are declared after the media query so they win
 on equal specificity. *(A `theme` prop on `MetanormaProseMirror` that renders
-this attribute is a candidate for a future version; not part of v4.)*
+this attribute is a candidate for future work; not currently implemented.)*
 
 ### 9.3 `editor-chrome.css` — editor affordances
 

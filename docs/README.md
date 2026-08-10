@@ -8,6 +8,11 @@ operations). Each spec links to the others; the dependency flows downward. The
 [`AdvancedMetanormaToolbar/`](./AdvancedMetanormaToolbar/README.md) directory
 extends the toolbar with six advanced feature areas.
 
+**Spec governance.** Cross-referencing, change-tracking, and tooling
+conventions live in [`CONVENTIONS.md`](./CONVENTIONS.md). Run
+`yarn check-specs` before submitting a PR that touches `docs/`; use
+`yarn spec-impact docs/<spec>.md` to find what to review when changing a spec.
+
 ```
 schema.spec.md            ← source of truth for the document model
         ↑ consumed by

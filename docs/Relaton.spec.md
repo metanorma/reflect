@@ -2,12 +2,9 @@
 
 This spec defines the package providing a deliberate-subset Relaton
 bibliographic data model for the Metanorma editor. It is consumed by the schema
-(`bibdata` / `bibitem` node attrs), the editor (`eref` citation resolution,
-NodeView summaries), and the GUI (document title display).
-
-**Spec version:** 1
-
-**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v5
+([schema.spec.md](./schema.spec.md) §8) (`bibdata` / `bibitem` node attrs), the
+editor (`eref` citation resolution, NodeView summaries), and the GUI (document
+title display).
 
 **Scope.** This package owns the `BibliographicItem` TypeScript type, pure
 derivation helpers (`citeas`, `label`, `primaryDocid`), and a document walker

@@ -1,8 +1,5 @@
 # MetanormaToolbar — Functional Specification
 
-**Spec version:** 3
-**Spec dependencies:** [`EditorCommands.spec.md`](./EditorCommands.spec.md) v1
-
 ## 1. Purpose
 
 `MetanormaToolbar` is a schema-bound React toolbar component that gives the
@@ -17,7 +14,7 @@ that context it reads the current editor state and dispatches transactions —
 `MetanormaProseMirror` transparently propagates transactions back to the
 host application's `onStateChange` handler.
 
-As of spec version 2, `MetanormaToolbar` is a **thin assembler** over a set
+`MetanormaToolbar` is a **thin assembler** over a set
 of shared toolbar primitives (§10): it selects the four base groups
 (`marks`, `blocks`, `lists`, `link`) and passes them to a generic `<Toolbar>`
 shell. The same primitives are reused, without duplication, by
@@ -30,7 +27,7 @@ shape.
 package, `@metanorma/toolbar` (`pkg/toolbar/`), separated from
 `@metanorma/prosemirror-editor` (§2). §11 also covers the package move.
 
-> **What changed in version 2.** The component was reshaped from a
+> **Recent change (assembler refactor).** The component was reshaped from a
 > self-contained monolith into a thin assembler over shared primitives
 > (§10); the button/predicate/render logic was extracted into shared
 > modules; `toggleList` was rewritten as a pure
@@ -40,7 +37,7 @@ package, `@metanorma/toolbar` (`pkg/toolbar/`), separated from
 > `@metanorma/toolbar` (`pkg/toolbar/`). The public component API
 > (`MetanormaToolbar`, `MetanormaToolbarProps`, `ToolbarGroup`) is unchanged.
 
-> **What changed in version 3.** The visible `label` of every toolbar button
+> **Recent change (textual labels).** The visible `label` of every toolbar button
 > changed from a glyph/emoji/short token (e.g. `❝`, `🔗`, `B`, `x₂`) to a
 > **short legible word** (e.g. `Quote`, `Link`, `Bold`, `Sub`). The `title`
 > field (the `<button title>` tooltip) is unchanged and is now the sole
@@ -84,8 +81,8 @@ layer.
 on `@metanorma/prosemirror-editor`: the toolbar is a *child* rendered inside
 the editor context, not a code-level dependent of it.
 
-> **Consumer import change.** In version 1 the toolbar was imported from
-> `@metanorma/prosemirror-editor`. In version 2 `@metanorma/prosemirror-editor`
+> **Consumer import change.** Historically the toolbar was imported from
+> `@metanorma/prosemirror-editor`. Now `@metanorma/prosemirror-editor`
 > no longer exports or references the toolbar; consumers import it from
 > `@metanorma/toolbar` directly (§3).
 
@@ -185,7 +182,7 @@ interface ToolbarButton {
 
 The four base groups below are each a `ToolbarGroupDef` (§10.3) assembled in
 `groups/`. Active/enabled detection and dispatch wiring are
-unchanged from version 1; only the physical location of the code has moved
+unchanged from the monolithic era; only the physical location of the code has moved
 (see §11). The shared state predicates (`isInlineContext`, `isBlockContext`,
 `isMarkActive`, `isListActive`, `isBlockWrapActive`, `activeMarkTypes`) live
 in `predicates.ts` (§7, §13).
@@ -368,7 +365,7 @@ const handleToggle = useEditorEventCallback((view) => {
 });
 ```
 
-As of version 2, the predicate functions used across groups
+The predicate functions used across groups
 (`activeMarkTypes`, `isInlineContext`, `isBlockContext`, `isMarkActive`,
 `isListActive`, `isBlockWrapActive`) and the schema-name guards
 (`requireMark`, `requireNode`) live in `predicates.ts` (§13) and
@@ -421,7 +418,7 @@ Each `<button>` element:
 
 ## 10. Shared toolbar architecture
 
-Version 2 factors the toolbar into a three-layer structure so that the base
+The toolbar is factored into a three-layer structure so that the base
 functionality can be shared with `AdvancedMetanormaToolbar` **without
 duplication**. `MetanormaToolbar` is the thin assembler at the top of this
 stack; this section defines the layers beneath it. All three layers live in
@@ -597,7 +594,7 @@ With the primitives and registry in place, `MetanormaToolbar` itself is
 thin. Its public API (§4) is unchanged; only the render body changes:
 
 ```typescript
-// MetanormaToolbar.tsx — version 2 (public API unchanged)
+// MetanormaToolbar.tsx (public API unchanged)
 export function MetanormaToolbar({
   visibleGroups, className, onLinkPrompt,
 }: MetanormaToolbarProps): React.JSX.Element {
@@ -620,8 +617,7 @@ group modules — used by both assemblers.
 
 ## 11. Migration from the monolith
 
-This section is normative for any existing implementation that predates
-version 2. It describes the refactor that brings a self-contained
+This section is normative for any existing monolithic implementation. It describes the refactor that brings a self-contained
 monolithic `MetanormaToolbar` into compliance with the §10 architecture and
 the §2 package location. Each step moves code that **already exists** today
 into its target module, preserving behaviour (the invariants in §11.11 must
@@ -643,7 +639,7 @@ can cross a package boundary cleanly).
 
 ### 11.1 Starting point
 
-An implementation predating version 2 is typically a single self-contained
+A monolithic implementation is typically a single self-contained
 file (`MetanormaToolbar.tsx`) with no `toolbar/` directory, no group
 registry, and no extension seam. It contains, all private and un-exported:
 
@@ -861,8 +857,8 @@ advanced spec) imports them by relative path.
 toolbar at all: the `MetanormaToolbar`, `MetanormaToolbarProps`,
 `ToolbarGroup`, and `toggleList` re-exports are removed (clean break, §2).
 
-> **Version 1 → 2 export delta.** In version 1 the toolbar symbols were
-> imported from `@metanorma/prosemirror-editor`. In version 2 they move to
+> **Export delta.** Historically the toolbar symbols were
+> imported from `@metanorma/prosemirror-editor`. They now move to
 > `@metanorma/toolbar`; `@metanorma/prosemirror-editor` drops them entirely.
 > `toggleList` is re-exported from `@metanorma/toolbar` (sourcing it from
 > `@metanorma/editor-commands`); its name is unchanged but its signature is
@@ -890,7 +886,7 @@ pkg/toolbar/                           ← @metanorma/toolbar (new package)
   tsconfig.json                        ← extends root tsconfig
 ```
 
-Relocated / removed relative to version 1:
+Relocated / removed relative to the monolith:
 
 - `MetanormaToolbar.tsx` and `toolbar.css` — **moved** from
   `@metanorma/prosemirror-editor` (`pkg/prosemirror-editor/`) to

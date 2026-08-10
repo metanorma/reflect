@@ -1,0 +1,22 @@
+name: Check docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check-specs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Check spec cross-references
+        # Zero-dep script — validates link integrity, header hygiene, and
+        # stale-version-reference guards. See docs/CONVENTIONS.md §6.
+        run: node scripts/check-specs.mjs
