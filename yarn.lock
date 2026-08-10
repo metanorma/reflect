@@ -274,7 +274,6 @@ __metadata:
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
     prosemirror-commands: "npm:^1.7.1"
-    prosemirror-gapcursor: "npm:^1.4.1"
     prosemirror-keymap: "npm:^1.2.2"
     prosemirror-model: "npm:^1.22.0"
     prosemirror-state: "npm:^1.4.4"
@@ -725,18 +724,6 @@ __metadata:
     prosemirror-state: "npm:^1.0.0"
     prosemirror-transform: "npm:^1.10.2"
   checksum: 10c0/4884ea7a66b79b51e72bb2ef358284d70e9a071deb4cbfab3dd8ee3449e9a0e34cb391d92f487c013d3716b823fc5568ad5e409a9444b3630ae0b87617c2fca1
-  languageName: node
-  linkType: hard
-
-"prosemirror-gapcursor@npm:^1.4.1":
-  version: 1.4.1
-  resolution: "prosemirror-gapcursor@npm:1.4.1"
-  dependencies:
-    prosemirror-keymap: "npm:^1.0.0"
-    prosemirror-model: "npm:^1.0.0"
-    prosemirror-state: "npm:^1.0.0"
-    prosemirror-view: "npm:^1.0.0"
-  checksum: 10c0/1719ef91274d0f76f6c5e667d839aae0576e38b1fc08e178425fa076821ef3da88ebd0fe40049d7dd157aa224672270e569f032316de9de588a1baabcfe802f1
   languageName: node
   linkType: hard
 
