@@ -6,6 +6,8 @@ import {
 } from '@metanorma/prosemirror-editor';
 import type { EditorState, MirrorDocument } from '@metanorma/prosemirror-editor';
 import { AdvancedMetanormaToolbar } from '@metanorma/toolbar';
+import type { BibliographicItem } from '@metanorma/relaton';
+import { mainTitle } from '@metanorma/relaton';
 import { keymap } from 'prosemirror-keymap';
 import { chainCommands } from 'prosemirror-commands';
 import {
@@ -181,8 +183,15 @@ function ({ onDoneLoading }) {
     };
   }, [loadDocFromJson]);
 
+  // Derive the document title from bibdata for the Sidebar's vertical label.
+  // This is a cheap property access on doc.firstChild, not a doc walk.
+  const bibdataItem = editorState.doc.firstChild?.type.name === 'bibdata'
+    ? (editorState.doc.firstChild.attrs['item'] as BibliographicItem | null)
+    : null;
+  const docTitle = bibdataItem ? (mainTitle(bibdataItem)?.content ?? null) : null;
+
   return <div className={classNames.app}>
-    <Sidebar onSave={handleSave} onLoad={handleLoad} />
+    <Sidebar onSave={handleSave} onLoad={handleLoad} docTitle={docTitle} />
     {status && <div className={classNames.status} role="alert">{status}</div>}
     <MetanormaProseMirror
         state={editorState}

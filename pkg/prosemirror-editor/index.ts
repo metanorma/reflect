@@ -37,6 +37,8 @@ export {
   FootnoteMarkerNodeView,
   FootnoteEntryNodeView,
   StemNodeView,
+  BibdataNodeView,
+  BibitemNodeView,
   nodeViewComponents,
 } from "./nodeViews/index.js";
 

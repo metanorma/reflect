@@ -19,6 +19,7 @@ import { SourcecodeNodeView } from "./SourcecodeNodeView.js";
 import { FootnoteMarkerNodeView } from "./FootnoteMarkerNodeView.js";
 import { FootnoteEntryNodeView } from "./FootnoteEntryNodeView.js";
 import { StemNodeView } from "./StemNodeView.js";
+import { BibdataNodeView, BibitemNodeView } from "./BibNodeView.js";
 
 export { ImageNodeView } from "./ImageNodeView.js";
 export { FigureNodeView } from "./FigureNodeView.js";
@@ -27,6 +28,7 @@ export { SourcecodeNodeView } from "./SourcecodeNodeView.js";
 export { FootnoteMarkerNodeView } from "./FootnoteMarkerNodeView.js";
 export { FootnoteEntryNodeView } from "./FootnoteEntryNodeView.js";
 export { StemNodeView } from "./StemNodeView.js";
+export { BibdataNodeView, BibitemNodeView } from "./BibNodeView.js";
 
 /**
  * The default node-view component map. Node types not present here fall back to
@@ -46,4 +48,6 @@ export const nodeViewComponents: Readonly<
   footnote_marker: FootnoteMarkerNodeView,
   footnote_entry: FootnoteEntryNodeView,
   stem: StemNodeView,
+  bibdata: BibdataNodeView,
+  bibitem: BibitemNodeView,
 };

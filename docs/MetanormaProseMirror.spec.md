@@ -6,7 +6,7 @@ library and binds it to the Metanorma Mirror schema defined in
 [`schema.spec.md`](./schema.spec.md).
 
 **Spec version:** 4
-**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v4
+**Spec dependencies:** [`schema.spec.md`](./schema.spec.md) v5
 
 **Pinned integration library:** `@handlewithcare/react-prosemirror` **exactly
 `3.2.7`**. No other version is permitted. React ProseMirror releases are tightly

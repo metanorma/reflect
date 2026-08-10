@@ -1,0 +1,156 @@
+/*
+ * bibitem-form.css — styling for <BibliographicItemForm>.
+ *
+ * Consumes the `--mn-*` design tokens defined by `@metanorma/prosemirror-editor`
+ * (tokens.css); light/dark themes are handled centrally there.
+ */
+
+@layer chrome {
+
+  .mn-bibitem-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mn-space-2);
+    min-width: 22em;
+  }
+
+  /* ---- Single-line field ---- */
+
+  .mn-bibitem-form__field {
+    display: grid;
+    gap: 0.15em;
+  }
+
+  .mn-bibitem-form__label {
+    font-size: 0.85em;
+    color: var(--mn-text);
+  }
+
+  .mn-bibitem-form__input,
+  .mn-bibitem-form__select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.25em 0.4em;
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-sm);
+    background: var(--mn-surface);
+    color: var(--mn-text);
+    font-size: inherit;
+    font-family: inherit;
+  }
+
+  .mn-bibitem-form__input:focus,
+  .mn-bibitem-form__select:focus {
+    outline: 2px solid var(--mn-active);
+    outline-offset: 1px;
+  }
+
+  /* ---- Two-column row (ID type + value, date + status, etc.) ---- */
+
+  .mn-bibitem-form__row {
+    display: flex;
+    gap: var(--mn-space-2);
+  }
+
+  .mn-bibitem-form__field--id-type {
+    flex: 0 0 7em;
+  }
+
+  .mn-bibitem-form__field--id-value {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .mn-bibitem-form__field--date {
+    flex: 0 0 10em;
+  }
+
+  .mn-bibitem-form__field--status {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .mn-bibitem-form__field--lang,
+  .mn-bibitem-form__field--title-lang {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* ---- Contributors section (repeating list) ---- */
+
+  .mn-bibitem-form__section-header {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--mn-text);
+    margin-bottom: var(--mn-space-1);
+  }
+
+  .mn-bibitem-form__contributors {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mn-space-1);
+  }
+
+  .mn-bibitem-form__contributor {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+    padding: var(--mn-space-1);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-sm);
+    background: var(--mn-surface-muted);
+  }
+
+  .mn-bibitem-form__contributor-row {
+    display: flex;
+    gap: 0.3em;
+    align-items: center;
+  }
+
+  .mn-bibitem-form__contributor-role {
+    flex: 0 0 7em;
+  }
+
+  .mn-bibitem-form__contributor-type {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .mn-bibitem-form__remove-btn {
+    flex: 0 0 auto;
+    padding: 0.15em 0.4em;
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-sm);
+    background: var(--mn-surface);
+    color: var(--mn-danger, #c00);
+    cursor: pointer;
+    font-size: 0.85em;
+    line-height: 1;
+  }
+
+  .mn-bibitem-form__remove-btn:hover {
+    border-color: var(--mn-danger, #c00);
+  }
+
+  .mn-bibitem-form__contributor-add {
+    display: flex;
+    gap: var(--mn-space-2);
+  }
+
+  .mn-bibitem-form__add-btn {
+    padding: 0.2em 0.5em;
+    border: 1px dashed var(--mn-border);
+    border-radius: var(--mn-radius-sm);
+    background: transparent;
+    color: var(--mn-text-muted);
+    cursor: pointer;
+    font-size: 0.85em;
+    font-family: inherit;
+  }
+
+  .mn-bibitem-form__add-btn:hover {
+    border-color: var(--mn-accent);
+    color: var(--mn-accent);
+  }
+
+}

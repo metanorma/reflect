@@ -1,5 +1,5 @@
 /**
- * Node specifications — the 44-node `nodes` map passed to `new Schema` (§8).
+ * Node specifications — the 46-node `nodes` map passed to `new Schema` (§8).
  *
  * Order follows the group order in §3.1. `text` is declared explicitly with
  * `group: "inline"` so that `inline*` content expressions resolve.
@@ -56,9 +56,17 @@ function sectionParseRule(cls: string): readonly TagParseRule[] {
 
 const structuralNodes: Record<string, NodeSpec> = {
     doc: {
-      content: "(preface? sections? bibliography? footnotes?)",
+      content: "(bibdata preface? sections? bibliography? footnotes?)",
       attrs: { ...DATA_ATTR },
       toDOM: () => ["div", { class: CLASS.doc }, 0],
+    },
+    bibdata: {
+      content: "",
+      atom: true,
+      attrs: { item: { default: null }, ...DATA_ATTR },
+      toDOM: () => ["div", { class: CLASS.bibdata }],
+      // No parseDOM: doc-level node created by the default doc / loader, not
+      // by HTML ingestion.
     },
     preface: {
       content: `(section | ${BLOCK_GROUP})*`,
@@ -166,12 +174,34 @@ const sectionNodes: Record<string, NodeSpec> = {
       parseDOM: sectionParseRule(CLASS.definitions),
     },
     references: {
-      content: `section_title? (clause | ${BLOCK_GROUP})*`,
+      content: `section_title? (clause | bibitem | ${BLOCK_GROUP})*`,
       group: SECTION_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.references),
       parseDOM: sectionParseRule(CLASS.references),
     },
+};
+
+// ---------------------------------------------------------------------------
+// 2b. Bibliographic entry nodes (§8.2) — no group (only inside `references`)
+// ---------------------------------------------------------------------------
+
+/**
+ * The `bibitem` node — a single bibliography entry. An atom node storing a
+ * `BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item`
+ * attr, rendered as a compact summary by a NodeView. Has no group membership:
+ * it is insertable only inside `references` sections via a dedicated command.
+ *
+ * Mirrors Metanorma Presentation XML's `<bibitem>` element.
+ */
+const bibItemNodes: Record<string, NodeSpec> = {
+  bibitem: {
+    content: "",
+    atom: true,
+    attrs: { item: { default: null }, ...DATA_ATTR },
+    toDOM: () => ["div", { class: CLASS.bibitem }],
+    parseDOM: [{ tag: `div.${CLASS.bibitem}` }],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -603,6 +633,7 @@ export const metanormaNodes: Record<string, NodeSpec> = {
   ...structuralNodes,
   ...sectionTitleNode,
   ...sectionNodes,
+  ...bibItemNodes,
   ...blockNodes,
   ...listNodes,
   ...tableNodes,

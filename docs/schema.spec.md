@@ -4,7 +4,7 @@ This spec defines the ProseMirror schema module. Ignore the preexisting
 `pkg/schema` subpackage and any prior ProseMirror usage in this repository —
 this document supersedes them as the source of truth for the schema.
 
-**Spec version:** 4
+**Spec version:** 5
 
 **Source of truth for the document model:**
 `src/types.ts` of [`metanorma/metanorma-mirror-js`](https://github.com/metanorma/metanorma-mirror-js/blob/main/src/types.ts)
@@ -86,12 +86,13 @@ schema- definition time (`toDOM`/`parseDOM` describe structure only).
 
 ## 3. Vocabulary (derived from `types.ts`)
 
-### 3.1 Node types (44)
+### 3.1 Node types (46)
 
 | Group constant | Members |
 |---|---|
-| `STRUCTURAL_TYPES` (4) | `doc`, `preface`, `sections`, `bibliography` |
+| `STRUCTURAL_TYPES` (5) | `doc`, `bibdata`, `preface`, `sections`, `bibliography` |
 | `SECTION_TYPES` (10) | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` |
+| `BIBITEM_TYPES` (1) | `bibitem` |
 | `BLOCK_TYPES` (9) | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `floating_title` |
 | `LIST_TYPES` (6) | `bullet_list`, `ordered_list`, `list_item`, `dl`, `dt`, `dd` |
 | `TABLE_TYPES` (6) | `table`, `table_head`, `table_body`, `table_foot`, `table_row`, `table_cell` |
@@ -145,16 +146,18 @@ not prescribe content expressions). Three groups are introduced:
 
 | Node | Content expression | Rationale |
 |---|---|---|
-| `doc` | `(preface? sections? bibliography? footnotes?)` | Root: optional front matter, body, back matter, footnotes container. |
+| `doc` | `(bibdata preface? sections? bibliography? footnotes?)` | Root: required bibdata (document metadata), optional front matter, body, back matter, footnotes container. |
 | `preface` | `(section \| block)*` | Front-matter sections (abstract/foreword/…) plus blocks. |
 | `sections` | `(section \| block)*` | Main body. |
 | `bibliography` | `(section \| block)*` | Back matter; `references` is in the `section` group. |
+| `bibdata` | *(empty)* | Atom: document-level bibliographic metadata. Stores a `BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item` attr. Required first child of `doc` (§8.1). |
+| `bibitem` | *(empty)* | Atom: a single bibliography entry. Stores a `BibliographicItem` as a single JSON `item` attr. Permitted only inside `references` sections (§8.2). |
 | `clause` | `section_title? (clause \| block)*` | Clauses nest clauses + blocks; optional leading heading textblock. |
 | `annex` | `section_title? (annex \| clause \| block)*` | Annexes may contain annexes, clauses, blocks; optional leading heading. |
 | `content_section` | `section_title? (section \| block)*` | Generic nestable container; optional leading heading. |
 | `abstract`, `foreword`, `introduction`, `acknowledgements` | `section_title? block+` | Front-matter leaves: optional heading + blocks only, no nesting. |
 | `terms`, `definitions` | `section_title? (clause \| block)*` | Term/definition containers may nest `clause`; optional leading heading. |
-| `references` | `section_title? (clause \| block)*` | Bibliography entries (often nested clauses); optional leading heading. |
+| `references` | `section_title? (clause \| bibitem \| block)*` | Bibliography entries (often nested clauses); optional leading heading. |
 | `section_title` | `inline*` | Standalone textblock: the heading of its parent section. Appears only as the optional leading child of a section node (no group membership). |
 | `floating_title` | `inline*` | Block textblock; free-standing unnumbered heading. Carries `id` and `depth` attrs. |
 | `paragraph` | `inline*` | |
@@ -214,6 +217,8 @@ following rules:
 | `floating_title` | `id`, `depth` (default `1`) | Metanorma `<floating-title>` (RequiredId + required `depth` int + TextElement inline content) |
 | `section_title` | *(none beyond `data`)* | open — the heading text is inline content, not an attribute |
 | `preface`, `sections`, `bibliography` | `id`, `number` | `BaseAttrs` |
+| `bibdata` | `item` | open — a `BibliographicItem` JSON object (`@metanorma/relaton`). Default `null`. |
+| `bibitem` | `item` | open — a `BibliographicItem` JSON object (`@metanorma/relaton`). Default `null`. |
 | `formula` | `id`, `number`, `type` (enum `asciimath` \| `mathml`, default `"asciimath"`), `asciimath`, `mathml` | `FormulaAttrs` |
 | `stem` | `type` (enum `asciimath` \| `mathml`, default `"asciimath"`), `asciimath`, `mathml` | open |
 | `figure` | `id`, `number`, `title` | `FigureAttrs` (the `src` attr is dropped — `src` lives only on the `image` child, avoiding a dual source of truth; see §17.1) |
@@ -275,6 +280,7 @@ Every CSS class emitted by a `toDOM` (and matched by the corresponding
 ```ts
 export const CLASS = {
   doc: "mn-doc", preface: "mn-preface", /* …sections… */
+  bibdata: "mn-bibdata", bibitem: "mn-bibitem",
   sectionTitle: "mn-section-title",
   note: "mn-note", formula: "mn-formula", figure: "mn-figure",
   smallcap: "mn-smallcap", xref: "mn-xref", /* … */
@@ -300,7 +306,8 @@ highlight.js interop convention and is likewise absent.
 
 | Node | Spec essentials |
 |---|---|
-| `doc` | `content: "(preface? sections? bibliography? footnotes?)"`; `toDOM: ["div", {class: CLASS.doc}, 0]`; no `parseDOM`. |
+| `doc` | `content: "(bibdata preface? sections? bibliography? footnotes?)"`; `toDOM: ["div", {class: CLASS.doc}, 0]`; no `parseDOM`. |
+| `bibdata` | `content: ""`; `atom: true`; `attrs: { item: { default: null }, ...DATA_ATTR }`; `toDOM: ["div", {class: CLASS.bibdata}]`; no `parseDOM` (doc-level, created by default doc / loader). |
 | `preface` | `content: "(section \| block)*"`; `toDOM: ["section", {class: CLASS.preface}, 0]`; `parseDOM: [{tag: "section.mn-preface"}]`. |
 | `sections` | `content: "(section \| block)*"`; `toDOM: ["section", {class: CLASS.sections}, 0]`; `parseDOM: [{tag: "section.mn-sections"}]`. |
 | `bibliography` | `content: "(section \| block)*"`; `toDOM: ["section", {class: CLASS.bibliography}, 0]`; `parseDOM: [{tag: "section.mn-bibliography"}]`. |
@@ -333,7 +340,8 @@ function sectionToDOM(cls: string) {
 | `acknowledgements` | `section_title? block+` | `mn-acknowledgements` |
 | `terms` | `section_title? (clause \| block)*` | `mn-terms` |
 | `definitions` | `section_title? (clause \| block)*` | `mn-definitions` |
-| `references` | `section_title? (clause \| block)*` | `mn-references` |
+| `references` | `section_title? (clause \| bibitem \| block)*` | `mn-references` |
+| `bibitem` | *(empty atom, no group)* | `mn-bibitem` |
 
 > **Heading model.** Every section node's content expression begins with an
 > optional `section_title` child — the heading textblock. The `section_title`
@@ -343,6 +351,13 @@ function sectionToDOM(cls: string) {
 > links, etc.), matching Metanorma Presentation XML's `<title>` child element
 > (§17). Prior to v5 the heading was a `title` **attribute** on the section
 > node (a plain string with no inline markup); it is now a child node.
+
+> **Bibliography entries.** The `references` section node's content expression
+> permits `bibitem` atom nodes alongside clauses and blocks. Each `bibitem`
+> stores a `BibliographicItem` (from `@metanorma/relaton`) as a single JSON
+> `item` attr and renders as a compact summary via a NodeView. `bibitem` has
+> no group membership — it is insertable only inside `references` via a
+> dedicated command, not as a general block.
 
 ### 8.3 Block nodes
 
@@ -462,7 +477,7 @@ export const metanormaSchema = new Schema({
 });
 ```
 
-`nodes` **must** contain exactly the 44 names in §3.1 (including `text`, which
+`nodes` **must** contain exactly the 46 names in §3.1 (including `text`, which
 ProseMirror requires). `marks` **must** contain exactly the 14 names in §3.2.
 The spec order is not semantically significant but should follow the group order
 in §3 for readability.
@@ -482,7 +497,7 @@ export const metanormaNodes: Record<string, NodeSpec>;
 export const metanormaMarks: Record<string, MarkSpec>;
 
 /** Convenience lookups derived from the schema. */
-export const NODE_NAMES: readonly string[];   // 44 entries, in §3.1 order
+export const NODE_NAMES: readonly string[];   // 46 entries, in §3.1 order
 export const MARK_NAMES: readonly string[];   // 14 entries, in §3.2 order
 
 /** The CSS class emitted by every `toDOM`/`parseDOM` rule (§8.0). */
@@ -508,7 +523,7 @@ reduces to:
 2. **`toJSON`** of a node loaded from a `MirrorDocument` reproduces the same
    `type`, the same typed attribute values, and the same extra keys (via
    `data`). `marks`, `content`, and `text` round-trip identically.
-3. The 44 node names and 14 mark names in the schema are the editor-side
+3. The 46 node names and 14 mark names in the schema are the editor-side
    vocabulary. They are derived from (but not identical to) the `MirrorNodeType`
    union and `MirrorMarkType` constant of `types.ts`: the `footnote` mark is
    dropped in favour of the `footnote_marker` node (§3.2), and `stem` is
@@ -541,7 +556,7 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 
 1. `yarn workspace @metanorma/prosemirror-schema compile` succeeds with **zero**
    TypeScript errors under the repo tsconfig.
-2. `metanormaSchema.spec.nodes` contains **exactly** the 44 names in §3.1 and
+2. `metanormaSchema.spec.nodes` contains **exactly** the 46 names in §3.1 and
    `metanormaSchema.spec.marks` contains **exactly** the 14 names in §3.2
    (asserted by a unit test against `NODE_NAMES` / `MARK_NAMES`).
 3. For every node type `T` with a typed attribute interface, constructing
@@ -572,6 +587,10 @@ For sanity checks and editor bootstrap:
   "type": "doc",
   "content": [
     {
+      "type": "bibdata",
+      "attrs": { "item": null }
+    },
+    {
       "type": "sections",
       "content": [
         {
@@ -591,7 +610,7 @@ For sanity checks and editor bootstrap:
 An empty `paragraph` (no child `text` node) is used: `nodeFromJSON` fills it
 with an empty text node as needed, producing an empty editable paragraph.
 
-This satisfies `doc.content` = `(preface? sections? bibliography? footnotes?)`.
+This satisfies `doc.content` = `(bibdata preface? sections? bibliography? footnotes?)`.
 
 ---
 

@@ -18,6 +18,7 @@ import {
   toggleEref,
   toggleBcp14,
   insertStem,
+  insertBibitem,
 } from "@metanorma/editor-commands";
 
 import {
@@ -25,6 +26,9 @@ import {
   useEditorEventCallback,
 } from "@handlewithcare/react-prosemirror";
 import type { EditorView } from "prosemirror-view";
+
+import { collectBibliographyItems, citeas, label } from "@metanorma/relaton";
+import type { BibliographicItem } from "@metanorma/relaton";
 
 import type { ToolbarGroupDef } from "../types.js";
 import type {
@@ -98,7 +102,7 @@ interface Captured {
 }
 
 // ---------------------------------------------------------------------------
-// ErefButton — mark toggle + PromptPopover
+// ErefButton — mark toggle + bibliography picker (with free-text fallback)
 // ---------------------------------------------------------------------------
 
 function ErefButton({
@@ -112,6 +116,10 @@ function ErefButton({
 
   const isActive = useEditorStateSelector((s) => refMarkActive(s, "eref"));
   const enabled = useEditorStateSelector(isInlineContext);
+  // Collect known bib items on every render — the selector returns a count
+  // (primitive) to stay referentially stable, but we need the actual items
+  // when the popover opens. Read them at capture time instead.
+  const bibItemCount = useEditorStateSelector((s) => collectBibliographyItems(s.doc).length);
 
   const toggleOff = useEditorEventCallback((view: EditorView | null) => {
     if (view === null) return;
@@ -144,7 +152,7 @@ function ErefButton({
     void captureAndOpen();
   };
 
-  const handleSubmit = (cite: string): void => {
+  const handlePick = (cite: string): void => {
     setOpen(false);
     const c = capturedRef.current;
     if (c !== null && cite !== "") toggleEref(c.state, c.dispatch, cite);
@@ -170,15 +178,129 @@ function ErefButton({
       >
         Eref
       </button>
-      <PromptPopover
-        isOpen={isOpen}
-        onOpenChange={setOpen}
-        triggerRef={triggerRef}
-        label="Citation key"
-        placeholder="e.g. ISO1234"
-        onSubmit={handleSubmit}
-        onCancel={handleCancel}
-      />
+      {isOpen && capturedRef.current && (
+        <ErefPicker
+          items={collectBibliographyItems(capturedRef.current.state.doc)}
+          onPick={handlePick}
+          onCancel={handleCancel}
+          anchorRef={triggerRef}
+        />
+      )}
+      {/* Keep bibItemCount referenced so the selector re-evaluates */}
+      <span hidden aria-hidden="true">{bibItemCount}</span>
+    </div>
+  );
+}
+
+/**
+ * Eref picker popover — shows known bibliography items as a list, with a
+ * free-text input for forward references (entries not yet entered).
+ */
+function ErefPicker({
+  items,
+  onPick,
+  onCancel,
+  anchorRef,
+}: {
+  readonly items: readonly BibliographicItem[];
+  readonly onPick: (cite: string) => void;
+  readonly onCancel: () => void;
+  readonly anchorRef: React.RefObject<HTMLButtonElement | null>;
+}): React.JSX.Element {
+  const [manual, setManual] = useState("");
+  const [style, setStyle] = useState<React.CSSProperties>({});
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Position below the trigger button.
+  useState(() => {
+    if (anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      setStyle({ position: "fixed", left: rect.left, top: rect.bottom + 4, zIndex: 9999 });
+    }
+  });
+
+  React.useEffect(() => {
+    function onDown(e: MouseEvent): void {
+      const target = e.target;
+      if (
+        pickerRef.current &&
+        target instanceof Node &&
+        !pickerRef.current.contains(target)
+      ) {
+        onCancel();
+      }
+    }
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key === "Escape") onCancel();
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onCancel]);
+
+  const dedupedItems = new Map<string, BibliographicItem>();
+  for (const item of items) {
+    const key = citeas(item);
+    if (key !== null && !dedupedItems.has(key)) {
+      dedupedItems.set(key, item);
+    }
+  }
+  const knownItems = [...dedupedItems.values()];
+
+  return (
+    <div ref={pickerRef} className="mn-eref-picker" style={style}>
+      <div className="mn-eref-picker__header">Select a reference</div>
+      {knownItems.length > 0 ? (
+        <ul className="mn-eref-picker__list">
+          {knownItems.map((item) => {
+            const key = citeas(item);
+            if (key === null) return null;
+            return (
+              <li key={key}>
+                <button
+                  type="button"
+                  className="mn-eref-picker__item"
+                  onClick={() => onPick(key)}
+                >
+                  {label(item)}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="mn-eref-picker__empty">
+          No bibliography entries yet. Enter a citation key manually below.
+        </div>
+      )}
+      <div className="mn-eref-picker__manual">
+        <input
+          type="text"
+          className="mn-eref-picker__input"
+          placeholder="Citation key (e.g. ISO1234)"
+          value={manual}
+          onChange={(e) => setManual(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && manual.trim() !== "") onPick(manual.trim());
+          }}
+          autoFocus
+        />
+        <button
+          type="button"
+          className="mn-eref-picker__btn"
+          onClick={() => {
+            if (manual.trim() !== "") onPick(manual.trim());
+          }}
+        >
+          Insert
+        </button>
+      </div>
+      <button type="button" className="mn-eref-picker__cancel" onClick={onCancel}>
+        Cancel
+      </button>
     </div>
   );
 }
@@ -377,6 +499,39 @@ function StemButton({
 }
 
 // ---------------------------------------------------------------------------
+// BibitemButton — insert a bibliography entry inside a references section
+// ---------------------------------------------------------------------------
+
+function BibitemButton(): React.JSX.Element {
+  const insertAndFocus = useEditorEventCallback((view: EditorView | null) => {
+    if (view === null) return;
+    insertBibitem(view.state, view.dispatch);
+    view.focus();
+  });
+
+  const enabled = useEditorStateSelector((s) => {
+    // Enabled only inside a references section.
+    const $from = s.selection.$from;
+    for (let d = $from.depth; d >= 0; d--) {
+      if ($from.node(d).type.name === "references") return true;
+    }
+    return false;
+  });
+
+  return (
+    <button
+      type="button"
+      className={enabled ? "mn-toolbar-btn" : "mn-toolbar-btn mn-toolbar-btn--disabled"}
+      title="Add bibliography entry (inside References)"
+      disabled={!enabled}
+      onClick={() => void insertAndFocus()}
+    >
+      Bibitem
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Group factory
 // ---------------------------------------------------------------------------
 
@@ -394,6 +549,7 @@ export function refsGroup(opts: AdvancedFeatureOptions): ToolbarGroupDef {
       { kind: "control", render: () => <Bcp14Button onBcp14Prompt={opts.onBcp14Prompt} /> },
       { kind: "control", render: () => <FootnoteButton onFootnotePrompt={opts.onFootnotePrompt} /> },
       { kind: "control", render: () => <StemButton onStemPrompt={opts.onStemPrompt} /> },
+      { kind: "control", render: () => <BibitemButton /> },
     ],
   };
 }

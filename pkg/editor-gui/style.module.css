@@ -166,9 +166,31 @@
 }
 */
 
-/* Reserved top region for future document-structure navigation. Empty for now. */
-.sidebarNav {
-  flex: 0 0 auto;
+/* Vertical document title in the top region of the sidebar.
+ * The text is large — the sidebar is 48px wide, and rotated text uses that
+ * width as its line-height, so a 1.2em font fills the bar comfortably. */
+.sidebarTitleContainer {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 6px 0;
+  overflow: hidden;
+}
+
+.sidebarTitle {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 1.2em;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 100%;
+  pointer-events: none;
+  user-select: none;
 }
 
 /* Button group anchored to the bottom of the panel. */

@@ -11,6 +11,7 @@
     "@handlewithcare/react-prosemirror": "3.2.7",
     "@metanorma/editor-commands": "workspace:^",
     "@metanorma/prosemirror-schema": "workspace:^",
+    "@metanorma/relaton": "workspace:^",
     "prosemirror-commands": "^1.7.1",
     "prosemirror-keymap": "^1.2.2",
     "prosemirror-model": "^1.22.0",

@@ -47,6 +47,9 @@ export { insertTable, canInsertTable, MAX_ROWS, MAX_COLS } from "./commands/inse
 export { insertImage, canInsertFigure } from "./commands/insertImage.js";
 export type { InsertImageAttrs } from "./commands/insertImage.js";
 
+// Bibliography entries (Relaton integration).
+export { insertBibitem } from "./commands/insertBibitem.js";
+
 // Sections / clause nesting (sections.md).
 export {
   wrapInClause,

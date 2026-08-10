@@ -198,4 +198,108 @@
     list-style: none;
   }
 
+  /* ---- Eref picker popover (bibliography entry selection) ---- */
+
+  .mn-eref-picker {
+    background: var(--mn-surface);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-md);
+    box-shadow: 0 4px 16px var(--mn-shadow);
+    padding: var(--mn-space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--mn-space-1);
+    min-width: 20em;
+    max-width: 28em;
+  }
+
+  .mn-eref-picker__header {
+    font-weight: 600;
+    font-size: 0.9em;
+    color: var(--mn-text);
+  }
+
+  .mn-eref-picker__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 10em;
+    overflow-y: auto;
+  }
+
+  .mn-eref-picker__item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.2em 0.4em;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: inherit;
+    border-radius: 3px;
+    font-size: inherit;
+  }
+
+  .mn-eref-picker__item:hover,
+  .mn-eref-picker__item:focus-visible {
+    background: var(--mn-active);
+  }
+
+  .mn-eref-picker__empty {
+    padding: 0.3em 0.4em;
+    color: var(--mn-text-muted);
+    font-size: 0.9em;
+  }
+
+  .mn-eref-picker__manual {
+    display: flex;
+    gap: var(--mn-space-1);
+    padding-top: var(--mn-space-1);
+    border-top: 1px solid var(--mn-border);
+  }
+
+  .mn-eref-picker__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.25em 0.4em;
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-sm);
+    background: var(--mn-surface);
+    color: var(--mn-text);
+    font-size: inherit;
+    font-family: inherit;
+  }
+
+  .mn-eref-picker__input:focus {
+    outline: 2px solid var(--mn-active);
+    outline-offset: 1px;
+  }
+
+  .mn-eref-picker__btn {
+    flex: 0 0 auto;
+    padding: var(--mn-space-1) var(--mn-space-2);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-sm);
+    background: var(--mn-surface);
+    color: var(--mn-text);
+    cursor: pointer;
+    font-size: inherit;
+    font-family: inherit;
+  }
+
+  .mn-eref-picker__btn:hover {
+    border-color: var(--mn-accent);
+  }
+
+  .mn-eref-picker__cancel {
+    align-self: flex-end;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--mn-text-muted);
+    cursor: pointer;
+    font-size: 0.85em;
+    text-decoration: underline;
+  }
+
 }

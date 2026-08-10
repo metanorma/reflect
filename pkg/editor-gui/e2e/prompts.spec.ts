@@ -40,16 +40,18 @@ test.describe('prompts', () => {
     expect(docStr).toContain('https://example.com');
   });
 
-  test('Eref: dialog accepts a citation key and applies the eref mark', async ({ page }) => {
+  test('Eref: picker accepts a citation key and applies the eref mark', async ({ page }) => {
     await openEditor(page);
     await typeInEditor(page, 'cite ');
     await page.keyboard.press('Shift+Home');
 
     await toolbarButton(page, 'Eref').click();
-    const dialog = promptPopover(page);
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole('textbox').fill('iso1234');
-    await dialog.getByRole('button', { name: 'OK' }).click();
+    // The eref picker has a free-text input for manual citation key entry.
+    const picker = page.locator('.mn-eref-picker');
+    await expect(picker).toBeVisible();
+    await picker.getByRole('textbox').fill('iso1234');
+    await picker.getByRole('textbox').press('Enter');
+    await page.waitForTimeout(200);
 
     const docStr = JSON.stringify(await getDoc(page));
     expect(docStr).toContain('"eref"');

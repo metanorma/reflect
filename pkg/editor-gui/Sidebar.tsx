@@ -12,8 +12,9 @@
  * (48px) shows icons only, centered; expanded (168px) shows full-width buttons
  * with both icon and text label.
  *
- * The top region of the panel is a placeholder reserved for future
- * document-structure navigation. The button group is anchored to the bottom.
+ * The top region shows the document title rotated vertically (counter-
+ * clockwise), truncated with ellipsis if it doesn't fit. The Save/Open button
+ * group sits at the bottom.
  */
 
 import React from 'react';
@@ -24,13 +25,12 @@ export interface SidebarProps {
   readonly onSave: () => void;
   /** Invoked when the Open button is clicked. */
   readonly onLoad: () => void;
+  /** Document title for the vertical label, or null if empty. */
+  readonly docTitle: string | null;
 }
 
 /**
  * Download / "save" icon (24×24, `currentColor`).
- *
- * The path covers both the tray and the downward arrow into it — a compact
- * variant of the classic floppy/download glyph.
  */
 const SaveIcon: React.FC = () => (
   <svg className={classNames.sidebarButtonIcon} viewBox="0 0 24 24" fill="none"
@@ -55,10 +55,6 @@ const OpenIcon: React.FC = () => (
 
 /**
  * A single sidebar button: icon always visible, label revealed on hover-expand.
- *
- * In collapsed state the icon is centered in the 48px panel. When the panel
- * expands, the button grows to full width and the label appears beside the
- * icon (left-aligned).
  */
 const SidebarButton: React.FC<{
   readonly label: string;
@@ -76,19 +72,23 @@ const SidebarButton: React.FC<{
 };
 
 /**
- * The sidebar rail. Rendered as the first flex child of `.app`, to the left of
- * the editor. Hover anywhere on the rail to expand the panel.
+ * The sidebar rail. The top region shows the document title rotated vertically
+ * (counter-clockwise). The bottom group has Save, Open.
  *
  * `React.memo` prevents re-render when the parent App re-renders on every
  * keystroke — the callbacks are stable (useCallback with no deps).
  */
-export const Sidebar = React.memo<SidebarProps>(function Sidebar({ onSave, onLoad }) {
+export const Sidebar = React.memo<SidebarProps>(function Sidebar({ onSave, onLoad, docTitle }) {
+  const title = docTitle ?? 'Untitled document';
   return (
     <aside className={classNames.sidebar}>
       <div className={classNames.sidebarPanel}>
-        {/* Reserved for future document-structure navigation. */}
-        <div className={classNames.sidebarNav} />
+        {/* Vertical title fills the top region. */}
+        <div className={classNames.sidebarTitleContainer}>
+          <span className={classNames.sidebarTitle}>{title}</span>
+        </div>
 
+        {/* Button group anchored to the bottom: Save, Open. */}
         <div className={classNames.sidebarButtonGroup}>
           <SidebarButton label="Save…" onClick={onSave}>
             <SaveIcon />

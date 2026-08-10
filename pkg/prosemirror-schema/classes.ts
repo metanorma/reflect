@@ -39,6 +39,10 @@ export const CLASS = {
   sections:     "mn-sections",
   bibliography: "mn-bibliography",
 
+  // Bibliographic nodes (§8.1, §8.2)
+  bibdata:  "mn-bibdata",
+  bibitem:  "mn-bibitem",
+
   // Section nodes (§8.2) — all share the `mn-<type>` template
   clause:           "mn-clause",
   annex:            "mn-annex",

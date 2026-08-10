@@ -271,6 +271,7 @@ __metadata:
     "@handlewithcare/react-prosemirror": "npm:3.2.7"
     "@metanorma/editor-commands": "workspace:^"
     "@metanorma/prosemirror-schema": "workspace:^"
+    "@metanorma/relaton": "workspace:^"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
     prosemirror-commands: "npm:^1.7.1"
@@ -294,6 +295,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metanorma/relaton@workspace:^, @metanorma/relaton@workspace:pkg/relaton":
+  version: 0.0.0-use.local
+  resolution: "@metanorma/relaton@workspace:pkg/relaton"
+  dependencies:
+    "@types/react": "npm:^19"
+    typescript: "npm:~6.0.3"
+  peerDependencies:
+    react: ^19.2.7
+  languageName: unknown
+  linkType: soft
+
 "@metanorma/toolbar@workspace:^, @metanorma/toolbar@workspace:pkg/toolbar":
   version: 0.0.0-use.local
   resolution: "@metanorma/toolbar@workspace:pkg/toolbar"
@@ -301,6 +313,7 @@ __metadata:
     "@handlewithcare/react-prosemirror": "npm:3.2.7"
     "@metanorma/editor-commands": "workspace:^"
     "@metanorma/prosemirror-schema": "workspace:^"
+    "@metanorma/relaton": "workspace:^"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
     prosemirror-commands: "npm:^1.7.1"
@@ -445,6 +458,7 @@ __metadata:
   dependencies:
     "@metanorma/editor-commands": "workspace:^"
     "@metanorma/prosemirror-editor": "workspace:^"
+    "@metanorma/relaton": "workspace:^"
     "@metanorma/toolbar": "workspace:^"
     "@playwright/test": "npm:^1.49.0"
     "@types/react": "npm:^19"
@@ -739,7 +753,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prosemirror-keymap@npm:^1.0.0, prosemirror-keymap@npm:^1.2.2":
+"prosemirror-keymap@npm:^1.2.2":
   version: 1.2.3
   resolution: "prosemirror-keymap@npm:1.2.3"
   dependencies:
@@ -800,17 +814,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prosemirror-view@npm:^1.0.0, prosemirror-view@npm:^1.31.0":
-  version: 1.42.2
-  resolution: "prosemirror-view@npm:1.42.2"
-  dependencies:
-    prosemirror-model: "npm:^1.25.8"
-    prosemirror-state: "npm:^1.0.0"
-    prosemirror-transform: "npm:^1.1.0"
-  checksum: 10c0/2fb9bc68bc37e6b17d8c62e1596742a82caaa2315f2581ee556b80d023bf092955f5abb6b72ac67b51f7e791c7b877997deab817752cf450c4eadf350d85a5dd
-  languageName: node
-  linkType: hard
-
 "prosemirror-view@npm:^1.27.0":
   version: 1.42.1
   resolution: "prosemirror-view@npm:1.42.1"
@@ -819,6 +822,17 @@ __metadata:
     prosemirror-state: "npm:^1.0.0"
     prosemirror-transform: "npm:^1.1.0"
   checksum: 10c0/159131ef97b274fa9604dae5e7089dc9046bf536ef4aa561698582ea305413fe758a717fc22bad3dfb0c1781a3e986ef910c0f84fb018d92c61d549a7abd9d97
+  languageName: node
+  linkType: hard
+
+"prosemirror-view@npm:^1.31.0":
+  version: 1.42.2
+  resolution: "prosemirror-view@npm:1.42.2"
+  dependencies:
+    prosemirror-model: "npm:^1.25.8"
+    prosemirror-state: "npm:^1.0.0"
+    prosemirror-transform: "npm:^1.1.0"
+  checksum: 10c0/2fb9bc68bc37e6b17d8c62e1596742a82caaa2315f2581ee556b80d023bf092955f5abb6b72ac67b51f7e791c7b877997deab817752cf450c4eadf350d85a5dd
   languageName: node
   linkType: hard
 

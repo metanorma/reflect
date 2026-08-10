@@ -87,6 +87,30 @@ function currentTypeName(state: EditorState): string | null {
 }
 
 /**
+ * Compute the set of legal target type names for the current section,
+ * encoded as a pipe-delimited string (e.g. `"clause|terms|definitions"`).
+ *
+ * Returns a **primitive** (string) for `useEditorStateSelector` referential
+ * stability. The string only changes when the set of legal conversions
+ * actually changes (i.e. when the section content changes), not on every
+ * cursor movement inside the same section.
+ *
+ * Returns an empty string when not inside a section.
+ */
+function legalTypeNames(state: EditorState): string {
+  const hit = nearestSectionAncestor(state.selection.$from);
+  if (hit === null) return "";
+  const legal: string[] = [];
+  for (const name of SECTION_TYPE_NAMES) {
+    const t = metanormaSchema.nodes[name];
+    if (t === undefined) continue;
+    if (t === hit.node.type) continue;
+    if (t.validContent(hit.node.content)) legal.push(name);
+  }
+  return legal.join("|");
+}
+
+/**
  * The section-type picker popover (sections.md §4.5).
  *
  * Lists all ten section types in fixed order. The current type is marked
@@ -95,11 +119,14 @@ function currentTypeName(state: EditorState): string | null {
  */
 export function SectionTypePicker({
   currentType,
+  legalTypes,
   onPick,
   onCancel,
   ref,
 }: {
   readonly currentType: string | null;
+  /** Pipe-delimited string of legal target type names (from `legalTypeNames`). */
+  readonly legalTypes: string;
   readonly onPick: (targetType: NodeType) => void;
   readonly onCancel: () => void;
   readonly ref?: React.Ref<HTMLDivElement> | undefined;
@@ -110,6 +137,8 @@ export function SectionTypePicker({
       onCancel();
     }
   };
+
+  const legalSet = new Set(legalTypes.split("|").filter(Boolean));
 
   return (
     <div
@@ -125,10 +154,7 @@ export function SectionTypePicker({
           const t = metanormaSchema.nodes[name];
           if (t === undefined) return null;
           const isCurrent = name === currentType;
-          // Determine legality: create a synthetic validity check against
-          // the current section's content. We need the actual node for
-          // validContent, but we don't have it here — the legality check
-          // is done by the caller who has the state.
+          const isLegal = legalSet.has(name);
           return (
             <li key={name}>
               <button
@@ -140,7 +166,7 @@ export function SectionTypePicker({
                     : "mn-section-type-picker__item"
                 }
                 aria-selected={isCurrent}
-                disabled={isCurrent}
+                disabled={isCurrent || !isLegal}
                 onClick={() => {
                   const nt = metanormaSchema.nodes[name];
                   if (nt !== undefined) onPick(nt);
@@ -163,6 +189,7 @@ export function SectionTypePicker({
 export function SectionTypeButton(): React.JSX.Element {
   const enabled = useEditorStateSelector(canChangeType);
   const currentType = useEditorStateSelector(currentTypeName);
+  const legalTypes = useEditorStateSelector(legalTypeNames);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -195,6 +222,7 @@ export function SectionTypeButton(): React.JSX.Element {
       <SectionTypePicker
         ref={pickerRef}
         currentType={currentType}
+        legalTypes={legalTypes}
         onPick={(targetType) => {
           closePicker();
           void changeType(targetType);

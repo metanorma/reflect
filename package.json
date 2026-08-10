@@ -23,7 +23,8 @@
     "pkg/prosemirror-schema",
     "pkg/prosemirror-editor",
     "pkg/editor-commands",
-    "pkg/toolbar"
+    "pkg/toolbar",
+    "pkg/relaton"
   ],
   "devDependencies": {
     "@types/node": "^22.5.5",

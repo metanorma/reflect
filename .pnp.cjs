@@ -31,6 +31,10 @@ const RAW_RUNTIME_STATE =
       "reference": "workspace:pkg/prosemirror-schema"\
     },\
     {\
+      "name": "@metanorma/relaton",\
+      "reference": "workspace:pkg/relaton"\
+    },\
+    {\
       "name": "@metanorma/toolbar",\
       "reference": "workspace:pkg/toolbar"\
     }\
@@ -42,6 +46,7 @@ const RAW_RUNTIME_STATE =
     ["@metanorma/editor-commands", ["workspace:pkg/editor-commands"]],\
     ["@metanorma/prosemirror-editor", ["workspace:pkg/prosemirror-editor"]],\
     ["@metanorma/prosemirror-schema", ["workspace:pkg/prosemirror-schema"]],\
+    ["@metanorma/relaton", ["virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#workspace:pkg/relaton", "workspace:pkg/relaton"]],\
     ["@metanorma/toolbar", ["workspace:pkg/toolbar"]],\
     ["editor-gui", ["workspace:pkg/editor-gui"]],\
     ["metanorma-editor", ["workspace:."]]\
@@ -182,6 +187,10 @@ const RAW_RUNTIME_STATE =
     [\
       "@metanorma/prosemirror-schema",\
       "workspace:pkg/prosemirror-schema"\
+    ],\
+    [\
+      "@metanorma/relaton",\
+      "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#workspace:pkg/relaton"\
     ],\
     [\
       "@metanorma/toolbar",\
@@ -813,6 +822,7 @@ const RAW_RUNTIME_STATE =
           ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
           ["@metanorma/prosemirror-editor", "workspace:pkg/prosemirror-editor"],\
           ["@metanorma/prosemirror-schema", "workspace:pkg/prosemirror-schema"],\
+          ["@metanorma/relaton", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#workspace:pkg/relaton"],\
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
           ["prosemirror-commands", "npm:1.7.1"],\
@@ -839,6 +849,30 @@ const RAW_RUNTIME_STATE =
         "linkType": "SOFT"\
       }]\
     ]],\
+    ["@metanorma/relaton", [\
+      ["virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#workspace:pkg/relaton", {\
+        "packageLocation": "./.yarn/__virtual__/@metanorma-relaton-virtual-f4a9cf679b/1/pkg/relaton/",\
+        "packageDependencies": [\
+          ["@metanorma/relaton", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#workspace:pkg/relaton"],\
+          ["@types/react", "npm:19.2.14"],\
+          ["react", "npm:19.2.7"],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+        ],\
+        "packagePeers": [\
+          "react"\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["workspace:pkg/relaton", {\
+        "packageLocation": "./pkg/relaton/",\
+        "packageDependencies": [\
+          ["@metanorma/relaton", "workspace:pkg/relaton"],\
+          ["@types/react", "npm:19.2.14"],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+        ],\
+        "linkType": "SOFT"\
+      }]\
+    ]],\
     ["@metanorma/toolbar", [\
       ["workspace:pkg/toolbar", {\
         "packageLocation": "./pkg/toolbar/",\
@@ -846,6 +880,7 @@ const RAW_RUNTIME_STATE =
           ["@handlewithcare/react-prosemirror", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#npm:3.2.7"],\
           ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
           ["@metanorma/prosemirror-schema", "workspace:pkg/prosemirror-schema"],\
+          ["@metanorma/relaton", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#workspace:pkg/relaton"],\
           ["@metanorma/toolbar", "workspace:pkg/toolbar"],\
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
@@ -1034,6 +1069,7 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
           ["@metanorma/prosemirror-editor", "workspace:pkg/prosemirror-editor"],\
+          ["@metanorma/relaton", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#workspace:pkg/relaton"],\
           ["@metanorma/toolbar", "workspace:pkg/toolbar"],\
           ["@playwright/test", "npm:1.62.1"],\
           ["@types/react", "npm:19.2.14"],\

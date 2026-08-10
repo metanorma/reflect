@@ -19,10 +19,18 @@ import type { MirrorDocument } from "./types.js";
 /**
  * The default document (schema.spec.md §15), inlined here. The schema package
  * does not export a default document; this module owns it.
+ *
+ * As of schema v5, `doc.content` requires a `bibdata` first child. The default
+ * bibdata carries an empty `item` attr (`null`) — the user fills it via the
+ * Sidebar metadata button or by clicking the bibdata strip.
  */
 export const DEFAULT_MIRROR_DOC: MirrorDocument = {
   type: "doc",
   content: [
+    {
+      type: "bibdata",
+      attrs: { item: null },
+    },
     {
       type: "sections",
       content: [

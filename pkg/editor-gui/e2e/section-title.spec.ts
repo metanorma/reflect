@@ -49,7 +49,9 @@ test.describe('section title', () => {
 
     const doc = await getDoc(page as any) as any;
     // The section_title should contain a strong mark.
-    const sectionsContent = doc.content?.[0]?.content;
+    // doc.content[0] is bibdata; sections is at doc.content[1].
+    const sectionsNode = doc.content?.find((n: any) => n.type === 'sections');
+    const sectionsContent = sectionsNode?.content;
     let foundBoldInTitle = false;
     for (const child of sectionsContent ?? []) {
       if (child.type === 'clause') {
@@ -100,7 +102,8 @@ test.describe('section title', () => {
     expect(docStr).toContain('paragraph text');
     // Verify the title still contains "Title" (was not overwritten).
     const doc = await getDoc(page) as any;
-    const sectionsContent = doc.content?.[0]?.content;
+    const sectionsNode = doc.content?.find((n: any) => n.type === 'sections');
+    const sectionsContent = sectionsNode?.content;
     let titleText = '';
     let bodyParTexts: string[] = [];
     const collectFromClause = (clause: any) => {

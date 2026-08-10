@@ -11,6 +11,7 @@
   "dependencies": {
     "@metanorma/editor-commands": "workspace:^",
     "@metanorma/prosemirror-editor": "workspace:^",
+    "@metanorma/relaton": "workspace:^",
     "@metanorma/toolbar": "workspace:^",
     "browser-fs-access": "^0.38.0",
     "prosemirror-commands": "^1.7.1",
