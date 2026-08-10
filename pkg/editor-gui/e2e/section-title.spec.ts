@@ -7,14 +7,14 @@
  * contains the `section_title` node type.
  */
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, getDoc, editor } from './helpers.js';
+import { openEditor, toolbarButton, getDoc, clickEditor } from './helpers.js';
 
 test.describe('section title', () => {
 
   test('clause insertion places cursor in empty section_title; typing fills it', async ({ page }) => {
     await openEditor(page);
     // Navigate to the body paragraph, type content.
-    await editor(page).click();
+    await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('body text');
 
@@ -33,7 +33,7 @@ test.describe('section title', () => {
   test('bold mark applies inside the section_title', async ({ page }) => {
     await openEditor(page);
     // Navigate to the body paragraph, type content.
-    await editor(page).click();
+    await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('content');
 
@@ -80,7 +80,7 @@ test.describe('section title', () => {
   test('Enter inside a title exits to the body paragraph', async ({ page }) => {
     await openEditor(page);
     // Navigate to the body paragraph, type content.
-    await editor(page).click();
+    await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('body');
 

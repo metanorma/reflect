@@ -18,6 +18,26 @@ export function editor(page: Page): Locator {
   return page.locator('.appwrapper .mn-prosemirror .ProseMirror');
 }
 
+/**
+ * Click into the editor's editable body (the first paragraph), skipping past
+ * the non-editable `bibdata` strip at the top of the document. Uses coordinate-
+ * based clicking because the bibdata atom node's `contenteditable=false`
+ * wrapper can intercept Playwright's element-level `.click()` on the paragraph.
+ */
+export async function clickEditor(page: Page): Promise<void> {
+  // The editor now starts with a non-editable bibdata atom node at the top.
+  // Clicking .ProseMirror directly lands on it. Instead, scroll past it and
+  // click on the paragraph area. We use Playwright's .click() on the paragraph
+  // element (which generates proper DOM events that ProseMirror can handle),
+  // but first dispatch a focus on the editor to ensure ProseMirror is ready.
+  const pm = editor(page);
+  // Focus the editor surface first.
+  await pm.focus();
+  // Then click on the first paragraph to place the selection in editable text.
+  const p = page.locator('.appwrapper .mn-prosemirror .ProseMirror p').first();
+  await p.click({ force: true });
+}
+
 /** The toolbar container (`role="toolbar"`). */
 export function toolbar(page: Page): Locator {
   return page.getByRole('toolbar');
@@ -44,9 +64,10 @@ export async function openEditor(page: Page): Promise<void> {
   await editor(page).waitFor({ state: 'visible' });
 }
 
-/** Click into the editor body and type text via real keyboard events. */
+/** Click into the editor body (targeting a paragraph, not the bibdata strip)
+ * and type text via real keyboard events. */
 export async function typeInEditor(page: Page, text: string): Promise<void> {
-  await editor(page).click();
+  await clickEditor(page);
   await page.keyboard.type(text);
 }
 
@@ -66,6 +87,6 @@ export async function getDoc(page: Page): Promise<unknown> {
  * prompt actions apply to the full paragraph.
  */
 export async function selectAllInEditor(page: Page): Promise<void> {
-  await editor(page).click();
+  await clickEditor(page);
   await page.keyboard.press('Control+A');
 }

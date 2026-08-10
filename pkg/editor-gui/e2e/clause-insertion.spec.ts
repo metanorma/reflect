@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, typeInEditor, getDoc, editor } from './helpers.js';
+import { openEditor, toolbarButton, typeInEditor, getDoc, clickEditor } from './helpers.js';
 
 test.describe('clause insertion', () => {
 
@@ -9,7 +9,7 @@ test.describe('clause insertion', () => {
   test('Primary click on non-empty paragraph creates a nested clause', async ({ page }) => {
     await openEditor(page);
     // Navigate past the section_title into the paragraph.
-    await editor(page).click();
+    await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('some content');
 
@@ -33,7 +33,7 @@ test.describe('clause insertion', () => {
   test('Primary click on empty trailing paragraph creates a sibling clause', async ({ page }) => {
     await openEditor(page);
     // Navigate past the section_title into the paragraph, then type.
-    await editor(page).click();
+    await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('first clause');
     await page.keyboard.press('Enter');
@@ -58,7 +58,7 @@ test.describe('clause insertion', () => {
   test('Dropdown "Sibling clause" inserts a sibling even from non-empty paragraph', async ({ page }) => {
     await openEditor(page);
     // Navigate past the section_title into the paragraph.
-    await editor(page).click();
+    await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('content here');
 
@@ -86,7 +86,7 @@ test.describe('clause insertion', () => {
   test('Dropdown "Nested clause" forces nesting even from empty trailing paragraph', async ({ page }) => {
     await openEditor(page);
     // Navigate past the section_title into the paragraph.
-    await editor(page).click();
+    await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('content');
     await page.keyboard.press('Enter'); // empty trailing paragraph

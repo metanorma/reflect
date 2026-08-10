@@ -15,7 +15,7 @@
  * `toBeHidden()` — not `toHaveCount(0)`.
  */
 import { expect, test } from '@playwright/test';
-import { getDoc, openEditor, toolbarButton, typeInEditor, editor } from './helpers.js';
+import { getDoc, openEditor, toolbarButton, typeInEditor, clickEditor } from './helpers.js';
 
 test.describe('popovers', () => {
 
@@ -65,7 +65,7 @@ test.describe('popovers', () => {
       expect(JSON.stringify(doc)).toContain('"footnote_marker"');
 
       // Move cursor to end and type more text for the second marker.
-      await editor(page).click();
+      await clickEditor(page);
       await page.keyboard.type(' more');
 
       // Second click: entry now exists → picker opens.

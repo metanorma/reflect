@@ -6,14 +6,14 @@
  * DOM — this is where the `window.__mnGetDoc` test hook earns its keep.
  */
 import { expect, test } from '@playwright/test';
-import { editor, getDoc, openEditor, toolbarButton, typeInEditor } from './helpers.js';
+import { clickEditor, getDoc, openEditor, toolbarButton, typeInEditor } from './helpers.js';
 
 test.describe('keyboard', () => {
 
   test('Enter continues a bullet list; empty + Enter exits', async ({ page }) => {
     await openEditor(page);
     // Navigate past the section_title into the paragraph.
-    await editor(page).click();
+    await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('first item');
 
@@ -43,7 +43,7 @@ test.describe('keyboard', () => {
     // body paragraph and press Backspace. Whether the empty paragraph is
     // deleted (joining to section_title) or the doc is re-seeded depends on
     // the container-stack walk. Either way the doc should still have a clause.
-    await editor(page).click();
+    await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
 
     const before = JSON.stringify(await getDoc(page));
@@ -85,7 +85,7 @@ test.describe('keyboard', () => {
     // Toggle Bold on (stored-mark), then type — the typed text inherits the
     // mark. This avoids the selection-loss that occurs when clicking a
     // toolbar button after Ctrl+A on existing text.
-    await editor(page).click();
+    await clickEditor(page);
     await toolbarButton(page, 'Bold').click();
     await typeInEditor(page, 'bold this');
 

@@ -13,7 +13,7 @@
  *     the hook exercises the same `loadDocFromJson` path the Open button uses).
  */
 import { expect, test } from '@playwright/test';
-import { getDoc, openEditor, typeInEditor, editor } from './helpers.js';
+import { getDoc, openEditor, typeInEditor, clickEditor } from './helpers.js';
 
 test.describe('sidebar', () => {
 
@@ -53,7 +53,7 @@ test.describe('sidebar', () => {
   test('load-via-hook replaces editor content', async ({ page }) => {
     await openEditor(page);
     // Navigate past the section_title into the paragraph, then type.
-    await editor(page).click();
+    await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('original content');
 

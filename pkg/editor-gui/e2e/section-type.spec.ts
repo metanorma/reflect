@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, typeInEditor, getDoc } from './helpers.js';
+import { openEditor, toolbarButton, typeInEditor, getDoc, clickEditor } from './helpers.js';
 
 test.describe('section-type-picker', () => {
   test('Type button opens picker; selecting a type converts the section', async ({ page }) => {
@@ -26,7 +26,8 @@ test.describe('section-type-picker', () => {
 
   test('Type button is enabled inside a section; picker shows current type', async ({ page }) => {
     await openEditor(page);
-    // The default doc has a clause, so the button should be enabled.
+    // Click into the clause paragraph so the cursor is inside a section.
+    await clickEditor(page);
     const typeBtn = toolbarButton(page, 'Type');
     await expect(typeBtn).toBeEnabled();
 
