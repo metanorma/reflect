@@ -1,12 +1,11 @@
 /**
- * `sections` group — clause nesting structural operations (sections.md §4).
+ * `sections` group — section insertion + clause nesting operations
+ * (sections.md §4).
  *
- * Four entries: Insert clause (split-button control), Promote, Demote, Change
- * section type (stateful control). The "Clause" button is a split-button
- * control (`ClauseSplitButton`) with a context-sensitive primary action (nested
- * vs sibling) plus an explicit dropdown menu. Clause insertion is synchronous —
- * the new clause gets an empty `section_title` and the cursor lands there for
- * direct heading editing.
+ * Three entries: Section insertion (popover control), Promote, Demote. The
+ * Section popover lists all ten section types grouped by cohort; selecting one
+ * calls the pure `insertSection` command, which routes the section to the
+ * correct container. Promote/Demote operate on body-section nesting.
  */
 
 import React from "react";
@@ -16,42 +15,19 @@ import type { EditorState } from "prosemirror-state";
 import {
   promoteClause,
   demoteClause,
-  insertReferences,
-  findNearestSectionOfType,
-  metanormaSchema,
 } from "@metanorma/editor-commands";
 
 import type { ToolbarGroupDef } from "../types.js";
-import { SectionTypeButton } from "../SectionTypePicker.js";
-import { ClauseSplitButton } from "../ClauseSplitButton.js";
+import { SectionPopover } from "../SectionPopover.js";
 
 /** Whether promote is enabled: mirrors `promoteClause`'s applicability. */
 function canPromote(state: EditorState): boolean {
-  // Query the command without a dispatch: it returns true iff a promotion is
-  // legal at the current selection (nearest clause's parent is itself a
-  // section). This keeps the button's `isEnabled` exactly in sync with the
-  // command — the contract per MetanormaToolbar.spec.md §5.4.
   return promoteClause(state) === true;
 }
 
-/** Whether demote is enabled: nearest clause has a preceding section sibling. */
+/** Whether demote is enabled: mirrors `demoteClause`'s applicability. */
 function canDemote(state: EditorState): boolean {
-  const { $from } = state.selection;
-  const clauseType = metanormaSchema.nodes["clause"];
-  if (clauseType === undefined) return false;
-  const hit = findNearestSectionOfType($from, clauseType);
-  if (hit === null) return false;
-  const parentDepth = hit.depth - 1;
-  if (parentDepth < 1) return false;
-  const clauseIndex = $from.index(parentDepth);
-  if (clauseIndex === 0) return false;
-  // Check if any preceding sibling can legally contain a clause.
-  const parent = $from.node(parentDepth);
-  for (let i = clauseIndex - 1; i >= 0; i--) {
-    const sibling = parent.child(i);
-    if (sibling.type.contentMatch.matchType(clauseType) !== null) return true;
-  }
-  return false;
+  return demoteClause(state) === true;
 }
 
 /**
@@ -62,11 +38,12 @@ export function sectionsGroup(): ToolbarGroupDef {
     id: "sections",
     label: "Section structure",
     entries: [
-      // ── Insert clause — split-button with context-sensitive primary ──
+      // ── Section insertion — popover with all section types ──
       {
         kind: "control",
-        render: () => <ClauseSplitButton />,
+        render: () => <SectionPopover />,
       },
+      // ── Promote clause (move out one level) ──
       {
         kind: "button",
         descriptor: {
@@ -81,6 +58,7 @@ export function sectionsGroup(): ToolbarGroupDef {
           },
         },
       },
+      // ── Demote clause (nest one level deeper) ──
       {
         kind: "button",
         descriptor: {
@@ -91,26 +69,6 @@ export function sectionsGroup(): ToolbarGroupDef {
           isEnabled: canDemote,
           run: (view: EditorView) => {
             demoteClause(view.state, view.dispatch);
-            view.focus();
-          },
-        },
-      },
-      // ── Change section type — stateful control with a picker popover ──
-      {
-        kind: "control",
-        render: () => <SectionTypeButton />,
-      },
-      // ── Insert references (bibliography section) ──
-      {
-        kind: "button",
-        descriptor: {
-          key: "sections-insert-references",
-          label: "References",
-          title: "Insert a references (bibliography) section",
-          isActive: (_state: EditorState) => false,
-          isEnabled: () => true,
-          run: (view: EditorView) => {
-            insertReferences(view.state, view.dispatch);
             view.focus();
           },
         },

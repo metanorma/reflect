@@ -2,7 +2,7 @@
  * Section / clause nesting structural commands (sections.md §5).
  *
  * Four pure commands — `wrapInClause`, `promoteClause`, `demoteClause`,
- * `setSectionType` — plus their legality/ancestor helpers. All resolve node
+ * `insertSection` — plus their legality/ancestor helpers. All resolve node
  * types through `state.schema` per README §6.4; no `(schema) => Command`
  * factory is required.
  *
@@ -19,19 +19,28 @@ import type { Node, NodeType, ResolvedPos } from "prosemirror-model";
 import { liftTarget } from "prosemirror-transform";
 
 import { generateId } from "../util.js";
+import {
+  COHORT_CONTAINER, DOC_CHILD_ORDER, SECTION_COHORT,
+} from "@metanorma/prosemirror-schema";
+import type { SectionCohort } from "@metanorma/prosemirror-schema";
 
 // ---------------------------------------------------------------------------
 // Ancestor-walking helpers (sections.md §5.5)
 // ---------------------------------------------------------------------------
 
-/** The ten section node names (group "section"), excluding `floating_title`. */
-const SECTION_NAMES: ReadonlySet<string> = new Set([
-  "clause", "annex", "content_section", "abstract", "foreword",
-  "introduction", "acknowledgements", "terms", "definitions",
-]);
+/**
+ * True when `node` belongs to any section cohort group
+ * (`section_front`, `section_body`, or `section_back`).
+ */
+function isSectionNode(node: Node): boolean {
+  const t = node.type;
+  return t.isInGroup("section_front")
+    || t.isInGroup("section_body")
+    || t.isInGroup("section_back");
+}
 
 /**
- * Resolve the nearest ancestor of `$pos` whose type is in group "section".
+ * Resolve the nearest ancestor of `$pos` that is a section node (any cohort).
  * Returns the node and its depth, or `null` at the doc root.
  */
 export function nearestSectionAncestor(
@@ -39,7 +48,7 @@ export function nearestSectionAncestor(
 ): { readonly node: Node; readonly depth: number } | null {
   for (let d = $pos.depth; d >= 1; d--) {
     const node = $pos.node(d);
-    if (SECTION_NAMES.has(node.type.name)) {
+    if (isSectionNode(node)) {
       return { node, depth: d };
     }
   }
@@ -57,6 +66,22 @@ export function findNearestSectionOfType(
   for (let d = $pos.depth; d >= 1; d--) {
     const node = $pos.node(d);
     if (node.type === type) {
+      return { node, depth: d };
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve the nearest ancestor of `$pos` that belongs to the `section_body`
+ * cohort group. Used by `insertSection` to find a body-section sibling anchor.
+ */
+export function nearestBodySectionAncestor(
+  $pos: ResolvedPos,
+): { readonly node: Node; readonly depth: number } | null {
+  for (let d = $pos.depth; d >= 1; d--) {
+    const node = $pos.node(d);
+    if (node.type.isInGroup("section_body")) {
       return { node, depth: d };
     }
   }
@@ -132,6 +157,96 @@ function containsNamedChild(parent: Node, name: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// ensureContainer — shared doc-level container creation (§5.0)
+// ---------------------------------------------------------------------------
+
+/**
+ * Result of {@link ensureContainer}: the container node's position in the
+ * (possibly modified) doc, and the position just inside its opening token
+ * (where children should be appended).
+ */
+interface ContainerInfo {
+  /** Absolute position of the container node in `tr.doc`. */
+  readonly pos: number;
+  /** Position just inside the container's opening token (before first child). */
+  readonly contentStart: number;
+  /** Position just before the container's closing token (after last child). */
+  readonly contentEnd: number;
+}
+
+/**
+ * Ensure that the doc has a direct child named `containerName`, creating it at
+ * the schema-mandated position if absent (§5.0). Mutates `tr` in place.
+ *
+ * Position computation uses {@link DOC_CHILD_ORDER}: the new container is
+ * inserted immediately after the last existing doc-child that precedes
+ * `containerName` in the ordering.
+ *
+ * @returns The container's position info in the (possibly modified) doc.
+ * @throws if `containerName` is not a known node type.
+ */
+function ensureContainer(
+  tr: Transaction,
+  containerName: string,
+): ContainerInfo {
+  const doc = tr.doc;
+  const containerType = doc.type.schema.nodes[containerName];
+  if (containerType === undefined) {
+    throw new Error(`ensureContainer: unknown node type "${containerName}"`);
+  }
+
+  // Find an existing container.
+  for (let i = 0; i < doc.childCount; i++) {
+    if (doc.child(i).type.name === containerName) {
+      // Compute the absolute position of the existing container.
+      let pos = 0;
+      for (let j = 0; j < i; j++) {
+        pos += doc.child(j).nodeSize;
+      }
+      const node = doc.child(i);
+      return {
+        pos,
+        contentStart: pos + 1,
+        contentEnd: pos + 1 + node.content.size,
+      };
+    }
+  }
+
+  // Container is missing — compute the insertion position from DOC_CHILD_ORDER.
+  // Insert after the last existing doc-child that precedes `containerName` in
+  // the ordering.
+  const orderIdx = DOC_CHILD_ORDER.indexOf(containerName);
+  const effectiveOrder = orderIdx >= 0 ? orderIdx : DOC_CHILD_ORDER.length;
+
+  let insertAfterIdx = -1;
+  for (let i = 0; i < doc.childCount; i++) {
+    const childName = doc.child(i).type.name;
+    const childOrder = DOC_CHILD_ORDER.indexOf(childName);
+    if (childOrder >= 0 && childOrder < effectiveOrder) {
+      insertAfterIdx = i;
+    }
+  }
+
+  // Compute the absolute position for the new container.
+  let pos = 0;
+  for (let i = 0; i <= insertAfterIdx; i++) {
+    pos += doc.child(i).nodeSize;
+  }
+
+  // Insert the new empty container.
+  const containerNode = containerType.create({ id: generateId() });
+  tr.insert(pos, containerNode);
+
+  // The container is now at `pos`, its content starts at `pos + 1`.
+  // Since the container is newly created and empty, contentStart === contentEnd.
+  return {
+    pos,
+    contentStart: pos + 1,
+    contentEnd: pos + 1,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // wrapInClause (sections.md §5.2)
 // ---------------------------------------------------------------------------
 
@@ -153,7 +268,6 @@ export function wrapInClause(
   const schema = state.schema;
   const clauseType = schema.nodes["clause"];
   const paragraphType = schema.nodes["paragraph"];
-  const sectionsType = schema.nodes["sections"];
   const sectionTitleType = schema.nodes["section_title"];
   if (clauseType === undefined || paragraphType === undefined) return false;
 
@@ -177,41 +291,19 @@ export function wrapInClause(
   }
 
   // §5.2 step 4 — doc-top-level fallback. If the range's parent is the doc and
-  // there is no `sections` container, create one at the schema-mandated position.
-  if (range.parent.type.name === "doc" && sectionsType !== undefined) {
-    // Find or create the `sections` container.
-    let sectionsPos = -1;
-    for (let i = 0; i < range.parent.childCount; i++) {
-      if (range.parent.child(i).type.name === "sections") {
-        sectionsPos = i;
-        break;
-      }
+  // there is no `sections` container, create one via ensureContainer.
+  if (range.parent.type.name === "doc") {
+    const info = ensureContainer(tr, "sections");
+    // Re-resolve the range inside the new sections container.
+    const offset = tr.doc.nodeSize - state.doc.nodeSize;
+    const $newFrom = tr.doc.resolve($from.pos + offset);
+    const $newTo = tr.doc.resolve($to.pos + offset);
+    range = $newFrom.blockRange($newTo);
+    if (range === null) {
+      dispatch(tr);
+      return true;
     }
-    if (sectionsPos < 0) {
-      // Insert a `sections` container. Position: immediately after `preface` if
-      // present, otherwise at doc start; before `bibliography`/`footnotes`.
-      let insertAt = 0;
-      for (let i = 0; i < range.parent.childCount; i++) {
-        const childName = range.parent.child(i).type.name;
-        if (childName === "preface") insertAt = i + 1;
-      }
-      // Compute the absolute position: sum of child sizes + 1 (for the doc open
-      // token) up to insertAt.
-      let pos = 1;
-      for (let i = 0; i < insertAt; i++) {
-        pos += range.parent.child(i).nodeSize;
-      }
-      const sectionsNode = sectionsType.create({ id: generateId() });
-      tr.insert(pos, sectionsNode);
-      // Re-resolve the range inside the new sections container.
-      const $newFrom = tr.doc.resolve($from.pos + sectionsNode.nodeSize);
-      const $newTo = tr.doc.resolve($to.pos + sectionsNode.nodeSize);
-      range = $newFrom.blockRange($newTo);
-      if (range === null) {
-        dispatch(tr);
-        return true;
-      }
-    }
+    void info;
   }
 
   // Wrap the range with the clause (a single node wrapping). The clause's
@@ -270,7 +362,8 @@ export function promoteClause(
   const parentDepth = hit.depth - 1;
   if (parentDepth < 1) return false;
   const parent = $from.node(parentDepth);
-  if (!SECTION_NAMES.has(parent.type.name)) return false;
+  // A clause can only be promoted within body-section parents.
+  if (!parent.type.isInGroup("section_body")) return false;
 
   // Build a NodeRange that spans the *clause node itself* as a child of its
   // parent. The naive `$from.blockRange($to, (n) => n.type === clauseType)`
@@ -315,7 +408,7 @@ export function demoteClause(
   if (parentDepth < 1) return false;
   const parent = $from.node(parentDepth);
 
-  // Find the preceding sibling section that can legally contain a clause.
+  // Find the preceding sibling body-section that can legally contain a clause.
   const clauseIndexInParent = $from.index(parentDepth);
   if (clauseIndexInParent === 0) return false;
 
@@ -324,7 +417,7 @@ export function demoteClause(
   for (let i = clauseIndexInParent - 1; i >= 0; i--) {
     const sibling = parent.child(i);
     if (
-      SECTION_NAMES.has(sibling.type.name) &&
+      sibling.type.isInGroup("section_body") &&
       parentAccepts(sibling, clauseType, sibling.childCount)
     ) {
       targetSibling = sibling;
@@ -366,119 +459,84 @@ export function demoteClause(
 }
 
 // ---------------------------------------------------------------------------
-// setSectionType (sections.md §5.4)
+// insertSection (sections.md §5.4)
 // ---------------------------------------------------------------------------
 
 /**
- * Convert the nearest enclosing section node into `targetType`, preserving its
- * `id`, `title`, `data`, and children iff `targetType.validContent(current.content)`
- * (sections.md §5.4).
+ * Insert a new section node of the given `typeName`, routing it to the correct
+ * container based on its cohort (§5.4). Creates the container (`preface`,
+ * `sections`, or `bibliography`) if it does not exist.
  *
- * @returns `true` if a transaction was / would be dispatched, `false` if no
- *          enclosing section, it is already `targetType`, or the content is
- *          not legal under `targetType`.
+ * **Body cohort** (clause, annex, content_section, terms, definitions):
+ * inserts as a sibling after the nearest enclosing body section, or appends to
+ * the `sections` container if no body-section ancestor exists.
+ *
+ * **Front / back cohort** (abstract, foreword, … / references): finds or
+ * creates the `preface` / `bibliography` container and appends the section.
+ *
+ * The new section gets an empty `section_title` (heading placeholder) and a
+ * leading empty `paragraph`. The cursor lands in the `section_title`.
+ *
+ * @returns `true` if a transaction was / would be dispatched, `false` if
+ *          `typeName` is not a recognized section type or the schema lacks it.
  */
-export function setSectionType(
+export function insertSection(
   state: EditorState,
-  targetType: NodeType,
+  typeName: string,
   dispatch?: (tr: Transaction) => void,
 ): boolean {
-  const { $from } = state.selection;
-  const hit = nearestSectionAncestor($from);
-  if (hit === null) return false;
-  if (hit.node.type === targetType) return false;
+  const cohort = SECTION_COHORT[typeName];
+  if (cohort === undefined) return false;
 
-  // §5.4 step 2 — validate content under the target type.
-  if (!targetType.validContent(hit.node.content)) return false;
-
-  // §5.4 step 3 — createChecked re-validates (throws if invalid), so guard
-  // with validContent first (done above).
-  let replacement: Node;
-  try {
-    replacement = targetType.createChecked(
-      { ...hit.node.attrs },
-      hit.node.content,
-    );
-  } catch {
-    return false;
-  }
-
-  if (dispatch === undefined) return true;
-
-  const tr = state.tr;
-  const pos = $from.before(hit.depth);
-  tr.replaceRangeWith(pos, pos + hit.node.nodeSize, replacement);
-  // Re-select inside the new node.
-  tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 1)));
-  tr.scrollIntoView();
-  dispatch(tr);
-  return true;
-}
-
-// ---------------------------------------------------------------------------
-// insertClauseAfter (sections.md §5.5)
-// ---------------------------------------------------------------------------
-
-/**
- * Insert a new `clause` as a **sibling** following the nearest enclosing
- * section node (sections.md §5.5). Unlike `wrapInClause` (which creates a
- * child), this inserts at the same depth as the current section — a direct
- * one-step way to add a following clause without wrap-then-promote.
- *
- * @returns `true` if a transaction was / would be dispatched, `false` if no
- *          enclosing section, the section is a top-level child of `doc`, or
- *          the parent cannot legally accept a clause after it.
- */
-export function insertClauseAfter(
-  state: EditorState,
-  dispatch?: (tr: Transaction) => void,
-): boolean {
-  const { $from } = state.selection;
-  const clauseType = state.schema.nodes["clause"];
+  const sectionType = state.schema.nodes[typeName];
   const paragraphType = state.schema.nodes["paragraph"];
   const sectionTitleType = state.schema.nodes["section_title"];
-  if (clauseType === undefined || paragraphType === undefined) return false;
-
-  const hit = nearestSectionAncestor($from);
-  if (hit === null) return false;
-
-  // The section's parent must be at depth >= 1 (not a direct child of doc —
-  // doc's content expression does not permit bare clause children).
-  const parentDepth = hit.depth - 1;
-  if (parentDepth < 1) return false;
-
-  const parent = $from.node(parentDepth);
-  const sectionIndex = $from.index(parentDepth);
-
-  // Validate that the parent can legally accept a clause child after the
-  // current section.
-  if (!parentAccepts(parent, clauseType, sectionIndex + 1)) return false;
+  if (sectionType === undefined || paragraphType === undefined) return false;
 
   if (dispatch === undefined) return true;
 
-  // Build the new clause's children: section_title (heading placeholder) +
+  const { $from } = state.selection;
+  const tr = state.tr;
+
+  // Build the new section's children: section_title (heading placeholder) +
   // empty paragraph.
-  const children = [];
+  const children: Node[] = [];
   if (sectionTitleType !== undefined) {
     children.push(sectionTitleType.create());
   }
   children.push(paragraphType.create());
-
-  const tr = state.tr;
-  const newClause = clauseType.create(
+  const sectionNode = sectionType.create(
     { id: generateId() },
     children,
   );
 
-  // Insert after the current section's closing token, inside the parent.
-  const insertAt = $from.after(hit.depth);
-  tr.insert(insertAt, newClause);
+  let insertPos: number;
 
-  // Cursor inside the new clause's section_title (if present), otherwise the
-  // leading paragraph. After insertion, `insertAt` is the clause's opening
-  // token position. `+1` enters the clause, `+1` more enters the section_title.
+  if (cohort === "body") {
+    // Body cohort: try to insert as sibling after the nearest body-section.
+    const hit = nearestBodySectionAncestor($from);
+    if (hit !== null) {
+      // Insert after the nearest body section's closing token.
+      insertPos = $from.after(hit.depth);
+    } else {
+      // No body-section ancestor — find or create the `sections` container,
+      // then append.
+      const info = ensureContainer(tr, COHORT_CONTAINER["body"]);
+      insertPos = info.contentEnd;
+    }
+  } else {
+    // Front / back cohort: find or create the container, then append.
+    const info = ensureContainer(tr, COHORT_CONTAINER[cohort as SectionCohort]);
+    insertPos = info.contentEnd;
+  }
+
+  tr.insert(insertPos, sectionNode);
+
+  // Cursor inside the new section's section_title (if present), otherwise
+  // inside the leading paragraph. `insertPos` is the section's opening token
+  // position; +1 enters the section, +1 more enters the section_title.
   const cursorOffset = sectionTitleType !== undefined ? 2 : 2;
-  tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + cursorOffset)));
+  tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + cursorOffset)));
   tr.scrollIntoView();
   dispatch(tr);
   return true;
@@ -515,106 +573,6 @@ export function insertLeadingParagraph(
   const pos = $from.before(hit.depth) + 1;
   tr.insert(pos, paragraphType.create());
   tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 1)));
-  tr.scrollIntoView();
-  dispatch(tr);
-  return true;
-}
-
-// ---------------------------------------------------------------------------
-// insertReferences (sections.md §5.7)
-// ---------------------------------------------------------------------------
-
-/**
- * Insert a new `references` node as a child of `bibliography`, creating the
- * `bibliography` container if it does not exist. The `references` node gets a
- * generated id and an empty `section_title` + `paragraph` (prefatory text slot).
- *
- * Per the Metanorma RNG model, `references` is NOT a section type — it lives
- * inside `bibliography` (or at doc-level as a sibling of `sections`). This
- * command always targets `bibliography` as the parent, creating it at the
- * schema-mandated position if absent (after `sections`, before `footnotes`).
- *
- * @returns `true` if a transaction was / would be dispatched, `false` if the
- *          schema is missing the `references` or `bibliography` node type.
- */
-export function insertReferences(
-  state: EditorState,
-  dispatch?: (tr: Transaction) => void,
-): boolean {
-  const referencesType = state.schema.nodes["references"];
-  const bibliographyType = state.schema.nodes["bibliography"];
-  const sectionTitleType = state.schema.nodes["section_title"];
-  const paragraphType = state.schema.nodes["paragraph"];
-  if (referencesType === undefined || bibliographyType === undefined || paragraphType === undefined) {
-    return false;
-  }
-
-  if (dispatch === undefined) return true;
-
-  const tr = state.tr;
-  const doc = state.doc;
-
-  // Build the references node: section_title + paragraph (prefatory text).
-  const refsChildren: Node[] = [];
-  if (sectionTitleType !== undefined) {
-    refsChildren.push(sectionTitleType.create());
-  }
-  refsChildren.push(paragraphType.create());
-  const refsNode = referencesType.create(
-    { id: generateId() },
-    refsChildren,
-  );
-
-  // Find or create the bibliography container.
-  let bibPos = -1;
-  for (let i = 0; i < doc.childCount; i++) {
-    if (doc.child(i).type.name === "bibliography") {
-      bibPos = i;
-      break;
-    }
-  }
-
-  if (bibPos < 0) {
-    // Create the bibliography container at the schema-mandated position:
-    // after `sections` (or `preface` if no sections), before `footnotes`.
-    let insertAt = 0;
-    for (let i = 0; i < doc.childCount; i++) {
-      const child = doc.child(i);
-      const name = child.type.name;
-      if (name === "bibdata") insertAt = i + 1;
-      if (name === "preface") insertAt = i + 1;
-      if (name === "sections") insertAt = i + 1;
-    }
-    // Compute absolute position inside doc.content.
-    let absPos = 0;
-    for (let i = 0; i < insertAt; i++) {
-      absPos += doc.child(i).nodeSize;
-    }
-    const bibNode = bibliographyType.create({ id: generateId() }, refsNode);
-    tr.insert(absPos, bibNode);
-    // Cursor inside the new references' paragraph (after section_title).
-    const refsContentStart = absPos + 2; // bib open + refs open
-    const paraPos = sectionTitleType !== undefined
-      ? refsContentStart + (refsChildren[0]?.nodeSize ?? 0) + 1
-      : refsContentStart;
-    tr.setSelection(TextSelection.near(tr.doc.resolve(paraPos)));
-  } else {
-    // Bibliography exists — compute its position and append the references.
-    let absPos = 0;
-    for (let i = 0; i < bibPos; i++) {
-      absPos += doc.child(i).nodeSize;
-    }
-    const bibNode = doc.child(bibPos);
-    // Inside bibliography, after existing content (before close token).
-    const insertAt = absPos + 1 + bibNode.content.size;
-    tr.insert(insertAt, refsNode);
-    // Cursor inside the new references' paragraph.
-    const paraPos = sectionTitleType !== undefined
-      ? insertAt + 1 + (refsChildren[0]?.nodeSize ?? 0) + 1
-      : insertAt + 1;
-    tr.setSelection(TextSelection.near(tr.doc.resolve(paraPos)));
-  }
-
   tr.scrollIntoView();
   dispatch(tr);
   return true;

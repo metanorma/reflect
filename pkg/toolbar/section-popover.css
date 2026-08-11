@@ -1,0 +1,77 @@
+/* Section insertion popover — self-contained top-layer popover via the
+   HTML Popover API + CSS Anchor Positioning. Same pattern as
+   .mn-target-picker / .mn-table-picker / .mn-footnote-picker. */
+
+/* Trigger wrapper provides the anchor for the popover. */
+.mn-toolbar-section {
+  display: inline-block;
+  position: relative;
+  anchor-name: --mn-section-anchor;
+}
+
+.mn-section-popover {
+  position-anchor: --mn-section-anchor;
+  position-area: inline-end span-block-end;
+  margin: 2px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border);
+  border-radius: var(--mn-radius-md);
+  padding: 0.4em;
+  box-shadow: 0 2px 8px var(--mn-shadow);
+  min-width: 14em;
+}
+
+/* When anchor positioning is unavailable, fall back to positioning relative
+   to the trigger wrapper (position: relative). */
+@supports not (anchor-name: --x) {
+  .mn-section-popover {
+    position: absolute;
+    top: 100%;
+    left: 0;
+  }
+}
+
+/* Cohort group headings. */
+.mn-section-popover__group {
+  margin-bottom: var(--mn-space-1);
+}
+
+.mn-section-popover__group:last-child {
+  margin-bottom: 0;
+}
+
+.mn-section-popover__heading {
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--mn-text-muted);
+  padding: 0.2em 0.4em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Section type list. */
+.mn-section-popover__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Each type item: full-width button, left-aligned label. */
+.mn-section-popover__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.25em 0.4em;
+  border-radius: var(--mn-radius-sm);
+  cursor: pointer;
+  font-size: 0.95em;
+  color: inherit;
+}
+
+.mn-section-popover__item:hover,
+.mn-section-popover__item:focus-visible {
+  background: var(--mn-active);
+  outline: none;
+}

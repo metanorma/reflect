@@ -36,8 +36,7 @@ export type {
 export { TableSizePicker, InsertTableButton } from "./TableSizePicker.js";
 export { ImageInsertDialog, InsertImageButton } from "./ImageInsertDialog.js";
 export { FootnoteButton, FootnoteEntryPicker } from "./FootnotePicker.js";
-export { SectionTypeButton, SectionTypePicker } from "./SectionTypePicker.js";
-export { ClauseSplitButton, ClauseDropdownMenu } from "./ClauseSplitButton.js";
+export { SectionPopover } from "./SectionPopover.js";
 
 // Definition-list keymap plugin (undo-redo.md §4.1 / definition-lists.md §6.5)
 export { definitionListKeymap } from "./plugins/definitionListKeymap.js";
@@ -52,7 +51,7 @@ export {
   wrapInClause,
   promoteClause,
   demoteClause,
-  setSectionType,
+  insertSection,
   applyReferenceMark,
   toggleXref,
   toggleEref,

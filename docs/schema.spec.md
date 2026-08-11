@@ -8,7 +8,8 @@ this document supersedes them as the source of truth for the schema.
 `src/types.ts` of [`metanorma/metanorma-mirror-js`](https://github.com/metanorma/metanorma-mirror-js/blob/main/src/types.ts)
 (commit on `main` at the time of writing). Every node name, mark name, and
 attribute in this schema is derived directly from that file's exported
-constants (`MARK_TYPES`, `STRUCTURAL_TYPES`, `SECTION_TYPES`, `BLOCK_TYPES`,
+constants (`MARK_TYPES`, `STRUCTURAL_TYPES`, `SECTION_FRONT_TYPES`,
+`SECTION_BODY_TYPES`, `SECTION_BACK_TYPES`, `BLOCK_TYPES`,
 `LIST_TYPES`, `TABLE_TYPES`, `MEDIA_TYPES`, `FOOTNOTE_TYPES`,
 `INLINE_ATOM_TYPES`, `LEAF_TYPES`)
 and its attribute interfaces (`NodeAttrsByType`, `MarkAttrsByType`, `BaseAttrs`).
@@ -89,7 +90,9 @@ schema- definition time (`toDOM`/`parseDOM` describe structure only).
 | Group constant | Members |
 |---|---|
 | `STRUCTURAL_TYPES` (5) | `doc`, `bibdata`, `preface`, `sections`, `bibliography` |
-| `SECTION_TYPES` (10) | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` |
+| `SECTION_FRONT_TYPES` (4) | `abstract`, `foreword`, `introduction`, `acknowledgements` |
+| `SECTION_BODY_TYPES` (5) | `clause`, `annex`, `content_section`, `terms`, `definitions` |
+| `SECTION_BACK_TYPES` (1) | `references` |
 | `BIBITEM_TYPES` (1) | `bibitem` |
 | `BLOCK_TYPES` (9) | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `floating_title` |
 | `LIST_TYPES` (6) | `bullet_list`, `ordered_list`, `list_item`, `dl`, `dt`, `dd` |
@@ -129,13 +132,23 @@ The mark has been removed to keep conversion unambiguous (§1.1).
 
 `types.ts` groups nodes for *classification*; ProseMirror groups drive the
 *content model*. The mapping below is a design decision (the source file does
-not prescribe content expressions). Three groups are introduced:
+not prescribe content expressions). Six groups are introduced:
 
 | PM group | Members | Notes |
 |---|---|---|
 | `inline` | `text`, `soft_break`, `footnote_marker`, `stem` | Inline content of paragraphs / terms. |
 | `block` | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `bullet_list`, `ordered_list`, `dl`, `table`, `figure`, `floating_title` | General block-level children of sections, list items, cells, etc. Deliberately **excludes** `image`, `list_item`, `dt`, `dd`, `table_*` parts, `footnote_entry`, and `section_title` (contextual only — `section_title` appears solely as the optional leading child of a section node). |
-| `section` | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` | Nestable section nodes. |
+| `section_front` | `abstract`, `foreword`, `introduction`, `acknowledgements` | Front-matter section nodes (inside `preface`). |
+| `section_body` | `clause`, `annex`, `content_section`, `terms`, `definitions` | Body section nodes (inside `sections`). Nestable: a body section's content expression may reference `section_body` for nesting. |
+| `section_back` | `references` | Back-matter section nodes (inside `bibliography`). |
+
+The three cohort groups (`section_front`, `section_body`, `section_back`) are
+the structural backbone of the document ordering: each container's content
+expression admits only its own cohort's section types (§8.1), so the schema
+itself enforces that front-matter sections appear only in `preface`, body
+sections only in `sections`, and back-matter sections only in `bibliography`.
+The companion cohort metadata (§8.0a) maps each type to its cohort and drives
+command-level routing.
 
 ---
 
@@ -144,14 +157,14 @@ not prescribe content expressions). Three groups are introduced:
 | Node | Content expression | Rationale |
 |---|---|---|
 | `doc` | `(bibdata preface? sections? bibliography? footnotes?)` | Root: required bibdata (document metadata), optional front matter, body, back matter, footnotes container. |
-| `preface` | `(section \| block)*` | Front-matter sections (abstract/foreword/…) plus blocks. |
-| `sections` | `(section \| block)*` | Main body. |
-| `bibliography` | `(section \| block)*` | Back matter; `references` is in the `section` group. |
+| `preface` | `(section_front \| block)*` | Front-matter sections (abstract/foreword/…) plus blocks. |
+| `sections` | `(section_body \| block)*` | Main body. |
+| `bibliography` | `references+` | Back matter; `references` is the sole `section_back` member. |
 | `bibdata` | *(empty)* | Atom: document-level bibliographic metadata. Stores a `BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item` attr. Required first child of `doc` (§8.1). |
 | `bibitem` | *(empty)* | Atom: a single bibliography entry. Stores a `BibliographicItem` as a single JSON `item` attr. Permitted only inside `references` sections (§8.2). |
 | `clause` | `section_title? (clause \| block)*` | Clauses nest clauses + blocks; optional leading heading textblock. |
 | `annex` | `section_title? (annex \| clause \| block)*` | Annexes may contain annexes, clauses, blocks; optional leading heading. |
-| `content_section` | `section_title? (section \| block)*` | Generic nestable container; optional leading heading. |
+| `content_section` | `section_title? (section_body \| block)*` | Generic nestable container; optional leading heading. |
 | `abstract`, `foreword`, `introduction`, `acknowledgements` | `section_title? block+` | Front-matter leaves: optional heading + blocks only, no nesting. |
 | `terms`, `definitions` | `section_title? (clause \| block)*` | Term/definition containers may nest `clause`; optional leading heading. |
 | `references` | `section_title? (clause \| bibitem \| block)*` | Bibliography entries (often nested clauses); optional leading heading. |
@@ -297,17 +310,59 @@ belong to `@metanorma/prosemirror-editor`, not to the schema's serialization
 contract. `sourcecode`'s dynamic `language-${language}` class is a Prism /
 highlight.js interop convention and is likewise absent.
 
+### 8.0a Section cohort metadata (`cohorts.ts`)
+
+The three cohort groups (`section_front`, `section_body`, `section_back`)
+drive the container content expressions (§8.1): each container admits only the
+section types in its cohort. The companion metadata in `cohorts.ts` maps each
+section type name to its cohort and is the single source of truth consulted by
+commands and the toolbar. It is exported from the public API (§11).
+
+```ts
+/** The three document regions a section type may belong to. */
+export type SectionCohort = "front" | "body" | "back";
+
+/** Section type name → its cohort. Authoritative mapping (§8.2 group assignments must agree). */
+export const SECTION_COHORT: Readonly<Record<string, SectionCohort>>;
+
+/** Cohort → the container node name it belongs in (`front`→`preface`, `body`→`sections`, `back`→`bibliography`). */
+export const COHORT_CONTAINER: Readonly<Record<SectionCohort, string>>;
+
+/** Doc-level child ordering, matching `doc.content` = `(bibdata preface? sections? bibliography? footnotes?)`. */
+export const DOC_CHILD_ORDER: readonly string[];
+
+/** Front-matter section types, in canonical (document-appearance) order. */
+export const FRONT_TYPES: readonly string[];
+/** Body section types, in canonical order. */
+export const BODY_TYPES: readonly string[];
+/** Back-matter section types. */
+export const BACK_TYPES: readonly string[];
+
+/** Whether two section types are in the same cohort. */
+export function sameCohort(a: string, b: string): boolean;
+```
+
+**`DOC_CHILD_ORDER`** is consulted by the `ensureContainer` helper
+([EditorCommands.spec.md](./EditorCommands.spec.md) §5) to compute the correct
+insertion position when a container must be created.
+
+**`sameCohort()`** is the design hook for future same-cohort type-change support
+(e.g. converting a `clause` into an `annex`): the schema content expressions
+already permit same-cohort replacements (shared group, compatible content);
+the guard is the command layer's responsibility. Cross-cohort conversion is
+deliberately not offered — the user creates a new section instead.
+
 ### 8.1 Structural nodes
 
 | Node | Spec essentials |
 |---|---|
 | `doc` | `content: "(bibdata preface? sections? bibliography? footnotes?)"`; `toDOM: ["div", {class: CLASS.doc}, 0]`; no `parseDOM`. |
 | `bibdata` | `content: ""`; `atom: true`; `attrs: { item: { default: null }, ...DATA_ATTR }`; `toDOM: ["div", {class: CLASS.bibdata}]`; no `parseDOM` (doc-level, created by default doc / loader). |
-| `preface` | `content: "(section \| block)*"`; `toDOM: ["section", {class: CLASS.preface}, 0]`; `parseDOM: [{tag: "section.mn-preface"}]`. |
-| `sections` | `content: "(section \| block)*"`; `toDOM: ["section", {class: CLASS.sections}, 0]`; `parseDOM: [{tag: "section.mn-sections"}]`. |
-| `bibliography` | `content: "(section \| block)*"`; `toDOM: ["section", {class: CLASS.bibliography}, 0]`; `parseDOM: [{tag: "section.mn-bibliography"}]`. |
+| `preface` | `content: "(section_front \| block)*"`; `toDOM: ["section", {class: CLASS.preface}, 0]`; `parseDOM: [{tag: "section.mn-preface"}]`. |
+| `sections` | `content: "(section_body \| block)*"`; `toDOM: ["section", {class: CLASS.sections}, 0]`; `parseDOM: [{tag: "section.mn-sections"}]`. |
+| `bibliography` | `content: "references+"`; `toDOM: ["section", {class: CLASS.bibliography}, 0]`; `parseDOM: [{tag: "section.mn-bibliography"}]`. |
 
-### 8.2 Section nodes (`group: "section"`)
+### 8.2 Section nodes
 
 All section nodes share `toDOM`/`parseDOM` shape (a `<section>` whose class is
 `mn-<type>` and whose `id`/`number` attrs are mirrored to `data-*`):
@@ -324,19 +379,23 @@ function sectionToDOM(cls: string) {
 // parseDOM: [{ tag: `section.${cls}`, getAttrs(el) { return { id: el.getAttribute("data-id"), number: el.getAttribute("data-number") } } }]
 ```
 
-| Node | `content` | class |
-|---|---|---|
-| `clause` | `section_title? (clause \| block)*` | `mn-clause` |
-| `annex` | `section_title? (annex \| clause \| block)*` | `mn-annex` |
-| `content_section` | `section_title? (section \| block)*` | `mn-content-section` |
-| `abstract` | `section_title? block+` | `mn-abstract` |
-| `foreword` | `section_title? block+` | `mn-foreword` |
-| `introduction` | `section_title? block+` | `mn-introduction` |
-| `acknowledgements` | `section_title? block+` | `mn-acknowledgements` |
-| `terms` | `section_title? (clause \| block)*` | `mn-terms` |
-| `definitions` | `section_title? (clause \| block)*` | `mn-definitions` |
-| `references` | `section_title? (clause \| bibitem \| block)*` | `mn-references` |
-| `bibitem` | *(empty atom, no group)* | `mn-bibitem` |
+Each section node is assigned to exactly one **cohort group** (§4) that
+determines which container it may appear in. The group assignments agree with
+`SECTION_COHORT` (§8.0a):
+
+| Node | Cohort group | `content` | class |
+|---|---|---|---|
+| `clause` | `section_body` | `section_title? (clause \| block)*` | `mn-clause` |
+| `annex` | `section_body` | `section_title? (annex \| clause \| block)*` | `mn-annex` |
+| `content_section` | `section_body` | `section_title? (section_body \| block)*` | `mn-content-section` |
+| `abstract` | `section_front` | `section_title? block+` | `mn-abstract` |
+| `foreword` | `section_front` | `section_title? block+` | `mn-foreword` |
+| `introduction` | `section_front` | `section_title? block+` | `mn-introduction` |
+| `acknowledgements` | `section_front` | `section_title? block+` | `mn-acknowledgements` |
+| `terms` | `section_body` | `section_title? (clause \| block)*` | `mn-terms` |
+| `definitions` | `section_body` | `section_title? (clause \| block)*` | `mn-definitions` |
+| `references` | `section_back` | `section_title? (bibitem \| block)*` | `mn-references` |
+| `bibitem` | *(no group — only inside `references`)* | *(empty atom)* | `mn-bibitem` |
 
 **Heading model.** Every section node's content expression begins with an
 optional `section_title` child — the heading textblock. The `section_title`
@@ -346,8 +405,8 @@ other textblock and supports full inline markup (emphasis, links, etc.),
 matching Metanorma Presentation XML's `<title>` child element (§17).
 
 **Bibliography entries.** The `references` section node's content expression
-permits `bibitem` atom nodes alongside clauses and blocks. Each `bibitem` stores
-a `BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item` attr
+permits `bibitem` atom nodes alongside blocks. Each `bibitem` stores a
+`BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item` attr
 and renders as a compact summary via a NodeView. `bibitem` has no group
 membership — it is insertable only inside `references` via a dedicated command,
 not as a general block.
@@ -497,6 +556,16 @@ export const MARK_NAMES: readonly string[];   // 14 entries, in §3.2 order
 /** The CSS class emitted by every `toDOM`/`parseDOM` rule (§8.0). */
 export const CLASS: { readonly doc: "mn-doc"; /* …one key per emitting node/mark… */ };
 export type ClassName = (typeof CLASS)[keyof typeof CLASS];
+
+/** Section cohort metadata (§8.0a). */
+export type SectionCohort = "front" | "body" | "back";
+export const SECTION_COHORT: Readonly<Record<string, SectionCohort>>;
+export const COHORT_CONTAINER: Readonly<Record<SectionCohort, string>>;
+export const DOC_CHILD_ORDER: readonly string[];
+export const FRONT_TYPES: readonly string[];
+export const BODY_TYPES: readonly string[];
+export const BACK_TYPES: readonly string[];
+export function sameCohort(a: string, b: string): boolean;
 
 /** Runtime guard for image insertion (§6.1). */
 export function assertValidImageAttrs(attrs: { src?: unknown }): asserts attrs is { src: string };

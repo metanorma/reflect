@@ -1754,3 +1754,182 @@ rows:
 Every row must also satisfy the global Acceptance criteria: single dispatch, no
 throw, valid resulting selection, query/dispatch parity, and headless
 executability.
+
+---
+
+## 5. Section insertion (`insertSection`)
+
+This section specifies the **section insertion feature** of
+`@metanorma/editor-commands`: a single command that creates a new section node
+of any of the ten section types, routing it to the correct container based on
+its cohort ([schema.spec.md](./schema.spec.md) §8.0a). It replaces the
+per-cohort commands that an earlier draft split across separate functions:
+insertion, container creation, and sibling anchoring are unified into one
+command backed by shared helpers.
+
+### 5.1 Scope
+
+In scope:
+
+- The `insertSection(state, typeName, dispatch?)` command and its
+  cohort-routing algorithm.
+- The `ensureContainer(tr, containerName)` helper (single source of truth for
+  doc-level container creation).
+- The `nearestBodySectionAncestor($pos)` helper.
+
+Out of scope:
+
+- Clause nesting operations (`wrapInClause`, `promoteClause`, `demoteClause`)
+  — these are structural transformations on existing body sections, specified
+  in [AdvancedMetanormaToolbar/sections.md](./AdvancedMetanormaToolbar/sections.md).
+- Same-cohort type changes (e.g. clause→annex). The schema permits them
+  (shared group, compatible content) and `sameCohort()`
+  ([schema.spec.md](./schema.spec.md) §8.0a) is the future guard, but no
+  command is provided here.
+
+### 5.2 Command contract
+
+`insertSection` conforms to the Command contract (§1.5):
+
+```ts
+import type { EditorState, Transaction } from "prosemirror-state";
+
+/**
+ * Insert a new section node of the given `typeName`, routing it to the correct
+ * container based on its cohort. Creates the container (preface, sections, or
+ * bibliography) if it does not exist.
+ *
+ * Body cohort (clause, annex, content_section, terms, definitions): inserts as
+ * a sibling after the nearest enclosing body section, or appends to the
+ * `sections` container if no body-section ancestor exists.
+ *
+ * Front / back cohort (abstract, foreword, … / references): finds or creates
+ * the `preface` / `bibliography` container and appends the section.
+ *
+ * The new section gets an empty `section_title` (heading placeholder) and a
+ * leading empty `paragraph`. The cursor lands in the `section_title`.
+ *
+ * @returns `true` if a transaction was / would be dispatched, `false` if
+ *          `typeName` is not a recognized section type or the schema lacks it.
+ */
+export function insertSection(
+  state: EditorState,
+  typeName: string,
+  dispatch?: (tr: Transaction) => void,
+): boolean;
+```
+
+`insertSection` is a plain `Command` — not a `(schema) => Command` factory —
+because the cohort routing is intrinsically specific to the Metanorma
+vocabulary (§1.6.2). It binds `metanormaSchema` concepts (`SECTION_COHORT`,
+`COHORT_CONTAINER`) directly.
+
+### 5.3 Cohort-routing algorithm
+
+When `dispatch` is supplied and `typeName` is a recognized section type
+(present in `SECTION_COHORT`), the command builds a single transaction (§1.7):
+
+1. **Resolve the cohort.** Look up `cohort = SECTION_COHORT[typeName]`. If
+   `typeName` is not in the map, return `false`.
+2. **Build the section node.** Create the section with a generated `id`
+   (`generateId()`), an empty `section_title` (heading placeholder), and a
+   leading empty `paragraph`. The cursor will land in the `section_title`.
+3. **Route by cohort:**
+   - **Body cohort** (`clause`, `annex`, `content_section`, `terms`,
+     `definitions`): find the nearest enclosing body-section ancestor via
+     `nearestBodySectionAncestor($from)` (§5.5). If one exists, insert the new
+     section as a sibling immediately after it (at `$from.after(hit.depth)`).
+     If no body-section ancestor exists, find or create the `sections`
+     container via `ensureContainer` (§5.4) and append the section.
+   - **Front cohort** (`abstract`, `foreword`, `introduction`,
+     `acknowledgements`): find or create the `preface` container via
+     `ensureContainer` and append the section.
+   - **Back cohort** (`references`): find or create the `bibliography`
+     container via `ensureContainer` and append the section.
+4. **Set the selection** inside the new section's `section_title`
+   (`TextSelection.near` at `insertPos + 2`, entering the section then the
+   heading).
+5. **Dispatch** the single transaction with `scrollIntoView` set (§1.7.3).
+
+### 5.4 `ensureContainer(tr, containerName)`
+
+The single source of truth for doc-level container creation. Mutates `tr` in
+place.
+
+```ts
+/**
+ * Ensure that the doc has a direct child named `containerName`, creating it at
+ * the schema-mandated position if absent. Returns the container's position info.
+ *
+ * Position computation uses DOC_CHILD_ORDER (schema §8.0a): the new container
+ * is inserted immediately after the last existing doc-child that precedes
+ * `containerName` in the ordering.
+ *
+ * @returns The container's position, contentStart, and contentEnd in the
+ *          (possibly modified) doc.
+ * @throws if `containerName` is not a known node type.
+ */
+export function ensureContainer(
+  tr: Transaction,
+  containerName: string,
+): { pos: number; contentStart: number; contentEnd: number };
+```
+
+If the container already exists, its position is computed by scanning the doc's
+direct children. If it does not exist, an empty container node is created (with
+a generated `id`) and inserted at the position dictated by
+`DOC_CHILD_ORDER` — immediately after the last existing doc-child that precedes
+`containerName` in the ordering. This guarantees the `doc.content` ordering
+constraint `(bibdata preface? sections? bibliography? footnotes?)` is honoured.
+
+### 5.5 `nearestBodySectionAncestor($pos)`
+
+```ts
+import type { ResolvedPos, Node } from "prosemirror-model";
+
+/**
+ * Resolve the nearest ancestor of `$pos` that belongs to the `section_body`
+ * cohort group. Used by `insertSection` to find a body-section sibling anchor.
+ */
+export function nearestBodySectionAncestor(
+  $pos: ResolvedPos,
+): { readonly node: Node; readonly depth: number } | null;
+```
+
+Walks `$pos.depth → 1` via `$pos.node(d)`, returning the first ancestor whose
+type is in group `"section_body"`. `$pos.node(0)` (the doc) is never a section
+and is skipped.
+
+### 5.6 Relationship to `wrapInClause`
+
+`insertSection` and `wrapInClause`
+([AdvancedMetanormaToolbar/sections.md](./AdvancedMetanormaToolbar/sections.md)
+§5.2) are complementary section-creation commands:
+
+- `wrapInClause` wraps the selection's block(s) in a new `clause`, moving the
+  existing content inside the clause. It is the "promote this paragraph into a
+  subsection" action.
+- `insertSection` creates a new section *in place* (splitting the current
+  block), routed to the correct container by cohort. It is the "add a new
+  section here" action invoked by the Section popover.
+
+Both produce a `section_title` + `paragraph` body and land the cursor in the
+`section_title`. Both use `ensureContainer` for the doc-top-level fallback
+(creating a `sections` container if none exists).
+
+### 5.7 Public API
+
+The package's `index.ts` exports:
+
+- `insertSection` — the command specified in §5.2.
+- `nearestBodySectionAncestor` — the helper specified in §5.5.
+
+The `ensureContainer` helper (§5.4) is an internal function used by
+`insertSection` and `wrapInClause`; it is not part of the documented public API.
+
+The section-nesting commands `wrapInClause`, `promoteClause`, `demoteClause`,
+and the ancestor helpers `nearestSectionAncestor`, `findNearestSectionOfType`,
+`canWrapInClause`, `parentAccepts` are also exported; they are specified in
+[AdvancedMetanormaToolbar/sections.md](./AdvancedMetanormaToolbar/sections.md)
+§5. `insertLeadingParagraph` (a convenience for adding an intro paragraph
+before nested subclauses) is likewise exported and specified there.

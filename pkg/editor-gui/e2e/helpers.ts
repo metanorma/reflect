@@ -44,7 +44,7 @@ export function toolbar(page: Page): Locator {
 }
 
 /**
- * A toolbar button by its visible label (e.g. "Bold", "Clause", "Table").
+ * A toolbar button by its visible label (e.g. "Bold", "Section", "Table").
  *
  * Uses exact name matching so that always-rendered (but hidden) popover
  * controls whose accessible names happen to contain a button label (e.g.

@@ -36,6 +36,12 @@ export { metanormaNodes } from './nodes.js';
 export { metanormaMarks } from './marks.js';
 export { CLASS } from './classes.js';
 export type { ClassName } from './classes.js';
+export {
+  SECTION_COHORT, COHORT_CONTAINER, DOC_CHILD_ORDER,
+  FRONT_TYPES, BODY_TYPES, BACK_TYPES,
+  sameCohort,
+} from './cohorts.js';
+export type { SectionCohort } from './cohorts.js';
 
 // ---------------------------------------------------------------------------
 // Convenience lookups — in §3 group order.
@@ -48,10 +54,11 @@ export type { ClassName } from './classes.js';
 export const NODE_NAMES: readonly string[] = [
   // STRUCTURAL_TYPES (5)
   'doc', 'bibdata', 'preface', 'sections', 'bibliography',
-  // SECTION_TYPES (9)
-  'clause', 'annex', 'content_section', 'abstract', 'foreword',
-  'introduction', 'acknowledgements', 'terms', 'definitions',
-  // REFERENCES_TYPES (1)
+  // SECTION_FRONT_TYPES (4)
+  'abstract', 'foreword', 'introduction', 'acknowledgements',
+  // SECTION_BODY_TYPES (5)
+  'clause', 'annex', 'content_section', 'terms', 'definitions',
+  // SECTION_BACK_TYPES (1)
   'references',
   // BIBITEM_TYPES (1)
   'bibitem',

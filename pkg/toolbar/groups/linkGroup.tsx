@@ -41,7 +41,7 @@ interface LinkButtonProps {
  *
  * When opening the popover, `{ state, dispatch }` are captured synchronously
  * at click time (stale-view guard). The submit handler dispatches against the
- * captured state — same pattern as `TargetButton` and `ClauseSplitButton`.
+ * captured state — same pattern as `TargetButton` and `SectionPopover`.
  */
 function LinkButton({ onLinkPrompt }: LinkButtonProps): React.JSX.Element {
   const linkMark = requireMark("link");

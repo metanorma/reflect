@@ -18,8 +18,9 @@ test.describe('section title', () => {
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('body text');
 
-    // Click Clause — should wrap in a nested clause with a section_title.
-    await toolbarButton(page, 'Clause').click();
+    // Insert a nested clause via the Section popover → "Clause".
+    await toolbarButton(page, 'Section').click();
+    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
 
     // The cursor should now be in the section_title. Type the heading.
     await page.keyboard.type('My Heading');
@@ -37,8 +38,9 @@ test.describe('section title', () => {
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('content');
 
-    // Insert a clause — cursor lands in section_title.
-    await toolbarButton(page, 'Clause').click();
+    // Insert a clause via the Section popover — cursor lands in section_title.
+    await toolbarButton(page, 'Section').click();
+    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
 
     // Type heading text.
     await page.keyboard.type('Heading');
@@ -86,8 +88,9 @@ test.describe('section title', () => {
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('body');
 
-    // Insert a clause — cursor lands in section_title.
-    await toolbarButton(page, 'Clause').click();
+    // Insert a clause via the Section popover — cursor lands in section_title.
+    await toolbarButton(page, 'Section').click();
+    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
 
     // Type a heading.
     await page.keyboard.type('Title');

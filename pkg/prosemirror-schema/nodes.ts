@@ -9,7 +9,10 @@ import type {
   Node, NodeSpec, TagParseRule, DOMOutputSpec,
 } from 'prosemirror-model';
 
-import { BLOCK_GROUP, INLINE_GROUP, SECTION_GROUP } from './groups.js';
+import {
+  BLOCK_GROUP, INLINE_GROUP,
+  SECTION_FRONT_GROUP, SECTION_BODY_GROUP, SECTION_BACK_GROUP,
+} from './groups.js';
 import { baseAttrs, sectionAttrs, DATA_ATTR } from './attrs.js';
 import { CLASS } from './classes.js';
 
@@ -71,13 +74,13 @@ const structuralNodes: Record<string, NodeSpec> = {
       // by HTML ingestion.
     },
     preface: {
-      content: `(section | ${BLOCK_GROUP})*`,
+      content: `(section_front | ${BLOCK_GROUP})*`,
       attrs: baseAttrs(),
       toDOM: () => ['section', { class: CLASS.preface }, 0],
       parseDOM: [{ tag: `section.${CLASS.preface}` }],
     },
     sections: {
-      content: `(section | ${BLOCK_GROUP})*`,
+      content: `(section_body | ${BLOCK_GROUP})*`,
       attrs: baseAttrs(),
       toDOM: () => ['section', { class: CLASS.sections }, 0],
       parseDOM: [{ tag: `section.${CLASS.sections}` }],
@@ -91,7 +94,7 @@ const structuralNodes: Record<string, NodeSpec> = {
 };
 
 // ---------------------------------------------------------------------------
-// 2. Section nodes (§8.2) — group: "section"
+// 2. Section nodes (§8.2) — cohort groups: section_front / section_body / section_back
 // ---------------------------------------------------------------------------
 
 /**
@@ -114,69 +117,70 @@ const sectionTitleNode: Record<string, NodeSpec> = {
 const sectionNodes: Record<string, NodeSpec> = {
     clause: {
       content: `section_title? (clause | ${BLOCK_GROUP})*`,
-      group: SECTION_GROUP,
+      group: SECTION_BODY_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.clause),
       parseDOM: sectionParseRule(CLASS.clause),
     },
     annex: {
       content: `section_title? (annex | clause | ${BLOCK_GROUP})*`,
-      group: SECTION_GROUP,
+      group: SECTION_BODY_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.annex),
       parseDOM: sectionParseRule(CLASS.annex),
     },
     content_section: {
-      content: `section_title? (section | ${BLOCK_GROUP})*`,
-      group: SECTION_GROUP,
+      content: `section_title? (section_body | ${BLOCK_GROUP})*`,
+      group: SECTION_BODY_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.contentSection),
       parseDOM: sectionParseRule(CLASS.contentSection),
     },
     abstract: {
       content: `section_title? ${BLOCK_GROUP}+`,
-      group: SECTION_GROUP,
+      group: SECTION_FRONT_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.abstract),
       parseDOM: sectionParseRule(CLASS.abstract),
     },
     foreword: {
       content: `section_title? ${BLOCK_GROUP}+`,
-      group: SECTION_GROUP,
+      group: SECTION_FRONT_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.foreword),
       parseDOM: sectionParseRule(CLASS.foreword),
     },
     introduction: {
       content: `section_title? ${BLOCK_GROUP}+`,
-      group: SECTION_GROUP,
+      group: SECTION_FRONT_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.introduction),
       parseDOM: sectionParseRule(CLASS.introduction),
     },
     acknowledgements: {
       content: `section_title? ${BLOCK_GROUP}+`,
-      group: SECTION_GROUP,
+      group: SECTION_FRONT_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.acknowledgements),
       parseDOM: sectionParseRule(CLASS.acknowledgements),
     },
     terms: {
       content: `section_title? (clause | ${BLOCK_GROUP})*`,
-      group: SECTION_GROUP,
+      group: SECTION_BODY_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.terms),
       parseDOM: sectionParseRule(CLASS.terms),
     },
     definitions: {
       content: `section_title? (clause | ${BLOCK_GROUP})*`,
-      group: SECTION_GROUP,
+      group: SECTION_BODY_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.definitions),
       parseDOM: sectionParseRule(CLASS.definitions),
     },
     references: {
       content: `section_title? (bibitem | ${BLOCK_GROUP})*`,
+      group: SECTION_BACK_GROUP,
       attrs: sectionAttrs(),
       toDOM: sectionToDOM(CLASS.references),
       parseDOM: sectionParseRule(CLASS.references),

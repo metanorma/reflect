@@ -15,7 +15,7 @@ test.describe('smoke', () => {
 
   test('toolbar buttons for core groups are present', async ({ page }) => {
     await openEditor(page);
-    for (const label of ['Bold', 'Clause', 'Table', 'Image', 'Footnote', 'Undo', 'Redo']) {
+    for (const label of ['Bold', 'Section', 'Table', 'Image', 'Footnote', 'Undo', 'Redo']) {
       await expect(toolbarButton(page, label)).toBeVisible();
     }
   });

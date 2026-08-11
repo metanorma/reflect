@@ -27,52 +27,65 @@ prefix (`mn-toolbar`), and TypeScript constraints defined in
 
 All node references below are from `schema.spec.md` §8.2 (Section nodes —
 implementation `pkg/prosemirror-schema/nodes.ts`). The group constants
-(`BLOCK_GROUP = "block"`, `SECTION_GROUP = "section"`) are from
-`schema.spec.md` §4 (implementation `pkg/prosemirror-schema/groups.ts`).
+(`BLOCK_GROUP = "block"`, `SECTION_FRONT_GROUP = "section_front"`,
+`SECTION_BODY_GROUP = "section_body"`, `SECTION_BACK_GROUP = "section_back"`)
+are from `schema.spec.md` §4 (implementation `pkg/prosemirror-schema/groups.ts`).
+The cohort metadata that maps each section type to its cohort is from
+`schema.spec.md` §8.0a (implementation `pkg/prosemirror-schema/cohorts.ts`).
 
 ### 2.1 Structural containers
 
-The document skeleton is built from four non-section container nodes:
+The document skeleton is built from five non-section container/structural nodes:
 
 | Node | Content expression | attrs | toDOM |
 |---|---|---|---|
-| `doc` | `(preface? sections? bibliography? footnotes?)` | `data` | `<div class="mn-doc">` |
-| `preface` | `(section \| block)*` | `baseAttrs` (id, number, data) | `<section class="mn-preface">` |
-| `sections` | `(section \| block)*` | `baseAttrs` | `<section class="mn-sections">` |
-| `bibliography` | `(section \| block)*` | `baseAttrs` | `<section class="mn-bibliography">` |
+| `doc` | `(bibdata preface? sections? bibliography? footnotes?)` | `data` | `<div class="mn-doc">` |
+| `bibdata` | *(empty atom)* | `item` | `<div class="mn-bibdata">` |
+| `preface` | `(section_front \| block)*` | `baseAttrs` (id, number, data) | `<section class="mn-preface">` |
+| `sections` | `(section_body \| block)*` | `baseAttrs` | `<section class="mn-sections">` |
+| `bibliography` | `references+` | `baseAttrs` | `<section class="mn-bibliography">` |
+
+**Cohort boundaries are enforced at the schema level.** Each container admits
+only its own cohort's section types (`preface` → `section_front`, `sections` →
+`section_body`, `bibliography` → `section_back`). The toolbar and commands need
+not re-check these constraints — ProseMirror's content validation rejects any
+violation. The cohort metadata (`SECTION_COHORT`, `COHORT_CONTAINER`,
+`DOC_CHILD_ORDER` — schema §8.0a) drives command-level routing.
 
 **doc ordering constraint.** `doc.content` is strictly ordered:
-`(preface? sections? bibliography? footnotes?)`. A section node may **never**
-be a direct child of `doc`; it can only appear inside `preface`, `sections`,
-or `bibliography`, and those three containers must appear in that fixed
-order. Top-level placement of a new clause is therefore always "insert as a
-child of `sections` (or `preface` / `bibliography`)", never "insert as a
-child of `doc`".
+`(bibdata preface? sections? bibliography? footnotes?)`. A section node may
+**never** be a direct child of `doc`; it can only appear inside `preface`,
+`sections`, or `bibliography`, and those three containers must appear in that
+fixed order. The `ensureContainer` helper
+([EditorCommands.spec.md](./../EditorCommands.spec.md) §5.4) computes the
+correct insertion position from `DOC_CHILD_ORDER` when a container must be
+created.
 
-### 2.2 Section nodes — group `"section"`
+### 2.2 Section nodes — cohort groups
 
-All ten section nodes carry `group: SECTION_GROUP` and
-`attrs: sectionAttrs()` = `{ id, number, data }`
-(`id` and `number` default `null`, `data` defaults to `{}`).
+All ten section nodes carry `attrs: sectionAttrs()` = `{ id, number, data }`
+(`id` and `number` default `null`, `data` defaults to `{}`). Each is assigned to
+exactly one cohort group (schema §8.2):
 
-| Section node | Content expression | Can nest section children? |
-|---|---|---|
-| `clause` | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
-| `annex` | `section_title? (annex \| clause \| block)*` | ✅ yes (`annex`, `clause`) |
-| `content_section` | `section_title? (section \| block)*` | ✅ yes (any `section`) |
-| `terms` | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
-| `definitions` | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
-| `references` | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
-| `abstract` | `section_title? block+` | ❌ leaf only |
-| `foreword` | `section_title? block+` | ❌ leaf only |
-| `introduction` | `section_title? block+` | ❌ leaf only |
-| `acknowledgements` | `section_title? block+` | ❌ leaf only |
+| Section node | Cohort | Content expression | Can nest section children? |
+|---|---|---|---|
+| `clause` | body (`section_body`) | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
+| `annex` | body (`section_body`) | `section_title? (annex \| clause \| block)*` | ✅ yes (`annex`, `clause`) |
+| `content_section` | body (`section_body`) | `section_title? (section_body \| block)*` | ✅ yes (any `section_body`) |
+| `terms` | body (`section_body`) | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
+| `definitions` | body (`section_body`) | `section_title? (clause \| block)*` | ✅ yes (`clause`) |
+| `references` | back (`section_back`) | `section_title? (bibitem \| block)*` | ❌ entries only |
+| `abstract` | front (`section_front`) | `section_title? block+` | ❌ leaf only |
+| `foreword` | front (`section_front`) | `section_title? block+` | ❌ leaf only |
+| `introduction` | front (`section_front`) | `section_title? block+` | ❌ leaf only |
+| `acknowledgements` | front (`section_front`) | `section_title? block+` | ❌ leaf only |
 
-**Key distinction.** Six section types (`clause`, `annex`,
-`content_section`, `terms`, `definitions`, `references`) may contain nested
-section nodes per their content expression. Four (`abstract`, `foreword`,
+**Key distinction.** Five body section types (`clause`, `annex`,
+`content_section`, `terms`, `definitions`) may contain nested body sections per
+their content expression. Four front-matter types (`abstract`, `foreword`,
 `introduction`, `acknowledgements`) are **leaf sections** (`block+`): they hold
-block content but no child sections. Any "insert clause" / "demote" operation
+block content but no child sections. `references` (back) holds `bibitem` entries
+and blocks but no nested sections. Any "insert section" / "demote" operation
 must be disabled when the insertion or demotion target is a leaf section or a
 `block`-only context.
 
@@ -90,13 +103,13 @@ an alternative to a `section_title` (which is the heading *of* a numbered
 section node that participates in nesting and cross-referencing) but a
 free-standing, unnumbered heading block.
 
-**Consequence for this toolbar:** the "Insert clause" split menu (§4.2) lists
-only the ten `section`-group node types; it does **not** offer
-`floating_title`, and the structural commands never produce one. Inserting a
-`floating_title` is a *block-element* operation (it is in the `block` group,
-like `paragraph`/`note`/`example`), not a structural-section operation. It is
-**deferred to a future "block elements" toolbar group**; the sections feature
-does not insert it.
+**Consequence for this toolbar:** the Section popover (§4.2) lists only the
+ten section node types; it does **not** offer `floating_title`, and the
+structural commands never produce one. Inserting a `floating_title` is a
+*block-element* operation (it is in the `block` group, like `paragraph`/
+`note`/`example`), not a structural-section operation. It is **deferred to a
+future "block elements" toolbar group**; the sections feature does not insert
+it.
 
 ### 2.3 Attributes
 
@@ -149,76 +162,60 @@ export type ToolbarGroup =
 
 ### 4.1 Chosen button set and rationale
 
-The minimal set is **Insert clause**. The structural operations that follow
-naturally from the nesting model are **Promote** (decrease nesting depth) and
-**Demote** (increase nesting depth), plus **Change section type** (convert
-between section node types where the content model permits). The proposed set:
+The minimal set is a **Section insertion control** (a popover listing all ten
+section types). The structural operations that follow naturally from the
+nesting model are **Promote** (decrease nesting depth) and **Demote** (increase
+nesting depth). The set:
 
 | # | Button | Label | Purpose |
 |---|---|---|---|
-| 1 | Insert clause | `Clause` | Wrap the selected block(s) in a new `clause` node containing a leading `section_title` heading and a child `paragraph`; place the cursor in the `section_title` so the user can type the heading immediately. The primary structural "add a subsection here" action. |
+| 1 | Section (popover) | `Section` | Opens a popover listing all ten section types grouped by cohort (Front matter / Body / Back matter). Selecting a type calls the pure `insertSection` command, which routes the new section to the correct container, creating it if needed. The new section gets an empty `section_title` heading and a `paragraph` body; the cursor lands in the `section_title`. |
 | 2 | Promote clause | `Promote` | Lift the nearest enclosing clause out one nesting level (move it to be a sibling of its parent clause). Disabled at the top structural level. |
 | 3 | Demote clause | `Demote` | Nest the nearest enclosing clause as the last child of its preceding sibling clause (one level deeper). Disabled when no legal deeper target exists. |
-| 4 | Change section type | `Type` | Convert the nearest enclosing section node into another section type whose content expression is satisfied by the node's current children (e.g. `clause` → `terms`). Disabled for leaf-only or unsatisfiable conversions. |
 
-**Why this set, and not more.** "Insert clause" is the single most-requested
-structural action and the baseline deliverable (it is the only one the base
-spec explicitly named). Promote / demote are the natural complements — they are
-the only operations that change nesting *depth* without changing node identity,
-and they round-trip each other. "Change section type" covers the remaining
-structural transformation (identity change at a fixed location) and lets the
-user migrate a `clause` into a `terms` / `references` block without retyping
-content. The ten raw section types are **not** each given a dedicated insert
-button — that would balloon the toolbar; instead type conversion is centralised
-in button 4 ("Change section type"). Wrap/unwrap of arbitrary section
-types beyond `clause` is deliberately left to "Change section type" + "Insert
-clause" composition.
+**Why this set, and not more.** Section insertion is the single most-requested
+structural action. The Section popover unifies all ten types into one control
+(grouped by cohort so the user sees front matter / body / back matter at a
+glance), rather than dedicating a button per type. Promote / demote are the
+natural complements — they are the only operations that change nesting *depth*
+without changing node identity, and they round-trip each other. The cohort
+routing (`insertSection` calls `ensureContainer` to create the right container)
+means the user never has to manually create a `preface` or `bibliography`
+container before inserting a front/back section — the command does it.
 
-### 4.2 Button: Insert clause (+ section-type split menu)
+### 4.2 Button: Section (popover)
 
-The **Insert clause** control is a **split button**: the primary click inserts
-the most common type, `clause`, in one action; a dropdown caret opens a menu of
-**all ten section types** for direct insertion of any other type.
+The **Section** control is a trigger button that opens a `popover="manual"`
+popover (the HTML Popover API, same pattern as the other toolbar pickers).
+The popover lists **all ten section types** in three cohort groups. Each type
+is a button; clicking it inserts a section of that type via the pure
+`insertSection` command and closes the popover.
 
-**Primary action (`clause`):**
+**Trigger button:**
 
 | Field | Value |
 |---|---|
-| `key` | `"sections-insert-clause"` |
-| `label` | `Clause` |
-| `title` | `"Insert clause (wrap selection in a new clause)"` |
-| `isActive` | `false` — insertion is not a toggle. (See note below.) |
-| `isEnabled` | `canWrapInClause(state)` (§5.1): the resolved selection's ancestor chain contains a container that permits a `clause` child (or the doc-top-level fallback applies). |
-| `run` | Toolbar adapter calls `wrapInClause(view.state, view.dispatch)` (§5.2), then `view.focus()`. The clause is created synchronously with an empty `section_title` child and a `paragraph` body; the cursor lands in the `section_title` so the user types the heading inline. No prompt dialog, no async capture. |
+| `label` | `Section` |
+| `title` | `"Insert a section"` |
+| `isEnabled` | Always enabled — there is always a valid insertion target (`insertSection` creates the container if missing). |
+| `run` | Opens the popover (`popoverRef.showPopover()`). Selecting a type calls `insertSection(view.state, typeName, view.dispatch)` then `view.focus()`. |
 
-**Dropdown menu (other section types):**
+**Popover content.** The menu groups the ten section types by cohort, in
+document-appearance order:
 
-The dropdown caret opens a menu (`role="listbox"`, class
-`.mn-toolbar-section-menu`) listing **all ten section types** in a fixed order.
-The list contents never change — every type is always shown, so the menu is
-spatially predictable. Each entry is independently enabled or disabled based on
-legality at the current cursor position:
+| Group | Heading | Types |
+|---|---|---|
+| Front matter | "Front matter" | `abstract`, `foreword`, `introduction`, `acknowledgements` |
+| Body | "Body" | `clause`, `annex`, `content_section`, `terms`, `definitions` |
+| Back matter | "Back matter" | `references` |
 
-- An entry is **enabled** when `parentAccepts(parent, type, index)` (§5.1) is
-  true for that section type — i.e. the current parent (or the auto-created
-  `sections` container, §5.1 doc-top-level fallback) can legally receive a
-  child of that type. The entry's `run` inserts a node of that type (same shape
-  as `wrapInClause`, parameterised by the chosen `NodeType`).
-- An entry is **disabled** (`disabled`, `aria-disabled="true"`) when that type
-  is not legal at the current position — greyed out but visible.
+The type lists come from the schema's `FRONT_TYPES`, `BODY_TYPES`, and
+`BACK_TYPES` constants (schema §8.0a), so the popover always reflects the
+authoritative cohort membership. Each type has a human-readable label
+("Abstract", "Foreword", "Clause", "References", etc.).
 
-`isActive` is `false` because insertion is a one-shot command, not a state
-toggle. (Conceivably one could mark it active when the immediate parent is
-already a `clause` to hint "you are inside a clause", but that conflates
-location with toggle state; the dedicated Promote/Demote/Change-type buttons
-convey context instead.)
-
-**Relationship to "Change section type" (§4.5).** The split-menu dropdown
-*inserts a new* section node of the chosen type (in place, splitting the
-current block). "Change section type" *converts the enclosing* section node
-to the chosen type, preserving its children. They are complementary: insert
-when you need a new section, convert when the section exists but has the
-wrong type.
+**`isActive`.** The trigger button is not a toggle — `isActive` is always
+`false`.
 
 ### 4.3 Button: Promote clause
 
@@ -228,7 +225,7 @@ wrong type.
 | `label` | `Promote` |
 | `title` | `"Promote clause (move out one level)"` |
 | `isActive` | `false` |
-| `isEnabled` | The nearest enclosing section node is a `clause` **and** its parent is itself a section node (or a container that can legally receive the clause as a child at the post-lift position). Disabled when the clause is already a top-level child of `sections`/`preface`/`bibliography` (nothing to lift into without violating the doc ordering). |
+| `isEnabled` | `promoteClause(state) === true` — mirrors the command's applicability: the nearest enclosing clause's parent is itself a body section (`section_body` group), so the clause can be lifted out one level. Disabled when the clause is already a top-level child of `sections` (or `preface`/`bibliography`), or no enclosing clause at all. |
 | `run` | Toolbar adapter calls `promoteClause(view.state, view.dispatch)` (§5.3), then `view.focus()`. |
 
 ### 4.4 Button: Demote clause
@@ -239,19 +236,8 @@ wrong type.
 | `label` | `Demote` |
 | `title` | `"Demote clause (nest one level deeper)"` |
 | `isActive` | `false` |
-| `isEnabled` | The nearest enclosing clause has a preceding sibling that is a clause (or `annex`/`terms`/`definitions`/`references`/`content_section` that can legally contain a `clause`), so it can be reparented as that sibling's last child. Disabled at the top of a container with no preceding-section sibling, or when the only candidate parent is a leaf section. |
+| `isEnabled` | `demoteClause(state) === true` — mirrors the command's applicability: the nearest enclosing clause has a preceding sibling in the `section_body` group that can legally contain a clause, so it can be reparented as that sibling's last child. Disabled at the top of a container with no preceding-section sibling, or when the only candidate parent is a leaf section. |
 | `run` | Toolbar adapter calls `demoteClause(view.state, view.dispatch)` (§5.3), then `view.focus()`. |
-
-### 4.5 Button: Change section type
-
-| Field | Value |
-|---|---|
-| `key` | `"sections-set-type"` |
-| `label` | `Type` |
-| `title` | `"Change section type…"` |
-| `isActive` | `true` when the nearest enclosing section node's type matches the most recently chosen target — used only to reflect the current type once a sub-menu selection has been made. In the common (no sub-menu) rendering, `false`. |
-| `isEnabled` | There exists at least one *other* section node type such that `targetType.validContent(currentNode.content)` and the current parent permits `targetType` (same group `section`, so the parent's content expression is unaffected). Disabled inside `block`-only contexts and when no legal target exists. |
-| `run` | Toolbar adapter calls `setSectionType(view.state, view.dispatch, targetType)` (§5.4), then `view.focus()`. Target is chosen via a sub-menu / `<select>` of legal types (§7 interaction). |
 
 ## 5. Commands
 
@@ -316,8 +302,8 @@ export function canWrapInClause(state: EditorState): boolean;
    at a position where a clause is not legal). Leaf sections (`abstract` etc.)
    have `content: "block+"`, so `matchType(clause)` is `null` there → disabled.
 
-A more general form, used by Promote/Demote/Set-type, resolves the match at a
-specific parent + index:
+A more general form, used by Promote/Demote, resolves the match at a specific
+parent + index:
 
 ```typescript
 /**
@@ -335,12 +321,10 @@ export function parentAccepts(
 
 **Why `contentMatch` / `validContent` and not an allow-list.** The content
 model already encodes "(clause | block)*" vs "block+". Re-deriving legality
-from the schema keeps the toolbar correct if the schema's content
-expressions change, and avoids drift between the allow-list and the source of
-truth. `NodeType.validContent(content)` answers "could this node legally hold
-this exact fragment?" — ideal for Promote/Demote (which move real subtrees)
-and for Set-type (which re-validates a node's existing children against a new
-type).
+from the schema keeps the toolbar correct if the schema's content expressions
+change, and avoids drift between the allow-list and the source of truth.
+`NodeType.validContent(content)` answers "could this node legally hold this
+exact fragment?" — ideal for Promote/Demote (which move real subtrees).
 
 ### 5.2 `wrapInClause`
 
@@ -381,14 +365,12 @@ child after insertion, not passed as a parameter.
    `id` is **generated at insertion time** via the shared `generateId()` helper
    from `@metanorma/editor-commands` (`util.ts`).
 4. **Doc-top-level fallback.** If the block range's parent is the `doc` (i.e.
-   no section-bearing ancestor exists) and no `sections` container is present
-   in the document, first insert a `sections` node at the schema-mandated
-   position (immediately after `preface` if present, otherwise at the start of
-   `doc`; before any `bibliography`/`footnotes`). If a `sections` container
-   already exists, target it as the insertion parent. Re-resolve the block
-   range inside the (possibly newly created) `sections` container. The
-   container creation, the wrap, and the selection move are all part of the
-   same transaction.
+   no section-bearing ancestor exists), call the shared `ensureContainer`
+   helper ([EditorCommands.spec.md](./../EditorCommands.spec.md) §5.4) to find
+   or create the `sections` container at the schema-mandated position (computed
+   from `DOC_CHILD_ORDER`). Re-resolve the block range inside the (possibly
+   newly created) `sections` container. The container creation, the wrap, and
+   the selection move are all part of the same transaction.
 5. Wrap the range with the clause using `tr.wrap(range, [{ type: clause, attrs }])`,
    **or**, when wrapping a collapsed cursor, insert the clause + children via
    `tr.replaceSelectionWith` / a manual `ReplaceAroundStep` that preserves the
@@ -438,23 +420,26 @@ export function demoteClause(state: EditorState, dispatch?: (tr: Transaction) =>
    return `false`.
 2. Determine its parent. If the parent is `doc` directly — impossible by schema
    (clause is never a doc child), but guard anyway. If the parent is a
-   top-level container (`sections`/`preface`/`bibliography`), the clause is
-   already at the top nesting level → return `false` (disabled in the UI).
-3. Otherwise the parent is itself a section node. Compute the `NodeRange`
-   spanning the clause and call ProseMirror's `lift` (`prosemirror-commands`
-   `lift`, or `tr.lift(range, targetDepth)`). Validate that the lift target
-   (the grandparent) can legally receive the clause as a child at that position
-   via `parentAccepts`; ProseMirror's `lift` already enforces the content
-   model, but the explicit check keeps the `isEnabled` predicate honest.
+   top-level container (`sections`/`preface`/`bibliography`) or not in the
+   `section_body` group, the clause is already at the top nesting level (or
+   outside body-section nesting) → return `false` (disabled in the UI).
+3. Otherwise the parent is itself a body-section node (`section_body` group).
+   Compute the `NodeRange` spanning the clause at the parent's depth and call
+   ProseMirror's `lift` (`prosemirror-commands` `lift`, or
+   `tr.lift(range, targetDepth)`). Validate that the lift target (the
+   grandparent) can legally receive the clause as a child at that position via
+   `parentAccepts`; ProseMirror's `lift` already enforces the content model,
+   but the explicit check keeps the `isEnabled` predicate honest.
 4. `dispatch(tr.scrollIntoView())`; return `true`.
 
 **`demoteClause` algorithm:**
 
 1. Find the nearest enclosing clause (§5.5). If none, return `false`.
-2. Find its **preceding sibling** that is a section node which can legally
-   contain a `clause` (`clause`, `annex`, `terms`, `definitions`,
-   `references`, or `content_section`). Use `parentAccepts(sibling, clause,
-   lastChildIndex)`. If no such sibling, return `false` (disabled).
+2. Find its **preceding sibling** that is a body-section node
+   (`section_body` group) which can legally contain a `clause` (`clause`,
+   `annex`, `content_section`, `terms`, or `definitions`). Use
+   `parentAccepts(sibling, clause, lastChildIndex)`. If no such sibling,
+   return `false` (disabled).
 3. Move the clause to become the last child of that sibling. Implement as a
    `ReplaceStep`/`ReplaceAroundStep` pair: delete the clause from its current
    position, insert it at the end of the sibling's content. Re-validate with
@@ -477,56 +462,34 @@ no longer applies at the new level. See §7 for why numbering is a presentation
 concern handled by the Metanorma pipeline, not the editor.
 
 **Undo granularity.** Every section command (`wrapInClause`, `promoteClause`,
-`demoteClause`, `setSectionType`) is a **single transaction**: one command =
-one transaction = **one undo step**. A promote or demote moves the clause
-(with its entire subtree) as one node replacement, so the user presses Undo
-once to revert. No `addToHistory` meta is needed today. If a future
-enhancement ever splits a structural change across multiple transactions, it
-must coalesce them via `tr.setMeta("addToHistory", false)` on all
-intermediate steps so the one-undo-per-action invariant is preserved.
+`demoteClause`) is a **single transaction**: one command = one transaction =
+**one undo step**. A promote or demote moves the clause (with its entire
+subtree) as one node replacement, so the user presses Undo once to revert. No
+`addToHistory` meta is needed today. If a future enhancement ever splits a
+structural change across multiple transactions, it must coalesce them via
+`tr.setMeta("addToHistory", false)` on all intermediate steps so the
+one-undo-per-action invariant is preserved.
 
-### 5.4 `setSectionType`
+### 5.4 Section insertion (`insertSection`)
 
-```typescript
-/**
- * Convert the nearest enclosing section node into `targetType`, preserving
- * its `id`, `data`, and (optionally) `number`, and keeping its
- * children iff `targetType.validContent(current.content)`. If the children
- * are not legal under `targetType` (e.g. converting a `clause` with nested
- * clauses into an `abstract`, which is block+-only), return false (disabled).
- */
-export function setSectionType(
-  state: EditorState,
-  targetType: NodeType,
-  dispatch?: (tr: Transaction) => void,
-): boolean;
-```
-
-**Algorithm:**
-
-1. Find nearest enclosing section node (any of the ten; §5.5 with a predicate
-   matching the `section` group). If none or it is already `targetType`,
-   return `false`.
-2. `if (!targetType.validContent(current.content)) return false;`
-3. `const replacement = targetType.createChecked({ ...current.attrs }, current.content);`
-   (`createChecked` re-validates; throws if invalid, so guard with `validContent`
-   first to stay in the `(state, dispatch?) => boolean` contract.)
-4. `tr.replaceRangeWith` / a `ReplaceStep` that swaps `current` for
-   `replacement` in the parent, preserving position. Re-select inside the new
-   node. `dispatch(tr.scrollIntoView())`; return `true`.
-
-Because every section node shares `group: "section"`, the parent's content
-expression is unaffected by the type change — only the node's own children must
-satisfy `targetType`. This is why `abstract`/`foreword`/`introduction`/
-`acknowledgements` are legal conversion *targets* only when the source's
-content is pure `block+` (no nested clauses).
+Section insertion is handled by the pure `insertSection` command, specified in
+[`EditorCommands.spec.md`](./../EditorCommands.spec.md) §5. It is re-exported
+through `@metanorma/editor-commands` and consumed by the toolbar's
+`SectionPopover` (§4.2). The command routes the new section to the correct
+container based on its cohort (body → sibling after nearest body section or
+append to `sections`; front/back → find-or-create container and append), using
+the shared `ensureContainer` helper
+([EditorCommands.spec.md](./../EditorCommands.spec.md) §5.4) and
+`nearestBodySectionAncestor` ([EditorCommands.spec.md](./../EditorCommands.spec.md)
+§5.5).
 
 ### 5.5 Ancestor-walking helpers
 
 ```typescript
 /**
- * Resolve the nearest ancestor of `$pos` whose type is in group "section".
- * Returns the node and its depth, or null at the doc root.
+ * Resolve the nearest ancestor of `$pos` that is a section node (any cohort:
+ * section_front, section_body, or section_back). Returns the node and its
+ * depth, or null at the doc root.
  */
 export function nearestSectionAncestor(
   $pos: ResolvedPos,
@@ -540,53 +503,60 @@ export function findNearestSectionOfType(
   $pos: ResolvedPos,
   type: NodeType,
 ): { readonly node: Node; readonly depth: number } | null;
+
+/**
+ * Resolve the nearest ancestor of `$pos` that belongs to the `section_body`
+ * cohort group. Used by `insertSection` to find a body-section sibling anchor.
+ */
+export function nearestBodySectionAncestor(
+  $pos: ResolvedPos,
+): { readonly node: Node; readonly depth: number } | null;
 ```
 
 These walk `$pos.depth → 1` via `$pos.node(d)`, returning the first match.
 `$pos.node(0)` (the doc) is never a section and is skipped.
+`nearestSectionAncestor` checks cohort-group membership
+(`section_front`/`section_body`/`section_back`), so it includes `references`
+(which is in `section_back`) alongside the body and front types.
+`nearestBodySectionAncestor` checks only `section_body` membership.
 
-**Location / visibility.** All four legality helpers (`canWrapInClause`,
-`parentAccepts`, `nearestSectionAncestor`, `findNearestSectionOfType`) are pure
-state-reading functions and live alongside the commands in
-`pkg/editor-commands/commands/sections.ts`. They are **internal helpers**:
-`canWrapInClause` is exposed because the toolbar's `isEnabled` selector calls it
-directly, but the others (`parentAccepts`, `nearestSectionAncestor`,
-`findNearestSectionOfType`) need not be part of the documented public API unless
-a consumer requires them — they may be unexported or exported as utilities. None
-of them take an `EditorView` or touch the DOM.
+**Location / visibility.** The legality helpers (`canWrapInClause`,
+`parentAccepts`, `nearestSectionAncestor`, `findNearestSectionOfType`,
+`nearestBodySectionAncestor`) are pure state-reading functions and live
+alongside the commands in `pkg/editor-commands/commands/sections.ts`. They are
+**internal helpers**: `canWrapInClause` is exposed because the toolbar's
+`isEnabled` selector calls it directly, but the others need not be part of the
+documented public API unless a consumer requires them — they may be unexported
+or exported as utilities. None of them take an `EditorView` or touch the DOM.
+
+`nearestBodySectionAncestor` and `insertSection` are documented in
+[`EditorCommands.spec.md`](./../EditorCommands.spec.md) §5.
 
 ## 6. Active / enabled detection (UI wiring)
 
 Each button's `isEnabled` is a pure `(state) => boolean` selector evaluated via
-`useEditorStateSelector`, exactly as in `MetanormaToolbar.spec.md` §7. The
-ancestors are walked from `state.selection.$from`:
+`useEditorStateSelector`, exactly as in `MetanormaToolbar.spec.md` §7.
+
+The Promote and Demote buttons query the command directly (`promoteClause(state)
+=== true` / `demoteClause(state) === true`), mirroring the command's
+applicability so that `isEnabled` stays exactly in sync. The Section popover
+trigger is always enabled — `insertSection` creates the container if missing,
+so there is always a valid insertion target.
 
 ```typescript
 import { useEditorStateSelector, useEditorEventCallback } from "@handlewithcare/react-prosemirror";
 
-// Insert clause enabled?
-const canInsert = useEditorStateSelector((state) => canWrapInClause(state));
+// Promote enabled?  Query the command's applicability.
+const canPromote = useEditorStateSelector((state) => promoteClause(state) === true);
 
-// Promote enabled?  nearest clause exists AND its parent is itself a section
-// (i.e. the clause is not already a top-level child of a container).
-const canPromote = useEditorStateSelector((state) => {
-  const { $from } = state.selection;
-  const clauseHit = findNearestSectionOfType($from, state.schema.nodes.clause);
-  if (!clauseHit) return false;
-  const parentDepth = clauseHit.depth - 1;
-  if (parentDepth < 1) return false;
-  const parent = $from.node(parentDepth);
-  // The parent must itself be a section node for a lift "out one level" to be
-  // meaningful; a top-level container (sections/preface/bibliography) means
-  // the clause is already at the top nesting level.
-  return nearestSectionAncestor($from).depth === parentDepth;
-});
+// Demote enabled?
+const canDemote = useEditorStateSelector((state) => demoteClause(state) === true);
 ```
 
-These predicates lean on the exported schema-driven helpers (`canWrapInClause`,
-`nearestSectionAncestor`, `findNearestSectionOfType`, `parentAccepts`) rather
-than inspecting `spec.group` strings or hand-maintained allow-lists, so they
-stay correct if the content expressions change.
+These predicates lean on the exported commands (`promoteClause`, `demoteClause`)
+which in turn use group-membership checks (`isInGroup("section_body")`) rather
+than hand-maintained allow-lists, so they stay correct if the content
+expressions change.
 
 Selectors return primitives (`boolean`) so only the button whose state changed
 re-renders, matching the base toolbar's performance contract.
@@ -595,22 +565,22 @@ re-renders, matching the base toolbar's performance contract.
 
 | Button | Disabled when |
 |---|---|
-| Insert clause | No ancestor permits a clause child (e.g. inside `abstract`/`foreword`/`introduction`/`acknowledgements`, or a `block`-only node). |
-| Promote | Nearest clause is already a top-level child of a container (`sections`/`preface`/`bibliography`); or no enclosing clause at all. |
-| Demote | No preceding sibling section that can legally hold a clause; or inside a leaf section. |
-| Change section type | No legal alternative type exists for the current section's content; or not inside any section. |
+| Section (popover) | Never — there is always a valid insertion target. |
+| Promote | Nearest clause is already a top-level child of `sections` (or not inside a `section_body` parent); or no enclosing clause at all. |
+| Demote | No preceding sibling in the `section_body` group that can legally hold a clause; or inside a leaf section. |
 
 ## 7. The section heading (`section_title` child node)
 
 The section heading is a `section_title` child textblock (schema §8.2 — the
 optional leading child of every section node's content expression).
-On **Insert clause**, the toolbar creates the clause synchronously
-with an empty `section_title` and a `paragraph` body, and the cursor lands in
-the `section_title`. The user types the heading directly into it — **no prompt
-dialog, no `window.prompt`, no async capture**. The heading supports full
-inline markup (emphasis, links, reference marks, etc.) because it is an ordinary
-`inline*` textblock. Pressing Enter inside the `section_title` exits to the body
-(via the `exitSectionTitle` command, `EditorCommands.spec.md` §2.7).
+On **Section insertion** (§4.2 popover or `wrapInClause`), the toolbar creates
+the section synchronously with an empty `section_title` and a `paragraph` body,
+and the cursor lands in the `section_title`. The user types the heading
+directly into it — **no prompt dialog, no `window.prompt`, no async capture**.
+The heading supports full inline markup (emphasis, links, reference marks,
+etc.) because it is an ordinary `inline*` textblock. Pressing Enter inside the
+`section_title` exits to the body (via the `exitSectionTitle` command,
+`EditorCommands.spec.md` §2.7).
 
 `id` and `number` are **never** user input: `id` is **generated at insertion
 time** via the shared `generateId()` helper (a `crypto.randomUUID()`-based
@@ -643,10 +613,10 @@ the IsoDoc `XrefGen` pass (the numbering computation), clause numbering will
 Language" spec that will eventually formalise this is still a draft, doc #112.)
 
 Accordingly, the editor does not implement auto-numbering: `number` is left
-`null` by every section command (insert, promote, demote, set-type). If a
-future editor feature needs to *display* a number, it should be a read-only
-decoration derived from a tree-walk over the live document, not a value
-persisted on the node — but that is a separate, deferred feature.
+`null` by every section command (insert, promote, demote). If a future editor
+feature needs to *display* a number, it should be a read-only decoration
+derived from a tree-walk over the live document, not a value persisted on the
+node — but that is a separate, deferred feature.
 
 **Alternative (not adopted):** leave `id` as `null` and let a downstream
 document pipeline assign ids. Rejected in favour of assigning at insertion
@@ -660,7 +630,18 @@ and `mn-toolbar-divider` classes. Feature-specific additions for this group:
 | Class | Purpose |
 |---|---|
 | `.mn-toolbar-btn--sections` | Optional modifier marking buttons belonging to the `sections` group (for targeted group-specific styling). |
-| `.mn-toolbar-section-menu` | The `<select>` or sub-menu (`role="listbox"`) listing section node types. Shared by the §4.2 insert split-button dropdown and the §4.5 "Change section type" menu. |
+| `.mn-section-popover` | The Section insertion popover (`popover="manual"`, `role="dialog"`). Contains cohort-grouped lists of section types. Self-contained: does NOT use the shared `.mn-toolbar-popover` class (so consumer vertical-toolbar overrides don't target it). |
+| `.mn-section-popover__group` | A cohort group within the popover (Front matter / Body / Back matter). |
+| `.mn-section-popover__heading` | The cohort group heading label. |
+| `.mn-section-popover__list` | The `<ul>` of section type buttons within a cohort group. |
+| `.mn-section-popover__item` | A section type `<button>` in the popover list. |
+
+The popover uses the HTML Popover API (`popover="manual"`) with CSS Anchor
+Positioning, same as the other toolbar pickers (`TableSizePicker`,
+`FootnotePicker`, `TargetPicker`). The trigger button gets
+`anchor-name: --mn-section-anchor`; the popover uses
+`position-anchor: --mn-section-anchor`. An `@supports not (anchor-name: --x)`
+block falls back to `position:absolute` relative to the trigger container.
 
 No new root or group-container classes are required beyond the base
 `.mn-toolbar-group`.
@@ -670,15 +651,12 @@ No new root or group-container classes are required beyond the base
 Feature-specific accessibility additions beyond the baseline (README §2.5 /
 `MetanormaToolbar.spec.md` §9):
 
-- **Insert clause (+ split menu)** — the dropdown caret has
-  `aria-haspopup="listbox"` / `aria-expanded`; the menu uses
-  `role="listbox"` with `role="option"` entries, keyboard-navigable via Arrow
-  keys, confirming with Enter and dismissing with Escape. Disabled entries
-  carry `aria-disabled="true"`.
-- **Change section type** — same listbox pattern as the insert split menu:
-  `aria-haspopup="listbox"` / `aria-expanded`; `role="listbox"` with
-  `role="option"` entries, keyboard-navigable via Arrow keys, confirming with
-  Enter and dismissing with Escape.
+- **Section popover** — the trigger button has `aria-haspopup="dialog"`; the
+  popover uses `role="dialog"` with `aria-label="Insert a section"`. Each
+  section type is a `<button>` (keyboard-focusable); selecting one inserts the
+  section and closes the popover. The popover is keyboard-navigable: the user
+  tabs through the type buttons, confirming with Enter (a click) and dismissing
+  with Escape (the popover API's light-dismiss or an explicit handler).
 - **Promote / Demote** — `aria-describedby` can point at a hidden live region
   announcing the current nesting depth (e.g. "Clause at level 2").
 

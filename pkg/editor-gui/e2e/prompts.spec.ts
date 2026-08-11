@@ -9,9 +9,9 @@
  * doc-anchored target picker popover instead (see popovers.spec.ts,
  * 'XrefPicker' / 'ConceptPicker'). Only the host-hook path
  * (`onXrefPrompt` / `onConceptPrompt`) would trigger a prompt, and the e2e
- * mount does not supply those hooks. The Clause button no longer uses a prompt
- * either — clause insertion is synchronous and the cursor lands in the
- * section_title for direct heading editing (see section-title.spec.ts).
+ * mount does not supply those hooks. Section insertion is synchronous — the
+ * cursor lands in the section_title for direct heading editing
+ * (see section-title.spec.ts).
  */
 import { expect, test } from '@playwright/test';
 import { getDoc, openEditor, toolbarButton, typeInEditor } from './helpers.js';
