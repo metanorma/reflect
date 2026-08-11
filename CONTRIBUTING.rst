@@ -4,20 +4,10 @@ Contributing
 Code conventions
 ~~~~~~~~~~~~~~~~
 
-- Do not export something that does not need exporting.
-
-- Single quotes are used for identifier-like strings
-  (e.g., some object key or style attribute).
-
-  Double quotes are used for human-visible text
-  (which may be phased away in favour of string IDs and translations
-  supplied by separate files).
-
-  The distinction is good to maintain, because those two cases
-  are very different. This applies to JSX as well.
-
 Dependencies
 ^^^^^^^^^^^^
+
+- Do not export something that does not need exporting.
 
 - Do not add a dependency unless warranted.
   Inspect dependency’s dependency tree.
@@ -73,8 +63,9 @@ Types & schema
     actual validation, decode incoming structure with the schema
     (even with simple ``S.decodeUnkownSync()``) and handle parsing errors.
 
-- If the type in question was defined and can be inferred by TSC
-  *and* by a human without explicit annotation, manual annotation can/should be omitted.
+- If constant type was defined and can obviously be inferred by TSC
+  *and* by a human without explicit annotation, avoid manually annotating
+  the constant.
 
 - Use ``@ts-expect-error``, if necessary, but not the ignore directive.
 
@@ -89,10 +80,14 @@ Style guidelines
 
 * 80-character line length limit should be observed when feasible & non-ugly
 
-* Single quotes for identifier-like strings
-  (imports, object keys, internal enum values, event names, etc.),
-  double quotes for displayed text-like strings
-  (log messages, user-visible text)
+* Single quotes are used for identifier-like strings
+  (e.g., some object key, style attribute,
+  imported package identifier or path).
+
+  Double quotes are used for human-visible text
+  like log messages or user-visible text
+  (some of which may be phased away in favour
+  of string IDs and translations supplied by separate files).
 
 * Do use trailing semicolons, commas
 
