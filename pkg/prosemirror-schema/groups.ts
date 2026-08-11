@@ -7,10 +7,10 @@
  */
 
 /** Inline content of paragraphs / terms. */
-export const INLINE_GROUP = "inline" as const;
+export const INLINE_GROUP = 'inline' as const;
 
 /** General block-level children of sections, list items, cells, etc. */
-export const BLOCK_GROUP = "block" as const;
+export const BLOCK_GROUP = 'block' as const;
 
 /** Nestable section nodes. */
-export const SECTION_GROUP = "section" as const;
+export const SECTION_GROUP = 'section' as const;

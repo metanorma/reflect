@@ -5,10 +5,10 @@
  * semantic marks (§9.2) set `inclusive: false` (§7).
  */
 
-import type { MarkSpec } from "prosemirror-model";
+import type { MarkSpec } from 'prosemirror-model';
 
-import { DATA_ATTR } from "./attrs.js";
-import { CLASS } from "./classes.js";
+import { DATA_ATTR } from './attrs.js';
+import { CLASS } from './classes.js';
 
 // ---------------------------------------------------------------------------
 // 1. Formatting marks (§9.1)
@@ -17,46 +17,46 @@ import { CLASS } from "./classes.js";
 const formattingMarks: Record<string, MarkSpec> = {
   emphasis: {
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["em", 0],
-    parseDOM: [{ tag: "em" }, { tag: "i" }],
+    toDOM: () => ['em', 0],
+    parseDOM: [{ tag: 'em' }, { tag: 'i' }],
   },
   strong: {
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["strong", 0],
-    parseDOM: [{ tag: "strong" }, { tag: "b" }],
+    toDOM: () => ['strong', 0],
+    parseDOM: [{ tag: 'strong' }, { tag: 'b' }],
   },
   subscript: {
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["sub", 0],
-    parseDOM: [{ tag: "sub" }],
+    toDOM: () => ['sub', 0],
+    parseDOM: [{ tag: 'sub' }],
   },
   superscript: {
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["sup", 0],
-    parseDOM: [{ tag: "sup" }],
+    toDOM: () => ['sup', 0],
+    parseDOM: [{ tag: 'sup' }],
   },
   code: {
     // §7: non-exclusive; may co-exist with other marks.
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["code", 0],
-    parseDOM: [{ tag: "code" }],
+    toDOM: () => ['code', 0],
+    parseDOM: [{ tag: 'code' }],
   },
   underline: {
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["u", 0],
-    parseDOM: [{ tag: "u" }],
+    toDOM: () => ['u', 0],
+    parseDOM: [{ tag: 'u' }],
   },
   strike: {
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["s", 0],
-    parseDOM: [{ tag: "s" }, { tag: "strike" }, { tag: "del" }],
+    toDOM: () => ['s', 0],
+    parseDOM: [{ tag: 's' }, { tag: 'strike' }, { tag: 'del' }],
   },
     smallcap: {
       attrs: { ...DATA_ATTR },
-      toDOM: () => ["span", { class: CLASS.smallcap }, 0],
+      toDOM: () => ['span', { class: CLASS.smallcap }, 0],
       parseDOM: [
         { tag: `span.${CLASS.smallcap}` },
-        { style: "font-variant=small-caps" },
+        { style: 'font-variant=small-caps' },
       ],
     },
 };
@@ -66,9 +66,12 @@ const formattingMarks: Record<string, MarkSpec> = {
 // ---------------------------------------------------------------------------
 
 /** Pull a string-valued mark attribute, tolerating `null`. */
-function markAttr(mark: { attrs: Record<string, unknown> }, key: string): string | null {
+function markAttr(
+  mark: { attrs: Record<string, unknown> },
+  key: string,
+): string | null {
   const v = mark.attrs[key];
-  return typeof v === "string" ? v : null;
+  return typeof v === 'string' ? v : null;
 }
 
 const referenceMarks: Record<string, MarkSpec> = {
@@ -77,22 +80,22 @@ const referenceMarks: Record<string, MarkSpec> = {
     attrs: { href: { default: null }, target: { default: null }, ...DATA_ATTR },
     toDOM: (mark) => {
       const attrs: Record<string, string> = {};
-      const href = markAttr(mark, "href");
-      const target = markAttr(mark, "target");
+      const href = markAttr(mark, 'href');
+      const target = markAttr(mark, 'target');
       if (href !== null) {
-        attrs["href"] = href;
+        attrs['href'] = href;
       }
       if (target !== null) {
-        attrs["target"] = target;
+        attrs['target'] = target;
       }
-      return ["a", attrs, 0];
+      return ['a', attrs, 0];
     },
     parseDOM: [
       {
-        tag: "a[href]",
+        tag: 'a[href]',
         getAttrs: (el) => ({
-          href: el.getAttribute("href"),
-          target: el.getAttribute("target"),
+          href: el.getAttribute('href'),
+          target: el.getAttribute('target'),
         }),
       },
     ],
@@ -102,16 +105,16 @@ const referenceMarks: Record<string, MarkSpec> = {
       attrs: { target: { default: null }, ...DATA_ATTR },
       toDOM: (mark) => {
         const attrs: Record<string, string> = { class: CLASS.xref };
-        const target = markAttr(mark, "target");
+        const target = markAttr(mark, 'target');
         if (target !== null) {
-          attrs["data-target"] = target;
+          attrs['data-target'] = target;
         }
-        return ["a", attrs, 0];
+        return ['a', attrs, 0];
       },
       parseDOM: [
         {
           tag: `a.${CLASS.xref}`,
-          getAttrs: (el) => ({ target: el.getAttribute("data-target") }),
+          getAttrs: (el) => ({ target: el.getAttribute('data-target') }),
         },
       ],
     },
@@ -120,40 +123,43 @@ const referenceMarks: Record<string, MarkSpec> = {
         attrs: { cite: { default: null }, ...DATA_ATTR },
         toDOM: (mark) => {
           const attrs: Record<string, string> = { class: CLASS.eref };
-          const cite = markAttr(mark, "cite");
+          const cite = markAttr(mark, 'cite');
           if (cite !== null) {
-            attrs["data-cite"] = cite;
+            attrs['data-cite'] = cite;
           }
-          return ["cite", attrs, 0];
+          return ['cite', attrs, 0];
         },
         parseDOM: [
           {
             tag: `cite.${CLASS.eref}`,
-            getAttrs: (el) => ({ cite: el.getAttribute("data-cite") }),
+            getAttrs: (el) => ({ cite: el.getAttribute('data-cite') }),
           },
         ],
       },
       concept: {
         inclusive: false,
-        attrs: { ref: { default: null }, kind: { default: "xref" }, ...DATA_ATTR },
+        attrs: {
+          ref: { default: null }, kind: { default: 'xref' },
+          ...DATA_ATTR,
+        },
         toDOM: (mark) => {
           const attrs: Record<string, string> = { class: CLASS.concept };
-          const ref = markAttr(mark, "ref");
+          const ref = markAttr(mark, 'ref');
           if (ref !== null) {
-            attrs["data-ref"] = ref;
+            attrs['data-ref'] = ref;
           }
-          const kind = markAttr(mark, "kind");
+          const kind = markAttr(mark, 'kind');
           if (kind !== null) {
-            attrs["data-kind"] = kind;
+            attrs['data-kind'] = kind;
           }
-          return ["span", attrs, 0];
+          return ['span', attrs, 0];
         },
         parseDOM: [
           {
             tag: `span.${CLASS.concept}`,
             getAttrs: (el) => ({
-              ref: el.getAttribute("data-ref"),
-              kind: el.getAttribute("data-kind") ?? "xref",
+              ref: el.getAttribute('data-ref'),
+              kind: el.getAttribute('data-kind') ?? 'xref',
             }),
           },
         ],
@@ -163,16 +169,16 @@ const referenceMarks: Record<string, MarkSpec> = {
       attrs: { type: { default: null }, ...DATA_ATTR },
       toDOM: (mark) => {
         const attrs: Record<string, string> = { class: CLASS.bcp14 };
-        const type = markAttr(mark, "type");
+        const type = markAttr(mark, 'type');
         if (type !== null) {
-          attrs["data-type"] = type;
+          attrs['data-type'] = type;
         }
-        return ["span", attrs, 0];
+        return ['span', attrs, 0];
       },
       parseDOM: [
         {
           tag: `span.${CLASS.bcp14}`,
-          getAttrs: (el) => ({ type: el.getAttribute("data-type") }),
+          getAttrs: (el) => ({ type: el.getAttribute('data-type') }),
         },
       ],
     },
@@ -181,18 +187,18 @@ const referenceMarks: Record<string, MarkSpec> = {
     attrs: { class: { default: null }, ...DATA_ATTR },
     toDOM: (mark) => {
       const attrs: Record<string, string> = {};
-      const cls = markAttr(mark, "class");
+      const cls = markAttr(mark, 'class');
       if (cls !== null) {
-        attrs["class"] = cls;
+        attrs['class'] = cls;
       }
-      return ["span", attrs, 0];
+      return ['span', attrs, 0];
     },
         // §9.2: low priority so span.mn-smallcap / span.mn-concept /
         // span.mn-bcp14 win during HTML ingestion.
     parseDOM: [
       {
-        tag: "span[data-class]",
-        getAttrs: (el) => ({ class: el.getAttribute("data-class") }),
+        tag: 'span[data-class]',
+        getAttrs: (el) => ({ class: el.getAttribute('data-class') }),
         priority: 1,
       },
     ],

@@ -10,7 +10,7 @@
  * `data` is serialized to JSON but never rendered to the DOM.
  */
 
-import type { AttributeSpec } from "prosemirror-model";
+import type { AttributeSpec } from 'prosemirror-model';
 
 /** A `data: { default: {} }` attribute spec — the universal catch-all. */
 export const DATA_ATTR = { data: { default: {} } } as const;

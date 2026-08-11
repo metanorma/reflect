@@ -5,11 +5,13 @@
  * `group: "inline"` so that `inline*` content expressions resolve.
  */
 
-import type { Node, NodeSpec, TagParseRule, DOMOutputSpec } from "prosemirror-model";
+import type {
+  Node, NodeSpec, TagParseRule, DOMOutputSpec,
+} from 'prosemirror-model';
 
-import { BLOCK_GROUP, INLINE_GROUP, SECTION_GROUP } from "./groups.js";
-import { baseAttrs, sectionAttrs, DATA_ATTR } from "./attrs.js";
-import { CLASS } from "./classes.js";
+import { BLOCK_GROUP, INLINE_GROUP, SECTION_GROUP } from './groups.js';
+import { baseAttrs, sectionAttrs, DATA_ATTR } from './attrs.js';
+import { CLASS } from './classes.js';
 
 // ---------------------------------------------------------------------------
 // toDOM helpers
@@ -25,15 +27,15 @@ import { CLASS } from "./classes.js";
 function sectionToDOM(cls: string): (node: Node) => DOMOutputSpec {
   return (node) => {
     const attrs: Record<string, string> = { class: cls };
-    const id = node.attrs["id"] as string | null;
-    const number = node.attrs["number"] as string | null;
+    const id = node.attrs['id'] as string | null;
+    const number = node.attrs['number'] as string | null;
     if (id !== null) {
-      attrs["data-id"] = id;
+      attrs['data-id'] = id;
     }
     if (number !== null) {
-      attrs["data-number"] = number;
+      attrs['data-number'] = number;
     }
-    return ["section", attrs, 0];
+    return ['section', attrs, 0];
   };
 }
 
@@ -43,8 +45,8 @@ function sectionParseRule(cls: string): readonly TagParseRule[] {
     {
       tag: `section.${cls}`,
       getAttrs: (el) => ({
-        id: el.getAttribute("data-id"),
-        number: el.getAttribute("data-number"),
+        id: el.getAttribute('data-id'),
+        number: el.getAttribute('data-number'),
       }),
     },
   ];
@@ -56,34 +58,34 @@ function sectionParseRule(cls: string): readonly TagParseRule[] {
 
 const structuralNodes: Record<string, NodeSpec> = {
     doc: {
-      content: "(bibdata preface? sections? bibliography? footnotes?)",
+      content: '(bibdata preface? sections? bibliography? footnotes?)',
       attrs: { ...DATA_ATTR },
-      toDOM: () => ["div", { class: CLASS.doc }, 0],
+      toDOM: () => ['div', { class: CLASS.doc }, 0],
     },
     bibdata: {
-      content: "",
+      content: '',
       atom: true,
       attrs: { item: { default: null }, ...DATA_ATTR },
-      toDOM: () => ["div", { class: CLASS.bibdata }],
+      toDOM: () => ['div', { class: CLASS.bibdata }],
       // No parseDOM: doc-level node created by the default doc / loader, not
       // by HTML ingestion.
     },
     preface: {
       content: `(section | ${BLOCK_GROUP})*`,
       attrs: baseAttrs(),
-      toDOM: () => ["section", { class: CLASS.preface }, 0],
+      toDOM: () => ['section', { class: CLASS.preface }, 0],
       parseDOM: [{ tag: `section.${CLASS.preface}` }],
     },
     sections: {
       content: `(section | ${BLOCK_GROUP})*`,
       attrs: baseAttrs(),
-      toDOM: () => ["section", { class: CLASS.sections }, 0],
+      toDOM: () => ['section', { class: CLASS.sections }, 0],
       parseDOM: [{ tag: `section.${CLASS.sections}` }],
     },
     bibliography: {
       content: `(references | ${BLOCK_GROUP})*`,
       attrs: baseAttrs(),
-      toDOM: () => ["section", { class: CLASS.bibliography }, 0],
+      toDOM: () => ['section', { class: CLASS.bibliography }, 0],
       parseDOM: [{ tag: `section.${CLASS.bibliography}` }],
     },
 };
@@ -104,7 +106,7 @@ const sectionTitleNode: Record<string, NodeSpec> = {
   section_title: {
     content: `${INLINE_GROUP}*`,
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["div", { class: CLASS.sectionTitle }, 0],
+    toDOM: () => ['div', { class: CLASS.sectionTitle }, 0],
     parseDOM: [{ tag: `div.${CLASS.sectionTitle}` }],
   },
 };
@@ -195,10 +197,10 @@ const sectionNodes: Record<string, NodeSpec> = {
  */
 const bibItemNodes: Record<string, NodeSpec> = {
   bibitem: {
-    content: "",
+    content: '',
     atom: true,
     attrs: { item: { default: null }, ...DATA_ATTR },
-    toDOM: () => ["div", { class: CLASS.bibitem }],
+    toDOM: () => ['div', { class: CLASS.bibitem }],
     parseDOM: [{ tag: `div.${CLASS.bibitem}` }],
   },
 };
@@ -212,14 +214,14 @@ const blockNodes: Record<string, NodeSpec> = {
     content: `${INLINE_GROUP}*`,
     group: BLOCK_GROUP,
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["p", 0],
-    parseDOM: [{ tag: "p" }],
+    toDOM: () => ['p', 0],
+    parseDOM: [{ tag: 'p' }],
   },
     note: {
       content: `${BLOCK_GROUP}+`,
       group: BLOCK_GROUP,
       attrs: { ...DATA_ATTR },
-      toDOM: () => ["div", { class: CLASS.note }, 0],
+      toDOM: () => ['div', { class: CLASS.note }, 0],
       parseDOM: [{ tag: `div.${CLASS.note}` }],
     },
     admonition: {
@@ -227,17 +229,19 @@ const blockNodes: Record<string, NodeSpec> = {
       group: BLOCK_GROUP,
       attrs: { type: { default: null }, ...DATA_ATTR },
       toDOM: (node) => {
-        const type = node.attrs["type"] as string | null;
-        const attrs: Record<string, string> = { class: `${CLASS.admonition} ${type ?? ""}`.trim() };
+        const type = node.attrs['type'] as string | null;
+        const attrs: Record<string, string> = {
+          class: `${CLASS.admonition} ${type ?? ''}`.trim(),
+        };
         if (type !== null) {
-          attrs["data-type"] = type;
+          attrs['data-type'] = type;
         }
-        return ["div", attrs, 0];
+        return ['div', attrs, 0];
       },
       parseDOM: [
         {
           tag: `div.${CLASS.admonition}`,
-          getAttrs: (el) => ({ type: el.getAttribute("data-type") }),
+          getAttrs: (el) => ({ type: el.getAttribute('data-type') }),
         },
       ],
     },
@@ -245,25 +249,25 @@ const blockNodes: Record<string, NodeSpec> = {
       content: `${BLOCK_GROUP}+`,
       group: BLOCK_GROUP,
       attrs: { ...DATA_ATTR },
-      toDOM: () => ["div", { class: CLASS.example }, 0],
+      toDOM: () => ['div', { class: CLASS.example }, 0],
       parseDOM: [{ tag: `div.${CLASS.example}` }],
     },
   sourcecode: {
-    content: "text*",
+    content: 'text*',
     group: BLOCK_GROUP,
     code: true,
     attrs: { text: { default: null }, language: { default: null }, ...DATA_ATTR },
     toDOM: (node) => {
-      const language = node.attrs["language"] as string | null;
+      const language = node.attrs['language'] as string | null;
       return [
-        "pre",
-        { class: language !== null ? `language-${language}` : "" },
-        ["code", 0],
+        'pre',
+        { class: language !== null ? `language-${language}` : '' },
+        ['code', 0],
       ];
     },
     parseDOM: [
       {
-        tag: "pre",
+        tag: 'pre',
         getAttrs: (el) => {
           const m = /language-(\S+)/.exec(el.className);
           return { language: m !== null ? (m[1] ?? null) : null };
@@ -272,83 +276,85 @@ const blockNodes: Record<string, NodeSpec> = {
     ],
   },
     formula: {
-      content: "",
+      content: '',
       group: BLOCK_GROUP,
       atom: true,
       attrs: {
         id: { default: null },
         number: { default: null },
-        type: { default: "asciimath" },
+        type: { default: 'asciimath' },
         asciimath: { default: null },
         mathml: { default: null },
         ...DATA_ATTR,
       },
       toDOM: (node) => {
-        const type = node.attrs["type"] as string;
-        const attrs: Record<string, string> = { class: CLASS.formula, "data-type": type };
-        const asciimath = node.attrs["asciimath"] as string | null;
-        const mathml = node.attrs["mathml"] as string | null;
-        const number = node.attrs["number"] as string | null;
+        const type = node.attrs['type'] as string;
+        const attrs: Record<string, string> = {
+          class: CLASS.formula, 'data-type': type,
+        };
+        const asciimath = node.attrs['asciimath'] as string | null;
+        const mathml = node.attrs['mathml'] as string | null;
+        const number = node.attrs['number'] as string | null;
         if (asciimath !== null) {
-          attrs["data-asciimath"] = asciimath;
+          attrs['data-asciimath'] = asciimath;
         }
         if (mathml !== null) {
-          attrs["data-mathml"] = mathml;
+          attrs['data-mathml'] = mathml;
         }
         if (number !== null) {
-          attrs["data-number"] = number;
+          attrs['data-number'] = number;
         }
-        return ["div", attrs];
+        return ['div', attrs];
       },
       parseDOM: [
         {
           tag: `div.${CLASS.formula}`,
           getAttrs: (el) => ({
-            type: el.getAttribute("data-type") ?? "asciimath",
-            asciimath: el.getAttribute("data-asciimath"),
-            mathml: el.getAttribute("data-mathml"),
-            number: el.getAttribute("data-number"),
+            type: el.getAttribute('data-type') ?? 'asciimath',
+            asciimath: el.getAttribute('data-asciimath'),
+            mathml: el.getAttribute('data-mathml'),
+            number: el.getAttribute('data-number'),
           }),
         },
       ],
     },
-    quote: {
-      content: `${BLOCK_GROUP}+`,
-      group: BLOCK_GROUP,
-      attrs: { ...DATA_ATTR },
-      toDOM: () => ["blockquote", 0],
-      parseDOM: [{ tag: "blockquote" }],
+  quote: {
+    content: `${BLOCK_GROUP}+`,
+    group: BLOCK_GROUP,
+    attrs: { ...DATA_ATTR },
+    toDOM: () => ['blockquote', 0],
+    parseDOM: [{ tag: 'blockquote' }],
+  },
+  review: {
+    content: `${BLOCK_GROUP}+`,
+    group: BLOCK_GROUP,
+    attrs: { ...DATA_ATTR },
+    toDOM: () => ['div', { class: CLASS.review }, 0],
+    parseDOM: [{ tag: `div.${CLASS.review}` }],
+  },
+  floating_title: {
+    content: `${INLINE_GROUP}*`,
+    group: BLOCK_GROUP,
+    attrs: { id: { default: null }, depth: { default: 1 }, ...DATA_ATTR },
+    toDOM: (node) => {
+      const attrs: Record<string, string> = { class: CLASS.floatingTitle };
+      const id = node.attrs['id'] as string | null;
+      if (id !== null) {
+        attrs['data-id'] = id;
+      }
+      attrs['data-depth'] = String(node.attrs['depth']);
+      return ['div', attrs, 0];
     },
-    review: {
-      content: `${BLOCK_GROUP}+`,
-      group: BLOCK_GROUP,
-      attrs: { ...DATA_ATTR },
-      toDOM: () => ["div", { class: CLASS.review }, 0],
-      parseDOM: [{ tag: `div.${CLASS.review}` }],
-    },
-    floating_title: {
-      content: `${INLINE_GROUP}*`,
-      group: BLOCK_GROUP,
-      attrs: { id: { default: null }, depth: { default: 1 }, ...DATA_ATTR },
-      toDOM: (node) => {
-        const attrs: Record<string, string> = { class: CLASS.floatingTitle };
-        const id = node.attrs["id"] as string | null;
-        if (id !== null) {
-          attrs["data-id"] = id;
-        }
-        attrs["data-depth"] = String(node.attrs["depth"]);
-        return ["div", attrs, 0];
+    parseDOM: [
+      {
+        tag: `.${CLASS.floatingTitle}`,
+        getAttrs: (el) => ({
+          id: el.getAttribute('data-id'),
+          depth: Number(el.getAttribute('data-depth') ?? '1'),
+        }),
       },
-      parseDOM: [
-        {
-          tag: `.${CLASS.floatingTitle}`,
-          getAttrs: (el) => ({
-            id: el.getAttribute("data-id"),
-            depth: Number(el.getAttribute("data-depth") ?? "1"),
-          }),
-        },
-      ],
-    },
+    ],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -357,29 +363,29 @@ const blockNodes: Record<string, NodeSpec> = {
 
 const listNodes: Record<string, NodeSpec> = {
   bullet_list: {
-    content: "list_item+",
+    content: 'list_item+',
     group: BLOCK_GROUP,
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["ul", 0],
-    parseDOM: [{ tag: "ul" }],
+    toDOM: () => ['ul', 0],
+    parseDOM: [{ tag: 'ul' }],
   },
   ordered_list: {
-    content: "list_item+",
+    content: 'list_item+',
     group: BLOCK_GROUP,
     attrs: { order: { default: 1 }, ...DATA_ATTR },
     toDOM: (node) => {
-      const order = node.attrs["order"] as number;
+      const order = node.attrs['order'] as number;
       const attrs: Record<string, number> = {};
       if (order > 1) {
-        attrs["start"] = order;
+        attrs['start'] = order;
       }
-      return ["ol", attrs, 0];
+      return ['ol', attrs, 0];
     },
     parseDOM: [
       {
-        tag: "ol",
+        tag: 'ol',
         getAttrs: (el) => ({
-          order: el.hasAttribute("start") ? Number(el.getAttribute("start")) : 1,
+          order: el.hasAttribute('start') ? Number(el.getAttribute('start')) : 1,
         }),
       },
     ],
@@ -387,27 +393,27 @@ const listNodes: Record<string, NodeSpec> = {
   list_item: {
     content: `${BLOCK_GROUP}+`,
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["li", 0],
-    parseDOM: [{ tag: "li" }],
+    toDOM: () => ['li', 0],
+    parseDOM: [{ tag: 'li' }],
   },
   dl: {
-    content: "(dt dd)+",
+    content: '(dt dd)+',
     group: BLOCK_GROUP,
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["dl", 0],
-    parseDOM: [{ tag: "dl" }],
+    toDOM: () => ['dl', 0],
+    parseDOM: [{ tag: 'dl' }],
   },
   dt: {
     content: `${INLINE_GROUP}*`,
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["dt", 0],
-    parseDOM: [{ tag: "dt" }],
+    toDOM: () => ['dt', 0],
+    parseDOM: [{ tag: 'dt' }],
   },
   dd: {
     content: `${BLOCK_GROUP}+`,
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["dd", 0],
-    parseDOM: [{ tag: "dd" }],
+    toDOM: () => ['dd', 0],
+    parseDOM: [{ tag: 'dd' }],
   },
 };
 
@@ -417,45 +423,48 @@ const listNodes: Record<string, NodeSpec> = {
 
 const tableNodes: Record<string, NodeSpec> = {
   table: {
-    content: "(table_head | table_body | table_foot)+",
+    content: '(table_head | table_body | table_foot)+',
     group: BLOCK_GROUP,
-    attrs: { id: { default: null }, number: { default: null }, title: { default: null }, ...DATA_ATTR },
-    toDOM: () => ["table", 0],
-    parseDOM: [{ tag: "table" }],
+    attrs: {
+      id: { default: null }, number: { default: null },
+      title: { default: null }, ...DATA_ATTR,
+    },
+    toDOM: () => ['table', 0],
+    parseDOM: [{ tag: 'table' }],
   },
   table_head: {
-    content: "table_row+",
+    content: 'table_row+',
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["thead", 0],
-    parseDOM: [{ tag: "thead" }],
+    toDOM: () => ['thead', 0],
+    parseDOM: [{ tag: 'thead' }],
   },
   table_body: {
-    content: "table_row+",
+    content: 'table_row+',
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["tbody", 0],
-    parseDOM: [{ tag: "tbody" }],
+    toDOM: () => ['tbody', 0],
+    parseDOM: [{ tag: 'tbody' }],
   },
   table_foot: {
-    content: "table_row+",
+    content: 'table_row+',
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["tfoot", 0],
-    parseDOM: [{ tag: "tfoot" }],
+    toDOM: () => ['tfoot', 0],
+    parseDOM: [{ tag: 'tfoot' }],
   },
   table_row: {
-    content: "table_cell+",
+    content: 'table_cell+',
     attrs: { ...DATA_ATTR },
-    toDOM: () => ["tr", 0],
-    parseDOM: [{ tag: "tr" }],
+    toDOM: () => ['tr', 0],
+    parseDOM: [{ tag: 'tr' }],
   },
   table_cell: {
     content: `${BLOCK_GROUP}+`,
     attrs: { colspan: { default: 1 }, rowspan: { default: 1 }, ...DATA_ATTR },
     toDOM: (node) => {
-      const colspan = node.attrs["colspan"] as number;
-      const rowspan = node.attrs["rowspan"] as number;
-      return ["td", { colspan, rowspan }, 0];
+      const colspan = node.attrs['colspan'] as number;
+      const rowspan = node.attrs['rowspan'] as number;
+      return ['td', { colspan, rowspan }, 0];
     },
-    parseDOM: [{ tag: "td" }, { tag: "th" }],
+    parseDOM: [{ tag: 'td' }, { tag: 'th' }],
   },
 };
 
@@ -475,32 +484,35 @@ const mediaNodes: Record<string, NodeSpec> = {
       },
       toDOM: (node) => {
         const attrs: Record<string, string> = { class: CLASS.figure };
-        const id = node.attrs["id"] as string | null;
+        const id = node.attrs['id'] as string | null;
         if (id !== null) {
-          attrs["data-id"] = id;
+          attrs['data-id'] = id;
         }
-        return ["figure", attrs, 0];
+        return ['figure', attrs, 0];
       },
-      parseDOM: [{ tag: "figure" }],
+      parseDOM: [{ tag: 'figure' }],
     },
   image: {
-    content: "",
+    content: '',
     atom: true,
     draggable: true,
-    attrs: { src: { default: "" }, alt: { default: null }, ...DATA_ATTR },
+    attrs: { src: { default: '' }, alt: { default: null }, ...DATA_ATTR },
     toDOM: (node) => {
-      const src = node.attrs["src"] as string;
-      const alt = node.attrs["alt"] as string | null;
-      const attrs: Record<string, string> = { src, "data-src": src };
+      const src = node.attrs['src'] as string;
+      const alt = node.attrs['alt'] as string | null;
+      const attrs: Record<string, string> = { src, 'data-src': src };
       if (alt !== null) {
-        attrs["alt"] = alt;
+        attrs['alt'] = alt;
       }
-      return ["img", attrs];
+      return ['img', attrs];
     },
     parseDOM: [
       {
-        tag: "img",
-        getAttrs: (el) => ({ src: el.getAttribute("src"), alt: el.getAttribute("alt") }),
+        tag: 'img',
+        getAttrs: (el) => ({
+          src: el.getAttribute('src'),
+          alt: el.getAttribute('alt'),
+        }),
       },
     ],
   },
@@ -512,88 +524,91 @@ const mediaNodes: Record<string, NodeSpec> = {
 
 const footnoteNodes: Record<string, NodeSpec> = {
     footnotes: {
-      content: "footnote_entry+",
+      content: 'footnote_entry+',
       attrs: { ...DATA_ATTR },
-      toDOM: () => ["section", { class: CLASS.footnotes }, 0],
-      parseDOM: [{ tag: `section.${CLASS.footnotes}` }, { tag: `ol.${CLASS.footnotes}` }],
+      toDOM: () => ['section', { class: CLASS.footnotes }, 0],
+      parseDOM: [
+        { tag: `section.${CLASS.footnotes}` },
+        { tag: `ol.${CLASS.footnotes}` },
+      ],
     },
     footnote_entry: {
       content: `${BLOCK_GROUP}+`,
       attrs: { id: { default: null }, number: { default: null }, ...DATA_ATTR },
       toDOM: (node) => {
         const attrs: Record<string, string> = { class: CLASS.footnoteEntry };
-        const id = node.attrs["id"] as string | null;
-        const number = node.attrs["number"] as string | null;
+        const id = node.attrs['id'] as string | null;
+        const number = node.attrs['number'] as string | null;
         if (id !== null) {
-          attrs["data-id"] = id;
+          attrs['data-id'] = id;
         }
         if (number !== null) {
-          attrs["data-number"] = number;
+          attrs['data-number'] = number;
         }
-        return ["div", attrs, 0];
+        return ['div', attrs, 0];
       },
       parseDOM: [
         {
           tag: `.${CLASS.footnoteEntry}`,
           getAttrs: (el) => ({
-            id: el.getAttribute("data-id"),
-            number: el.getAttribute("data-number"),
+            id: el.getAttribute('data-id'),
+            number: el.getAttribute('data-number'),
           }),
         },
       ],
     },
       footnote_marker: {
-        content: "",
+        content: '',
         group: INLINE_GROUP,
         inline: true,
         atom: true,
         attrs: { id: { default: null }, target: { default: null }, ...DATA_ATTR },
         toDOM: (node) => {
           const attrs: Record<string, string> = { class: CLASS.footnoteMarker };
-          const target = node.attrs["target"] as string | null;
+          const target = node.attrs['target'] as string | null;
           if (target !== null) {
-            attrs["data-target"] = target;
+            attrs['data-target'] = target;
           }
-          return ["sup", attrs];
+          return ['sup', attrs];
         },
         parseDOM: [
           {
             tag: `sup.${CLASS.footnoteMarker}`,
-            getAttrs: (el) => ({ target: el.getAttribute("data-target") }),
+            getAttrs: (el) => ({ target: el.getAttribute('data-target') }),
           },
         ],
       },
       stem: {
-        content: "",
+        content: '',
         group: INLINE_GROUP,
         inline: true,
         atom: true,
         attrs: {
-          type: { default: "asciimath" },
+          type: { default: 'asciimath' },
           asciimath: { default: null },
           mathml: { default: null },
           ...DATA_ATTR,
         },
         toDOM: (node) => {
-          const type = node.attrs["type"] as string;
-          const attrs: Record<string, string> = { class: CLASS.stem, "data-type": type };
-          const asciimath = node.attrs["asciimath"] as string | null;
-          const mathml = node.attrs["mathml"] as string | null;
+          const type = node.attrs['type'] as string;
+          const attrs: Record<string, string> = { class: CLASS.stem, 'data-type': type };
+          const asciimath = node.attrs['asciimath'] as string | null;
+          const mathml = node.attrs['mathml'] as string | null;
           if (asciimath !== null) {
-            attrs["data-asciimath"] = asciimath;
+            attrs['data-asciimath'] = asciimath;
           }
           if (mathml !== null) {
-            attrs["data-mathml"] = mathml;
+            attrs['data-mathml'] = mathml;
           }
-          return ["span", attrs];
+          return ['span', attrs];
         },
         parseDOM: [
           {
             tag: `span.${CLASS.stem}`,
             getAttrs: (el) => ({
-              type: el.getAttribute("data-type") ?? "asciimath",
-              asciimath: el.getAttribute("data-asciimath"),
-              mathml: el.getAttribute("data-mathml"),
+              type: el.getAttribute('data-type') ?? 'asciimath',
+              asciimath: el.getAttribute('data-asciimath'),
+              mathml: el.getAttribute('data-mathml'),
             }),
           },
         ],
@@ -608,15 +623,15 @@ const leafInlineNodes: Record<string, NodeSpec> = {
   text: {
     group: INLINE_GROUP,
   },
-  soft_break: {
-    content: "",
-    group: INLINE_GROUP,
-    inline: true,
-    atom: true,
-    attrs: { ...DATA_ATTR },
-    toDOM: () => ["br"],
-    parseDOM: [{ tag: "br" }],
-  },
+    soft_break: {
+      content: '',
+      group: INLINE_GROUP,
+      inline: true,
+      atom: true,
+      attrs: { ...DATA_ATTR },
+      toDOM: () => ['br'],
+      parseDOM: [{ tag: 'br' }],
+    },
 };
 
 // ---------------------------------------------------------------------------

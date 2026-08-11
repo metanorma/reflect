@@ -13,10 +13,10 @@
  * `docs/schema.spec.md`, unless otherwise specified.
  */
 
-import { Schema } from "prosemirror-model";
+import { Schema } from 'prosemirror-model';
 
-import { metanormaNodes } from "./nodes.js";
-import { metanormaMarks } from "./marks.js";
+import { metanormaNodes } from './nodes.js';
+import { metanormaMarks } from './marks.js';
 
 // ---------------------------------------------------------------------------
 // Assembled schema (§10)
@@ -32,10 +32,10 @@ export const metanormaSchema: Schema = new Schema({
 // Raw spec maps — for consumers that compose a modified schema.
 // ---------------------------------------------------------------------------
 
-export { metanormaNodes } from "./nodes.js";
-export { metanormaMarks } from "./marks.js";
-export { CLASS } from "./classes.js";
-export type { ClassName } from "./classes.js";
+export { metanormaNodes } from './nodes.js';
+export { metanormaMarks } from './marks.js';
+export { CLASS } from './classes.js';
+export type { ClassName } from './classes.js';
 
 // ---------------------------------------------------------------------------
 // Convenience lookups — in §3 group order.
@@ -47,31 +47,31 @@ export type { ClassName } from "./classes.js";
  */
 export const NODE_NAMES: readonly string[] = [
   // STRUCTURAL_TYPES (5)
-  "doc", "bibdata", "preface", "sections", "bibliography",
+  'doc', 'bibdata', 'preface', 'sections', 'bibliography',
   // SECTION_TYPES (9)
-  "clause", "annex", "content_section", "abstract", "foreword",
-  "introduction", "acknowledgements", "terms", "definitions",
+  'clause', 'annex', 'content_section', 'abstract', 'foreword',
+  'introduction', 'acknowledgements', 'terms', 'definitions',
   // REFERENCES_TYPES (1)
-  "references",
+  'references',
   // BIBITEM_TYPES (1)
-  "bibitem",
+  'bibitem',
   // SECTION_TITLE_TYPES (1)
-  "section_title",
+  'section_title',
   // BLOCK_TYPES (9)
-  "paragraph", "note", "admonition", "example", "sourcecode",
-  "formula", "quote", "review", "floating_title",
+  'paragraph', 'note', 'admonition', 'example', 'sourcecode',
+  'formula', 'quote', 'review', 'floating_title',
   // LIST_TYPES (6)
-  "bullet_list", "ordered_list", "list_item", "dl", "dt", "dd",
+  'bullet_list', 'ordered_list', 'list_item', 'dl', 'dt', 'dd',
   // TABLE_TYPES (6)
-  "table", "table_head", "table_body", "table_foot", "table_row", "table_cell",
+  'table', 'table_head', 'table_body', 'table_foot', 'table_row', 'table_cell',
   // MEDIA_TYPES (2)
-  "figure", "image",
+  'figure', 'image',
   // FOOTNOTE_TYPES (3)
-  "footnotes", "footnote_marker", "footnote_entry",
+  'footnotes', 'footnote_marker', 'footnote_entry',
   // INLINE_ATOM_TYPES (1)
-  "stem",
+  'stem',
   // LEAF_TYPES (2)
-  "text", "soft_break",
+  'text', 'soft_break',
 ];
 
 /**
@@ -80,10 +80,10 @@ export const NODE_NAMES: readonly string[] = [
  */
 export const MARK_NAMES: readonly string[] = [
   // Formatting marks (8)
-  "emphasis", "strong", "subscript", "superscript", "code",
-  "underline", "strike", "smallcap",
+  'emphasis', 'strong', 'subscript', 'superscript', 'code',
+  'underline', 'strike', 'smallcap',
   // Reference / semantic marks (6)
-  "link", "xref", "eref", "concept", "bcp14", "span",
+  'link', 'xref', 'eref', 'concept', 'bcp14', 'span',
 ];
 
 // ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ export const MARK_NAMES: readonly string[] = [
 export function assertValidImageAttrs(
   attrs: { src?: unknown },
 ): asserts attrs is { src: string } {
-  if (typeof attrs.src !== "string" || attrs.src === "") {
+  if (typeof attrs.src !== 'string' || attrs.src === '') {
     throw new Error(
       "assertValidImageAttrs: 'src' must be a non-empty string.",
     );
