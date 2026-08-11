@@ -5,7 +5,7 @@ for the Metanorma Mirror document model. It is the command-logic companion to
 [`@metanorma/prosemirror-schema`](./schema.spec.md); its commands are wired into
 the `MetanormaProseMirror` editor mount via the consumer's `plugins` prop.
 
-**Scope of this document.** This revision specifies only the **general,
+**Scope of this document.** This document specifies only the **general,
 cross-cutting aspects** of command implementation — the contract every command
 obeys, how commands couple to the schema, transaction discipline, testability,
 and the public-API conventions. The definitions of **individual commands** and
@@ -1036,7 +1036,7 @@ Out of scope (handled by other keys or elsewhere):
   default handler. This feature returns `false` for those cases (§4.3).
 - **Forward deletion** (`Delete` key): not bound by this feature. It is a
   separate key with its own context rules and is not the structural dual of
-  Backspace at the start; it is left unbound in v2.
+  Backspace at the start; it is currently unbound.
 - **`Mod-Backspace`** / **`Alt-Backspace`** / word-boundary variants
   (`Mod-Delete` on macOS deletes the previous word): not bound by this feature.
 - Table row/column deletion via Backspace (`prosemirror-tables` is not
@@ -1396,7 +1396,7 @@ Every branch of the Backspace chain upholds invariants dual to §2.5's:
 5. **Section boundaries are respected.** Backspace deletes empty sections but
    never merges content across a section boundary. Two adjacent `clause`s are
    never joined into one; the second's content is not appended to the first.
-   (Joining sections is a separate operation, not bound to Backspace in v2.)
+   (Joining sections is a separate operation, not bound to Backspace.)
 6. **The document always has an editable position.** When the structural walk
    would empty a non-deletable container (`sections`, `preface`, `bibliography`,
    `doc`), the command re-creates a minimal valid child (§4.4.8 doc-start
@@ -1654,7 +1654,7 @@ To prevent the deletion keys from being conflated:
 | Key | Command | Effect | When |
 |---|---|---|---|
 | `Backspace` | the §4.3 `chainCommands(...)` (composed in the keymap) | At start-of-empty: structural unwind (§4.4). Else: default character/range deletion. | Always (the subject of this section). |
-| `Delete` | *not bound by this feature* | Stock forward character deletion. No structural-unwind behaviour is defined for forward deletion in v2. | Always. |
+| `Delete` | *not bound by this feature* | Stock forward character deletion. No structural-unwind behaviour is defined for forward deletion. | Always. |
 | `Mod-Backspace` / `Alt-Backspace` | *not bound by this feature* | Stock previous-word deletion. | Always. |
 
 The asymmetry — Backspace is structural at start-of-empty, Delete is never — is

@@ -9,14 +9,15 @@ operations). Each spec links to the others; the dependency flows downward. The
 extends the toolbar with six advanced feature areas.
 
 **Spec governance.** Cross-referencing, change-tracking, and tooling
-conventions live in [`CONVENTIONS.md`](./CONVENTIONS.md). Run
-`yarn check-specs` before submitting a PR that touches `docs/`; use
-`yarn spec-impact docs/<spec>.md` to find what to review when changing a spec.
+conventions live in [`CONVENTIONS.md`](./CONVENTIONS.md); curated change records
+live in [`CHANGELOG.md`](./CHANGELOG.md). Run `yarn check-specs` before
+submitting a PR that touches `docs/`; use `yarn spec-impact docs/<spec>.md` to
+find what to review when changing a spec.
 
 ```
 schema.spec.md            ← source of truth for the document model
-        ↑ consumed by
-MetanormaProseMirror.spec.md  ← React editor component (mounts ProseMirror)
+        ↑ consumed by              ↑ consumes (bibitem model)
+MetanormaProseMirror.spec.md  ← React editor component (mounts ProseMirror)   Relaton.spec.md
         ↑ hosts (as a child)
 MetanormaToolbar.spec.md      ← schema-bound toolbar UI
 ```
@@ -96,6 +97,19 @@ and the advanced-toolbar node/section/reference commands. Re-exported through
 | 1 | [The editor-commands module](./EditorCommands.spec.md#1-the-editor-commands-module) |
 | 2 | [The Enter key](./EditorCommands.spec.md#2-the-enter-key) |
 | 3 | [List toggling (`toggleList`)](./EditorCommands.spec.md#3-list-toggling-togglelist) |
+
+---
+
+### [`Relaton.spec.md`](./Relaton.spec.md) — Bibliographic Model
+
+Defines `@metanorma/relaton`, a deliberate-subset Relaton bibliographic data
+model providing the `BibliographicItem` type, pure derivation helpers
+(`citeas`, `label`, `primaryDocid`, `mainTitle`), and a zero-PM-dependency
+document walker (`collectBibliographyItems`). Consumed by the schema
+(`bibdata` / `bibitem` node attrs), the editor (`eref` citation resolution,
+NodeView summaries), and the GUI (document title display). No ProseMirror
+dependency, no XML/YAML parsing — the editor's only serialization format is
+ProseMirror JSON (`.mn.json`).
 
 ---
 

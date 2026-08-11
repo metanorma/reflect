@@ -1,16 +1,5 @@
 # AdvancedMetanormaToolbar — Feature Specifications
 
-**Recent change.** The visible `label` of every advanced toolbar button changed
-from a glyph/emoji (e.g. `↩`, `↶`, `▦`, `🖼`, `≡`, `↗`, `📕`, `⁺`, `∑`) to a
-**short legible word** (e.g. `Outdent`, `Undo`, `Table`, `Image`, `Def list`,
-`Xref`, `Eref`, `Formula`), tracking the textual-label convention
-([MetanormaToolbar.spec.md](../MetanormaToolbar.spec.md) §5). The `title` field
-(tooltip) on every button is unchanged. Member-page button tables and code
-blocks were updated in place to show the new word labels; where a member page
-carried an "icon note" or arrow-glyph styling rationale, that wording was removed
-or recast (decision history lives here, not in the member pages). The
-`ToolbarButton` descriptor shape (§2.3) is unchanged.
-
 This directory contains the feature specifications for **`AdvancedMetanormaToolbar`**,
 an extended version of the `MetanormaToolbar` component specified in
 [`../MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md).
@@ -147,7 +136,7 @@ Governed by `schema.spec.md` §6 (Attribute conventions):
 
 - `DATA_ATTR` — `{ data: { default: {} } }`, universal catch-all.
 - `baseAttrs()` — `{ id, number, data }`, all defaulting `null`/`{}`.
-- `sectionAttrs()` — `{ id, number, data }`, all defaulting `null`/`{}` (same as `baseAttrs()`; the `title` attribute was removed — the heading is now a `section_title` child node).
+- `sectionAttrs()` — `{ id, number, data }`, all defaulting `null`/`{}` (same as `baseAttrs()`).
 
 ### 4.3 Runtime guards
 

@@ -348,7 +348,7 @@ The component must not register node views for these by default.
 #### `FigureNodeView`
 - Renders `<figure class={CLASS.figure} data-id={node.attrs.id}>` containing
   `{children}` (the `image` child plus any caption blocks). `CLASS.figure` is
-  `"mn-figure"` (schema §8.0, v4 namespace unification).
+  `"mn-figure"` (schema §8.0).
 - Forwards `ref` to `<figure>`; forwards `nodeProps.contentDOMRef` to the same
   element (use `useMergedDOMRefs`).
 

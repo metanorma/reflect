@@ -68,18 +68,24 @@ Rules:
   are fine for whole-spec references.
 
 
-## 4. Change summaries ("What changed" blocks)
+## 4. Specs are current-state only; change history lives elsewhere
 
-When a spec undergoes a substantive change, a prose summary block is encouraged
-but not required. Use neutral framing with a **bold lead-in** (not a Markdown
-blockquote — blockquotes are for actual quotations):
+Specs describe what the system **is**, not how it got there. Three tiers:
 
-**Recent change.** The heading model switched from a `title` attribute to a
-`section_title` child textblock node.
-
-Do **not** anchor these to version numbers ("What changed in version 3") —
-there are no version numbers. The summary is a human-readable note; the
-authoritative change history is `git log`.
+1. **Specs — current state only.** No "Recent change" blocks, no
+   "previously/prior to" transition prose, no "this revision" framing, no "in vN"
+   scope markers. Design rationale ("why this design, not that one") stays in the
+   spec as a dedicated subsection (`### Why X`) — it explains a current choice
+   and prevents re-litigation.
+2. **[`CHANGELOG.md`](./CHANGELOG.md) — curated change records.** Significant
+   transitions only. Entry bar: the change spans multiple commits or specs, or
+   its narrative isn't recoverable from commit messages. Each entry is
+   reverse-chronological, dated, with affected specs and commit SHAs. The
+   CHANGELOG is intentionally incomplete — it is a curated selection, not an
+   exhaustive log.
+3. **`git log` — raw history.** For everything not meeting the CHANGELOG bar.
+   `git log --oneline -- docs/<spec>.md` is the first-stop changelog for any
+   spec.
 
 
 ## 5. Commit-message convention (advisory)
@@ -130,10 +136,13 @@ on every PR and push. Validates:
    resolves to an existing file. Catches renames, moves, and deletes.
 2. **Header hygiene** — no spec carries the removed `**Spec version:**` or
    `**Spec dependencies:**` lines (regression guard).
-3. **Stale-version-reference guard** — flags body-text references that look
-   like spec-version cross-claims (e.g. `schema.spec.md v5`, `schema v3`).
+3. **Transition-prose guard** (warnings) — flags patterns that belong in the
+   CHANGELOG, not in specs: "Recent change" blocks, "previously/prior to"
+   transition narrative, "this revision" framing, bare spec-version scope
+   markers ("in v2"), and stale spec-version cross-claims ("schema v5").
    Conservative: avoids false positives on legitimate product-scope markers
-   like "out of scope for v1".
+   like "out of scope for v1" and `metanorma-standoc ≥ v1.4.1`. These are
+   warnings, not errors — they don't fail CI.
 
 ### `scripts/spec-impact.mjs` — reverse-dependency report (on demand)
 

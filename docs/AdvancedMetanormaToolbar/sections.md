@@ -52,9 +52,8 @@ child of `doc`".
 ### 2.2 Section nodes — group `"section"`
 
 All ten section nodes carry `group: SECTION_GROUP` and
-`attrs: sectionAttrs()` = `{ id, number, data }` (the `title` attribute was
-removed — the heading is now a `section_title` child textblock;
-`id` and `number` default `null`, `data` defaults to `{}`).
+`attrs: sectionAttrs()` = `{ id, number, data }`
+(`id` and `number` default `null`, `data` defaults to `{}`).
 
 | Section node | Content expression | Can nest section children? |
 |---|---|---|
@@ -604,8 +603,7 @@ re-renders, matching the base toolbar's performance contract.
 ## 7. The section heading (`section_title` child node)
 
 The section heading is a `section_title` child textblock (schema §8.2 — the
-optional leading child of every section node's content expression). It is no
-longer a `title` **attribute** on the section node (that model was replaced).
+optional leading child of every section node's content expression).
 On **Insert clause**, the toolbar creates the clause synchronously
 with an empty `section_title` and a `paragraph` body, and the cursor lands in
 the `section_title`. The user types the heading directly into it — **no prompt

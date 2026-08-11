@@ -27,29 +27,6 @@ shape.
 package, `@metanorma/toolbar` (`pkg/toolbar/`), separated from
 `@metanorma/prosemirror-editor` (§2). §11 also covers the package move.
 
-**Recent change (assembler refactor).** The component was reshaped from a
-self-contained monolith into a thin assembler over shared primitives (§10); the
-button/predicate/render logic was extracted into shared modules; `toggleList`
-was rewritten as a pure `(state, dispatch?) => boolean` command and relocated to
-`@metanorma/editor-commands` (§5.3, §12); and the whole toolbar — assembler plus
-shared primitives — was moved into its own package, `@metanorma/toolbar`
-(`pkg/toolbar/`). The public component API (`MetanormaToolbar`,
-`MetanormaToolbarProps`, `ToolbarGroup`) is unchanged.
-
-**Recent change (textual labels).** The visible `label` of every toolbar button
-changed from a glyph/emoji/short token (e.g. `❝`, `🔗`, `B`, `x₂`) to a **short
-legible word** (e.g. `Quote`, `Link`, `Bold`, `Sub`). The `title` field (the
-`<button title>` tooltip) is unchanged and is now the sole channel for the
-longer per-button description. Consequences for this document: the §5 button
-tables are restructured so each row carries explicit `Label` (= the short
-visible word) and `Title` (= the tooltip) columns, replacing the old tables that
-specified only a glyph `Label` (and, in §5.1, a separate `Icon/text` glyph
-column). The `ToolbarButton.label` and `ToolbarButton.title` field semantics
-(§5) are unchanged — `label` was always "the text shown as button text"; only
-the *recommended values* changed. The styling baseline in §8 is unchanged (no
-`min-width` bump is mandated; consumers that find word-labels too wide for their
-layout override `.mn-toolbar-btn` as needed).
-
 ## 2. Package and export
 
 | Aspect | Value |

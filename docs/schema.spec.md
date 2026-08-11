@@ -287,10 +287,8 @@ export const CLASS = {
 The node/mark `toDOM`/`parseDOM` rules in §8.1–§8.8 and §9 read their class
 from this const; the React node views (`pkg/prosemirror-editor`) and the
 document stylesheet (`document.css`) consume the same names. **All emitted
-classes carry the `mn-` prefix** (unified to the prefix in v4 — previously a
-mix of `mn-*` and bare `figure` / `formula` / `xref` / etc.). Renaming a class
-now touches one symbol in `CLASS`, with the schema's `toDOM`/`parseDOM` pairs
-updated in lockstep.
+classes carry the `mn-` prefix.** Renaming a class touches one symbol in
+`CLASS`, with the schema's `toDOM`/`parseDOM` pairs updated in lockstep.
 
 **Scope.** `CLASS` covers ONLY classes emitted by a schema `toDOM`.
 Editor-chrome classes that exist solely for editor UX (e.g.
@@ -345,9 +343,7 @@ optional `section_title` child — the heading textblock. The `section_title`
 renders through the section's content hole (`0` in `sectionToDOM`) automatically;
 no special-cased rendering is needed. The heading is editable inline like any
 other textblock and supports full inline markup (emphasis, links, etc.),
-matching Metanorma Presentation XML's `<title>` child element (§17). Prior to v5
-the heading was a `title` **attribute** on the section node (a plain string with
-no inline markup); it is now a child node.
+matching Metanorma Presentation XML's `<title>` child element (§17).
 
 **Bibliography entries.** The `references` section node's content expression
 permits `bibitem` atom nodes alongside clauses and blocks. Each `bibitem` stores

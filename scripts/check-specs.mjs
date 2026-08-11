@@ -4,8 +4,8 @@
 //
 // Validates that every relative markdown link in docs/**/*.md resolves to an
 // existing file, that no spec carries the removed **Spec version:** /
-// **Spec dependencies:** header lines, and that body text is free of stale
-// spec-version cross-claims (e.g. "schema v5", "MetanormaToolbar.spec.md v3").
+// **Spec dependencies:** header lines, and that specs are free of transition
+// prose (per CONVENTIONS.md §4: specs are current-state only).
 //
 // Zero runtime dependencies — pure Node fs + path. Picks up new specs and
 // subpackage docs automatically (no hardcoded spec list).
@@ -51,15 +51,36 @@ function extractLinks(content) {
   return links;
 }
 
-// Patterns that look like spec-version cross-claims.
-// Conservative: matches "schema v<N>", "<specname>.spec.md v<N>", "the base spec's v<N>",
-// "spec version <N>". Avoids false positives on product-scope "out of scope for v1".
-const specVersionRe = /(?:schema|editor|toolbar|prosemirror|commands|relaton|spec)\.spec\.md\s+v\d/i
-  .source
-  + '|' + /(?:schema|editor|toolbar)\s+v\d/i.source
-  + '|' + /spec version\s+\d/i.source;
-
-const versionClaimRe = new RegExp(specVersionRe, 'i');
+// Transition-prose patterns (CONVENTIONS.md §4: specs are current-state only).
+// These are warnings, not errors — stylistic, not structural.
+//
+// Matches: "Recent change" blocks, "previously/prior to" transition narrative,
+// "this revision" framing, bare spec-version scope markers ("in v2"),
+// old "What changed in version" framing, and stale spec-version cross-claims
+// ("schema v5", "spec.spec.md v3").
+//
+// Excludes: product-scope markers ("out of scope for v1", "metanorma-standoc ≥ v1.4.1"),
+// the "for v1" scope qualifier, and the ≥ version qualifier.
+const transitionPatterns = [
+  { re: /\*\*Recent change/i, label: 'Recent change block' },
+  { re: /\bWhat changed in version/i, label: 'old changelog framing' },
+  { re: /\bthis revision\b/i, label: '"this revision" framing' },
+  { re: /\b(previously|prior to)\b/i, label: 'transition narrative', exclude: /out of scope/i },
+  {
+    re: /\bin v[1-9]\b/i,
+    label: 'spec-version scope marker',
+    exclude: /out of scope|for v1|in v1|≥ v/i,
+  },
+  {
+    re: /(?:schema|editor|toolbar|prosemirror|commands|relaton)\.spec\.md\s+v\d/i,
+    label: 'stale spec-version cross-claim',
+  },
+  {
+    re: /(?:schema|editor|toolbar)\s+v\d/i,
+    label: 'stale spec-version cross-claim',
+    exclude: /out of scope|metanorma-standoc|≥ v/i,
+  },
+];
 
 const headerVersionRe = /\*\*Spec version:\*\*\s*\d/i;
 const headerDepsRe = /\*\*Spec dependencies:\*\*\s*\[/i;
@@ -100,21 +121,22 @@ async function main() {
       }
     });
 
-    // Check 3: Stale spec-version cross-claims in body text
-    // Skip CONVENTIONS.md itself (it documents the examples)
-    if (relPath === 'docs/CONVENTIONS.md') continue;
+    // Check 3: Transition-prose warnings (CONVENTIONS.md §4)
+    // Skip governance docs (they document the patterns legitimately)
+    if (relPath === 'docs/CONVENTIONS.md' || relPath === 'docs/CHANGELOG.md') continue;
     lines.forEach((line, i) => {
-      // Skip product-scope markers like "Out of scope (v1)"
-      if (/out of scope/i.test(line)) return;
-      if (versionClaimRe.test(line)) {
-        warnings.push(`${relPath}:${i + 1}: possible stale spec-version reference: ${line.trim().slice(0, 120)}`);
+      for (const { re, label, exclude } of transitionPatterns) {
+        if (exclude && exclude.test(line)) continue;
+        if (re.test(line)) {
+          warnings.push(`${relPath}:${i + 1}: ${label}: ${line.trim().slice(0, 120)}`);
+        }
       }
     });
   }
 
   // Report
   if (warnings.length > 0) {
-    console.log('⚠ Spec-version reference warnings (review and remove if stale):\n');
+    console.log('⚠ Transition-prose warnings (move to CHANGELOG or rewrite as current-state):\n');
     for (const w of warnings) console.log(`  ${w}`);
     console.log('');
   }
