@@ -208,7 +208,11 @@ export function SectionTypeButton(): React.JSX.Element {
       <button
         ref={triggerRef}
         type="button"
-        className="mn-toolbar-btn"
+        className={
+          enabled
+            ? 'mn-toolbar-btn'
+            : 'mn-toolbar-btn mn-toolbar-btn--disabled'
+        }
         aria-haspopup="listbox"
         disabled={!enabled}
         title="Change section type…"

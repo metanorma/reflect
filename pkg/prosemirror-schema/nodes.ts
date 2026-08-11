@@ -83,7 +83,7 @@ const structuralNodes: Record<string, NodeSpec> = {
       parseDOM: [{ tag: `section.${CLASS.sections}` }],
     },
     bibliography: {
-      content: `(references | ${BLOCK_GROUP})*`,
+      content: 'references+',
       attrs: baseAttrs(),
       toDOM: () => ['section', { class: CLASS.bibliography }, 0],
       parseDOM: [{ tag: `section.${CLASS.bibliography}` }],

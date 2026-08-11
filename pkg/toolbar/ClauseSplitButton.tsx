@@ -172,7 +172,11 @@ export function ClauseSplitButton(): React.JSX.Element {
       <button
         ref={primaryTriggerRef}
         type="button"
-        className="mn-toolbar-btn"
+        className={
+          enabled
+            ? 'mn-toolbar-btn'
+            : 'mn-toolbar-btn mn-toolbar-btn--disabled'
+        }
         disabled={!enabled}
         title="Insert clause (context-sensitive)"
         onClick={() => void primaryClick()}
@@ -181,7 +185,11 @@ export function ClauseSplitButton(): React.JSX.Element {
       </button>
       <button
         type="button"
-        className="mn-toolbar-btn mn-clause-split-caret"
+        className={
+          enabled
+            ? 'mn-toolbar-btn mn-clause-split-caret'
+            : 'mn-toolbar-btn mn-clause-split-caret mn-toolbar-btn--disabled'
+        }
         disabled={!enabled}
         title="Clause options…"
         aria-haspopup="menu"
