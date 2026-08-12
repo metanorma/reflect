@@ -6,7 +6,8 @@
     "compile": "tsc --outdir compiled",
     "e2e": "playwright test --config=e2e/playwright.config.ts",
     "e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
-    "e2e:install": "playwright install chromium && playwright install-deps chromium"
+    "e2e:install": "playwright install chromium",
+    "e2e:install-deps": "playwright install-deps chromium"
   },
   "dependencies": {
     "@metanorma/editor-commands": "workspace:^",
