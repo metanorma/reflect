@@ -9,9 +9,11 @@
  * adds the `prosemirror-history` plugin and the undo/redo keymap when enabled.
  */
 
-import { EditorState, type Plugin } from "prosemirror-state";
+import { EditorState, Plugin, PluginKey } from "prosemirror-state";
+import { GapCursor } from "prosemirror-gapcursor";
 import { reactKeys } from "@handlewithcare/react-prosemirror";
 import { keymap } from "prosemirror-keymap";
+import { gapCursor } from "prosemirror-gapcursor";
 import { metanormaSchema } from "@metanorma/prosemirror-schema";
 import { history, undo, redo, type HistoryOptions } from "@metanorma/editor-commands";
 import type { MirrorDocument } from "./types.js";
@@ -107,7 +109,19 @@ export function createInitialEditorState(opts: {
    */
   history?: HistoryOptions | false;
 }): EditorState {
-  const basePlugins: Plugin[] = [reactKeys()];
+  const basePlugins: Plugin[] = [reactKeys(), gapCursor()];
+
+  // When the selection is a GapCursor, typing should not create content via
+  // findWrapping (which would insert an unwanted section > paragraph). Block
+  // text input and keypress at gap cursor positions — the user must use a
+  // command (e.g. the Section popover) to insert content there.
+  basePlugins.push(new Plugin({
+    key: new PluginKey("gapCursorTextInputGuard"),
+    props: {
+      handleTextInput: (_view) => _view.state.selection instanceof GapCursor,
+      handleKeyPress: (_view) => _view.state.selection instanceof GapCursor,
+    },
+  }));
 
   if (opts.history) {
     basePlugins.push(history(opts.history));

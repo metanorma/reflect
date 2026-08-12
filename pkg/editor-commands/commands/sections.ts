@@ -246,6 +246,40 @@ function ensureContainer(
   };
 }
 
+/**
+ * If the cursor (`$from`) is directly inside the container described by `info`,
+ * return the position where a new child should be inserted at the cursor's
+ * location (before the child the cursor precedes). Returns `null` if the
+ * cursor is not inside this container.
+ *
+ * This lets `insertSection` insert at the cursor position (e.g. before the
+ * first section when a gap cursor is there) rather than always appending to
+ * the end of the container.
+ */
+function cursorPosInContainer(
+  $from: ResolvedPos,
+  info: ContainerInfo,
+): number | null {
+  // Only use cursor-relative insertion when the cursor is directly inside the
+  // container at depth 1 (e.g. a gap cursor between children). When the cursor
+  // is deeper (inside a section's textblock), fall back to append — the body
+  // cohort path handles that case via nearestBodySectionAncestor.
+  if ($from.depth !== 1) return null;
+  const parent = $from.node(1);
+  // Verify the parent's position matches the container's position.
+  const parentPos = $from.before(1);
+  if (parentPos !== info.pos) return null;
+
+  // The cursor is directly inside this container. Compute the insertion
+  // position: before the child at the cursor's index.
+  const index = $from.index(1);
+  let childPos = info.contentStart;
+  for (let i = 0; i < index; i++) {
+    childPos += parent.child(i).nodeSize;
+  }
+  return childPos;
+}
+
 // ---------------------------------------------------------------------------
 // wrapInClause (sections.md §5.2)
 // ---------------------------------------------------------------------------
@@ -520,14 +554,16 @@ export function insertSection(
       insertPos = $from.after(hit.depth);
     } else {
       // No body-section ancestor — find or create the `sections` container,
-      // then append.
+      // then insert at the cursor position if it's inside the container,
+      // otherwise append.
       const info = ensureContainer(tr, COHORT_CONTAINER["body"]);
-      insertPos = info.contentEnd;
+      insertPos = cursorPosInContainer($from, info) ?? info.contentEnd;
     }
   } else {
-    // Front / back cohort: find or create the container, then append.
+    // Front / back cohort: find or create the container, then insert at
+    // the cursor position if it's inside the container, otherwise append.
     const info = ensureContainer(tr, COHORT_CONTAINER[cohort as SectionCohort]);
-    insertPos = info.contentEnd;
+    insertPos = cursorPosInContainer($from, info) ?? info.contentEnd;
   }
 
   tr.insert(insertPos, sectionNode);

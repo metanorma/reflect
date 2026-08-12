@@ -337,4 +337,38 @@
     opacity: 0.9;
   }
 
+  /* ---- Gap cursor (prosemirror-gapcursor) ---- */
+
+  /* The gap cursor renders as an invisible caret in positions where a regular
+     text selection cannot exist — e.g. between two block-level sections, or
+     before the first / after the last child of a container node. It appears
+     as a 1px-wide element matching the line height; the editor draws a
+     visible caret via a ::after pseudo-element with the same colour as the
+     native selection caret. */
+  .ProseMirror-gapcursor {
+    display: none;
+    pointer-events: none;
+    position: absolute;
+  }
+
+  .ProseMirror-gapcursor:after {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1.2em;
+    background: var(--mn-text);
+    animation: ProseMirror-cursor-blink 1.1s steps(2, start) infinite;
+  }
+
+  @keyframes ProseMirror-cursor-blink {
+    to { visibility: hidden; }
+  }
+
+  .ProseMirror-focused .ProseMirror-gapcursor {
+    display: block;
+  }
+
 }

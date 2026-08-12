@@ -329,6 +329,10 @@ const RAW_RUNTIME_STATE =
       "npm:1.7.1"\
     ],\
     [\
+      "prosemirror-gapcursor",\
+      "npm:1.4.1"\
+    ],\
+    [\
       "prosemirror-history",\
       "npm:1.5.0"\
     ],\
@@ -826,6 +830,7 @@ const RAW_RUNTIME_STATE =
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
           ["prosemirror-commands", "npm:1.7.1"],\
+          ["prosemirror-gapcursor", "npm:1.4.1"],\
           ["prosemirror-keymap", "npm:1.2.3"],\
           ["prosemirror-model", "npm:1.25.11"],\
           ["prosemirror-state", "npm:1.4.4"],\
@@ -1309,6 +1314,19 @@ const RAW_RUNTIME_STATE =
           ["prosemirror-model", "npm:1.25.11"],\
           ["prosemirror-state", "npm:1.4.4"],\
           ["prosemirror-transform", "npm:1.12.0"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["prosemirror-gapcursor", [\
+      ["npm:1.4.1", {\
+        "packageLocation": "./.yarn/cache/prosemirror-gapcursor-npm-1.4.1-31704b21c5-1719ef9127.zip/node_modules/prosemirror-gapcursor/",\
+        "packageDependencies": [\
+          ["prosemirror-gapcursor", "npm:1.4.1"],\
+          ["prosemirror-keymap", "npm:1.2.3"],\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-view", "npm:1.42.2"]\
         ],\
         "linkType": "HARD"\
       }]\
