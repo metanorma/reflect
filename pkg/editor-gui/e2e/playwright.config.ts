@@ -17,6 +17,11 @@ export default defineConfig({
   testDir: here,
   testMatch: '*.spec.ts',
   fullyParallel: true,
+  // Cap concurrent workers to avoid OOM kills in memory-constrained
+  // containers. Each worker spawns its own Node process + Chromium instance
+  // (~300–500 MB), so Playwright's default (cores/2) can exhaust memory with
+  // no swap.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'list' : 'list',
