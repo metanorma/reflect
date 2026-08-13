@@ -2,9 +2,14 @@
  * Public API for `@metanorma/editor-commands` (spec §1.10).
  *
  * Implements [`docs/EditorCommands.spec.md`](../../docs/EditorCommands.spec.md)
- * **v2** — schema-aware ProseMirror editor commands for the Metanorma
- * document model (Command contract, transaction discipline, inventory:
- * §2 Enter-key commands, §3 `toggleList`, and §4 Backspace-key handling).
+ * — schema-aware ProseMirror editor commands for the Metanorma document model
+ * (Command contract, transaction discipline, inventory: §2 Enter-key commands,
+ * §3 `toggleList`, and §4 Backspace-key handling).
+ *
+ * Section references (e.g. §1.10, §2.7) throughout this package refer to
+ * `docs/EditorCommands.spec.md`, unless otherwise specified; references to
+ * feature docs (`tables.md`, `sections.md`, …) refer to the corresponding
+ * member of `docs/AdvancedMetanormaToolbar/`.
  *
  * Exports the Enter-feature commands (spec §2.7), the Backspace-feature
  * command (spec §4.7), the `chainCommands` combinator (spec §1.9.2), and

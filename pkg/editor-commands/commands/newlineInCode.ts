@@ -8,6 +8,9 @@
  *
  * Spec invariants preserved: the block stays a single `text*` node; the
  * `sourcecode` records `\n`, never a node.
+ *
+ * Section references (e.g. §2.4.1) in this file refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 import { newlineInCode as pmNewlineInCode } from 'prosemirror-commands';

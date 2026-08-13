@@ -9,6 +9,9 @@
  * `generateId()` is the shared id-generation helper used by all node-insertion
  * commands (tables, figures, sections, footnotes) so they are immediately
  * referenceable by `xref`/`eref`.
+ *
+ * Section references (e.g. §1.9.2) below refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 export { chainCommands } from 'prosemirror-commands';

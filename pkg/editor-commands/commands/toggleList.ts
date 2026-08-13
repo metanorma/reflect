@@ -2,6 +2,10 @@
  * `toggleList` — toggle a list type on/off around the current selection
  * (spec §3).
  *
+ * Section references (e.g. §3) in this file refer to
+ * `docs/EditorCommands.spec.md`; the toolbar reference is to
+ * `MetanormaToolbar.spec.md`.
+ *
  * ProseMirror's stock `wrapIn` (from `prosemirror-commands`) can wrap selected
  * blocks in a list but **cannot unwrap** an existing list, so it has no
  * toggle-off semantics. This command provides the wrap / switch / unwrap

@@ -6,7 +6,7 @@
  * (`table > table_body > table_row+ > table_cell+`, each cell seeded with an
  * empty paragraph) and places the cursor in the first cell.
  *
- * Conforms to the Command contract (README §6.2; `EditorCommands.spec.md`
+ * Conforms to the Command contract (AdvancedMetanormaToolbar/README.md §6.2;
  * §1.5): pure predicate when queried (no `dispatch`), single transaction when
  * dispatched. No `EditorView`/DOM — the adapter layer in `@metanorma/toolbar`
  * owns the view and focus.

@@ -8,7 +8,7 @@
  * no async. The adapter layer in `@metanorma/toolbar` owns the `EditorView`,
  * async upload/URL resolution, and focus.
  *
- * Conforms to the Command contract (README §6.2; `EditorCommands.spec.md`
+ * Conforms to the Command contract (AdvancedMetanormaToolbar/README.md §6.2;
  * §1.5).
  */
 

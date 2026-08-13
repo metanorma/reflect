@@ -27,6 +27,9 @@
  *   through to split).
  *
  * Enter never splits a `dt` (terms are single-line).
+ *
+ * Section references (e.g. §2.4.1) in this file refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 import type { Schema } from 'prosemirror-model';

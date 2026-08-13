@@ -27,6 +27,9 @@
  *   node selection) → return `false` so the chain's stock deletion steps run.
  *
  * Single transaction (spec §1.7.1); `scrollIntoView` set (§1.7.3).
+ *
+ * Section references (e.g. §2.4.1) in this file refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 import type { Command } from 'prosemirror-state';

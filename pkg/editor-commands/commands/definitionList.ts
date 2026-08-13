@@ -3,10 +3,11 @@
  *
  * Two pure commands — `insertDefinitionList` and `addDefinitionPair` — plus
  * their pure, state-reading helpers. All preserve the `(dt dd)+` invariant.
- * Commands resolve node types through `state.schema` per README §6.4; no
+ * Commands resolve node types through `state.schema` per
+ * AdvancedMetanormaToolbar/README.md §6.4; no
  * `(schema) => Command` factory is required.
  *
- * Conforms to the Command contract (README §6.2; `EditorCommands.spec.md`
+ * Conforms to the Command contract (AdvancedMetanormaToolbar/README.md §6.2;
  * §1.5): pure predicate when queried, single transaction when dispatched. No
  * `EditorView`/DOM.
  */

@@ -8,6 +8,9 @@
  *
  * Internal to the package: nothing here is re-exported from `index.ts`
  * (spec §1.10.4 — helpers are not public API).
+ *
+ * Section references (e.g. §1.6.1) below refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 import { metanormaSchema } from '@metanorma/prosemirror-schema';

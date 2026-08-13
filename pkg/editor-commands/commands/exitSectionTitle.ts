@@ -16,6 +16,9 @@
  * - cursor inside a `section_title` that is the section's LAST child → insert
  *   an empty paragraph after the title; cursor in it.
  * - cursor NOT inside a `section_title` → **not applicable** (returns `false`).
+ *
+ * Section references (e.g. §2.4.1) in this file refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 import type { Command } from 'prosemirror-state';

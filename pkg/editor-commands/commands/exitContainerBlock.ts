@@ -19,6 +19,9 @@
  * `footnote_entry` is deliberately excluded: although its content is `block+`,
  * its parent `footnotes` requires `footnote_entry+` and cannot accept a lifted
  * paragraph, so there is no valid place to lift to (spec §2.4.5).
+ *
+ * Section references (e.g. §2.4.1) in this file refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 import type { Command } from 'prosemirror-state';

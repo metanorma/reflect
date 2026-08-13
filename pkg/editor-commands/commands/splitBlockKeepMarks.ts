@@ -14,6 +14,9 @@
  * table: start (non-empty), middle, end, empty, and ranged (delete the range
  * then split per the collapsed rules). Marks are carried via ProseMirror's
  * `storedMarks` mechanism (spec §1.7.4) so e.g. a bold split stays bold.
+ *
+ * Section references (e.g. §2.4.1) in this file refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 import {

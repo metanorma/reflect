@@ -23,6 +23,9 @@
  * Because list items are generalised, the split operates on whichever block
  * type the cursor is in (a paragraph, a nested list's paragraph, …), not on an
  * assumed `paragraph` parent.
+ *
+ * Section references (e.g. §2.4.1) in this file refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 import type { Schema, ResolvedPos, NodeType } from 'prosemirror-model';
@@ -77,8 +80,8 @@ export function splitListItem(schema: Schema): Command {
 
     // ----- Exit path: empty paragraph at end of item (spec L2/L3) ------------
     // The cursor's textblock is the LAST child of its list_item iff its index
-    // within the item is the item's last child index. (An earlier revision used
-    // `$from.end($from.depth) === $from.end(itemDepth)`, which silently fails
+    // within the item is the item's last child index. (Comparing
+    // `$from.end($from.depth) === $from.end(itemDepth)` would silently fail
     // for EMPTY paragraphs: `$from.end` of an empty textblock returns the
     // textblock's open-token position, never matching the item's end.)
     const inner = $from.parent;

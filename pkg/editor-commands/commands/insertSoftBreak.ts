@@ -9,6 +9,9 @@
  * Bound to `Shift-Enter` (spec §2.8). Inside a code block (`sourcecode`),
  * `Shift-Enter` delegates to the code-newline behaviour (insert `\n`) since
  * `soft_break` is not valid inline content of `sourcecode` (content `text*`).
+ *
+ * Section references (e.g. §2.4.1) in this file refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 import type { Command } from 'prosemirror-state';

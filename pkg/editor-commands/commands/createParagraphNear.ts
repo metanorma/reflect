@@ -6,6 +6,9 @@
  * block-level atoms (`image`, `formula`, `floating_title`) have empty content;
  * the cursor cannot rest inside them, so Enter near one creates an adjacent
  * empty paragraph in which to type.
+ *
+ * Section references (e.g. §2.4.1) in this file refer to
+ * `docs/EditorCommands.spec.md`.
  */
 
 export { createParagraphNear } from 'prosemirror-commands';
