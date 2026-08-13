@@ -91,6 +91,23 @@ Style guidelines
 
 * Do use trailing semicolons, commas
 
+* Indent blocks in curly braces or parentheses
+  relative to the position of the opening brace/paren, e.g.::
+
+      | {
+          readonly kind: 'ok';
+          readonly cutDepth: number;
+          readonly reseed: boolean;
+        };
+
+  Invalid (do NOT format like this)::
+
+      | {
+        readonly kind: 'ok';
+        readonly cutDepth: number;
+        readonly reseed: boolean;
+      };
+
 * Split ternaries into lines like this::
 
       const a = b > c
