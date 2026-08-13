@@ -16,7 +16,7 @@ import { keymap } from "prosemirror-keymap";
 import { gapCursor } from "prosemirror-gapcursor";
 import { metanormaSchema } from "@metanorma/prosemirror-schema";
 import { history, undo, redo, type HistoryOptions } from "@metanorma/editor-commands";
-import type { MirrorDocument } from "./types.js";
+import type { MetanormaDocument } from "./types.js";
 
 /**
  * The default document (schema.spec.md §15), inlined here. The schema package
@@ -26,7 +26,7 @@ import type { MirrorDocument } from "./types.js";
  * bibdata carries an empty `item` attr (`null`) — the user fills it via the
  * Sidebar metadata button or by clicking the bibdata strip.
  */
-export const DEFAULT_MIRROR_DOC: MirrorDocument = {
+export const DEFAULT_MN_DOC: MetanormaDocument = {
   type: "doc",
   content: [
     {
@@ -91,14 +91,14 @@ export function buildUndoRedoKeymap(): Plugin {
  * so they cannot accidentally displace it.
  *
  * The initial document is built with `metanormaSchema.nodeFromJSON(...)`,
- * falling back to {@link DEFAULT_MIRROR_DOC} when no `doc` is supplied.
+ * falling back to {@link DEFAULT_MN_DOC} when no `doc` is supplied.
  *
  * History is **opt-in** (undo-redo.md §4.1): when `opts.history` is a
  * `HistoryOptions` value, the `history()` plugin and the undo/redo keymap are
  * added before consumer plugins; when omitted / `false`, no history is added.
  */
 export function createInitialEditorState(opts: {
-  doc?: MirrorDocument;
+  doc?: MetanormaDocument;
   plugins?: readonly Plugin[];
   editable?: boolean;
   /**
@@ -130,7 +130,7 @@ export function createInitialEditorState(opts: {
 
   return EditorState.create({
     schema: metanormaSchema,
-    doc: metanormaSchema.nodeFromJSON(opts.doc ?? DEFAULT_MIRROR_DOC),
+    doc: metanormaSchema.nodeFromJSON(opts.doc ?? DEFAULT_MN_DOC),
     plugins: [...basePlugins, ...(opts.plugins ?? [])],
   });
 }

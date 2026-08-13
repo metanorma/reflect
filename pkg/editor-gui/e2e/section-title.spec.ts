@@ -131,7 +131,7 @@ test.describe('section title', () => {
     await openEditor(page);
 
     const docBefore = JSON.stringify(await getDoc(page));
-    // The default doc should already contain a section_title (from DEFAULT_MIRROR_DOC).
+    // The default doc should already contain a section_title (from DEFAULT_MN_DOC).
     expect(docBefore).toContain('section_title');
   });
 });

@@ -1,10 +1,11 @@
-# Metanorma Mirror — Documentation Index
+# Reflect — Documentation Index
 
 This directory holds the functional and component specifications for the
-Metanorma Mirror rich-text editing stack. The core specs below describe a
-layered architecture: a **schema** (data model) is consumed by an **editor
-component** (React + ProseMirror), which in turn hosts a **toolbar** (user
-operations). Each spec links to the others; the dependency flows downward. The
+Reflect rich-text editing stack — a Metanorma editor. The core specs below
+describe a layered architecture: a **schema** (data model) is consumed by an
+**editor component** (React + ProseMirror), which in turn hosts a **toolbar**
+(user operations). Each spec links to the others; the dependency flows
+downward. The
 [`AdvancedMetanormaToolbar/`](./AdvancedMetanormaToolbar/README.md) directory
 extends the toolbar with six advanced feature areas.
 
@@ -30,15 +31,16 @@ MetanormaToolbar.spec.md      ← schema-bound toolbar UI
 
 Defines the `prosemirror-model` `Schema` (`@metanorma/prosemirror-schema`) whose
 node and mark vocabulary, content model, attributes, and DOM serialization rules
-faithfully mirror the Metanorma Mirror document model derived from
-`metanorma-mirror-js`'s `types.ts`. This is the **source of truth** for the
+are aligned with the **Metanorma document model** (the Semantic XML that the
+Metanorma pipeline authors and validates) — documents convert unambiguously to
+Semantic XML. This is the **source of truth** for the
 document model — 46 node types and 14 mark types.
 
 | § | Section |
 |---|---|
 | 1 | [Purpose](./schema.spec.md#1-purpose) |
 | 2 | [Module layout](./schema.spec.md#2-module-layout) |
-| 3 | [Vocabulary (derived from `types.ts`)](./schema.spec.md#3-vocabulary-derived-from-typests) |
+| 3 | [Vocabulary](./schema.spec.md#3-vocabulary) |
 | 4 | [ProseMirror group design](./schema.spec.md#4-prosemirror-group-design) |
 | 5 | [Content model overview](./schema.spec.md#5-content-model-overview) |
 | 6 | [Attribute conventions](./schema.spec.md#6-attribute-conventions) |
@@ -47,12 +49,12 @@ document model — 46 node types and 14 mark types.
 | 9 | [Mark specifications](./schema.spec.md#9-mark-specifications) |
 | 10 | [Schema assembly](./schema.spec.md#10-schema-assembly) |
 | 11 | [Public API (`index.ts`)](./schema.spec.md#11-public-api-index-ts) |
-| 12 | [JSON round-trip (`MirrorNode` compatibility)](./schema.spec.md#12-json-round-trip-mirrornode-compatibility) |
+| 12 | [JSON round-trip (`MetanormaNode` compatibility)](./schema.spec.md#12-json-round-trip-metanormanode-compatibility) |
 | 13 | [TypeScript constraints](./schema.spec.md#13-typescript-constraints) |
 | 14 | [Acceptance criteria](./schema.spec.md#14-acceptance-criteria) |
 | 15 | [Default document](./schema.spec.md#15-default-document) |
 | 16 | [Out of scope (v1)](./schema.spec.md#16-out-of-scope-v1) |
-| 17 | [Conversion to Metanorma Presentation XML](./schema.spec.md#17-conversion-to-metanorma-presentation-xml) |
+| 17 | [Conversion to Metanorma Semantic XML](./schema.spec.md#17-conversion-to-metanorma-semantic-xml) |
 
 ---
 

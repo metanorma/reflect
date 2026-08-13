@@ -6,8 +6,8 @@
  * content model, attributes, and DOM serialization rules).
  *
  * Assembles the single ProseMirror `Schema` whose node/mark vocabulary,
- * content model, attributes, and DOM serialization rules mirror the
- * Metanorma Mirror document model.
+ * content model, attributes, and DOM serialization rules are aligned with the
+ * Metanorma document model (Semantic XML).
  *
  * Section references (e.g. §11, §3.1) throughout this package refer to
  * `docs/schema.spec.md`, unless otherwise specified.

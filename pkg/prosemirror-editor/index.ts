@@ -20,11 +20,11 @@ import type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
 export { MetanormaProseMirror } from "./MetanormaProseMirror.js";
 export type { MetanormaProseMirrorProps } from "./MetanormaProseMirror.js";
 
-export type { MirrorDocument, MirrorMark } from "./types.js";
+export type { MetanormaDocument, MetanormaMark } from "./types.js";
 
 export {
   createInitialEditorState,
-  DEFAULT_MIRROR_DOC,
+  DEFAULT_MN_DOC,
   DEFAULT_HISTORY_OPTIONS,
   buildUndoRedoKeymap,
 } from "./state.js";
@@ -68,7 +68,7 @@ export type { HistoryOptions } from "@metanorma/editor-commands";
  * Re-declared here as a type anchor for the public API surface (§11).
  */
 export type CreateInitialEditorStateOptions = {
-  doc?: import("./types.js").MirrorDocument;
+  doc?: import("./types.js").MetanormaDocument;
   plugins?: readonly Plugin[];
   editable?: boolean;
   /** History plugin configuration — opt-in (undo-redo.md §4.1). */

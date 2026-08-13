@@ -1,30 +1,34 @@
-# Metanorma Mirror — ProseMirror Schema Specification
+# Reflect — ProseMirror Schema Specification
 
 This spec defines the ProseMirror schema module. Ignore the preexisting
 `pkg/schema` subpackage and any prior ProseMirror usage in this repository —
 this document supersedes them as the source of truth for the schema.
 
-**Source of truth for the document model:**
-`src/types.ts` of [`metanorma/metanorma-mirror-js`](https://github.com/metanorma/metanorma-mirror-js/blob/main/src/types.ts)
-(commit on `main` at the time of writing). Every node name, mark name, and
-attribute in this schema is derived directly from that file's exported
-constants (`MARK_TYPES`, `STRUCTURAL_TYPES`, `SECTION_FRONT_TYPES`,
-`SECTION_BODY_TYPES`, `SECTION_BACK_TYPES`, `BLOCK_TYPES`,
-`LIST_TYPES`, `TABLE_TYPES`, `MEDIA_TYPES`, `FOOTNOTE_TYPES`,
-`INLINE_ATOM_TYPES`, `LEAF_TYPES`)
-and its attribute interfaces (`NodeAttrsByType`, `MarkAttrsByType`, `BaseAttrs`).
+**Source of truth for the document model: the Metanorma document model**, as
+expressed in the Semantic XML that the Metanorma pipeline
+(`metanorma-standoc`) authors and validates (the compiled RelaxNG grammar
+`lib/metanorma/validate/isodoc-compile.rng` in
+[`metanorma/metanorma-standoc`](https://github.com/metanorma/metanorma-standoc),
+human-authored source `grammars/isodoc.rnc` in
+[`metanorma/standoc-models`](https://github.com/metanorma/standoc-models)).
+The goal is **alignment**: every construct the editor models corresponds to a
+well-defined Semantic-XML construct, so documents convert unambiguously (§1.1).
+Presentation XML — the rendering-oriented layer with `fmt-*` elements and
+`semx` wrappers — is generated downstream by the pipeline, not authored by
+this editor.
 
 ---
 
 ## 1. Purpose
 
 Define a single `prosemirror-model` `Schema` whose node and mark vocabulary,
-content model, attributes, and DOM serialization rules faithfully mirror the
-**Metanorma Mirror** document model. The schema must:
+content model, attributes, and DOM serialization rules are **aligned with the
+Metanorma document model** (Semantic XML): each editor construct maps to a
+single well-defined XML construct. The schema must:
 
-1. Contain **exactly** the node types and mark types enumerated in `types.ts`
+1. Contain **exactly** the node types and mark types enumerated in §3
    (no more, no less).
-2. Accept a `MirrorDocument` (the `MirrorNode` tree from `types.ts`) via
+2. Accept a `MetanormaDocument` (the JSON tree of §12) via
    `Schema.nodeFromJSON(...)` and reproduce an equivalent tree via
    `Node.toJSON()` (lossless round-trip for every typed attribute).
 3. Provide `toDOM` / `parseDOM` so documents can be rendered to HTML and parsed
@@ -37,13 +41,14 @@ a complex Metanorma document is generally *not* representable in this schema,
 and a lossless Metanorma-XML → ProseMirror → Metanorma-XML round-trip is **not**
 a goal. What the schema *does* guarantee is **unambiguous convertibility**: any
 document the editor can produce under this schema must convert to valid
-Metanorma Presentation XML without the converter having to guess between
-competing representations of the same fact (no dual source of truth). Attribute
-and element names in the schema need not match the XML names — a dedicated
-converter performs those renames and structural reshapes. Where a Presentation
-XML value is required but cannot be derived from anything the editor models
-(e.g. `mimetype`, `reviewer`, `depth`), the converter may **invent** a default,
-but such invention is a schema limitation, surfaced in §17.
+Metanorma **Semantic XML** (the authoring form the pipeline validates; §17)
+without the converter having to guess between competing representations of the
+same fact (no dual source of truth). Attribute and element names in the schema
+need not match the XML names — a dedicated converter performs those renames and
+structural reshapes. Where a Semantic-XML value is required but cannot be
+derived from anything the editor models (e.g. `mimetype`, `reviewer`, `depth`),
+the converter may **invent** a default, but such invention is a schema
+limitation, surfaced in §17.
 
 Four dual-source-of-truth issues are resolved in this spec so that conversion is
 unambiguous: `figure.src` lives only on the `image` child (§17.1); `formula` and
@@ -83,7 +88,12 @@ schema- definition time (`toDOM`/`parseDOM` describe structure only).
 
 ---
 
-## 3. Vocabulary (derived from `types.ts`)
+## 3. Vocabulary
+
+The vocabulary is the editor-side naming of the Metanorma document-model
+constructs it covers (§1.1). Names need not match the XML element names — the
+converter performs renames (§17) — but each name denotes exactly one XML
+construct.
 
 ### 3.1 Node types (46)
 
@@ -120,7 +130,7 @@ text, so it supports full inline markup (emphasis, links, etc.).
 `strike`, `smallcap`, `link`, `xref`, `eref`, `concept`, `bcp14`, `span`.
 
 **Note.** Footnote references are modelled by the `footnote_marker` **inline
-node** (§3.1, §8.7), which directly mirrors the inline Presentation-XML `<fn>`
+node** (§3.1, §8.7), which directly mirrors the inline Metanorma `<fn>`
 element (body co-located at the reference site). There is **no** `footnote` mark:
 an earlier draft carried both representations, which created a dual source of
 truth for the same fact — a converter could not decide which was authoritative.
@@ -130,9 +140,10 @@ The mark has been removed to keep conversion unambiguous (§1.1).
 
 ## 4. ProseMirror group design
 
-`types.ts` groups nodes for *classification*; ProseMirror groups drive the
-*content model*. The mapping below is a design decision (the source file does
-not prescribe content expressions). Six groups are introduced:
+The document model classifies nodes into cohorts for *classification*;
+ProseMirror groups drive the *content model*. The mapping below is a design
+decision (the document model does not prescribe content expressions). Six
+groups are introduced:
 
 | PM group | Members | Notes |
 |---|---|---|
@@ -198,9 +209,9 @@ command-level routing.
 
 ## 6. Attribute conventions
 
-`types.ts` uses open interfaces: `BaseAttrs` has `[key: string]: unknown`, and
-nodes/marks not present in `NodeAttrsByType`/`MarkAttrsByType` fall back to
-`Record<string, unknown>` (`AttrsFor`, `MirrorMark.attrs`). ProseMirror
+The editor's JSON attribute model is open: every node/mark accepts extra keys
+beyond its typed attributes, carried in `Record<string, unknown>`
+(`MetanormaMark.attrs`, §12). ProseMirror
 attributes must be **declared** with a default, so this schema adopts the
 following rules:
 
@@ -251,10 +262,10 @@ to reject empty `src`.
 
 | Mark | Declared attributes (beyond `data`) | Source |
 |---|---|---|
-| `link` | `href` | `LinkMarkAttrs` (`target` is dropped — Presentation-XML `<link>` carries a single required `target` URL, and `href` is that URL; a second URL-shaped attr would be a dual source of truth, §1.1) |
+| `link` | `href` | `LinkMarkAttrs` (`target` is dropped — Semantic-XML `<link>` carries a single required `target` URL, and `href` is that URL; a second URL-shaped attr would be a dual source of truth, §1.1) |
 | `xref` | `target` | `XrefMarkAttrs` |
 | `eref` | `cite` | open — the external citation key |
-| `concept` | `ref`, `kind` (enum `"eref" \| "xref" \| "termref"`, default `"xref"`) | open — `ref` is the concept reference; `kind` discriminates the Presentation-XML child element emitted on export (`<eref>` / `<xref>` / `<termref>`). Without `kind`, a flat `ref` cannot tell the converter which reference type to emit and conversion is ambiguous (§1.1). `erefstack` (a stack of erefs, the fourth XML choice) is not supported — folded into `eref`. |
+| `concept` | `ref`, `kind` (enum `"eref" \| "xref" \| "termref"`, default `"xref"`) | open — `ref` is the concept reference; `kind` discriminates the Semantic-XML child element emitted on export (`<eref>` / `<xref>` / `<termref>`). Without `kind`, a flat `ref` cannot tell the converter which reference type to emit and conversion is ambiguous (§1.1). `erefstack` (a stack of erefs, the fourth XML choice) is not supported — folded into `eref`. |
 | `bcp14` | `type` | open — BCP 14 keyword (e.g. `"MUST"`) |
 | `span` | `class` | open — generic span class |
 | `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`, `strike`, `smallcap` | *(none beyond `data`)* | boolean-style marks |
@@ -269,7 +280,7 @@ to reject empty `src`.
 | `link`, `xref`, `eref`, `concept`, `bcp14`, `span` | `false` | Reference/semantic marks do **not** extend on typing. |
 
 `code` is modelled as **non-exclusive** (it may co-exist with other marks) to
-match the open mark model of `types.ts`; no `excludes` is set on any mark.
+keep the mark model open; no `excludes` is set on any mark.
 **Implementer note.** If strict inline-code behaviour is later required, set
 `excludes` on `code` to the full mark-name list. Out of scope for v1.
 
@@ -402,7 +413,7 @@ optional `section_title` child — the heading textblock. The `section_title`
 renders through the section's content hole (`0` in `sectionToDOM`) automatically;
 no special-cased rendering is needed. The heading is editable inline like any
 other textblock and supports full inline markup (emphasis, links, etc.),
-matching Metanorma Presentation XML's `<title>` child element (§17).
+matching Metanorma Semantic XML's `<title>` child element (§17).
 
 **Bibliography entries.** The `references` section node's content expression
 permits `bibitem` atom nodes alongside blocks. Each `bibitem` stores a
@@ -573,29 +584,29 @@ export function assertValidImageAttrs(attrs: { src?: unknown }): asserts attrs i
 
 ---
 
-## 12. JSON round-trip (`MirrorNode` compatibility)
+## 12. JSON round-trip (`MetanormaNode` compatibility)
 
-A `MirrorNode` is `{ type, attrs?, content?, marks?, text? }`, and a
-`MirrorMark` is `{ type, attrs? }`. ProseMirror's `Node.toJSON()` /
+A `MetanormaNode` is `{ type, attrs?, content?, marks?, text? }`, and a
+`MetanormaMark` is `{ type, attrs? }`. ProseMirror's `Node.toJSON()` /
 `Mark.toJSON()` already emit exactly these fields, so the round-trip contract
 reduces to:
 
-1. **`nodeFromJSON`** accepts any well-formed `MirrorDocument`. Unknown
+1. **`nodeFromJSON`** accepts any well-formed `MetanormaDocument`. Unknown
    attributes on a node/mark are stored into that node/mark's `data` attribute
    (§6) so nothing is silently dropped.
-2. **`toJSON`** of a node loaded from a `MirrorDocument` reproduces the same
+2. **`toJSON`** of a node loaded from a `MetanormaDocument` reproduces the same
    `type`, the same typed attribute values, and the same extra keys (via
    `data`). `marks`, `content`, and `text` round-trip identically.
 3. The 46 node names and 14 mark names in the schema are the editor-side
-   vocabulary. They are derived from (but not identical to) the `MirrorNodeType`
-   union and `MirrorMarkType` constant of `types.ts`: the `footnote` mark is
-   dropped in favour of the `footnote_marker` node (§3.2), and `stem` is
-   reclassified from mark to node (§3.1).
+   vocabulary (§3). They are the editor's own naming of the covered
+   document-model constructs — the `footnote` mark is absent in favour of the
+   `footnote_marker` node (§3.2), and `stem` is an inline node rather than a
+   mark (§3.1).
 
 **Note.** Because `data` is itself a JSON object, deeply nested extra
 attributes survive the round-trip. The module **must not** flatten `data` into
 top-level attrs on output — `toJSON` emits typed attrs at the top level and
-everything else under `data`, matching the open-attribute shape of `types.ts`.
+everything else under `data`, preserving the open-attribute shape.
 
 ---
 
@@ -625,7 +636,7 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 3. For every node type `T` with a typed attribute interface, constructing
    `metanormaSchema.nodeFromJSON({ type: T, attrs: {...all typed fields...} })`
    and calling `.toJSON()` reproduces each typed field value unchanged.
-4. A representative `MirrorDocument` containing one example of **each** node
+4. A representative `MetanormaDocument` containing one example of **each** node
    group and **each** mark round-trips through `nodeFromJSON` → `toJSON` with
    no loss of typed attributes and no loss of keys carried in `data`.
 5. `metanormaSchema.nodeFromJSON(defaultDoc)` (§15) does not throw.
@@ -693,16 +704,19 @@ Deferred and **not** required by this spec:
 
 ---
 
-## 17. Conversion to Metanorma Presentation XML
+## 17. Conversion to Metanorma Semantic XML
 
 As stated in §1.1, this schema covers a **subset** of the Metanorma document
 model. It is designed for **unambiguous convertibility**: every document the
-editor can produce must map to a single, well-defined Metanorma Presentation XML
-structure. A dedicated converter performs attribute/element renames and
-structural reshapes (e.g. `cite` → `citeas`, `href` → `target`, `number` →
-`reference`, the `section_title` child node → a `<title>`/`<name>` child
-element, the doc-level `footnotes`/`footnote_entry`/`footnote_marker` split → a single inline
+editor can produce must map to a single, well-defined Metanorma Semantic XML
+structure — the authoring form that `metanorma-standoc` validates
+(`isodoc-compile.rng`). A dedicated converter performs attribute/element
+renames and structural reshapes (e.g. `cite` → `citeas`, `href` → `target`,
+`number` → `reference`, the `section_title` child node → a `<title>`/`<name>`
+child element, the doc-level `footnotes`/`footnote_entry`/`footnote_marker` split → a single inline
 `<fn>` with body). Name and shape differences are **not** incompatibilities.
+Presentation XML is generated downstream from Semantic XML by the pipeline's
+presentation transform; the editor never authors it.
 
 Two dual-source-of-truth issues are resolved in this spec so that conversion is
 unambiguous:
@@ -728,7 +742,7 @@ defined winner.
 
 ### 17.3 `concept` carries a `kind` discriminator
 
-Presentation-XML `<concept>` (isodoc) expresses its reference as a **choice of
+Semantic-XML `<concept>` (isodoc) expresses its reference as a **choice of
 child elements** — `<eref>` (bibliographic definition), `<xref>` (definition in
 the current document), or `<termref>` (definition in a termbase). Each maps to a
 different output element, so a single flat reference string cannot tell the
@@ -747,7 +761,7 @@ This is a known coverage gap, not an ambiguity.
 
 ### 17.4 Values the converter must invent (schema coverage gaps)
 
-The following Metanorma Presentation XML values are **required** (or commonly
+The following Metanorma Semantic XML values are **required** (or commonly
 expected) but have **no typed slot** in this schema, so a converter must
 synthesise a default on export. These are accepted limitations of the covered
 subset, not ambiguities:
@@ -763,7 +777,7 @@ subset, not ambiguities:
 ### 17.5 Features not represented (dropped on import)
 
 The following Metanorma features exist in the covered element families but have
-**no representation** in this schema, so a Presentation-XML → editor import
+**no representation** in this schema, so a Semantic-XML → editor import
 **drops** them (and export cannot recreate them). Each is a known coverage gap:
 
 | Feature | XML location | Status |

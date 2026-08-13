@@ -1,11 +1,11 @@
 /**
  * Editor-local document types (§6.1).
  *
- * `MirrorDocument` is the JSON-serializable document tree shape accepted by
- * `prosemirror-model`'s `Schema.nodeFromJSON(...)`. It mirrors the open
- * attribute model of the Metanorma Mirror schema: every node carries an
- * optional `attrs` record, and unknown keys round-trip through the schema's
- * catch-all `data` attribute (schema §6).
+ * `MetanormaDocument` is the JSON-serializable document tree shape accepted by
+ * `prosemirror-model`'s `Schema.nodeFromJSON(...)`. It matches the open
+ * attribute model of the Metanorma schema: every node carries an optional
+ * `attrs` record, and unknown keys round-trip through the schema's catch-all
+ * `data` attribute (schema §6).
  *
  * This type is intentionally loose so callers can supply partial or
  * hand-authored documents without satisfying a per-node-type attribute type.
@@ -13,21 +13,21 @@
  */
 
 /**
- * A JSON-serializable Mirror mark.
+ * A JSON-serializable Metanorma mark.
  */
-export interface MirrorMark {
+export interface MetanormaMark {
   readonly type: string;
   readonly attrs?: Readonly<Record<string, unknown>>;
 }
 
 /**
- * A JSON-serializable Mirror document tree: the input shape for
+ * A JSON-serializable Metanorma document tree: the input shape for
  * `metanormaSchema.nodeFromJSON(...)`.
  */
-export interface MirrorDocument {
+export interface MetanormaDocument {
   readonly type: string;
   readonly attrs?: Readonly<Record<string, unknown>>;
-  readonly content?: readonly MirrorDocument[];
-  readonly marks?: readonly MirrorMark[];
+  readonly content?: readonly MetanormaDocument[];
+  readonly marks?: readonly MetanormaMark[];
   readonly text?: string;
 }

@@ -1,7 +1,7 @@
 # Metanorma Editor Commands — Specification
 
 This spec defines the package providing schema-aware ProseMirror editor commands
-for the Metanorma Mirror document model. It is the command-logic companion to
+for the Metanorma document model. It is the command-logic companion to
 [`@metanorma/prosemirror-schema`](./schema.spec.md); its commands are wired into
 the `MetanormaProseMirror` editor mount via the consumer's `plugins` prop.
 
@@ -222,7 +222,7 @@ When a command dispatches, the transaction it produces obeys:
    the same result; it does not read clocks, randomness, or global mutable state.
 3. **Fixture-driven tests.** Every command is testable by constructing an
    `EditorState` from `metanormaSchema.nodeFromJSON(...)` over a fixture document
-   (a `MirrorDocument`-shaped JSON tree), invoking the command with a capturing
+   (a `MetanormaDocument`-shaped JSON tree), invoking the command with a capturing
    `dispatch`, and asserting against the resulting `tr.doc.toJSON()` and the
    selection. No testing-library / DOM rendering is required for command logic.
 
@@ -767,7 +767,7 @@ Shift-Enter breaks the line.**
 
 ### 2.10 Test matrix
 
-Each row is a fixture (an `EditorState` built from a `MirrorDocument`), an
+Each row is a fixture (an `EditorState` built from a `MetanormaDocument`), an
 Enter keypress, and an assertion on the resulting `tr.doc.toJSON()` and
 selection. The matrix is exhaustive over the contexts above; representative
 rows:
@@ -1665,7 +1665,7 @@ following block can node-select it and press Backspace or Delete.
 
 ### 4.10 Test matrix
 
-Each row is a fixture (an `EditorState` built from a `MirrorDocument`), a
+Each row is a fixture (an `EditorState` built from a `MetanormaDocument`), a
 Backspace keypress, and an assertion on the resulting `tr.doc.toJSON()` and
 selection. The matrix is exhaustive over the contexts above; representative
 rows:

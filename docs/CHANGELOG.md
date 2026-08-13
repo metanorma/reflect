@@ -7,6 +7,30 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-08-13 — Document-model source of truth: metanorma-mirror-js → the Metanorma document model
+
+Alignment with the **Metanorma document model** (as expressed in the Semantic
+XML the Metanorma pipeline authors and validates — `isodoc-compile.rng` in
+metanorma-standoc, source grammars in standoc-models) is now the stated goal
+of the schema, replacing derivation from
+`metanorma/metanorma-mirror-js`'s `src/types.ts`. The schema spec's conversion
+target changed from Presentation XML to **Semantic XML** (§1.1, §17) —
+Presentation XML is generated downstream by the pipeline and never authored by
+the editor. Code identifiers renamed in `@metanorma/prosemirror-editor`:
+`MirrorDocument` → `MetanormaDocument`, `MirrorMark` → `MetanormaMark`,
+`DEFAULT_MIRROR_DOC` → `DEFAULT_MN_DOC` (breaking change to the package's
+public API). The stack/docs name "Metanorma Mirror" → **Reflect** (docs index
+and schema spec titles).
+
+**Affected specs:** schema.spec.md (header, §1, §3, §6, §12, §17),
+MetanormaProseMirror.spec.md (§2, §5, §6, §9.4), EditorCommands.spec.md
+(header), undo-redo.md (§6.2), README.md (index), plus pkg/prosemirror-editor
+and pkg/editor-gui code.
+
+**Commits:** *(pending)*
+
+---
+
 ## Seeded entries (pre-governance-migration)
 
 The entries below were reconstructed from Git history and decisionmaking prose

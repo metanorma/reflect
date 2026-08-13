@@ -107,7 +107,7 @@ import {
   type HistoryOptions,
 } from "@metanorma/editor-commands";
 import { metanormaSchema } from "@metanorma/prosemirror-schema";
-import type { MirrorDocument } from "./types.js";
+import type { MetanormaDocument } from "./types.js";
 
 /**
  * Default history configuration. `newGroupDelay` of 500ms — the conventional
@@ -145,7 +145,7 @@ export function buildUndoRedoKeymap(): Plugin {
 }
 
 export function createInitialEditorState(opts: {
-  doc?: MirrorDocument;
+  doc?: MetanormaDocument;
   plugins?: readonly Plugin[];
   editable?: boolean;
   /**
@@ -165,7 +165,7 @@ export function createInitialEditorState(opts: {
 
   return EditorState.create({
     schema: metanormaSchema,
-    doc: metanormaSchema.nodeFromJSON(opts.doc ?? DEFAULT_MIRROR_DOC),
+    doc: metanormaSchema.nodeFromJSON(opts.doc ?? DEFAULT_MN_DOC),
     plugins: [...basePlugins, ...(opts.plugins ?? [])],
   });
 }
@@ -249,7 +249,7 @@ const initialUncontrolledState = useMemo<EditorState>(() => {
     return defaultState;
   }
   const opts: {
-    doc?: MirrorDocument;
+    doc?: MetanormaDocument;
     plugins?: readonly Plugin[];
     history?: HistoryOptions | false;
   } = {};
@@ -584,7 +584,7 @@ extended to mirror it:
 
 ```typescript
 export type CreateInitialEditorStateOptions = {
-  doc?: import("./types.js").MirrorDocument;
+  doc?: import("./types.js").MetanormaDocument;
   plugins?: readonly Plugin[];
   editable?: boolean;
   history?: import("@metanorma/editor-commands").HistoryOptions | false; // ← new

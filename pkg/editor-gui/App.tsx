@@ -4,7 +4,7 @@ import {
   createInitialEditorState,
   DEFAULT_HISTORY_OPTIONS,
 } from '@metanorma/prosemirror-editor';
-import type { EditorState, MirrorDocument } from '@metanorma/prosemirror-editor';
+import type { EditorState, MetanormaDocument } from '@metanorma/prosemirror-editor';
 import { AdvancedMetanormaToolbar } from '@metanorma/toolbar';
 import type { BibliographicItem } from '@metanorma/relaton';
 import { mainTitle } from '@metanorma/relaton';
@@ -96,7 +96,7 @@ function ({ onDoneLoading }) {
   const loadDocFromJson = useCallback((doc: unknown): boolean => {
     // nodeFromJSON validates structure; a bad doc throws RangeError.
     const newState = createInitialEditorState({
-      doc: doc as MirrorDocument,
+      doc: doc as MetanormaDocument,
       history: DEFAULT_HISTORY_OPTIONS,
       plugins: editorPlugins,
     });

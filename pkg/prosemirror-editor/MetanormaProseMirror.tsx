@@ -21,7 +21,7 @@ import {
 import type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
 
 import { createInitialEditorState } from "./state.js";
-import type { MirrorDocument } from "./types.js";
+import type { MetanormaDocument } from "./types.js";
 import { nodeViewComponents as defaultNodeViewComponents } from "./nodeViews/index.js";
 import "./style.css";
 
@@ -34,8 +34,8 @@ export interface MetanormaProseMirrorProps {
 
   /** UNCONTROLLED mode: the initial EditorState (component owns state thereafter). */
   readonly defaultState?: EditorState;
-  /** UNCONTROLLED convenience: build the initial state from a MirrorDocument (§6.1 shape). */
-  readonly defaultDoc?: MirrorDocument;
+  /** UNCONTROLLED convenience: build the initial state from a MetanormaDocument (§6.1 shape). */
+  readonly defaultDoc?: MetanormaDocument;
 
   /** Whether the document is editable. Defaults to `true`. Configures the EditorView `editable` prop. */
   readonly editable?: boolean;
@@ -65,7 +65,7 @@ export interface MetanormaProseMirrorProps {
 
 /**
  * A reusable React component that mounts a ProseMirror editor bound to the
- * Metanorma Mirror schema (`metanormaSchema`).
+ * Metanorma schema (`metanormaSchema`).
  *
  * Supports both controlled (`state` + `onStateChange`) and uncontrolled
  * (`defaultState` / `defaultDoc`) usage.
@@ -96,7 +96,7 @@ export function MetanormaProseMirror({
     if (defaultState !== undefined) {
       return defaultState;
     }
-    const opts: { doc?: MirrorDocument; plugins?: readonly Plugin[]; history?: HistoryOptions | false } = {};
+    const opts: { doc?: MetanormaDocument; plugins?: readonly Plugin[]; history?: HistoryOptions | false } = {};
     if (defaultDoc !== undefined) {
       opts.doc = defaultDoc;
     }
