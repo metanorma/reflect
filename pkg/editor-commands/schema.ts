@@ -4,104 +4,78 @@
  * Commands must not hard-code node/mark lookups with unverified string
  * literals. Node and mark types are resolved from a {@link Schema} instance
  * using names drawn from the schema package's `NODE_NAMES` / `MARK_NAMES`
- * constants. For reference equality and clarity, a shared, lazily-captured
- * schema context is kept here, defaulting to {@link metanormaSchema}.
+ * constants, for reference equality and clarity.
  *
- * Per §1.6.2, commands that are likely to be reused on a composed schema are
- * exposed as `(schema) => Command` factories; they resolve their node/mark
- * types through the *passed-in* schema rather than this shared context. The
- * shared context is used only by commands that are intrinsically specific to
- * the exact Metanorma schema.
+ * Internal to the package: nothing here is re-exported from `index.ts`
+ * (spec §1.10.4 — helpers are not public API).
  */
 
-import type { Node, Schema } from "prosemirror-model";
-import type { EditorState } from "prosemirror-state";
+import { metanormaSchema } from '@metanorma/prosemirror-schema';
+import type { Node, NodeType, ResolvedPos, Schema } from 'prosemirror-model';
 
-import { metanormaSchema, NODE_NAMES, MARK_NAMES } from "@metanorma/prosemirror-schema";
 
 // ---------------------------------------------------------------------------
 // Name constants — derived from NODE_NAMES / MARK_NAMES, never literal.
 // ---------------------------------------------------------------------------
 
 /**
- * The authoritative node-name strings, derived from `NODE_NAMES` so there is a
- * single source of truth. Indexed lookup against a schema's `nodes` map always
- * goes through these names.
+ * The authoritative node-name strings, kept in sync with the schema
+ * package's `NODE_NAMES` (single source of truth; sync is manual — the
+ * schema package types the list as `readonly string[]`, which admits no
+ * compile-time key-coverage check).
  */
 export const NODE_NAME = Object.freeze({
-  doc: "doc",
-  preface: "preface",
-  sections: "sections",
-  bibliography: "bibliography",
-  clause: "clause",
-  annex: "annex",
-  content_section: "content_section",
-  abstract: "abstract",
-  foreword: "foreword",
-  introduction: "introduction",
-  acknowledgements: "acknowledgements",
-  terms: "terms",
-  definitions: "definitions",
-  references: "references",
-  section_title: "section_title",
-  paragraph: "paragraph",
-  note: "note",
-  admonition: "admonition",
-  example: "example",
-  sourcecode: "sourcecode",
-  formula: "formula",
-  quote: "quote",
-  review: "review",
-  bullet_list: "bullet_list",
-  ordered_list: "ordered_list",
-  list_item: "list_item",
-  dl: "dl",
-  dt: "dt",
-  dd: "dd",
-  table: "table",
-  table_head: "table_head",
-  table_body: "table_body",
-  table_foot: "table_foot",
-  table_row: "table_row",
-  table_cell: "table_cell",
-  figure: "figure",
-  image: "image",
-  footnotes: "footnotes",
-    footnote_marker: "footnote_marker",
-    footnote_entry: "footnote_entry",
-    stem: "stem",
-    text: "text",
-  soft_break: "soft_break",
-  floating_title: "floating_title",
+  doc: 'doc',
+  bibdata: 'bibdata',
+  preface: 'preface',
+  sections: 'sections',
+  bibliography: 'bibliography',
+  abstract: 'abstract',
+  foreword: 'foreword',
+  introduction: 'introduction',
+  acknowledgements: 'acknowledgements',
+  clause: 'clause',
+  annex: 'annex',
+  content_section: 'content_section',
+  terms: 'terms',
+  definitions: 'definitions',
+  references: 'references',
+  bibitem: 'bibitem',
+  section_title: 'section_title',
+  paragraph: 'paragraph',
+  note: 'note',
+  admonition: 'admonition',
+  example: 'example',
+  sourcecode: 'sourcecode',
+  formula: 'formula',
+  quote: 'quote',
+  review: 'review',
+  floating_title: 'floating_title',
+  bullet_list: 'bullet_list',
+  ordered_list: 'ordered_list',
+  list_item: 'list_item',
+  dl: 'dl',
+  dt: 'dt',
+  dd: 'dd',
+  table: 'table',
+  table_head: 'table_head',
+  table_body: 'table_body',
+  table_foot: 'table_foot',
+  table_row: 'table_row',
+  table_cell: 'table_cell',
+  figure: 'figure',
+  image: 'image',
+  footnotes: 'footnotes',
+  footnote_marker: 'footnote_marker',
+  footnote_entry: 'footnote_entry',
+  stem: 'stem',
+  text: 'text',
+  soft_break: 'soft_break',
 } as const);
 
-/** Compile-time assertion that {@link NODE_NAME} stays in sync with NODE_NAMES. */
-const _NODE_NAMES_CHECK: readonly string[] = NODE_NAMES;
-void _NODE_NAMES_CHECK;
-
-/**
- * The authoritative mark-name strings, derived from `MARK_NAMES`.
- */
-export const MARK_NAME = Object.freeze({
-  emphasis: "emphasis",
-  strong: "strong",
-  subscript: "subscript",
-  superscript: "superscript",
-  code: "code",
-  underline: "underline",
-  strike: "strike",
-  smallcap: "smallcap",
-  link: "link",
-  xref: "xref",
-  eref: "eref",
-  concept: "concept",
-  bcp14: "bcp14",
-  span: "span",
-} as const);
-
-/** Compile-time assertion that {@link MARK_NAME} stays in sync with MARK_NAMES. */
-const _MARK_NAMES_CHECK: readonly string[] = MARK_NAMES;
-void _MARK_NAMES_CHECK;
+// ---------------------------------------------------------------------------
+// Container-name sets
+// ---------------------------------------------------------------------------
 
 /**
  * Block-level container nodes whose content is `block+` (or the figure's
@@ -110,14 +84,14 @@ void _MARK_NAMES_CHECK;
  * parent `footnotes` requires `footnote_entry+` and cannot accept a lifted
  * paragraph.
  */
-export const CONTAINER_BLOCK_NAMES = Object.freeze([
+export const CONTAINER_BLOCK_NAMES: readonly string[] = [
   NODE_NAME.note,
   NODE_NAME.example,
   NODE_NAME.quote,
   NODE_NAME.review,
   NODE_NAME.admonition,
   NODE_NAME.figure,
-] as const);
+] as const;
 
 /**
  * Block-level atom nodes: empty content, `atom: true`. The cursor can never
@@ -129,14 +103,35 @@ export const BLOCK_ATOM_NAMES = Object.freeze([
 ] as const);
 
 // ---------------------------------------------------------------------------
-// Shared schema context (§1.6.1)
+// Type resolution (§1.6.1)
 // ---------------------------------------------------------------------------
 
 /**
- * The lazily-captured shared schema context, defaulting to
+ * The authoritative mark-name strings, kept in sync with the schema
+ * package's `MARK_NAMES` (single source of truth; manual sync, as above).
+ */
+export const MARK_NAME = Object.freeze({
+  emphasis: 'emphasis',
+  strong: 'strong',
+  subscript: 'subscript',
+  superscript: 'superscript',
+  code: 'code',
+  underline: 'underline',
+  strike: 'strike',
+  smallcap: 'smallcap',
+  link: 'link',
+  xref: 'xref',
+  eref: 'eref',
+  concept: 'concept',
+  bcp14: 'bcp14',
+  span: 'span',
+} as const);
+
+/**
+ * The lazily-captured shared schema context (spec §1.6.1), defaulting to
  * {@link metanormaSchema}. Commands that are not schema-parameterized read
- * node/mark types through {@link schemaCtx} (or through `state.schema`, which
- * is equivalent for an editor mounted on `metanormaSchema`).
+ * node/mark types through {@link getSchemaContext} (or through `state.schema`,
+ * which is equivalent for an editor mounted on `metanormaSchema`).
  *
  * Tests or consumers that compose a modified schema should call
  * {@link setSchemaContext} before invoking non-factory commands.
@@ -167,18 +162,6 @@ export function nodeType(schema: Schema, name: string): NodeType | null {
   return t ?? null;
 }
 
-/**
- * Resolve a mark type by name against a schema, returning `null` if absent.
- * Name must be one of {@link MARK_NAME}.
- */
-export function markType(schema: Schema, name: string): MarkType | null {
-  const t = schema.marks[name];
-  return t ?? null;
-}
-
-// Re-export the schema singleton and raw name lists for consumer convenience.
-export { metanormaSchema, NODE_NAMES, MARK_NAMES };
-
 // ---------------------------------------------------------------------------
 // Position helpers (§1.6.1 internal helpers — NOT public API)
 // ---------------------------------------------------------------------------
@@ -193,15 +176,20 @@ export function nodeAt($pos: ResolvedPos, depth: number): Node | null {
 }
 
 /**
- * Whether the resolved position is *directly* inside a node of the given name —
- * i.e. some ancestor at depth ≥ 1 has that name. ("Inside" is inclusive: a
- * cursor at the boundary of a `list_item` is considered inside it.)
+ * Whether the resolved position is *directly* inside a node of the given
+ * name — i.e. some ancestor at depth ≥ 1 has that name.
+ * ("Inside" is inclusive: a cursor at the boundary of a `list_item`
+ * is considered inside it.)
  *
- * @param schema   schema to resolve the name through.
- * @param $pos     resolved position.
- * @param name     node name from {@link NODE_NAME}.
+ * @param schema  schema to resolve the name through.
+ * @param $pos    resolved position.
+ * @param name    node name from {@link NODE_NAME}.
  */
-export function isInside(schema: Schema, $pos: ResolvedPos, name: string): boolean {
+export function isInside(
+  schema: Schema,
+  $pos: ResolvedPos,
+  name: string,
+): boolean {
   // Validate the name against the schema so a typo returns false rather than
   // silently matching nothing.
   if (nodeType(schema, name) === null) return false;
@@ -259,12 +247,3 @@ export function isEmptyTextblock(node: Node | null): boolean {
   if (node.isTextblock) return node.content.size === 0;
   return false;
 }
-
-// Type-only re-exports for command modules (kept out of the public surface).
-import type {
-  NodeType,
-  MarkType,
-  ResolvedPos,
-} from "prosemirror-model";
-
-export type { EditorState };

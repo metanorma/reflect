@@ -21,10 +21,15 @@
  * paragraph, so there is no valid place to lift to (spec §2.4.5).
  */
 
-import type { Command } from "prosemirror-state";
-import { TextSelection } from "prosemirror-state";
+import type { Command } from 'prosemirror-state';
+import { TextSelection } from 'prosemirror-state';
 
-import { CONTAINER_BLOCK_NAMES, nodeType, isEmptyTextblock } from "../schema.js";
+import {
+  CONTAINER_BLOCK_NAMES,
+  nodeType,
+  isEmptyTextblock,
+} from '../schema.js';
+
 
 /**
  * Exit a container block when the cursor is in its empty trailing paragraph.
@@ -39,7 +44,7 @@ export const exitContainerBlock: Command = (state, dispatch) => {
   // Find the nearest container-block ancestor.
   let containerDepth = -1;
   for (let d = $from.depth; d > 0; d--) {
-    if (CONTAINER_BLOCK_NAMES.includes($from.node(d).type.name as never)) {
+    if (CONTAINER_BLOCK_NAMES.includes($from.node(d).type.name)) {
       containerDepth = d;
       break;
     }
@@ -47,7 +52,7 @@ export const exitContainerBlock: Command = (state, dispatch) => {
   if (containerDepth < 0) return false;
 
   const inner = $from.parent;
-  const paraType = nodeType(state.schema, "paragraph");
+  const paraType = nodeType(state.schema, 'paragraph');
   if (paraType === null) return false;
   if (inner.type !== paraType) return false;
   if (!isEmptyTextblock(inner)) return false;

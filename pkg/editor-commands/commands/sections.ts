@@ -11,18 +11,19 @@
  * `EditorView`/DOM.
  */
 
-import { TextSelection } from "prosemirror-state";
-import type { EditorState, Transaction } from "prosemirror-state";
-import { Fragment } from "prosemirror-model";
-import { NodeRange } from "prosemirror-model";
-import type { Node, NodeType, ResolvedPos } from "prosemirror-model";
-import { liftTarget } from "prosemirror-transform";
+import { TextSelection } from 'prosemirror-state';
+import type { EditorState, Transaction } from 'prosemirror-state';
+import { Fragment } from 'prosemirror-model';
+import { NodeRange } from 'prosemirror-model';
+import type { Node, NodeType, ResolvedPos } from 'prosemirror-model';
+import { liftTarget } from 'prosemirror-transform';
 
-import { generateId } from "../util.js";
+import { generateId } from '../util.js';
 import {
   COHORT_CONTAINER, DOC_CHILD_ORDER, SECTION_COHORT,
-} from "@metanorma/prosemirror-schema";
-import type { SectionCohort } from "@metanorma/prosemirror-schema";
+} from '@metanorma/prosemirror-schema';
+import type { SectionCohort } from '@metanorma/prosemirror-schema';
+
 
 // ---------------------------------------------------------------------------
 // Ancestor-walking helpers (sections.md §5.5)
@@ -34,9 +35,9 @@ import type { SectionCohort } from "@metanorma/prosemirror-schema";
  */
 function isSectionNode(node: Node): boolean {
   const t = node.type;
-  return t.isInGroup("section_front")
-    || t.isInGroup("section_body")
-    || t.isInGroup("section_back");
+  return t.isInGroup('section_front')
+    || t.isInGroup('section_body')
+    || t.isInGroup('section_back');
 }
 
 /**
@@ -81,7 +82,7 @@ export function nearestBodySectionAncestor(
 ): { readonly node: Node; readonly depth: number } | null {
   for (let d = $pos.depth; d >= 1; d--) {
     const node = $pos.node(d);
-    if (node.type.isInGroup("section_body")) {
+    if (node.type.isInGroup('section_body')) {
       return { node, depth: d };
     }
   }
@@ -109,7 +110,8 @@ export function parentAccepts(
 function crossSectionSelection($from: ResolvedPos, $to: ResolvedPos): boolean {
   const fromSec = nearestSectionAncestor($from);
   const toSec = nearestSectionAncestor($to);
-  // If both are null (both at doc-level outside sections) it's not cross-section.
+  // If both are null (both at doc-level outside sections)
+  // it's not cross-section.
   if (fromSec === null && toSec === null) return false;
   if (fromSec === null || toSec === null) return true;
   return fromSec.node !== toSec.node;
@@ -122,7 +124,7 @@ function crossSectionSelection($from: ResolvedPos, $to: ResolvedPos): boolean {
  */
 export function canWrapInClause(state: EditorState): boolean {
   const { $from, $to } = state.selection;
-  const clauseType = state.schema.nodes["clause"];
+  const clauseType = state.schema.nodes['clause'];
   if (clauseType === undefined) return false;
 
   // §5.1 step 5 — cross-section selection guard.
@@ -142,7 +144,7 @@ export function canWrapInClause(state: EditorState): boolean {
   // the doc does not yet have a `sections` container (or the cursor is directly
   // under doc between containers), the wrap command will auto-create one.
   const docNode = $from.node(0);
-  const hasSections = containsNamedChild(docNode, "sections");
+  const hasSections = containsNamedChild(docNode, 'sections');
   if (!hasSections) return true;
 
   return false;
@@ -168,7 +170,7 @@ function containsNamedChild(parent: Node, name: string): boolean {
 interface ContainerInfo {
   /** Absolute position of the container node in `tr.doc`. */
   readonly pos: number;
-  /** Position just inside the container's opening token (before first child). */
+  /** Position just inside the container's opening token (first child). */
   readonly contentStart: number;
   /** Position just before the container's closing token (after last child). */
   readonly contentEnd: number;
@@ -238,7 +240,8 @@ function ensureContainer(
   tr.insert(pos, containerNode);
 
   // The container is now at `pos`, its content starts at `pos + 1`.
-  // Since the container is newly created and empty, contentStart === contentEnd.
+  // Since the container is newly created and empty,
+  // contentStart === contentEnd.
   return {
     pos,
     contentStart: pos + 1,
@@ -300,9 +303,9 @@ export function wrapInClause(
   if (dispatch === undefined) return true;
 
   const schema = state.schema;
-  const clauseType = schema.nodes["clause"];
-  const paragraphType = schema.nodes["paragraph"];
-  const sectionTitleType = schema.nodes["section_title"];
+  const clauseType = schema.nodes['clause'];
+  const paragraphType = schema.nodes['paragraph'];
+  const sectionTitleType = schema.nodes['section_title'];
   if (clauseType === undefined || paragraphType === undefined) return false;
 
   const { $from, $to } = state.selection;
@@ -326,8 +329,8 @@ export function wrapInClause(
 
   // §5.2 step 4 — doc-top-level fallback. If the range's parent is the doc and
   // there is no `sections` container, create one via ensureContainer.
-  if (range.parent.type.name === "doc") {
-    const info = ensureContainer(tr, "sections");
+  if (range.parent.type.name === 'doc') {
+    const info = ensureContainer(tr, 'sections');
     // Re-resolve the range inside the new sections container.
     const offset = tr.doc.nodeSize - state.doc.nodeSize;
     const $newFrom = tr.doc.resolve($from.pos + offset);
@@ -385,7 +388,7 @@ export function promoteClause(
   dispatch?: (tr: Transaction) => void,
 ): boolean {
   const { $from, $to } = state.selection;
-  const clauseType = state.schema.nodes["clause"];
+  const clauseType = state.schema.nodes['clause'];
   if (clauseType === undefined) return false;
 
   const hit = findNearestSectionOfType($from, clauseType);
@@ -397,7 +400,7 @@ export function promoteClause(
   if (parentDepth < 1) return false;
   const parent = $from.node(parentDepth);
   // A clause can only be promoted within body-section parents.
-  if (!parent.type.isInGroup("section_body")) return false;
+  if (!parent.type.isInGroup('section_body')) return false;
 
   // Build a NodeRange that spans the *clause node itself* as a child of its
   // parent. The naive `$from.blockRange($to, (n) => n.type === clauseType)`
@@ -432,7 +435,7 @@ export function demoteClause(
   dispatch?: (tr: Transaction) => void,
 ): boolean {
   const { $from } = state.selection;
-  const clauseType = state.schema.nodes["clause"];
+  const clauseType = state.schema.nodes['clause'];
   if (clauseType === undefined) return false;
 
   const hit = findNearestSectionOfType($from, clauseType);
@@ -451,7 +454,7 @@ export function demoteClause(
   for (let i = clauseIndexInParent - 1; i >= 0; i--) {
     const sibling = parent.child(i);
     if (
-      sibling.type.isInGroup("section_body") &&
+      sibling.type.isInGroup('section_body') &&
       parentAccepts(sibling, clauseType, sibling.childCount)
     ) {
       targetSibling = sibling;
@@ -523,8 +526,8 @@ export function insertSection(
   if (cohort === undefined) return false;
 
   const sectionType = state.schema.nodes[typeName];
-  const paragraphType = state.schema.nodes["paragraph"];
-  const sectionTitleType = state.schema.nodes["section_title"];
+  const paragraphType = state.schema.nodes['paragraph'];
+  const sectionTitleType = state.schema.nodes['section_title'];
   if (sectionType === undefined || paragraphType === undefined) return false;
 
   if (dispatch === undefined) return true;
@@ -546,7 +549,7 @@ export function insertSection(
 
   let insertPos: number;
 
-  if (cohort === "body") {
+  if (cohort === 'body') {
     // Body cohort: try to insert as sibling after the nearest body-section.
     const hit = nearestBodySectionAncestor($from);
     if (hit !== null) {
@@ -556,7 +559,7 @@ export function insertSection(
       // No body-section ancestor — find or create the `sections` container,
       // then insert at the cursor position if it's inside the container,
       // otherwise append.
-      const info = ensureContainer(tr, COHORT_CONTAINER["body"]);
+      const info = ensureContainer(tr, COHORT_CONTAINER['body']);
       insertPos = cursorPosInContainer($from, info) ?? info.contentEnd;
     }
   } else {
@@ -596,7 +599,7 @@ export function insertLeadingParagraph(
   dispatch?: (tr: Transaction) => void,
 ): boolean {
   const { $from } = state.selection;
-  const paragraphType = state.schema.nodes["paragraph"];
+  const paragraphType = state.schema.nodes['paragraph'];
   if (paragraphType === undefined) return false;
 
   const hit = nearestSectionAncestor($from);

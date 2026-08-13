@@ -6,25 +6,12 @@
  * C". The Enter keymap (§2.8) uses it to assemble the dispatch chain from the
  * individual Enter commands.
  *
- * Also re-exports the small predicate helpers from {@link ./schema.js} that
- * several commands share, so command modules import from one place.
- *
  * `generateId()` is the shared id-generation helper used by all node-insertion
  * commands (tables, figures, sections, footnotes) so they are immediately
  * referenceable by `xref`/`eref`.
  */
 
-export { chainCommands } from "prosemirror-commands";
-export type { Command } from "prosemirror-state";
-
-export {
-  isInCode,
-  nearestTextblock,
-  isEmptyTextblock,
-  nearestAncestorDepth,
-  nodeAt,
-  isInside,
-} from "./schema.js";
+export { chainCommands } from 'prosemirror-commands';
 
 /**
  * Generate a fresh, unique id string via `crypto.randomUUID()`.
@@ -38,11 +25,15 @@ export {
  */
 export function generateId(): string {
   const c: typeof globalThis.crypto | undefined =
-    typeof globalThis !== "undefined" && typeof globalThis.crypto === "object"
+    typeof globalThis !== 'undefined' && typeof globalThis.crypto === 'object'
       ? globalThis.crypto
       : undefined;
-  if (c !== undefined && typeof c.randomUUID === "function") {
+  if (c !== undefined && typeof c.randomUUID === 'function') {
     return c.randomUUID();
   }
-  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return [
+    'id',
+    Date.now().toString(36),
+    Math.random().toString(36).slice(2, 10),
+  ].join('-');
 }

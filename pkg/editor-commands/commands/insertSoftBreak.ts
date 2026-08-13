@@ -11,10 +11,10 @@
  * `soft_break` is not valid inline content of `sourcecode` (content `text*`).
  */
 
-import type { Command } from "prosemirror-state";
+import type { Command } from 'prosemirror-state';
 
-import { nodeType, NODE_NAME } from "../schema.js";
-import { isInCode } from "../util.js";
+import { nodeType, NODE_NAME, isInCode } from '../schema.js';
+
 
 /**
  * Insert a `soft_break` node at the current selection.

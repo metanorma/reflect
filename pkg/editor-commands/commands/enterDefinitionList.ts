@@ -15,9 +15,10 @@
  *   valid doc) → insert a `dd` (empty paragraph) after the `dt`; cursor in it.
  * - middle/end of a non-last block inside a `dd` → **not applicable** (returns
  *   `false`); the chain falls through to `splitBlockKeepMarks`. (Kept out of
- *   this command to honour spec §1.9.3 "no hidden ordering".)
+ *   this command to honour spec §1.9.3 'no hidden ordering'.)
  * - end of the LAST block, the `dd` is the LAST child of the `dl`, block
- *   non-empty → **start a new entry**: insert a `(dt empty, dd empty-paragraph)`
+ *   non-empty → **start a new entry**: insert a `(dt empty, dd
+ *   empty-paragraph)`
  *   pair after the `dd`; cursor in the new `dt`.
  * - empty paragraph as the only block of the last `dd` → **exit the dl**:
  *   remove the trailing `(dt dd)` pair; if it was the only pair, remove the
@@ -28,11 +29,12 @@
  * Enter never splits a `dt` (terms are single-line).
  */
 
-import type { Schema } from "prosemirror-model";
-import type { Command } from "prosemirror-state";
-import { TextSelection } from "prosemirror-state";
+import type { Schema } from 'prosemirror-model';
+import type { Command } from 'prosemirror-state';
+import { TextSelection } from 'prosemirror-state';
 
-import { NODE_NAME, nodeType, isEmptyTextblock } from "../schema.js";
+import { NODE_NAME, nodeType, isEmptyTextblock } from '../schema.js';
+
 
 /** Sentinel depth meaning "not inside a dl / dt / dd". */
 const NOT_FOUND = -1;
@@ -50,7 +52,12 @@ export function enterDefinitionList(schema: Schema): Command {
   const dtType = nodeType(schema, NODE_NAME.dt);
   const ddType = nodeType(schema, NODE_NAME.dd);
   const paraType = nodeType(schema, NODE_NAME.paragraph);
-  if (dlType === null || dtType === null || ddType === null || paraType === null) {
+  if (
+    dlType === null
+    || dtType === null
+    || ddType === null
+    || paraType === null
+  ) {
     return () => false;
   }
 
@@ -94,7 +101,8 @@ export function enterDefinitionList(schema: Schema): Command {
       // Defensive: dt without a following dd. Insert a dd (empty paragraph).
       const dd = ddType.create(null, paraType.create());
       tr.insert($from.after(dtDepth), dd);
-      tr.setSelection(TextSelection.near(tr.doc.resolve($from.after(dtDepth) + 2)));
+      const target = $from.after(dtDepth) + 2;
+      tr.setSelection(TextSelection.near(tr.doc.resolve(target)));
       tr.scrollIntoView();
       dispatch(tr);
       return true;
@@ -117,7 +125,8 @@ export function enterDefinitionList(schema: Schema): Command {
         if (dispatch === undefined) return true;
         const tr = state.tr;
         // The trailing (dt dd) pair starts one child before this dd.
-        const pairStart = $from.before(ddDepth) - dlNode.child(ddIndex - 1).nodeSize;
+        const prevSize = dlNode.child(ddIndex - 1).nodeSize;
+        const pairStart = $from.before(ddDepth) - prevSize;
         const pairEnd = $from.after(ddDepth);
         tr.delete(pairStart, pairEnd);
         // If this was the only pair, the dl is now empty → remove it.

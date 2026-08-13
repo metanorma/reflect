@@ -16,8 +16,11 @@
  * `storedMarks` mechanism (spec §1.7.4) so e.g. a bold split stays bold.
  */
 
-import { splitBlockKeepMarks as pmSplitBlockKeepMarks } from "prosemirror-commands";
-import type { Command } from "prosemirror-state";
+import {
+  splitBlockKeepMarks as pmSplitBlockKeepMarks,
+} from 'prosemirror-commands';
+import type { Command } from 'prosemirror-state';
+
 
 /**
  * Split the innermost textblock at the cursor (spec §2.4.1).

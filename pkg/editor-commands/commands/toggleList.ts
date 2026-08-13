@@ -20,12 +20,13 @@
  * transaction when dispatched.
  */
 
-import { liftTarget, findWrapping } from "prosemirror-transform";
-import { NodeSelection } from "prosemirror-state";
-import type { EditorState, Transaction } from "prosemirror-state";
-import type { NodeType } from "prosemirror-model";
+import { liftTarget, findWrapping } from 'prosemirror-transform';
+import { NodeSelection } from 'prosemirror-state';
+import type { EditorState, Transaction } from 'prosemirror-state';
+import type { NodeType } from 'prosemirror-model';
 
-import { NODE_NAME, nodeType, isInside } from "../schema.js";
+import { NODE_NAME, nodeType, isInside } from '../schema.js';
+
 
 /**
  * Resolve the list node sitting two levels above the selection's immediate
@@ -45,7 +46,9 @@ function currentListType(state: EditorState): NodeType | null {
   const t = $from.node(depth).type;
   const bullet = nodeType(state.schema, NODE_NAME.bullet_list);
   const ordered = nodeType(state.schema, NODE_NAME.ordered_list);
-  if ((bullet !== null && t === bullet) || (ordered !== null && t === ordered)) {
+  const isBullet = bullet !== null && t === bullet;
+  const isOrdered = ordered !== null && t === ordered;
+  if (isBullet || isOrdered) {
     return t;
   }
   return null;
@@ -56,7 +59,8 @@ function currentListType(state: EditorState): NodeType | null {
  *
  * @param state     the editor state to inspect / mutate.
  * @param dispatch  when supplied, receives exactly one transaction (§1.5.2);
- *                  when omitted, the call is a pure applicability test (§1.5.1).
+ *                  when omitted, the call is a pure applicability test
+ *                  (§1.5.1).
  * @param listType  the target list (`bullet_list` / `ordered_list`). When
  *                  omitted, the target is resolved from the active list (for
  *                  the unwrap branch); when there is no active list and no
@@ -75,7 +79,9 @@ export function toggleList(
   // context, even when the selection merely spans into one. Checked first so
   // the command's applicability predicate agrees with the toolbar's
   // `isEnabled` (MetanormaToolbar.spec.md §5.3).
-  if (isInside(state.schema, $from, NODE_NAME.dl) || isInside(state.schema, $to, NODE_NAME.dl)) {
+  const fromInDl = isInside(state.schema, $from, NODE_NAME.dl);
+  const toInDl = isInside(state.schema, $to, NODE_NAME.dl);
+  if (fromInDl || toInDl) {
     return false;
   }
 

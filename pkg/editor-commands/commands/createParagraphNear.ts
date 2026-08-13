@@ -8,4 +8,4 @@
  * empty paragraph in which to type.
  */
 
-export { createParagraphNear } from "prosemirror-commands";
+export { createParagraphNear } from 'prosemirror-commands';

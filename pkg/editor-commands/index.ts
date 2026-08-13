@@ -2,67 +2,77 @@
  * Public API for `@metanorma/editor-commands` (spec §1.10).
  *
  * Implements [`docs/EditorCommands.spec.md`](../../docs/EditorCommands.spec.md)
- * **v2** — schema-aware ProseMirror editor commands for the Metanorma document
- * model (Command contract, transaction discipline, and the command inventory:
+ * **v2** — schema-aware ProseMirror editor commands for the Metanorma
+ * document model (Command contract, transaction discipline, inventory:
  * §2 Enter-key commands, §3 `toggleList`, and §4 Backspace-key handling).
  *
- * Exports the Enter-feature commands (spec §2.7), the Backspace-feature command
- * (spec §4.7), the `chainCommands` combinator (spec §1.9.2), and the
- * `metanormaSchema` re-export for consumer convenience.
+ * Exports the Enter-feature commands (spec §2.7), the Backspace-feature
+ * command (spec §4.7), the `chainCommands` combinator (spec §1.9.2), and
+ * the `metanormaSchema` re-export for consumer convenience.
  *
- * Per spec §2.3 and §4.3, there is deliberately **no** composite `enterKey` or
- * `backspaceKey` symbol: commands are named for the action they perform, not
- * the key that triggers them (§1.10.2), and the chains are composed at the call
- * site (the keymap plugin of §2.8/§4.8) so composition stays explicit (§1.9.3)
- * and keymap wiring stays outside the package (§1.13).
+ * Per spec §2.3 and §4.3, there is deliberately **no** composite
+ * `enterKey` or `backspaceKey` symbol: commands are named for the action
+ * they perform, not the key that triggers them (§1.10.2), and the chains
+ * are composed at the call site (the keymap plugin of §2.8/§4.8) so
+ * composition stays explicit (§1.9.3) and keymap wiring stays outside
+ * the package (§1.13).
  */
 
-export { chainCommands, joinBackward, deleteSelection } from "prosemirror-commands";
-export type { Command } from "prosemirror-state";
+export {
+  chainCommands,
+  joinBackward,
+  deleteSelection,
+} from 'prosemirror-commands';
+export type { Command } from 'prosemirror-state';
 
-export { metanormaSchema, NODE_NAMES, MARK_NAMES } from "@metanorma/prosemirror-schema";
+export {
+  metanormaSchema,
+  NODE_NAMES,
+  MARK_NAMES,
+} from '@metanorma/prosemirror-schema';
 
 // Enter-feature commands (spec §2.7).
-export { newlineInCode } from "./commands/newlineInCode.js";
-export { splitBlockKeepMarks } from "./commands/splitBlockKeepMarks.js";
-export { splitListItem } from "./commands/splitListItem.js";
-export { enterDefinitionList } from "./commands/enterDefinitionList.js";
-export { exitContainerBlock } from "./commands/exitContainerBlock.js";
-export { exitSectionTitle } from "./commands/exitSectionTitle.js";
-export { createParagraphNear } from "./commands/createParagraphNear.js";
-export { insertSoftBreak } from "./commands/insertSoftBreak.js";
+export { newlineInCode } from './commands/newlineInCode.js';
+export { splitBlockKeepMarks } from './commands/splitBlockKeepMarks.js';
+export { splitListItem } from './commands/splitListItem.js';
+export { enterDefinitionList } from './commands/enterDefinitionList.js';
+export { exitContainerBlock } from './commands/exitContainerBlock.js';
+export { exitSectionTitle } from './commands/exitSectionTitle.js';
+export { createParagraphNear } from './commands/createParagraphNear.js';
+export { insertSoftBreak } from './commands/insertSoftBreak.js';
 
 // Backspace-feature command (spec §4.7).
-export { emptyTextblockBackspace } from "./commands/emptyTextblockBackspace.js";
+export { emptyTextblockBackspace } from './commands/emptyTextblockBackspace.js';
 
 // List toggling (spec §3).
-export { toggleList } from "./commands/toggleList.js";
+export { toggleList } from './commands/toggleList.js';
 
 // AdvancedMetanormaToolbar pure commands.
 
 // Tables (tables.md).
-export { insertTable, canInsertTable, MAX_ROWS, MAX_COLS } from "./commands/insertTable.js";
+export {
+  insertTable,
+  canInsertTable,
+  MAX_ROWS,
+  MAX_COLS,
+} from './commands/insertTable.js';
 
 // Images / figures (images-figures.md).
-export { insertImage, canInsertFigure } from "./commands/insertImage.js";
-export type { InsertImageAttrs } from "./commands/insertImage.js";
+export { insertImage, canInsertFigure } from './commands/insertImage.js';
+export type { InsertImageAttrs } from './commands/insertImage.js';
 
 // Bibliography entries (Relaton integration).
-export { insertBibitem } from "./commands/insertBibitem.js";
+export { insertBibitem } from './commands/insertBibitem.js';
 
-// Sections / clause nesting (sections.md).
+// Sections / clause nesting (sections.md). Of the pure legality helpers in
+// the module, only `wrapInClause` is part of the public API (toolbar button);
+// the rest are internal per sections.md §5.5.
 export {
   wrapInClause,
   promoteClause,
   demoteClause,
   insertSection,
-  insertLeadingParagraph,
-  canWrapInClause,
-  nearestSectionAncestor,
-  nearestBodySectionAncestor,
-  findNearestSectionOfType,
-  parentAccepts,
-} from "./commands/sections.js";
+} from './commands/sections.js';
 
 // Reference marks (reference-marks.md).
 export {
@@ -74,7 +84,7 @@ export {
   insertFootnoteMarker,
   removeFootnoteMarker,
   insertStem,
-} from "./commands/referenceMarks.js";
+} from './commands/referenceMarks.js';
 
 // Definition lists (definition-lists.md).
 export {
@@ -84,14 +94,21 @@ export {
   exitDefinitionList,
   inDefinitionList,
   canInsertBlock,
-} from "./commands/definitionList.js";
+} from './commands/definitionList.js';
 
 // Undo / redo (undo-redo.md §7).
-export { undo, redo, undoDepth, redoDepth, history } from "./commands/history.js";
-export type { HistoryOptions } from "./commands/history.js";
+export {
+  undo,
+  redo,
+  undoDepth,
+  redoDepth,
+  history,
+} from './commands/history.js';
+export type { HistoryOptions } from './commands/history.js';
 
-// Outdent (outdent.md §3) — stock `lift` re-exported under its standard name.
-export { lift } from "./commands/outdent.js";
+// Outdent (outdent.md §3) — stock `lift` re-exported under its
+// standard name.
+export { lift } from './commands/outdent.js';
 
 // Shared utilities.
-export { generateId } from "./util.js";
+export { generateId } from './util.js';

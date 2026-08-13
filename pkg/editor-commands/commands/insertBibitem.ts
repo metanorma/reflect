@@ -2,12 +2,14 @@
  * `insertBibitem` — insert a new `bibitem` atom node inside a `references`
  * section (Relaton integration).
  *
- * A pure `Command` (EditorCommands.spec.md §1.5): reads `state.schema` directly,
+ * A pure `Command` (EditorCommands.spec.md §1.5): reads `state.schema`
+ * directly,
  * no EditorView/DOM, no factory, non-throwing. Query/dispatch parity.
  */
 
-import type { EditorState, Transaction } from "prosemirror-state";
-import { NodeSelection } from "prosemirror-state";
+import type { EditorState, Transaction } from 'prosemirror-state';
+import { NodeSelection } from 'prosemirror-state';
+
 
 /**
  * Insert an empty `bibitem` atom node at the current selection.
@@ -20,7 +22,8 @@ import { NodeSelection } from "prosemirror-state";
  *
  * @param state  The editor state.
  * @param dispatch  The dispatch function (omit to query applicability).
- * @returns `true` if applicable (inside a `references` section), `false` otherwise.
+ * @returns `true` if applicable (inside a `references` section), `false`
+ *          otherwise.
  */
 export function insertBibitem(
   state: EditorState,
@@ -33,7 +36,7 @@ export function insertBibitem(
   const $from = state.selection.$from;
   let inReferences = false;
   for (let d = $from.depth; d >= 0; d--) {
-    if ($from.node(d).type.name === "references") {
+    if ($from.node(d).type.name === 'references') {
       inReferences = true;
       break;
     }

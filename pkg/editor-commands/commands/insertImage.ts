@@ -12,14 +12,18 @@
  * §1.5).
  */
 
-import { NodeSelection } from "prosemirror-state";
-import type { EditorState, Transaction } from "prosemirror-state";
+import { NodeSelection } from 'prosemirror-state';
+import type { EditorState, Transaction } from 'prosemirror-state';
 
-import { assertValidImageAttrs } from "@metanorma/prosemirror-schema";
+import { assertValidImageAttrs } from '@metanorma/prosemirror-schema';
 
-import { generateId } from "../util.js";
+import { generateId } from '../util.js';
 
-/** Attributes gathered by the adapter (dialog / prompt). `src` must be non-empty. */
+
+/**
+ * Attributes gathered by the adapter (dialog / prompt).
+ * `src` must be non-empty.
+ */
 export interface InsertImageAttrs {
   readonly src: string;
   readonly alt?: string | null;
@@ -34,7 +38,7 @@ export interface InsertImageAttrs {
  * resolution and asks each ancestor whether the figure can occupy a child slot.
  */
 export function canInsertFigure(state: EditorState): boolean {
-  const figureType = state.schema.nodes["figure"];
+  const figureType = state.schema.nodes['figure'];
   if (figureType === undefined) return false;
   const { $from, $to } = state.selection;
   // v1: cursor / single-block only.
@@ -65,7 +69,8 @@ export function insertImage(
   // 2. Query form: no dispatch ⇒ pure predicate, mutate nothing.
   if (dispatch === undefined) return true;
 
-  // 3. Validate src via the throwing guard, wrapped to return false (§6.2 step 3).
+  // 3. Validate src via the throwing guard, wrapped to return false
+  // (§6.2 step 3).
   let src: string;
   try {
     assertValidImageAttrs({ src: attrs?.src });
@@ -76,11 +81,12 @@ export function insertImage(
 
   // 4. Build figure > image, resolving types through state.schema.
   const schema = state.schema;
-  const imageType = schema.nodes["image"];
-  const figureType = schema.nodes["figure"];
+  const imageType = schema.nodes['image'];
+  const figureType = schema.nodes['figure'];
   if (imageType === undefined || figureType === undefined) return false;
   const image = imageType.create({ src, alt: attrs!.alt ?? null });
-  // figure attrs: id is generated for cross-referencing; number/title/data default.
+  // figure attrs: id is generated for cross-referencing;
+  // number/title/data default.
   const figure = figureType.create({ id: generateId() }, [image]);
 
   // 5. Insert + select the figure. ONE transaction.
@@ -91,7 +97,8 @@ export function insertImage(
   const figPos = tr.selection.from - figure.nodeSize;
   tr.setSelection(NodeSelection.create(tr.doc, figPos));
 
-  // 6. scrollIntoView (user-initiated) + dispatch EXACTLY ONCE. No view.focus().
+  // 6. scrollIntoView (user-initiated) + dispatch EXACTLY ONCE.
+  // No view.focus().
   tr.scrollIntoView();
   dispatch(tr);
   return true;

@@ -25,12 +25,13 @@
  * assumed `paragraph` parent.
  */
 
-import type { Schema } from "prosemirror-model";
-import { canSplit } from "prosemirror-transform";
-import type { Command } from "prosemirror-state";
-import { TextSelection } from "prosemirror-state";
+import type { Schema, ResolvedPos, NodeType } from 'prosemirror-model';
+import { canSplit } from 'prosemirror-transform';
+import type { Command } from 'prosemirror-state';
+import { TextSelection } from 'prosemirror-state';
 
-import { NODE_NAME, nodeType, isEmptyTextblock } from "../schema.js";
+import { NODE_NAME, nodeType, isEmptyTextblock } from '../schema.js';
+
 
 /** Sentinel depth meaning "not inside a list_item". */
 const NOT_IN_ITEM = -1;
@@ -39,10 +40,7 @@ const NOT_IN_ITEM = -1;
  * Find the depth of the nearest `list_item` ancestor of `$from`, or
  * {@link NOT_IN_ITEM} if none.
  */
-function findItemDepth(
-  $from: { depth: number; node(d: number): { type: { name: string } } },
-  itemType: { name: string },
-): number {
+function findItemDepth($from: ResolvedPos, itemType: NodeType): number {
   for (let d = $from.depth; d > 0; d--) {
     if ($from.node(d).type.name === itemType.name) return d;
   }
@@ -64,7 +62,7 @@ export function splitListItem(schema: Schema): Command {
 
   return (state, dispatch) => {
     const { $from, $to } = state.selection;
-    const itemDepth = findItemDepth($from as never, itemTypeName as never);
+    const itemDepth = findItemDepth($from, itemTypeName);
     if (itemDepth === NOT_IN_ITEM) return false;
 
     const listDepth = itemDepth - 1;

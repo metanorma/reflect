@@ -8,17 +8,25 @@
  * transaction when dispatched. No `EditorView`/DOM.
  */
 
-import type { EditorState, Transaction } from "prosemirror-state";
-import { TextSelection, NodeSelection } from "prosemirror-state";
-import type { MarkType } from "prosemirror-model";
+import type { EditorState, Transaction } from 'prosemirror-state';
+import { TextSelection, NodeSelection } from 'prosemirror-state';
+import type { MarkType } from 'prosemirror-model';
 
-import { generateId } from "../util.js";
+import { MARK_NAME } from '../schema.js';
+import { generateId } from '../util.js';
+
 
 /** Placeholder text inserted into a newly-created `footnote_entry` (§5.5). */
 const PLACEHOLDER_TEXT = "Footnote text.";
 
-/** Attribute map for a reference mark (reference-marks.md §6.1). */
-type RefAttrs = Record<string, unknown>;
+/**
+ * Attribute map for a reference mark (reference-marks.md §6.1). The exact key
+ * set depends on the mark; each wrapper passes a single keyed object (see the
+ * wrappers below).
+ */
+interface RefAttrs {
+  readonly [key: string]: string | null;
+}
 
 // ---------------------------------------------------------------------------
 // Generic core: applyReferenceMark (reference-marks.md §6.1)
@@ -28,7 +36,8 @@ type RefAttrs = Record<string, unknown>;
  * Apply or remove a reference mark with attributes over the current selection
  * (reference-marks.md §6.1).
  *
- * - Removes the mark (all attrs) when `attrs` is `null` (caller signals removal).
+ * - Removes the mark (all attrs) when `attrs` is `null` (caller signals
+ *   removal).
  * - Otherwise adds the mark with `attrs` over the selection range, first
  *   removing any existing mark of the same type so the new attrs replace it.
  *
@@ -85,7 +94,9 @@ export function applyReferenceMark(
 // Mark-specific wrappers (reference-marks.md §6.2)
 // ---------------------------------------------------------------------------
 
-/** Resolve a mark type by name from `state.schema`, returning `null` if absent. */
+/**
+ * Resolve a mark type by name from `state.schema`, returning `null` if absent.
+ */
 function resolveMark(state: EditorState, name: string): MarkType | null {
   const mt = state.schema.marks[name];
   return mt ?? null;
@@ -100,26 +111,30 @@ export function toggleXref(
   dispatch: ((tr: Transaction) => void) | undefined,
   target: string | null,
 ): boolean {
-  const mt = resolveMark(state, "xref");
+  const mt = resolveMark(state, MARK_NAME.xref);
   if (mt === null) return false;
-  return applyReferenceMark(state, dispatch, mt, target === null ? null : { target });
+  const attrs = target === null ? null : { target };
+  return applyReferenceMark(state, dispatch, mt, attrs);
 }
 
-/** Toggle the `eref` mark with the given `cite` key. `null` removes the mark. */
+/**
+ * Toggle the `eref` mark with the given `cite` key. `null` removes the mark.
+ */
 export function toggleEref(
   state: EditorState,
   dispatch: ((tr: Transaction) => void) | undefined,
   cite: string | null,
 ): boolean {
-  const mt = resolveMark(state, "eref");
+  const mt = resolveMark(state, MARK_NAME.eref);
   if (mt === null) return false;
-  return applyReferenceMark(state, dispatch, mt, cite === null ? null : { cite });
+  const attrs = cite === null ? null : { cite };
+  return applyReferenceMark(state, dispatch, mt, attrs);
 }
 
 /**
  * Toggle the `concept` mark with the given `ref` id and `kind` discriminator.
- * `null` ref removes the mark. `kind` (enum `"eref"` | `"xref"` | `"termref"`,
- * default `"xref"`) selects the Presentation-XML child element
+ * `null` ref removes the mark. `kind` (enum `'eref'` | `'xref'` | `'termref'`,
+ * default `'xref'`) selects the Presentation-XML child element
  * (`<eref>` / `<xref>` / `<termref>`); see schema.spec.md §17.3 and
  * reference-marks.md §5.3.
  */
@@ -127,27 +142,31 @@ export function toggleConcept(
   state: EditorState,
   dispatch: ((tr: Transaction) => void) | undefined,
   ref: string | null,
-  kind?: "eref" | "xref" | "termref",
+  kind?: 'eref' | 'xref' | 'termref',
 ): boolean {
-  const mt = resolveMark(state, "concept");
+  const mt = resolveMark(state, MARK_NAME.concept);
   if (mt === null) return false;
   return applyReferenceMark(
     state,
     dispatch,
     mt,
-    ref === null ? null : { ref, kind: kind ?? "xref" },
+    ref === null ? null : { ref, kind: kind ?? 'xref' },
   );
 }
 
-/** Toggle the `bcp14` mark with the given `type` keyword. `null` removes the mark. */
+/**
+ * Toggle the `bcp14` mark with the given `type` keyword. `null` removes the
+ * mark.
+ */
 export function toggleBcp14(
   state: EditorState,
   dispatch: ((tr: Transaction) => void) | undefined,
   type: string | null,
 ): boolean {
-  const mt = resolveMark(state, "bcp14");
+  const mt = resolveMark(state, MARK_NAME.bcp14);
   if (mt === null) return false;
-  return applyReferenceMark(state, dispatch, mt, type === null ? null : { type });
+  const attrs = type === null ? null : { type };
+  return applyReferenceMark(state, dispatch, mt, attrs);
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +190,7 @@ export function insertFootnoteMarker(
   dispatch: ((tr: Transaction) => void) | undefined,
   target: string,
 ): boolean {
-  const markerType = state.schema.nodes["footnote_marker"];
+  const markerType = state.schema.nodes['footnote_marker'];
   if (markerType === undefined) return false;
 
   // Enabled inside inline content.
@@ -185,14 +204,17 @@ export function insertFootnoteMarker(
 
   // Ensure a `footnote_entry` with `id === target` exists; create the
   // `footnotes` container + placeholder entry if absent.
-  const entryType = state.schema.nodes["footnote_entry"];
-  const footnotesType = state.schema.nodes["footnotes"];
-  const paragraphType = state.schema.nodes["paragraph"];
+  const entryType = state.schema.nodes['footnote_entry'];
+  const footnotesType = state.schema.nodes['footnotes'];
+  const paragraphType = state.schema.nodes['paragraph'];
   let createdEntry = false; // true when a new entry was created in this tx
-  if (entryType !== undefined && footnotesType !== undefined && paragraphType !== undefined) {
+  const typesPresent = entryType !== undefined
+    && footnotesType !== undefined
+    && paragraphType !== undefined;
+  if (typesPresent) {
     let entryExists = false;
     state.doc.descendants((node) => {
-      if (node.type.name === "footnote_entry" && node.attrs["id"] === target) {
+      if (node.type.name === 'footnote_entry' && node.attrs['id'] === target) {
         entryExists = true;
         return false;
       }
@@ -201,11 +223,9 @@ export function insertFootnoteMarker(
     if (!entryExists) {
       // Find or create the `footnotes` container (last child of doc).
       let footnotesPos = -1;
-      let footnotesNode: { readonly type: typeof footnotesType } | null = null;
       for (let i = 0; i < tr.doc.childCount; i++) {
-        if (tr.doc.child(i).type.name === "footnotes") {
+        if (tr.doc.child(i).type.name === 'footnotes') {
           footnotesPos = i;
-          footnotesNode = tr.doc.child(i) as never;
           break;
         }
       }
@@ -220,7 +240,6 @@ export function insertFootnoteMarker(
         tr.insert(tr.doc.content.size, container);
       } else {
         // Append the placeholder entry to the existing container.
-        void footnotesNode;
         let pos = 1; // doc open token
         for (let i = 0; i < footnotesPos; i++) {
           pos += tr.doc.child(i).nodeSize;
@@ -243,7 +262,7 @@ export function insertFootnoteMarker(
     // entry by id, then compute the text range.
     let textStart = -1;
     tr.doc.descendants((node, pos) => {
-      if (node.type.name === "footnote_entry" && node.attrs["id"] === target) {
+      if (node.type.name === 'footnote_entry' && node.attrs['id'] === target) {
         // pos = entry start (before open token).
         // +1 = entry content start, +1 = paragraph content start (text).
         textStart = pos + 2;
@@ -282,10 +301,10 @@ export function insertFootnoteMarker(
 export function insertStem(
   state: EditorState,
   dispatch: ((tr: Transaction) => void) | undefined,
-  type: "asciimath" | "mathml",
+  type: 'asciimath' | 'mathml',
   source: string,
 ): boolean {
-  const stemType = state.schema.nodes["stem"];
+  const stemType = state.schema.nodes['stem'];
   if (stemType === undefined) return false;
 
   // Enabled inside inline content.
@@ -295,7 +314,7 @@ export function insertStem(
 
   const tr = state.tr;
   const stem = stemType.create(
-    type === "asciimath"
+    type === 'asciimath'
       ? { type, asciimath: source, mathml: null }
       : { type, asciimath: null, mathml: source },
   );
@@ -324,7 +343,7 @@ export function removeFootnoteMarker(
   dispatch: ((tr: Transaction) => void) | undefined,
 ): boolean {
   if (!(state.selection instanceof NodeSelection)) return false;
-  if (state.selection.node.type.name !== "footnote_marker") return false;
+  if (state.selection.node.type.name !== 'footnote_marker') return false;
 
   if (dispatch === undefined) return true;
 

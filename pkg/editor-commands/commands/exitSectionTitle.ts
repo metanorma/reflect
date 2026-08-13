@@ -18,10 +18,11 @@
  * - cursor NOT inside a `section_title` → **not applicable** (returns `false`).
  */
 
-import type { Command } from "prosemirror-state";
-import { TextSelection } from "prosemirror-state";
+import type { Command } from 'prosemirror-state';
+import { TextSelection } from 'prosemirror-state';
 
-import { NODE_NAME, nodeType } from "../schema.js";
+import { NODE_NAME, nodeType } from '../schema.js';
+
 
 /**
  * Exit a `section_title` textblock on Enter.

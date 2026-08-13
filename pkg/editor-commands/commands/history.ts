@@ -1,7 +1,8 @@
 /**
  * `history.ts` — undo / redo command re-exports (undo-redo.md §7).
  *
- * `prosemirror-history`'s `undo` / `redo` are already plain ProseMirror commands
+ * `prosemirror-history`'s `undo` / `redo` are already plain ProseMirror
+ * commands
  * of the canonical `(state, dispatch?) => boolean` shape. Per
  * `EditorCommands.spec.md` §1.10.3, an upstream command reused **unchanged** is
  * re-exported under its **standard name** rather than wrapped in a thin
@@ -23,7 +24,8 @@ export {
   undoDepth,
   redoDepth,
   history,
-} from "prosemirror-history";
+} from 'prosemirror-history';
+
 
 /**
  * Configuration for the `history()` plugin (undo-redo.md §3, §4.1).

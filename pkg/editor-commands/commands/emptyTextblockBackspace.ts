@@ -19,7 +19,8 @@
  * - inside the **last** block of a `table_cell` → **refuse** (no-op): a cell
  *   must retain at least one block (spec §4.4.6).
  * - when the walk reaches a non-deletable container (`sections`, `preface`,
- *   `bibliography`, `doc`) that would be emptied → **re-seed** it with a minimal
+ *   `bibliography`, `doc`) that would be emptied → **re-seed** it with a
+ *   minimal
  *   valid `clause > paragraph` so the document always has an editable position
  *   (spec §4.4.8 doc-start anchor).
  * - any other position (non-empty textblock, cursor not at start, ranged or
@@ -28,12 +29,13 @@
  * Single transaction (spec §1.7.1); `scrollIntoView` set (§1.7.3).
  */
 
-import type { Command } from "prosemirror-state";
-import { TextSelection } from "prosemirror-state";
-import type { ResolvedPos, Node } from "prosemirror-model";
+import type { Command } from 'prosemirror-state';
+import { TextSelection } from 'prosemirror-state';
+import type { ResolvedPos, Node } from 'prosemirror-model';
 
-import { NODE_NAME, nodeType, isEmptyTextblock } from "../schema.js";
-import { generateId } from "../util.js";
+import { NODE_NAME, nodeType, isEmptyTextblock } from '../schema.js';
+import { generateId } from '../util.js';
+
 
 /**
  * Non-deletable structural containers (spec §4.4.8): the fixed top-level
@@ -67,8 +69,12 @@ const REFUSE_NAMES: ReadonlySet<string> = new Set([
 
 /** Outcome of the container-stack walk (spec §4.7.3). */
 type WalkResult =
-  | { readonly kind: "refuse" }
-  | { readonly kind: "ok"; readonly cutDepth: number; readonly reseed: boolean };
+  | { readonly kind: 'refuse' }
+  | {
+      readonly kind: 'ok';
+      readonly cutDepth: number;
+      readonly reseed: boolean;
+    };
 
 /**
  * Walk the container stack from the textblock upward (spec §4.7.3), determining
@@ -89,16 +95,16 @@ function walkContainerStack($from: ResolvedPos): WalkResult {
 
     if (REFUSE_NAMES.has(name)) {
       if (node.childCount === 1) {
-        return { kind: "refuse" };
+        return { kind: 'refuse' };
       }
-      return { kind: "ok", cutDepth, reseed: false };
+      return { kind: 'ok', cutDepth, reseed: false };
     }
 
     if (NON_DELETABLE_NAMES.has(name)) {
       if (node.childCount === 1) {
-        return { kind: "ok", cutDepth, reseed: true };
+        return { kind: 'ok', cutDepth, reseed: true };
       }
-      return { kind: "ok", cutDepth, reseed: false };
+      return { kind: 'ok', cutDepth, reseed: false };
     }
 
     if (node.childCount === 1) {
@@ -106,10 +112,10 @@ function walkContainerStack($from: ResolvedPos): WalkResult {
       continue;
     }
 
-    return { kind: "ok", cutDepth, reseed: false };
+    return { kind: 'ok', cutDepth, reseed: false };
   }
 
-  return { kind: "ok", cutDepth, reseed: false };
+  return { kind: 'ok', cutDepth, reseed: false };
 }
 
 /**
@@ -132,7 +138,10 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
   // §4.4.4 — refuse inside a `dl` structure (`dl`/`dt`/`dd` ancestor).
   for (let d = $from.depth; d >= 1; d--) {
     const name = $from.node(d).type.name;
-    if (name === NODE_NAME.dl || name === NODE_NAME.dt || name === NODE_NAME.dd) {
+    const inDl = name === NODE_NAME.dl
+      || name === NODE_NAME.dt
+      || name === NODE_NAME.dd;
+    if (inDl) {
       return false;
     }
   }
@@ -167,7 +176,9 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
     let hasMeaningfulBody = false;
     for (let i = titleIndex + 1; i < sectionNode.childCount; i++) {
       const child = sectionNode.child(i);
-      if (!(child.type.name === NODE_NAME.paragraph && child.content.size === 0)) {
+      const isEmptyPara = child.type.name === NODE_NAME.paragraph
+        && child.content.size === 0;
+      if (!isEmptyPara) {
         hasMeaningfulBody = true;
         break;
       }
@@ -196,16 +207,16 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
         // Re-seed with a minimal clause > [section_title, paragraph].
         const clauseType = nodeType(state.schema, NODE_NAME.clause);
         const paraType = nodeType(state.schema, NODE_NAME.paragraph);
-        const sectionTitleType = nodeType(state.schema, NODE_NAME.section_title);
+        const titleType = nodeType(state.schema, NODE_NAME.section_title);
         if (clauseType !== null && paraType !== null) {
           const children: Node[] = [];
-          if (sectionTitleType !== null) {
-            children.push(sectionTitleType.create());
+          if (titleType !== null) {
+            children.push(titleType.create());
           }
           children.push(paraType.create());
           const clause = clauseType.create({ id: generateId() }, children);
           tr.insert(sectionStart, clause);
-          // Cursor inside the section_title (position +2: clause open + title open).
+          // Cursor inside the section_title (+2: clause open + title open).
           tr.setSelection(TextSelection.near(tr.doc.resolve(sectionStart + 2)));
         }
       } else {
@@ -223,7 +234,7 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
 
   // §4.7.3 — walk the container stack.
   const result = walkContainerStack($from);
-  if (result.kind === "refuse") return false;
+  if (result.kind === 'refuse') return false;
 
   if (dispatch === undefined) return true;
 

@@ -10,8 +10,9 @@
  * `sourcecode` records `\n`, never a node.
  */
 
-import { newlineInCode as pmNewlineInCode } from "prosemirror-commands";
-import type { Command } from "prosemirror-state";
+import { newlineInCode as pmNewlineInCode } from 'prosemirror-commands';
+import type { Command } from 'prosemirror-state';
+
 
 /**
  * Insert a `\n` at the cursor inside the current `sourcecode` block.

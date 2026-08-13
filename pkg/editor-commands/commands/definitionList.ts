@@ -11,9 +11,10 @@
  * `EditorView`/DOM.
  */
 
-import { TextSelection } from "prosemirror-state";
-import type { EditorState, Transaction } from "prosemirror-state";
-import type { Node, Schema } from "prosemirror-model";
+import { TextSelection } from 'prosemirror-state';
+import type { EditorState, Transaction } from 'prosemirror-state';
+import type { Node, Schema, ResolvedPos } from 'prosemirror-model';
+
 
 // ---------------------------------------------------------------------------
 // Pure state-reading predicates (shared by buttons and keymap)
@@ -26,7 +27,7 @@ import type { Node, Schema } from "prosemirror-model";
 export function inDefinitionList(state: EditorState): boolean {
   const { $from } = state.selection;
   for (let d = $from.depth; d > 0; d--) {
-    if ($from.node(d).type.name === "dl") return true;
+    if ($from.node(d).type.name === 'dl') return true;
   }
   return false;
 }
@@ -37,7 +38,7 @@ export function inDefinitionList(state: EditorState): boolean {
  */
 export function canInsertBlock(state: EditorState): boolean {
   const { $from } = state.selection;
-  const dlType = state.schema.nodes["dl"];
+  const dlType = state.schema.nodes['dl'];
   if (dlType === undefined) return false;
   return $from.parent.contentMatchAt($from.index()).matchType(dlType) !== null;
 }
@@ -47,9 +48,9 @@ export function canInsertBlock(state: EditorState): boolean {
  * which depth.
  * @returns the depth of the `dd` ancestor, or `-1` if none.
  */
-export function ddDepth($pos: { readonly depth: number; node: (d: number) => Node }): number {
+export function ddDepth($pos: ResolvedPos): number {
   for (let d = $pos.depth; d >= 1; d--) {
-    if ($pos.node(d).type.name === "dd") return d;
+    if ($pos.node(d).type.name === 'dd') return d;
   }
   return -1;
 }
@@ -58,9 +59,9 @@ export function ddDepth($pos: { readonly depth: number; node: (d: number) => Nod
  * Whether the resolved position sits directly inside a `dt` node.
  * @returns the depth of the `dt` ancestor, or `-1` if none.
  */
-export function dtDepth($pos: { readonly depth: number; node: (d: number) => Node }): number {
+export function dtDepth($pos: ResolvedPos): number {
   for (let d = $pos.depth; d >= 1; d--) {
-    if ($pos.node(d).type.name === "dt") return d;
+    if ($pos.node(d).type.name === 'dt') return d;
   }
   return -1;
 }
@@ -70,9 +71,9 @@ export function dtDepth($pos: { readonly depth: number; node: (d: number) => Nod
  * which depth.
  * @returns the depth of the `dl` ancestor, or `-1` if none.
  */
-export function dlDepthOf($pos: { readonly depth: number; node: (d: number) => Node }): number {
+export function dlDepthOf($pos: ResolvedPos): number {
   for (let d = $pos.depth; d >= 1; d--) {
-    if ($pos.node(d).type.name === "dl") return d;
+    if ($pos.node(d).type.name === 'dl') return d;
   }
   return -1;
 }
@@ -80,7 +81,7 @@ export function dlDepthOf($pos: { readonly depth: number; node: (d: number) => N
 /**
  * Whether the node at `depth` is the last child of its parent.
  */
-export function isLastChild($pos: { readonly index: (d: number) => number; readonly node: (d: number) => Node }, depth: number): boolean {
+export function isLastChild($pos: ResolvedPos, depth: number): boolean {
   const parentDepth = depth - 1;
   if (parentDepth < 0) return false;
   return $pos.index(parentDepth) === $pos.node(parentDepth).childCount - 1;
@@ -91,17 +92,17 @@ export function isLastChild($pos: { readonly index: (d: number) => number; reado
  * content). The `dt` is the sibling immediately preceding the `dd`.
  */
 export function pairTermIsEmpty(
-  $pos: { readonly node: (d: number) => Node; readonly index: (d: number) => number },
+  $pos: ResolvedPos,
   theDdDepth: number,
 ): boolean {
   const parentDepth = theDdDepth - 1;
   if (parentDepth < 1) return false;
   const parent = $pos.node(parentDepth);
-  if (parent.type.name !== "dl") return false;
+  if (parent.type.name !== 'dl') return false;
   const ddIndex = $pos.index(parentDepth);
   if (ddIndex === 0) return false;
   const dt = parent.child(ddIndex - 1);
-  if (dt.type.name !== "dt") return false;
+  if (dt.type.name !== 'dt') return false;
   return dt.content.size === 0;
 }
 
@@ -120,13 +121,14 @@ export function makePair(
   schema: Schema,
   termContent?: readonly Node[] | null,
 ): readonly [Node, Node] {
-  const dtType = schema.nodes["dt"];
-  const ddType = schema.nodes["dd"];
-  const paragraphType = schema.nodes["paragraph"];
-  // These node types are guaranteed by the schema; the non-null assertions keep
-  // the code honest under noUncheckedIndexedAccess.
-  const dt = dtType!.create({}, termContent ?? []);
-  const dd = ddType!.create({}, paragraphType!.create());
+  const dtType = schema.nodes['dt'] ?? null;
+  const ddType = schema.nodes['dd'] ?? null;
+  const paragraphType = schema.nodes['paragraph'] ?? null;
+  if (dtType === null || ddType === null || paragraphType === null) {
+    throw new Error('makePair: schema is missing dt/dd/paragraph node types');
+  }
+  const dt = dtType.create({}, termContent ?? []);
+  const dd = ddType.create({}, paragraphType.create());
   return [dt, dd] as const;
 }
 
@@ -173,7 +175,7 @@ export function insertDefinitionList(
   if (dispatch === undefined) return true;
 
   const schema = state.schema;
-  const dlType = schema.nodes["dl"];
+  const dlType = schema.nodes['dl'];
   if (dlType === undefined) return false;
 
   // Derive the term's inline content from the selection's slice.
@@ -193,7 +195,7 @@ export function insertDefinitionList(
   // Place the cursor inside the new dt. Resolve and verify the parent is `dt`.
   const termTextPos = start + 2; // dl + 1 → dt + 1 → text start
   const $termPos = tr.doc.resolve(termTextPos);
-  if ($termPos.parent.type.name === "dt") {
+  if ($termPos.parent.type.name === 'dt') {
     tr.setSelection(TextSelection.near($termPos));
   } else {
     // Fallback: resolve via TextSelection.near.
@@ -247,7 +249,7 @@ export function addDefinitionPair(
   // Move the cursor into the new dt.
   const newTermPos = posAfter + 1;
   const $termPos = tr.doc.resolve(newTermPos);
-  if ($termPos.parent.type.name === "dt") {
+  if ($termPos.parent.type.name === 'dt') {
     tr.setSelection(TextSelection.near($termPos));
   } else {
     tr.setSelection(TextSelection.near(tr.doc.resolve(posAfter)));
@@ -259,7 +261,8 @@ export function addDefinitionPair(
 }
 
 // ---------------------------------------------------------------------------
-// Keymap helpers (used by the definitionListKeymap plugin in @metanorma/toolbar)
+// Keymap helpers (used by the definitionListKeymap plugin in
+// @metanorma/toolbar)
 // ---------------------------------------------------------------------------
 
 /**
@@ -282,10 +285,10 @@ export function jumpToSiblingDescription(
   // The dd is the next sibling of the dt. Its position is after the dt.
   const ddPos = $from.after(depth);
   const $ddPos = state.doc.resolve(ddPos);
-  if ($ddPos.parent.type.name !== "dl") return false;
+  if ($ddPos.parent.type.name !== 'dl') return false;
   // Descend into the dd's first block.
   const dd = state.doc.nodeAt(ddPos);
-  if (dd === null || dd.type.name !== "dd") return false;
+  if (dd === null || dd.type.name !== 'dd') return false;
 
   if (dispatch === undefined) return true;
 
@@ -322,7 +325,7 @@ export function exitDefinitionList(
   if (dispatch === undefined) return true;
 
   const tr = state.tr;
-  const paragraphType = state.schema.nodes["paragraph"];
+  const paragraphType = state.schema.nodes['paragraph'];
   if (paragraphType === undefined) return false;
 
   // If the dl has only one pair, replace the entire dl with a paragraph.

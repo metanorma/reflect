@@ -12,11 +12,12 @@
  * owns the view and focus.
  */
 
-import { TextSelection } from "prosemirror-state";
-import type { EditorState, Transaction } from "prosemirror-state";
-import type { Node, Schema } from "prosemirror-model";
+import { TextSelection } from 'prosemirror-state';
+import type { EditorState, Transaction } from 'prosemirror-state';
+import type { Node, Schema } from 'prosemirror-model';
 
-import { generateId } from "../util.js";
+import { generateId } from '../util.js';
+
 
 /** Maximum grid-picker dimensions (tables.md §5.1 — 10 × 10). */
 export const MAX_ROWS = 10;
@@ -37,8 +38,8 @@ export function canInsertTable(state: EditorState): boolean {
   const schema = state.schema;
 
   // 1. Refuse to nest tables: bail if any ancestor is a table_cell or table.
-  const cellType = schema.nodes["table_cell"];
-  const tableType = schema.nodes["table"];
+  const cellType = schema.nodes['table_cell'];
+  const tableType = schema.nodes['table'];
   if (cellType !== undefined || tableType !== undefined) {
     for (let d = $from.depth; d > 0; d--) {
       const ancestor = $from.node(d);
@@ -48,7 +49,7 @@ export function canInsertTable(state: EditorState): boolean {
   }
 
   // 2. The immediate parent must accept the table node (block group check).
-  const table = schema.nodes["table"];
+  const table = schema.nodes['table'];
   if (table === undefined) return false;
   if ($from.parent.type.contentMatch.matchType(table) === null) {
     // The parent may itself be a block container (sections, table_cell, …)
@@ -66,7 +67,8 @@ export function canInsertTable(state: EditorState): boolean {
     if (!ok) return false;
   }
 
-  // 3. A range selection spanning multiple block siblings is not supported in v1.
+  // 3. A range selection spanning multiple block siblings is not supported in
+  // v1.
   if (!state.selection.empty) {
     const $to = state.selection.$to;
     if ($from.parent !== $to.parent) return false;
@@ -82,11 +84,11 @@ export function canInsertTable(state: EditorState): boolean {
  * the passed schema, not a captured singleton.
  */
 function buildTable(schema: Schema, rows: number, cols: number): Node | null {
-  const cellType = schema.nodes["table_cell"];
-  const rowType = schema.nodes["table_row"];
-  const bodyType = schema.nodes["table_body"];
-  const tableType = schema.nodes["table"];
-  const paragraphType = schema.nodes["paragraph"];
+  const cellType = schema.nodes['table_cell'];
+  const rowType = schema.nodes['table_row'];
+  const bodyType = schema.nodes['table_body'];
+  const tableType = schema.nodes['table'];
+  const paragraphType = schema.nodes['paragraph'];
   if (
     cellType === undefined ||
     rowType === undefined ||
