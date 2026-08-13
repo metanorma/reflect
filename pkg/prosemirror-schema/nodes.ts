@@ -74,14 +74,14 @@ const structuralNodes: Record<string, NodeSpec> = {
       // by HTML ingestion.
     },
     preface: {
-      content: `(section_front | ${BLOCK_GROUP})*`,
+      content: 'section_front+',
       attrs: baseAttrs(),
       toDOM: () => ['section', { class: CLASS.preface }, 0],
       parseDOM: [{ tag: `section.${CLASS.preface}` }],
       allowGapCursor: true,
     },
     sections: {
-      content: `(section_body | ${BLOCK_GROUP})*`,
+      content: 'section_body+',
       attrs: baseAttrs(),
       toDOM: () => ['section', { class: CLASS.sections }, 0],
       parseDOM: [{ tag: `section.${CLASS.sections}` }],
