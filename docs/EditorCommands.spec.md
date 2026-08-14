@@ -612,11 +612,12 @@ The cursor is always inside some textblock; it is never "inside" a `clause`,
   cursor to the section's first body block, or inserts an empty paragraph as
   the body if none exists. Enter never splits a `section_title` into two (a
   section has at most one heading).
-- For leaf sections whose content is `section_title? block+` (`abstract`,
-  `foreword`, `introduction`, `acknowledgements`), Enter on the last empty
-  paragraph simply adds another paragraph inside; it does not exit into the
-  parent. The schema-safety rule below still applies: the section is never left
-  with zero blocks.
+- For front-matter sections (`abstract`, `foreword`, `introduction`,
+  `acknowledgements`, `content_section`), whose content is
+  `section_title? block* content_section*`, Enter on the last empty paragraph
+  simply adds another paragraph inside; it does not exit into the parent. The
+  schema-safety rule below still applies: the section is never left with zero
+  children when its expression requires at least one.
 
 ### 2.5 Schema-preservation guarantees
 
@@ -627,9 +628,9 @@ behaviour:
 1. **No empty required-`+` container is ever left behind.** If a branch would
    leave a parent whose content expression requires one-or-more (`list_item+`,
    `table_row+`, `table_cell+`, `block+` in a container, `(dt dd)+` in a dl,
-   `footnote_entry+` in footnotes, `block+` in a leaf section) with zero
-   children, the branch instead removes that parent (and recurses upward) so the
-   document stays valid.
+   `footnote_entry+` in footnotes, `block+`/`(...)+` in a section or container)
+   with zero children, the branch instead removes that parent (and recurses
+   upward) so the document stays valid.
 2. **The `(dt dd)+` alternation of `dl` is never broken.** No transaction
    produced by Enter contains two adjacent `dt` nodes or two adjacent `dd`
    nodes, nor a trailing `dt` without a `dd`.
@@ -811,7 +812,7 @@ rows:
 - **A3** node-selected non-atom block (a `paragraph`, a `clause`, …) → no-op
   (`false`).
 - **S1** every exit branch: assert no `bullet_list` / `ordered_list` / `dl` /
-  container / table part / leaf section is left with fewer children than its
+  container / table part / section is left with fewer children than its
   content expression requires.
 - **S2** every `dl`-affecting branch: assert no two adjacent `dt` or `dd`, and
   no trailing `dt` without a `dd`.
@@ -1324,9 +1325,9 @@ textblock empties a section**:
   only structural change Backspace makes to the section hierarchy; new sections
   come from dedicated commands (the toolbar's Clause button, §3 of the
   AdvancedMetanormaToolbar spec), never from Backspace.
-- **For leaf sections whose content is `block+`** (`abstract`, `foreword`,
-  `introduction`, `acknowledgements`), the same rule applies as for clauses:
-  delete the last block → section deleted → walk upward. The schema-safety rule
+- **For front-matter sections** (`abstract`, `foreword`, `introduction`,
+  `acknowledgements`, `content_section`), the same rule applies as for clauses:
+  delete the last child → section deleted → walk upward. The schema-safety rule
   below still applies: the document is never left with no editable position.
 
 **Doc-start anchor.** The default document (schema.spec.md §15) is `doc >
@@ -1377,9 +1378,9 @@ Every branch of the Backspace chain upholds invariants dual to §2.5's:
 1. **No empty required-`+` container is ever left behind.** If a branch would
    leave a parent whose content expression requires one-or-more (`list_item+`,
    `table_row+`, `table_cell+`, `block+` in a container, `(dt dd)+` in a dl,
-   `footnote_entry+` in footnotes, `block+` in a leaf section) with zero
-   children, the branch instead removes that parent (and recurses upward per
-   §4.7.3) so the document stays valid.
+   `footnote_entry+` in footnotes, `block+`/`(...)+` in a section or container)
+   with zero children, the branch instead removes that parent (and recurses
+   upward per §4.7.3) so the document stays valid.
 2. **The `(dt dd)+` alternation of `dl` is never broken.** No transaction
    produced by Backspace deletes a `dt` or `dd` such that the remaining dl has
    two adjacent `dt` or two adjacent `dd`, or a trailing `dt` without a `dd`.
@@ -1734,15 +1735,16 @@ rows:
   `clause` (two-level nesting) → both clauses and the paragraph deleted in one
   transaction; cursor at end of the previous sibling of the outer clause (or
   re-seed).
-- **BS2** empty paragraph, sole child of a leaf section (`abstract`), the
-  `abstract` is one of several siblings in `preface` → paragraph and `abstract`
-  deleted; cursor at end of the previous sibling's last descendant textblock.
+- **BS2** empty paragraph, sole child of a front-matter section (`abstract`),
+  the `abstract` is one of several siblings in `preface` → paragraph and
+  `abstract` deleted; cursor at end of the previous sibling's last descendant
+  textblock.
 - **BS3** empty paragraph whose deletion chain would empty a non-deletable
   container other than at doc start (e.g. an empty `bibliography` reached by
   deleting its only `clause`) → re-seed per §4.4.8; cursor in the re-seeded
   paragraph; document remains editable.
 - **S1** every applicable row: assert no `bullet_list` / `ordered_list` / `dl` /
-  container / table part / leaf section is left with fewer children than its
+  container / table part / section is left with fewer children than its
   content expression requires.
 - **S2** every dl-affecting row (BD1, BD2): assert `(dt dd)+` intact.
 - **S3** every applicable row: assert the resulting selection resolves to a
@@ -1761,11 +1763,10 @@ executability.
 
 This section specifies the **section insertion feature** of
 `@metanorma/editor-commands`: a single command that creates a new section node
-of any of the ten section types, routing it to the correct container based on
-its cohort ([schema.spec.md](./schema.spec.md) §8.0a). It replaces the
-per-cohort commands that an earlier draft split across separate functions:
-insertion, container creation, and sibling anchoring are unified into one
-command backed by shared helpers.
+of any of the ten section types, routing it to the correct location based on
+its cohort ([schema.spec.md](./schema.spec.md) §8.0a). Insertion, container
+creation, and sibling anchoring are unified into one command backed by shared
+helpers.
 
 ### 5.1 Scope
 
@@ -1775,6 +1776,8 @@ In scope:
   cohort-routing algorithm.
 - The `ensureContainer(tr, containerName)` helper (single source of truth for
   doc-level container creation).
+- The `ensureSubclauseCapacity(tr, $from, hit)` helper (the strict-clause
+  auto-wrap accommodation).
 - The `nearestBodySectionAncestor($pos)` helper.
 
 Out of scope:
@@ -1782,7 +1785,7 @@ Out of scope:
 - Clause nesting operations (`wrapInClause`, `promoteClause`, `demoteClause`)
   — these are structural transformations on existing body sections, specified
   in [AdvancedMetanormaToolbar/sections.md](./AdvancedMetanormaToolbar/sections.md).
-- Same-cohort type changes (e.g. clause→annex). The schema permits them
+- Same-cohort type changes (e.g. clause→terms). The schema permits them
   (shared group, compatible content) and `sameCohort()`
   ([schema.spec.md](./schema.spec.md) §8.0a) is the future guard, but no
   command is provided here.
@@ -1796,15 +1799,24 @@ import type { EditorState, Transaction } from "prosemirror-state";
 
 /**
  * Insert a new section node of the given `typeName`, routing it to the correct
- * container based on its cohort. Creates the container (preface, sections, or
+ * location based on its cohort. Creates the container (preface, sections, or
  * bibliography) if it does not exist.
  *
- * Body cohort (clause, annex, content_section, terms, definitions): inserts as
- * a sibling after the nearest enclosing body section, or appends to the
- * `sections` container if no body-section ancestor exists.
+ * Body cohort (clause, terms, definitions): inserts as a sibling after the
+ * nearest enclosing body section, auto-wrapping any block run that sibling
+ * holds into a subclause first (the strict clause XOR, §5.5). With no
+ * body-section ancestor, finds or creates the `sections` container and inserts
+ * there (at the cursor position when it sits directly in the container, else
+ * appended).
+ *
+ * Annex cohort (annex): annexes are doc-level siblings — no container. Inserted
+ * after the last existing `annex` child of the doc, or (when none exist)
+ * immediately after `sections` and before `bibliography` / `footnotes`, per
+ * `DOC_CHILD_ORDER`.
  *
  * Front / back cohort (abstract, foreword, … / references): finds or creates
- * the `preface` / `bibliography` container and appends the section.
+ * the `preface` / `bibliography` container and inserts there (at the cursor
+ * position when it sits directly in the container, else appended).
  *
  * The new section gets an empty `section_title` (heading placeholder) and a
  * leading empty `paragraph`. The cursor lands in the `section_title`.
@@ -1834,18 +1846,27 @@ When `dispatch` is supplied and `typeName` is a recognized section type
 2. **Build the section node.** Create the section with a generated `id`
    (`generateId()`), an empty `section_title` (heading placeholder), and a
    leading empty `paragraph`. The cursor will land in the `section_title`.
-3. **Route by cohort:**
-   - **Body cohort** (`clause`, `annex`, `content_section`, `terms`,
-     `definitions`): find the nearest enclosing body-section ancestor via
-     `nearestBodySectionAncestor($from)` (§5.5). If one exists, insert the new
-     section as a sibling immediately after it (at `$from.after(hit.depth)`).
-     If no body-section ancestor exists, find or create the `sections`
-     container via `ensureContainer` (§5.4) and append the section.
-   - **Front cohort** (`abstract`, `foreword`, `introduction`,
-     `acknowledgements`): find or create the `preface` container via
-     `ensureContainer` and append the section.
-   - **Back cohort** (`references`): find or create the `bibliography`
-     container via `ensureContainer` and append the section.
+3. **Route by cohort — three rules:**
+   - **Body cohort** (`clause`, `terms`, `definitions`): find the nearest
+     enclosing body-section ancestor via `nearestBodySectionAncestor($from)`
+     (§5.6). If one exists and is a `clause` holding a block run, first call
+     `ensureSubclauseCapacity` (§5.5) so the new section can legally become a
+     subclause sibling, then insert after the accommodation point. If the
+     ancestor holds no blocks, insert as a sibling immediately after it (at
+     `$from.after(hit.depth)`). If no body-section ancestor exists, find or
+     create the `sections` container via `ensureContainer` (§5.4) and insert at
+     the cursor position when it sits directly inside the container, else
+     append.
+   - **Annex cohort** (`annex`): doc-level insert via `annexInsertPos` — after
+     the last existing `annex` child of the doc, or immediately after
+     `sections` (before `bibliography` / `footnotes`) when no annex exists.
+     There is no container to find or create: `COHORT_CONTAINER` carries no
+     `"annex"` key ([schema.spec.md](./schema.spec.md) §8.0a).
+   - **Front / back cohort** (`abstract`, `foreword`, `introduction`,
+     `acknowledgements`, `content_section` / `references`): find or create the
+     `preface` / `bibliography` container via `ensureContainer` and insert at
+     the cursor position when it sits directly inside the container, else
+     append.
 4. **Set the selection** inside the new section's `section_title`
    (`TextSelection.near` at `insertPos + 2`, entering the section then the
    heading).
@@ -1880,9 +1901,61 @@ direct children. If it does not exist, an empty container node is created (with
 a generated `id`) and inserted at the position dictated by
 `DOC_CHILD_ORDER` — immediately after the last existing doc-child that precedes
 `containerName` in the ordering. This guarantees the `doc.content` ordering
-constraint `(bibdata preface? sections? bibliography? footnotes?)` is honoured.
+constraint `(bibdata preface? sections? annex* bibliography? footnotes?)` is
+honoured. `ensureContainer` is only ever called for a container-backed cohort
+(`preface`, `sections`, `bibliography`); the annex cohort bypasses it entirely.
 
-### 5.5 `nearestBodySectionAncestor($pos)`
+### 5.5 `ensureSubclauseCapacity(tr, $from, hit)` — the strict-clause auto-wrap
+
+`clause` implements Isodoc's `Clause-Section` as a strict XOR: a clause holds
+either a block run or a subclause run, never both
+([schema.spec.md](./schema.spec.md) §8.2). A document built by plain typing can
+therefore reach a state where the user, inside a block-bearing clause, asks for
+a new subclause — an insertion the strict content expression would reject.
+
+`ensureSubclauseCapacity` is the accommodation. It is an internal helper
+(mutates the caller's transaction in place) invoked by `insertSection`'s
+body-cohort path and by `wrapInClause`:
+
+```ts
+/**
+ * Strict-XOR accommodation for body clauses. When a subclause insertion is
+ * requested inside a `clause` that currently holds blocks (after its
+ * `section_title`), those blocks are first wrapped into one new subclause,
+ * which becomes the parent's first body child. If the clause is empty or
+ * already holds subclauses, no restructuring is needed.
+ *
+ * All steps go into the caller's transaction — one undo step.
+ *
+ * @returns The insert position for the new subclause, and whether a wrap
+ *          happened. When `wrapped` is true the caller must re-derive any
+ *          positions it computed against the pre-wrap doc.
+ */
+function ensureSubclauseCapacity(
+  tr: Transaction,
+  $from: ResolvedPos,
+  hit: { readonly node: Node; readonly depth: number },
+): { readonly insertPos: number; readonly wrapped: boolean };
+```
+
+Behaviour:
+
+1. Classify the clause's body children (after the optional `section_title`):
+   block run vs. subclause run.
+2. **Nothing to restructure** when the clause is empty or already holds
+   subclauses — return the end-of-content insert position with
+   `wrapped: false`.
+3. **Block run present** — cut the run and re-insert it inside a fresh
+   `clause` (generated `id`) at the same position. The wrapped blocks become
+   the parent's first body child, and the new subclause goes immediately after
+   it: return `wrapped: true` with the post-wrap insert position.
+
+The wrap is composed **within the caller's single transaction**: one command,
+one transaction, **one undo step**. Callers must re-derive positions computed
+against the pre-wrap document (`tr.doc.nodeSize` deltas) — both `insertSection`
+and `wrapInClause` do so.
+
+### 5.6 `nearestBodySectionAncestor($pos)`
 
 ```ts
 import type { ResolvedPos, Node } from "prosemirror-model";
@@ -1900,7 +1973,7 @@ Walks `$pos.depth → 1` via `$pos.node(d)`, returning the first ancestor whose
 type is in group `"section_body"`. `$pos.node(0)` (the doc) is never a section
 and is skipped.
 
-### 5.6 Relationship to `wrapInClause`
+### 5.7 Relationship to `wrapInClause`
 
 `insertSection` and `wrapInClause`
 ([AdvancedMetanormaToolbar/sections.md](./AdvancedMetanormaToolbar/sections.md)
@@ -1908,28 +1981,30 @@ and is skipped.
 
 - `wrapInClause` wraps the selection's block(s) in a new `clause`, moving the
   existing content inside the clause. It is the "promote this paragraph into a
-  subsection" action.
+  subsection" action. When the enclosing body clause holds blocks, it calls
+  `ensureSubclauseCapacity` (§5.5) before wrapping, so the result satisfies the
+  strict XOR.
 - `insertSection` creates a new section *in place* (splitting the current
-  block), routed to the correct container by cohort. It is the "add a new
+  block), routed to the correct location by cohort. It is the "add a new
   section here" action invoked by the Section popover.
 
 Both produce a `section_title` + `paragraph` body and land the cursor in the
 `section_title`. Both use `ensureContainer` for the doc-top-level fallback
 (creating a `sections` container if none exists).
 
-### 5.7 Public API
+### 5.8 Public API
 
 The package's `index.ts` exports:
 
 - `insertSection` — the command specified in §5.2.
-- `nearestBodySectionAncestor` — the helper specified in §5.5.
+- `nearestBodySectionAncestor` — the helper specified in §5.6.
 
-The `ensureContainer` helper (§5.4) is an internal function used by
-`insertSection` and `wrapInClause`; it is not part of the documented public API.
+The `ensureContainer` (§5.4) and `ensureSubclauseCapacity` (§5.5) helpers are
+internal functions used by `insertSection` and `wrapInClause`; they are not
+part of the documented public API.
 
 The section-nesting commands `wrapInClause`, `promoteClause`, `demoteClause`,
 and the ancestor helpers `nearestSectionAncestor`, `findNearestSectionOfType`,
 `canWrapInClause`, `parentAccepts` are also exported; they are specified in
 [AdvancedMetanormaToolbar/sections.md](./AdvancedMetanormaToolbar/sections.md)
-§5. `insertLeadingParagraph` (a convenience for adding an intro paragraph
-before nested subclauses) is likewise exported and specified there.
+§5.

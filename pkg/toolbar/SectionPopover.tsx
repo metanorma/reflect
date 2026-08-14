@@ -24,7 +24,7 @@ import {
   insertSection,
 } from "@metanorma/editor-commands";
 import {
-  FRONT_TYPES, BODY_TYPES, BACK_TYPES,
+  FRONT_TYPES, BODY_TYPES, ANNEX_TYPES, BACK_TYPES,
 } from "@metanorma/prosemirror-schema";
 
 import "./section-popover.css";
@@ -56,6 +56,7 @@ interface MenuGroup {
 const MENU_GROUPS: readonly MenuGroup[] = [
   { heading: "Front matter", types: FRONT_TYPES },
   { heading: "Body", types: BODY_TYPES },
+  { heading: "Annexes", types: ANNEX_TYPES },
   { heading: "Back matter", types: BACK_TYPES },
 ];
 

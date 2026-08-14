@@ -7,6 +7,35 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-08-12 — Isodoc alignment: strict clause XOR, doc-level annexes, front-matter content_section
+
+The section content model was aligned with the Isodoc grammar
+(`standoc-models/grammars/isodoc.rnc`). `clause` now implements
+`Clause-Section` as a **strict XOR** — a clause holds either a block run or a
+subclause run, never both (no hanging paragraphs); the editor accommodates the
+strictness with an `ensureSubclauseCapacity` auto-wrap (folding a block-bearing
+clause's blocks into a subclause, same transaction, one undo step) wired into
+`insertSection`, `wrapInClause`, and `demoteClause`. `annex` became a **doc-level
+sibling** (`doc.content` = `(bibdata preface? sections? annex* bibliography?
+footnotes?)`, new `section_annex` cohort with no container) with Isodoc's
+non-strict `Annex-Section-Body`. `content_section` moved from the body cohort to
+the front cohort (Isodoc `content`, the unnumbered generic preface clause,
+serializing as `<clause>`); the four named front-matter sections gained
+`content_section` subclause nesting. `terms`, `definitions`, and `references`
+content expressions were tightened to their Isodoc shapes (`references` is the
+ordered `block* bibitem* references*`). The Section popover gained a fourth menu
+group ("Annexes"). `promoteClause` refuses when the clause is its parent's only
+child, and `insertLeadingParagraph` was removed (hanging paragraphs are now
+schema-forbidden).
+
+**Affected specs:** schema.spec.md §3.1/§4/§5/§8.0a/§8.1/§8.2/§11/§17.5/§17.6,
+EditorCommands.spec.md §5, AdvancedMetanormaToolbar/sections.md §2/§4/§5/§6/§8,
+plus pkg/prosemirror-schema, pkg/editor-commands, and pkg/toolbar code.
+
+**Commits:** *(pending)*
+
+---
+
 ## 2026-08-13 — Document-model source of truth: metanorma-mirror-js → the Metanorma document model
 
 Alignment with the **Metanorma document model** (as expressed in the Semantic

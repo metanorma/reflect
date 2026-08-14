@@ -32,12 +32,13 @@ import type { SectionCohort } from '@metanorma/prosemirror-schema';
 
 /**
  * True when `node` belongs to any section cohort group
- * (`section_front`, `section_body`, or `section_back`).
+ * (`section_front`, `section_body`, `section_annex`, or `section_back`).
  */
 function isSectionNode(node: Node): boolean {
   const t = node.type;
   return t.isInGroup('section_front')
     || t.isInGroup('section_body')
+    || t.isInGroup('section_annex')
     || t.isInGroup('section_back');
 }
 
@@ -284,6 +285,117 @@ function cursorPosInContainer(
   return childPos;
 }
 
+/**
+ * Result of {@link ensureSubclauseCapacity}: where to insert a new subclause
+ * inside the target clause, and whether an auto-wrap step was performed.
+ */
+interface SubclauseCapacity {
+  /** Insert position for a new subclause (inside the clause, among its children). */
+  readonly insertPos: number;
+  /** True when the clause's leading blocks were wrapped into a subclause. */
+  readonly wrapped: boolean;
+}
+
+/**
+ * The strict-XOR accommodation for body clauses (`Clause-Section`: blocks
+ * XOR subclauses, never mixed). When a subclause insertion is requested inside
+ * a clause that currently holds blocks (after its `section_title`), those
+ * blocks are first wrapped into one new subclause, which becomes the parent's
+ * first body child. If the clause is empty or already holds subclauses, no
+ * restructuring is needed.
+ *
+ * All steps go into the caller's transaction — one undo step.
+ *
+ * @param tr      The caller's transaction (mutated in place when wrapping).
+ * @param $from   Cursor position (for resolving the enclosing clause).
+ * @param hit     The clause node + depth targeted for the subclause insertion.
+ * @returns The insert position for the new subclause, and whether a wrap
+ *          happened. When `wrapped` is true the caller must re-derive any
+ *          positions it computed against the pre-wrap doc.
+ */
+function ensureSubclauseCapacity(
+  tr: Transaction,
+  $from: ResolvedPos,
+  hit: { readonly node: Node; readonly depth: number },
+): SubclauseCapacity {
+  const clauseType = tr.doc.type.schema.nodes['clause'];
+  if (clauseType === undefined) {
+    // Cannot wrap without the clause type; report the plain end position.
+    return { insertPos: $from.after(hit.depth), wrapped: false };
+  }
+
+  const clauseStart = $from.before(hit.depth);
+  const clause = $from.node(hit.depth);
+
+  // Find the contiguous run of block children after the section_title.
+  // Children from `blockStart` onward (up to the first section child) are
+  // the potential auto-wrap candidates.
+  let blockStartIdx = 0;
+  if (clause.child(0)?.type.name === 'section_title') blockStartIdx = 1;
+
+  // Classify the clause's current body children.
+  let hasBlocks = false;
+  let hasSubclauses = false;
+  for (let i = blockStartIdx; i < clause.childCount; i++) {
+    const child = clause.child(i);
+    if (child.type.isInGroup('section_body')) hasSubclauses = true;
+    else hasBlocks = true;
+  }
+
+  if (!hasBlocks || hasSubclauses) {
+    // Nothing to restructure: either empty, subclauses-only, or the strict
+    // schema already forbids the mixed case. Insert at the end of content.
+    return { insertPos: clauseStart + 1 + clause.content.size, wrapped: false };
+  }
+
+  // Wrap the block run into a new clause as the parent's first body child.
+  // Position math: clauseStart is before the clause's open token; +1 is
+  // inside it; + section_title size lands after the title.
+  const titleSize = blockStartIdx === 1
+    ? clause.child(0).nodeSize
+    : 0;
+  const blockRunStart = clauseStart + 1 + titleSize;
+  let blockRunSize = 0;
+  for (let i = blockStartIdx; i < clause.childCount; i++) {
+    blockRunSize += clause.child(i).nodeSize;
+  }
+
+  // Cut the block run and re-insert it inside a fresh clause at the same
+  // position (a wrap: delete then insert the wrapped node).
+  const blocksSlice = tr.doc.slice(blockRunStart, blockRunStart + blockRunSize);
+  const wrapClause = clauseType.create(
+    { id: generateId() },
+    blocksSlice.content,
+  );
+  tr.delete(blockRunStart, blockRunStart + blockRunSize);
+  tr.insert(blockRunStart, wrapClause);
+
+  // The new subclause goes after the wrap clause.
+  return { insertPos: blockRunStart + wrapClause.nodeSize, wrapped: true };
+}
+
+/**
+ * Compute the doc-level insertion position for a new `annex` node: after the
+ * last existing `annex` child of the doc, or (when none exist) immediately
+ * after `sections` per {@link DOC_CHILD_ORDER}, before `bibliography` /
+ * `footnotes`.
+ */
+function annexInsertPos(tr: Transaction): number {
+  const doc = tr.doc;
+  let pos = 0;
+  let lastAnnexEnd: number | null = null;
+  let afterSectionsEnd: number | null = null;
+
+  for (let i = 0; i < doc.childCount; i++) {
+    const child = doc.child(i);
+    if (child.type.name === 'annex') lastAnnexEnd = pos + child.nodeSize;
+    if (child.type.name === 'sections') afterSectionsEnd = pos + child.nodeSize;
+    pos += child.nodeSize;
+  }
+
+  return lastAnnexEnd ?? afterSectionsEnd ?? pos;
+}
+
 // ---------------------------------------------------------------------------
 // wrapInClause (sections.md §5.2)
 // ---------------------------------------------------------------------------
@@ -342,6 +454,27 @@ export function wrapInClause(
       return true;
     }
     void info;
+  }
+
+  // Strict-XOR accommodation: when the wrap target is a body `clause` whose
+  // body children are blocks, the schema forbids the resulting mix. Wrap the
+  // existing blocks into a subclause first (same transaction, one undo step).
+  const enclosingClause = findNearestSectionOfType(
+    range.$from,
+    clauseType,
+  );
+  if (enclosingClause !== null
+    && enclosingClause.node.type.isInGroup('section_body')) {
+    ensureSubclauseCapacity(tr, range.$from, enclosingClause);
+    // Re-derive the range against the post-wrap doc.
+    const offset = tr.doc.nodeSize - state.doc.nodeSize;
+    const $newFrom = tr.doc.resolve($from.pos + offset);
+    const $newTo = tr.doc.resolve($to.pos + offset);
+    range = $newFrom.blockRange($newTo);
+    if (range === null) {
+      dispatch(tr);
+      return true;
+    }
   }
 
   // Wrap the range with the clause (a single node wrapping). The clause's
@@ -415,6 +548,12 @@ export function promoteClause(
   const target = liftTarget(range);
   if (target === null) return false;
 
+  // Strict-XOR guard: refuse when lifting would empty the parent clause
+  // (its `(...)+` branch requires at least one child). Deletion-on-empty is
+  // deliberately not attempted here — the title would be lost, and
+  // `emptyTextblockBackspace` owns deletion flows.
+  if (parent.type.name === 'clause' && parent.childCount === 1) return false;
+
   if (dispatch === undefined) return true;
 
   const tr = state.tr;
@@ -454,10 +593,7 @@ export function demoteClause(
   let siblingIndex = -1;
   for (let i = clauseIndexInParent - 1; i >= 0; i--) {
     const sibling = parent.child(i);
-    if (
-      sibling.type.isInGroup('section_body') &&
-      parentAccepts(sibling, clauseType, sibling.childCount)
-    ) {
+    if (sibling.type.isInGroup('section_body')) {
       targetSibling = sibling;
       siblingIndex = i;
       break;
@@ -465,9 +601,37 @@ export function demoteClause(
   }
   if (targetSibling === null || siblingIndex < 0) return false;
 
-  // Validate that the moved clause's content is legal under the sibling.
+  // Compute the sibling's post-accommodation content: when the target is a
+  // body `clause` holding blocks, the strict-XOR auto-wrap will fold those
+  // blocks into a subclause first, so the content the moved clause joins is
+  // `clause(wrapped blocks)` + the moved clause — validate against THAT.
+  let effectiveSiblingContent = targetSibling.content;
+  if (targetSibling.type.name === 'clause') {
+    let blockStartIdx = 0;
+    if (targetSibling.child(0)?.type.name === 'section_title') blockStartIdx = 1;
+    let hasBlocks = false;
+    let hasSubclauses = false;
+    for (let i = blockStartIdx; i < targetSibling.childCount; i++) {
+      const child = targetSibling.child(i);
+      if (child.type.isInGroup('section_body')) hasSubclauses = true;
+      else hasBlocks = true;
+    }
+    if (hasBlocks && !hasSubclauses && clauseType !== undefined) {
+      // Replace the block run with a wrapping clause node.
+      const newChildren: Node[] = [];
+      for (let i = 0; i < blockStartIdx; i++) newChildren.push(targetSibling.child(i));
+      newChildren.push(clauseType.create(
+        { id: generateId() },
+        targetSibling.cut(blockStartIdx).content,
+      ));
+      effectiveSiblingContent = Fragment.from(newChildren);
+    }
+  }
+
+  // Validate that the moved clause's content is legal under the sibling
+  // (post-accommodation).
   if (!targetSibling.type.validContent(
-    targetSibling.content.append(Fragment.from(hit.node)),
+    effectiveSiblingContent.append(Fragment.from(hit.node)),
   )) {
     return false;
   }
@@ -486,11 +650,29 @@ export function demoteClause(
   const insertAt = siblingPos + targetSibling.content.size;
 
   const tr = state.tr;
-  // Delete first (earlier position), adjusting insert position if it was after.
+
+  // Delete the clause FIRST — `clauseStart`/`clauseEnd` are positions against
+  // the original doc, and the strict-XOR wrap below changes sizes before them.
+  // Deleting the (later) clause does not shift the sibling's earlier
+  // positions, so subsequent arithmetic stays simple.
   tr.delete(clauseStart, clauseEnd);
-  tr.insert(insertAt, hit.node);
+
+  // Strict-XOR accommodation: if the target sibling is a body `clause`
+  // currently holding blocks, wrap them into a subclause so the moved clause
+  // can legally become a sibling (same transaction, one undo step).
+  let finalInsertAt = insertAt;
+  if (targetSibling.type.name === 'clause') {
+    // Resolve a position inside the sibling (its content end, one token in
+    // from the sibling's opening) so ensureSubclauseCapacity can classify it.
+    const $siblingEnd = tr.doc.resolve(insertAt - 1);
+    const siblingHit = { node: targetSibling, depth: parentDepth + 1 };
+    const cap = ensureSubclauseCapacity(tr, $siblingEnd, siblingHit);
+    if (cap.wrapped) finalInsertAt = cap.insertPos;
+  }
+
+  tr.insert(finalInsertAt, hit.node);
   // Restore selection inside the moved clause.
-  tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
+  tr.setSelection(TextSelection.near(tr.doc.resolve(finalInsertAt + 1)));
   tr.scrollIntoView();
   dispatch(tr);
   return true;
@@ -505,12 +687,18 @@ export function demoteClause(
  * container based on its cohort (§5.4). Creates the container (`preface`,
  * `sections`, or `bibliography`) if it does not exist.
  *
- * **Body cohort** (clause, annex, content_section, terms, definitions):
- * inserts as a sibling after the nearest enclosing body section, or appends to
- * the `sections` container if no body-section ancestor exists.
+ * **Body cohort** (clause, terms, definitions): inserts as a sibling after
+ * the nearest enclosing body section (auto-wrapping any block siblings first,
+ * per the strict clause model), or appends to the `sections` container if no
+ * body-section ancestor exists.
+ *
+ * **Annex cohort** (annex): annexes are doc-level siblings — inserted after
+ * the last existing annex, or immediately after `sections`, before
+ * `bibliography` / `footnotes`.
  *
  * **Front / back cohort** (abstract, foreword, … / references): finds or
- * creates the `preface` / `bibliography` container and appends the section.
+ * creates the `preface` / `bibliography` container and inserts at the cursor
+ * position if it's inside the container, otherwise appends.
  *
  * The new section gets an empty `section_title` (heading placeholder) and a
  * leading empty `paragraph`. The cursor lands in the `section_title`.
@@ -550,23 +738,37 @@ export function insertSection(
 
   let insertPos: number;
 
-  if (cohort === 'body') {
+  if (cohort === 'annex') {
+    // Annex cohort: doc-level sibling after the last annex / after sections.
+    insertPos = annexInsertPos(tr);
+  } else if (cohort === 'body') {
     // Body cohort: try to insert as sibling after the nearest body-section.
     const hit = nearestBodySectionAncestor($from);
     if (hit !== null) {
       // Insert after the nearest body section's closing token.
       insertPos = $from.after(hit.depth);
+      // Strict-XOR accommodation: when the enclosing body section is a
+      // `clause` holding blocks, wrap them into a subclause first so the new
+      // section can legally become a child (same transaction).
+      if (hit.node.type.name === 'clause') {
+        const cap = ensureSubclauseCapacity(tr, $from, hit);
+        if (cap.wrapped) insertPos = cap.insertPos;
+      }
     } else {
       // No body-section ancestor — find or create the `sections` container,
       // then insert at the cursor position if it's inside the container,
       // otherwise append.
-      const info = ensureContainer(tr, COHORT_CONTAINER['body']);
+      const containerName = COHORT_CONTAINER['body'];
+      if (containerName === undefined) return false;
+      const info = ensureContainer(tr, containerName);
       insertPos = cursorPosInContainer($from, info) ?? info.contentEnd;
     }
   } else {
     // Front / back cohort: find or create the container, then insert at
     // the cursor position if it's inside the container, otherwise append.
-    const info = ensureContainer(tr, COHORT_CONTAINER[cohort as SectionCohort]);
+    const containerName = COHORT_CONTAINER[cohort as SectionCohort];
+    if (containerName === undefined) return false;
+    const info = ensureContainer(tr, containerName);
     insertPos = cursorPosInContainer($from, info) ?? info.contentEnd;
   }
 
@@ -577,42 +779,6 @@ export function insertSection(
   // position; +1 enters the section, +1 more enters the section_title.
   const cursorOffset = sectionTitleType !== undefined ? 2 : 2;
   tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + cursorOffset)));
-  tr.scrollIntoView();
-  dispatch(tr);
-  return true;
-}
-
-// ---------------------------------------------------------------------------
-// insertLeadingParagraph (sections.md §5.6)
-// ---------------------------------------------------------------------------
-
-/**
- * Insert an empty paragraph at the **start** of the nearest enclosing section,
- * before any subclauses (sections.md §5.6). Addresses the case where a clause
- * contains only nested subclauses and the user wants to add introductory text
- * above them. The clause content model `(clause | block)*` permits this mix.
- *
- * @returns `true` if a transaction was / would be dispatched, `false` if no
- *          enclosing section.
- */
-export function insertLeadingParagraph(
-  state: EditorState,
-  dispatch?: (tr: Transaction) => void,
-): boolean {
-  const { $from } = state.selection;
-  const paragraphType = state.schema.nodes['paragraph'];
-  if (paragraphType === undefined) return false;
-
-  const hit = nearestSectionAncestor($from);
-  if (hit === null) return false;
-
-  if (dispatch === undefined) return true;
-
-  const tr = state.tr;
-  // Just inside the section's opening token, before its first child.
-  const pos = $from.before(hit.depth) + 1;
-  tr.insert(pos, paragraphType.create());
-  tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 1)));
   tr.scrollIntoView();
   dispatch(tr);
   return true;

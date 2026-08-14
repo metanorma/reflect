@@ -38,7 +38,7 @@ export { CLASS } from './classes.js';
 export type { ClassName } from './classes.js';
 export {
   SECTION_COHORT, COHORT_CONTAINER, DOC_CHILD_ORDER,
-  FRONT_TYPES, BODY_TYPES, BACK_TYPES,
+  FRONT_TYPES, BODY_TYPES, ANNEX_TYPES, BACK_TYPES,
   sameCohort,
 } from './cohorts.js';
 export type { SectionCohort } from './cohorts.js';
@@ -54,10 +54,12 @@ export type { SectionCohort } from './cohorts.js';
 export const NODE_NAMES: readonly string[] = [
   // STRUCTURAL_TYPES (5)
   'doc', 'bibdata', 'preface', 'sections', 'bibliography',
-  // SECTION_FRONT_TYPES (4)
-  'abstract', 'foreword', 'introduction', 'acknowledgements',
-  // SECTION_BODY_TYPES (5)
-  'clause', 'annex', 'content_section', 'terms', 'definitions',
+  // SECTION_FRONT_TYPES (5)
+  'abstract', 'foreword', 'introduction', 'acknowledgements', 'content_section',
+  // SECTION_BODY_TYPES (3)
+  'clause', 'terms', 'definitions',
+  // SECTION_ANNEX_TYPES (1)
+  'annex',
   // SECTION_BACK_TYPES (1)
   'references',
   // BIBITEM_TYPES (1)

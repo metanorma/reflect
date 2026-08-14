@@ -23,7 +23,7 @@
  * - `"body"`  — main body (inside `sections`).
  * - `"back"`  — back matter (inside `bibliography`).
  */
-export type SectionCohort = "front" | "body" | "back";
+export type SectionCohort = "front" | "body" | "annex" | "back";
 
 /**
  * Section type name → its cohort. Authoritative mapping consulted by commands
@@ -36,21 +36,24 @@ export const SECTION_COHORT: Readonly<Record<string, SectionCohort>> = {
   foreword: "front",
   introduction: "front",
   acknowledgements: "front",
+  content_section: "front",
   // Body
   clause: "body",
-  annex: "body",
-  content_section: "body",
   terms: "body",
   definitions: "body",
+  // Annexes — doc-level siblings, no container
+  annex: "annex",
   // Back matter
   references: "back",
 };
 
 /**
  * Cohort → the container node name it belongs in. Used by `insertSection` to
- * resolve the target container for a given section type.
+ * resolve the target container for a given section type. The `"annex"` cohort
+ * is deliberately absent: annexes are doc-level siblings (see
+ * {@link DOC_CHILD_ORDER}), not children of a container.
  */
-export const COHORT_CONTAINER: Readonly<Record<SectionCohort, string>> = {
+export const COHORT_CONTAINER: Readonly<Record<string, string>> = {
   front: "preface",
   body: "sections",
   back: "bibliography",
@@ -58,11 +61,12 @@ export const COHORT_CONTAINER: Readonly<Record<SectionCohort, string>> = {
 
 /**
  * The doc-level child ordering (§8.1): `doc.content` =
- * `(bibdata preface? sections? bibliography? footnotes?)`. Commands that create
- * or relocate containers consult this to compute the correct insertion position.
+ * `(bibdata preface? sections? annex* bibliography? footnotes?)`. Commands
+ * that create or relocate containers consult this to compute the correct
+ * insertion position.
  */
 export const DOC_CHILD_ORDER: readonly string[] = [
-  "bibdata", "preface", "sections", "bibliography", "footnotes",
+  "bibdata", "preface", "sections", "annex", "bibliography", "footnotes",
 ];
 
 // ---------------------------------------------------------------------------
@@ -71,12 +75,17 @@ export const DOC_CHILD_ORDER: readonly string[] = [
 
 /** Front-matter section types, in canonical (document-appearance) order. */
 export const FRONT_TYPES: readonly string[] = [
-  "abstract", "foreword", "introduction", "acknowledgements",
+  "abstract", "foreword", "introduction", "acknowledgements", "content_section",
 ];
 
 /** Body section types, in canonical order. */
 export const BODY_TYPES: readonly string[] = [
-  "clause", "annex", "content_section", "terms", "definitions",
+  "clause", "terms", "definitions",
+];
+
+/** Annex section types — doc-level siblings, no container. */
+export const ANNEX_TYPES: readonly string[] = [
+  "annex",
 ];
 
 /** Back-matter section types. */
@@ -88,7 +97,7 @@ export const BACK_TYPES: readonly string[] = [
  * Whether two section types are in the same cohort. The foundation for future
  * same-cohort type-change support: cross-cohort conversion is deliberately not
  * offered (the user creates a new section instead), but same-cohort conversion
- * (e.g. `clause` → `annex`) is structurally permitted by the schema.
+ * (e.g. `clause` → `terms`) is structurally permitted by the schema.
  */
 export function sameCohort(a: string, b: string): boolean {
   return SECTION_COHORT[a] === SECTION_COHORT[b];

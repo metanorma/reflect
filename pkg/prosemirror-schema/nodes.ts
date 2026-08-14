@@ -11,7 +11,7 @@ import type {
 
 import {
   BLOCK_GROUP, INLINE_GROUP,
-  SECTION_FRONT_GROUP, SECTION_BODY_GROUP, SECTION_BACK_GROUP,
+  SECTION_FRONT_GROUP, SECTION_BODY_GROUP, SECTION_ANNEX_GROUP, SECTION_BACK_GROUP,
 } from './groups.js';
 import { baseAttrs, sectionAttrs, DATA_ATTR } from './attrs.js';
 import { CLASS } from './classes.js';
@@ -61,7 +61,9 @@ function sectionParseRule(cls: string): readonly TagParseRule[] {
 
 const structuralNodes: Record<string, NodeSpec> = {
     doc: {
-      content: '(bibdata preface? sections? bibliography? footnotes?)',
+      // Isodoc: annexes are doc-level siblings after `sections`, before
+      // `bibliography` (zero or more).
+      content: '(bibdata preface? sections? annex* bibliography? footnotes?)',
       attrs: { ...DATA_ATTR },
       toDOM: () => ['div', { class: CLASS.doc }, 0],
     },
@@ -118,32 +120,39 @@ const sectionTitleNode: Record<string, NodeSpec> = {
 };
 
 const sectionNodes: Record<string, NodeSpec> = {
+    // Isodoc Clause-Section: STRICT XOR — blocks (leaf) or subclauses, never
+    // both (no hanging paragraphs in the numbered body hierarchy).
     clause: {
-      content: `section_title? (clause | ${BLOCK_GROUP})*`,
+      content: `section_title? (${BLOCK_GROUP}+ | (clause | terms | definitions | floating_title)+)`,
       group: SECTION_BODY_GROUP,
       attrs: sectionAttrs(),
       createGapCursor: true,
       toDOM: sectionToDOM(CLASS.clause),
       parseDOM: sectionParseRule(CLASS.clause),
     },
+    // Isodoc Annex-Section-Body: non-strict — prefatory blocks, then
+    // subclauses (no self-nesting; annexes are doc-level siblings).
     annex: {
-      content: `section_title? (annex | clause | ${BLOCK_GROUP})*`,
-      group: SECTION_BODY_GROUP,
+      content: `section_title? ${BLOCK_GROUP}* (clause | terms | definitions | references | floating_title)*`,
+      group: SECTION_ANNEX_GROUP,
       attrs: sectionAttrs(),
       createGapCursor: true,
       toDOM: sectionToDOM(CLASS.annex),
       parseDOM: sectionParseRule(CLASS.annex),
     },
+    // Isodoc Content-Section (`content`, preface-only): unnumbered generic
+    // clause; blocks, then recursive content-subsections.
     content_section: {
-      content: `section_title? (section_body | ${BLOCK_GROUP})*`,
-      group: SECTION_BODY_GROUP,
+      content: `section_title? ${BLOCK_GROUP}* content_section*`,
+      group: SECTION_FRONT_GROUP,
       attrs: sectionAttrs(),
       createGapCursor: true,
       toDOM: sectionToDOM(CLASS.contentSection),
       parseDOM: sectionParseRule(CLASS.contentSection),
     },
+    // Isodoc Content-Section: front-matter sections nest content-subsections.
     abstract: {
-      content: `section_title? ${BLOCK_GROUP}+`,
+      content: `section_title? ${BLOCK_GROUP}* content_section*`,
       group: SECTION_FRONT_GROUP,
       attrs: sectionAttrs(),
       createGapCursor: true,
@@ -151,7 +160,7 @@ const sectionNodes: Record<string, NodeSpec> = {
       parseDOM: sectionParseRule(CLASS.abstract),
     },
     foreword: {
-      content: `section_title? ${BLOCK_GROUP}+`,
+      content: `section_title? ${BLOCK_GROUP}* content_section*`,
       group: SECTION_FRONT_GROUP,
       attrs: sectionAttrs(),
       createGapCursor: true,
@@ -159,7 +168,7 @@ const sectionNodes: Record<string, NodeSpec> = {
       parseDOM: sectionParseRule(CLASS.foreword),
     },
     introduction: {
-      content: `section_title? ${BLOCK_GROUP}+`,
+      content: `section_title? ${BLOCK_GROUP}* content_section*`,
       group: SECTION_FRONT_GROUP,
       attrs: sectionAttrs(),
       createGapCursor: true,
@@ -167,31 +176,37 @@ const sectionNodes: Record<string, NodeSpec> = {
       parseDOM: sectionParseRule(CLASS.introduction),
     },
     acknowledgements: {
-      content: `section_title? ${BLOCK_GROUP}+`,
+      content: `section_title? ${BLOCK_GROUP}* content_section*`,
       group: SECTION_FRONT_GROUP,
       attrs: sectionAttrs(),
       createGapCursor: true,
       toDOM: sectionToDOM(CLASS.acknowledgements),
       parseDOM: sectionParseRule(CLASS.acknowledgements),
     },
+    // Isodoc terms: prefatory blocks, then nested terms/definitions
+    // (term-entry subtree out of scope).
     terms: {
-      content: `section_title? (clause | ${BLOCK_GROUP})*`,
+      content: `section_title? ${BLOCK_GROUP}* (terms | definitions)*`,
       group: SECTION_BODY_GROUP,
       attrs: sectionAttrs(),
       createGapCursor: true,
       toDOM: sectionToDOM(CLASS.terms),
       parseDOM: sectionParseRule(CLASS.terms),
     },
+    // Isodoc definitions: (BasicBlock | dl | definitions)+ — at least one
+    // child; dl is in the block group.
     definitions: {
-      content: `section_title? (clause | ${BLOCK_GROUP})*`,
+      content: `section_title? (${BLOCK_GROUP} | definitions)+`,
       group: SECTION_BODY_GROUP,
       attrs: sectionAttrs(),
       createGapCursor: true,
       toDOM: sectionToDOM(CLASS.definitions),
       parseDOM: sectionParseRule(CLASS.definitions),
     },
+    // Isodoc references: ordered — prefatory blocks, then entries, then
+    // nested references.
     references: {
-      content: `section_title? (bibitem | ${BLOCK_GROUP})*`,
+      content: `section_title? ${BLOCK_GROUP}* bibitem* references*`,
       group: SECTION_BACK_GROUP,
       attrs: sectionAttrs(),
       createGapCursor: true,

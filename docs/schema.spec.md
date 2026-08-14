@@ -100,8 +100,9 @@ construct.
 | Group constant | Members |
 |---|---|
 | `STRUCTURAL_TYPES` (5) | `doc`, `bibdata`, `preface`, `sections`, `bibliography` |
-| `SECTION_FRONT_TYPES` (4) | `abstract`, `foreword`, `introduction`, `acknowledgements` |
-| `SECTION_BODY_TYPES` (5) | `clause`, `annex`, `content_section`, `terms`, `definitions` |
+| `SECTION_FRONT_TYPES` (5) | `abstract`, `foreword`, `introduction`, `acknowledgements`, `content_section` |
+| `SECTION_BODY_TYPES` (3) | `clause`, `terms`, `definitions` |
+| `SECTION_ANNEX_TYPES` (1) | `annex` |
 | `SECTION_BACK_TYPES` (1) | `references` |
 | `BIBITEM_TYPES` (1) | `bibitem` |
 | `BLOCK_TYPES` (9) | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `floating_title` |
@@ -149,17 +150,21 @@ groups are introduced:
 |---|---|---|
 | `inline` | `text`, `soft_break`, `footnote_marker`, `stem` | Inline content of paragraphs / terms. |
 | `block` | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `bullet_list`, `ordered_list`, `dl`, `table`, `figure`, `floating_title` | General block-level children of sections, list items, cells, etc. Deliberately **excludes** `image`, `list_item`, `dt`, `dd`, `table_*` parts, `footnote_entry`, and `section_title` (contextual only — `section_title` appears solely as the optional leading child of a section node). |
-| `section_front` | `abstract`, `foreword`, `introduction`, `acknowledgements` | Front-matter section nodes (inside `preface`). |
-| `section_body` | `clause`, `annex`, `content_section`, `terms`, `definitions` | Body section nodes (inside `sections`). Nestable: a body section's content expression may reference `section_body` for nesting. |
+| `section_front` | `abstract`, `foreword`, `introduction`, `acknowledgements`, `content_section` | Front-matter section nodes (inside `preface`). |
+| `section_body` | `clause`, `terms`, `definitions` | Body section nodes (inside `sections`). Nestable: a body section's content expression may reference `section_body` members for nesting. |
+| `section_annex` | `annex` | Annex section nodes — **doc-level siblings**, not children of any container (§8.1). |
 | `section_back` | `references` | Back-matter section nodes (inside `bibliography`). |
 
-The three cohort groups (`section_front`, `section_body`, `section_back`) are
-the structural backbone of the document ordering: each container's content
-expression admits only its own cohort's section types (§8.1), so the schema
-itself enforces that front-matter sections appear only in `preface`, body
-sections only in `sections`, and back-matter sections only in `bibliography`.
-The companion cohort metadata (§8.0a) maps each type to its cohort and drives
-command-level routing.
+The four cohort groups (`section_front`, `section_body`, `section_annex`,
+`section_back`) are the structural backbone of the document ordering. Three of
+them have a dedicated container whose content expression admits only that
+cohort's section types (§8.1): the schema itself enforces that front-matter
+sections appear only in `preface`, body sections only in `sections`, and
+back-matter sections only in `bibliography`. The **annex cohort has no
+container** — `annex` nodes are direct children of `doc`, ordered after
+`sections` and before `bibliography` (Isodoc root child order), enforced by the
+`doc.content` expression rather than a container's. The companion cohort
+metadata (§8.0a) maps each type to its cohort and drives command-level routing.
 
 ---
 
@@ -167,18 +172,19 @@ command-level routing.
 
 | Node | Content expression | Rationale |
 |---|---|---|
-| `doc` | `(bibdata preface? sections? bibliography? footnotes?)` | Root: required bibdata (document metadata), optional front matter, body, back matter, footnotes container. |
-| `preface` | `(section_front \| block)*` | Front-matter sections (abstract/foreword/…) plus blocks. |
-| `sections` | `(section_body \| block)*` | Main body. |
+| `doc` | `(bibdata preface? sections? annex* bibliography? footnotes?)` | Root: required bibdata (document metadata), optional front matter, body, **doc-level annexes** (Isodoc root child order: after `sections`, before `bibliography`), back matter, footnotes container. |
+| `preface` | `section_front+` | Front-matter sections (abstract/foreword/…, `content_section`). |
+| `sections` | `section_body+` | Main body. |
 | `bibliography` | `references+` | Back matter; `references` is the sole `section_back` member. |
 | `bibdata` | *(empty)* | Atom: document-level bibliographic metadata. Stores a `BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item` attr. Required first child of `doc` (§8.1). |
 | `bibitem` | *(empty)* | Atom: a single bibliography entry. Stores a `BibliographicItem` as a single JSON `item` attr. Permitted only inside `references` sections (§8.2). |
-| `clause` | `section_title? (clause \| block)*` | Clauses nest clauses + blocks; optional leading heading textblock. |
-| `annex` | `section_title? (annex \| clause \| block)*` | Annexes may contain annexes, clauses, blocks; optional leading heading. |
-| `content_section` | `section_title? (section_body \| block)*` | Generic nestable container; optional leading heading. |
-| `abstract`, `foreword`, `introduction`, `acknowledgements` | `section_title? block+` | Front-matter leaves: optional heading + blocks only, no nesting. |
-| `terms`, `definitions` | `section_title? (clause \| block)*` | Term/definition containers may nest `clause`; optional leading heading. |
-| `references` | `section_title? (clause \| bibitem \| block)*` | Bibliography entries (often nested clauses); optional leading heading. |
+| `clause` | `section_title? (block+ \| (clause \| terms \| definitions \| floating_title)+)` | Isodoc `Clause-Section`, **strict XOR**: a clause holds either blocks (leaf) or subclauses, never both — no hanging paragraphs in the numbered body hierarchy. Optional leading heading textblock. |
+| `annex` | `section_title? block* (clause \| terms \| definitions \| references \| floating_title)*` | Isodoc `Annex-Section-Body`, **non-strict**: optional prefatory blocks then subclauses (in any mix). **Doc-level** — `annex` is a direct child of `doc`, not nested in a container and not self-nesting. Admits `references` subclauses. Optional leading heading. |
+| `content_section` | `section_title? block* content_section*` | Isodoc `content` (`Content-Section`): the unnumbered generic preface clause. **Front-matter only**; nests `content_section` subclauses. Serializes as `<clause>` on export (§17.6). Optional leading heading. |
+| `abstract`, `foreword`, `introduction`, `acknowledgements` | `section_title? block* content_section*` | Isodoc `Content-Section` shape: optional prefatory blocks, then `content_section` subclauses. Optional leading heading. |
+| `terms` | `section_title? block* (terms \| definitions)*` | Isodoc `terms`: prefatory blocks, then nested `terms`/`definitions` (the term-entry subtree is out of scope, §17.5). |
+| `definitions` | `section_title? (block \| definitions)+` | Isodoc `definitions`: at least one child required. |
+| `references` | `section_title? block* bibitem* references*` | Isodoc `references`: exact ordered sequence — prefatory blocks, then `bibitem` entries, then nested `references`. Optional leading heading. |
 | `section_title` | `inline*` | Standalone textblock: the heading of its parent section. Appears only as the optional leading child of a section node (no group membership). |
 | `floating_title` | `inline*` | Block textblock; free-standing unnumbered heading. Carries `id` and `depth` attrs. |
 | `paragraph` | `inline*` | |
@@ -323,29 +329,44 @@ highlight.js interop convention and is likewise absent.
 
 ### 8.0a Section cohort metadata (`cohorts.ts`)
 
-The three cohort groups (`section_front`, `section_body`, `section_back`)
-drive the container content expressions (§8.1): each container admits only the
-section types in its cohort. The companion metadata in `cohorts.ts` maps each
-section type name to its cohort and is the single source of truth consulted by
-commands and the toolbar. It is exported from the public API (§11).
+The four cohort groups (`section_front`, `section_body`, `section_annex`,
+`section_back`) drive the container content expressions (§8.1): each
+container admits only the section types in its cohort. The companion metadata
+in `cohorts.ts` maps each section type name to its cohort and is the single
+source of truth consulted by commands and the toolbar. It is exported from the
+public API (§11).
 
 ```ts
-/** The three document regions a section type may belong to. */
-export type SectionCohort = "front" | "body" | "back";
+/**
+ * The four document regions a section type may belong to.
+ *
+ * - `"front"` — front matter (inside `preface`).
+ * - `"body"`  — main body (inside `sections`).
+ * - `"annex"` — annexes (doc-level siblings; no container).
+ * - `"back"`  — back matter (inside `bibliography`).
+ */
+export type SectionCohort = "front" | "body" | "annex" | "back";
 
 /** Section type name → its cohort. Authoritative mapping (§8.2 group assignments must agree). */
 export const SECTION_COHORT: Readonly<Record<string, SectionCohort>>;
 
-/** Cohort → the container node name it belongs in (`front`→`preface`, `body`→`sections`, `back`→`bibliography`). */
-export const COHORT_CONTAINER: Readonly<Record<SectionCohort, string>>;
+/**
+ * Cohort → the container node name it belongs in (`front`→`preface`,
+ * `body`→`sections`, `back`→`bibliography`). The `"annex"` cohort is
+ * deliberately absent: annexes are doc-level siblings (see `DOC_CHILD_ORDER`),
+ * not children of a container.
+ */
+export const COHORT_CONTAINER: Readonly<Record<string, string>>;
 
-/** Doc-level child ordering, matching `doc.content` = `(bibdata preface? sections? bibliography? footnotes?)`. */
+/** Doc-level child ordering, matching `doc.content` = `(bibdata preface? sections? annex* bibliography? footnotes?)`. */
 export const DOC_CHILD_ORDER: readonly string[];
 
 /** Front-matter section types, in canonical (document-appearance) order. */
 export const FRONT_TYPES: readonly string[];
 /** Body section types, in canonical order. */
 export const BODY_TYPES: readonly string[];
+/** Annex section types — doc-level siblings, no container. */
+export const ANNEX_TYPES: readonly string[];
 /** Back-matter section types. */
 export const BACK_TYPES: readonly string[];
 
@@ -358,7 +379,7 @@ export function sameCohort(a: string, b: string): boolean;
 insertion position when a container must be created.
 
 **`sameCohort()`** is the design hook for future same-cohort type-change support
-(e.g. converting a `clause` into an `annex`): the schema content expressions
+(e.g. converting a `clause` into a `terms`): the schema content expressions
 already permit same-cohort replacements (shared group, compatible content);
 the guard is the command layer's responsibility. Cross-cohort conversion is
 deliberately not offered — the user creates a new section instead.
@@ -367,11 +388,15 @@ deliberately not offered — the user creates a new section instead.
 
 | Node | Spec essentials |
 |---|---|
-| `doc` | `content: "(bibdata preface? sections? bibliography? footnotes?)"`; `toDOM: ["div", {class: CLASS.doc}, 0]`; no `parseDOM`. |
+| `doc` | `content: "(bibdata preface? sections? annex* bibliography? footnotes?)"`; `toDOM: ["div", {class: CLASS.doc}, 0]`; no `parseDOM`. Annexes are doc-level siblings between `sections` and `bibliography` (Isodoc root child order). |
 | `bibdata` | `content: ""`; `atom: true`; `attrs: { item: { default: null }, ...DATA_ATTR }`; `toDOM: ["div", {class: CLASS.bibdata}]`; no `parseDOM` (doc-level, created by default doc / loader). |
-| `preface` | `content: "(section_front \| block)*"`; `toDOM: ["section", {class: CLASS.preface}, 0]`; `parseDOM: [{tag: "section.mn-preface"}]`. |
-| `sections` | `content: "(section_body \| block)*"`; `toDOM: ["section", {class: CLASS.sections}, 0]`; `parseDOM: [{tag: "section.mn-sections"}]`. |
+| `preface` | `content: "section_front+"`; `toDOM: ["section", {class: CLASS.preface}, 0]`; `parseDOM: [{tag: "section.mn-preface"}]`. |
+| `sections` | `content: "section_body+"`; `toDOM: ["section", {class: CLASS.sections}, 0]`; `parseDOM: [{tag: "section.mn-sections"}]`. |
 | `bibliography` | `content: "references+"`; `toDOM: ["section", {class: CLASS.bibliography}, 0]`; `parseDOM: [{tag: "section.mn-bibliography"}]`. |
+
+The three containers (`preface`, `sections`, `bibliography`) each admit only
+their own cohort's section types — no bare blocks — matching Isodoc, where the
+root's children are the section elements themselves.
 
 ### 8.2 Section nodes
 
@@ -391,22 +416,51 @@ function sectionToDOM(cls: string) {
 ```
 
 Each section node is assigned to exactly one **cohort group** (§4) that
-determines which container it may appear in. The group assignments agree with
+determines where it may appear. The group assignments agree with
 `SECTION_COHORT` (§8.0a):
 
 | Node | Cohort group | `content` | class |
 |---|---|---|---|
-| `clause` | `section_body` | `section_title? (clause \| block)*` | `mn-clause` |
-| `annex` | `section_body` | `section_title? (annex \| clause \| block)*` | `mn-annex` |
-| `content_section` | `section_body` | `section_title? (section_body \| block)*` | `mn-content-section` |
-| `abstract` | `section_front` | `section_title? block+` | `mn-abstract` |
-| `foreword` | `section_front` | `section_title? block+` | `mn-foreword` |
-| `introduction` | `section_front` | `section_title? block+` | `mn-introduction` |
-| `acknowledgements` | `section_front` | `section_title? block+` | `mn-acknowledgements` |
-| `terms` | `section_body` | `section_title? (clause \| block)*` | `mn-terms` |
-| `definitions` | `section_body` | `section_title? (clause \| block)*` | `mn-definitions` |
-| `references` | `section_back` | `section_title? (bibitem \| block)*` | `mn-references` |
+| `clause` | `section_body` | `section_title? (block+ \| (clause \| terms \| definitions \| floating_title)+)` | `mn-clause` |
+| `annex` | `section_annex` | `section_title? block* (clause \| terms \| definitions \| references \| floating_title)*` | `mn-annex` |
+| `content_section` | `section_front` | `section_title? block* content_section*` | `mn-content-section` |
+| `abstract` | `section_front` | `section_title? block* content_section*` | `mn-abstract` |
+| `foreword` | `section_front` | `section_title? block* content_section*` | `mn-foreword` |
+| `introduction` | `section_front` | `section_title? block* content_section*` | `mn-introduction` |
+| `acknowledgements` | `section_front` | `section_title? block* content_section*` | `mn-acknowledgements` |
+| `terms` | `section_body` | `section_title? block* (terms \| definitions)*` | `mn-terms` |
+| `definitions` | `section_body` | `section_title? (block \| definitions)+` | `mn-definitions` |
+| `references` | `section_back` | `section_title? block* bibitem* references*` | `mn-references` |
 | `bibitem` | *(no group — only inside `references`)* | *(empty atom)* | `mn-bibitem` |
+
+**Strict clause XOR.** `clause` implements Isodoc's `Clause-Section` exactly: a
+clause holds **either** a run of blocks (it is then a leaf) **or** a run of
+subclauses (`clause` / `terms` / `definitions` / `floating_title`) — never both.
+There are no hanging paragraphs in the numbered body hierarchy. The strictness
+has a command-level consequence: inserting a subclause into a block-bearing
+clause is only possible after the blocks are folded into a subclause first; the
+`ensureSubclauseCapacity` accommodation performs that wrap in the same
+transaction ([EditorCommands.spec.md](./EditorCommands.spec.md) §5).
+
+**Annex placement.** `annex` is a **doc-level sibling**, not a child of
+`sections` — `doc.content` places `annex*` after `sections` and before
+`bibliography` (Isodoc root child order). Annexes do not nest inside each
+other; their subclauses are `clause` / `terms` / `definitions` / `references` /
+`floating_title`, preceded by optional prefatory blocks (`Annex-Section-Body`
+is non-strict, unlike `Clause-Section`).
+
+**`content_section` is Isodoc `content`.** The node's name is the grammar's
+internal pattern name (`Content-Section`, reached from the `<content>`
+element), not an XML element name: on export it serializes as a `<clause>`
+element (§17.6). It is **front-matter only** (inside `preface`) — the generic
+unnumbered clause — and the four named front-matter sections
+(`abstract`/`foreword`/`introduction`/`acknowledgements`) nest it as
+subclauses.
+
+**Ordered `references` content.** `references` admits an exact ordered
+sequence — optional prefatory blocks, then `bibitem` entries, then nested
+`references` — matching Isodoc's `Bibliography-Section` rather than a free
+interleave.
 
 **Heading model.** Every section node's content expression begins with an
 optional `section_title` child — the heading textblock. The `section_title`
@@ -416,7 +470,7 @@ other textblock and supports full inline markup (emphasis, links, etc.),
 matching Metanorma Semantic XML's `<title>` child element (§17).
 
 **Bibliography entries.** The `references` section node's content expression
-permits `bibitem` atom nodes alongside blocks. Each `bibitem` stores a
+permits `bibitem` atom nodes after the prefatory blocks. Each `bibitem` stores a
 `BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item` attr
 and renders as a compact summary via a NodeView. `bibitem` has no group
 membership — it is insertable only inside `references` via a dedicated command,
@@ -569,12 +623,14 @@ export const CLASS: { readonly doc: "mn-doc"; /* …one key per emitting node/ma
 export type ClassName = (typeof CLASS)[keyof typeof CLASS];
 
 /** Section cohort metadata (§8.0a). */
-export type SectionCohort = "front" | "body" | "back";
+export type SectionCohort = "front" | "body" | "annex" | "back";
 export const SECTION_COHORT: Readonly<Record<string, SectionCohort>>;
-export const COHORT_CONTAINER: Readonly<Record<SectionCohort, string>>;
+/** No `"annex"` key — annexes are doc-level siblings, not container children (§8.0a). */
+export const COHORT_CONTAINER: Readonly<Record<string, string>>;
 export const DOC_CHILD_ORDER: readonly string[];
 export const FRONT_TYPES: readonly string[];
 export const BODY_TYPES: readonly string[];
+export const ANNEX_TYPES: readonly string[];
 export const BACK_TYPES: readonly string[];
 export function sameCohort(a: string, b: string): boolean;
 
@@ -684,7 +740,7 @@ For sanity checks and editor bootstrap:
 An empty `paragraph` (no child `text` node) is used: `nodeFromJSON` fills it
 with an empty text node as needed, producing an empty editable paragraph.
 
-This satisfies `doc.content` = `(bibdata preface? sections? bibliography? footnotes?)`.
+This satisfies `doc.content` = `(bibdata preface? sections? annex* bibliography? footnotes?)`.
 
 ---
 
@@ -787,7 +843,13 @@ The following Metanorma features exist in the covered element families but have
 | Row-header cells (`<th>` inside `<tbody>`) | `<tr>` | dropped — single `table_cell` type; only header rows (via `table_head`/`<thead>`) are distinguished |
 | List numbering style (`<ol type="…">`: roman/arabic/…) | `<ol>` | dropped — schema models `start` only |
 | Cell alignment (`align`, `valign`) | `<td>`/`<th>` | dropped |
-| Ordered-list `start`, section/block `obligation`, `unnumbered`, `inline-header`, `number` override | various | carried via the `data` catch-all if present on import; not typed or editable |
+| Ordered-list `start`, section/block `obligation`, `unnumbered`, `number` override | various | carried via the `data` catch-all if present on import; not typed or editable |
+| `executivesummary` (preface section type) | root `<preface>` | dropped — the front-matter vocabulary covers `abstract`/`foreword`/`introduction`/`acknowledgements`/`content_section` only |
+| `appendix` (the strict annex-to-annex subclause) | `<annex>` children | dropped — `annex`'s subclause vocabulary is `clause`/`terms`/`definitions`/`references`/`floating_title` |
+| `reference-clause` (the non-strict clause admitted inside `<bibliography>`) | `<bibliography>` | dropped — `bibliography` admits only `references` (strict variant) |
+| Term-entry subtree (`term`, `preferred`, `admitted`, `deprecated`, `definition`, `termdocsource`, …) | `<terms>` | dropped — `terms` holds prefatory blocks and nested `terms`/`definitions` only; the term-entry elements have no typed nodes |
+| Annex `inline-header` attribute | `<annex>` | carried via the `data` catch-all if present on import; not typed or editable |
+| Doc-level `metanorma-extension`, `boilerplate`, `index`, `colophon` | root | dropped — `doc.content` admits only `bibdata`/`preface`/`sections`/`annex`/`bibliography`/`footnotes` |
 
 ### 17.6 Over-permissive content (coerced on export)
 
@@ -799,7 +861,14 @@ coercion, not ambiguity — there is a single valid target):
   `<tbody>` (with optional `thead`/`tfoot`).
 - `note`/`example`/`quote`/`review`/`admonition`/`dd` allow `block+`; XML
   restricts their bodies to paragraphs (with footnote) plus a limited subset.
-- `abstract`/`foreword`/`introduction`/`acknowledgements` use `block+`; XML
-  models them as `Content-Section` (`block*, clause*`) — the converter
-  serialises their block children as paragraphs/clauses as appropriate.
+- `floating_title` sits in the `block` group, so the editor admits it in block
+  positions where Isodoc only allows it as a **subsection-level alternative** —
+  directly inside `clause`'s block branch, inside `terms`/`definitions`/
+  `references` prefatory blocks, and inside container blocks (`note`,
+  `example`, …). On export the converter relocates such a `floating_title` to
+  the nearest legal subsection position, or converts it to plain text when no
+  such position exists.
+- `content_section` serializes as a `<clause>` element — its name is the
+  grammar's internal pattern name (`Content-Section`, reached from `<content>`),
+  not an XML element name (§8.2).
 
