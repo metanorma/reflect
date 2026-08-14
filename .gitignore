@@ -5,6 +5,8 @@
 !/pkg/*/dist/README.rst
 !/pkg/*/compiled/README.rst
 
+# Playwright test output (failure artifacts, .last-run.json)
+/pkg/editor-gui/test-results
 
 /package.mjs
 #/build-*.mjs
