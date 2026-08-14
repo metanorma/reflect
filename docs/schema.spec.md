@@ -1,9 +1,5 @@
 # Reflect — ProseMirror Schema Specification
 
-This spec defines the ProseMirror schema module. Ignore the preexisting
-`pkg/schema` subpackage and any prior ProseMirror usage in this repository —
-this document supersedes them as the source of truth for the schema.
-
 **Source of truth for the document model: the Metanorma document model**, as
 expressed in the Semantic XML that the Metanorma pipeline
 (`metanorma-standoc`) authors and validates (the compiled RelaxNG grammar
@@ -51,26 +47,29 @@ the converter may **invent** a default, but such invention is a schema
 limitation, surfaced in §17.
 
 Four dual-source-of-truth issues are resolved in this spec so that conversion is
-unambiguous: `figure.src` lives only on the `image` child (§17.1); `formula` and
-`stem` carry a `type` discriminator selecting the authoritative encoding
-(§17.2); the `concept` mark carries a `kind` discriminator selecting the
-reference-element type (§17.3); and footnote references use a single
-`footnote_marker` node, with no competing `footnote` mark (§3.2).
+unambiguous (the first three are detailed in §17): `figure.src` lives only on
+the `image` child (§17.1); `formula` and `stem` carry a `type` discriminator
+selecting the authoritative encoding (§17.2); the `concept` mark carries a
+`kind` discriminator selecting the reference-element type (§17.3); and
+footnote references use a single `footnote_marker` node, with no competing
+`footnote` mark (§3.2).
 
 ---
 
 ## 2. Module layout
 
-A new workspace package, distinct from the ignored `pkg/schema`:
+A workspace package:
 
 ```
 pkg/prosemirror-schema/
-├── package.json          ← name: "@metanorma/prosemirror-schema"
+├── package.json          ← name: '@metanorma/prosemirror-schema'
 ├── tsconfig.json         ← extends ../../tsconfig.json
 ├── index.ts              ← public exports (§11)
 ├── nodes.ts              ← nodeSpec map (§8)
 ├── marks.ts              ← markSpec map (§9)
 ├── attrs.ts              ← shared attribute helpers (§6)
+├── classes.ts            ← `CLASS` const for toDOM/parseDOM (§8.0)
+├── cohorts.ts            ← section cohort metadata (§8.0a)
 └── groups.ts             ← group-name constants
 ```
 
@@ -136,10 +135,10 @@ full inline markup (emphasis, links, etc.).
 
 **Note.** Footnote references are modelled by the `footnote_marker` **inline
 node** (§3.1, §8.7), which directly mirrors the inline Metanorma `<fn>`
-element (body co-located at the reference site). There is **no** `footnote` mark:
-an earlier draft carried both representations, which created a dual source of
-truth for the same fact — a converter could not decide which was authoritative.
-The mark has been removed to keep conversion unambiguous (§1.1).
+element (body co-located at the reference site). There is **no** `footnote`
+mark: the mark would be a second representation of the same fact — a dual
+source of truth the converter could not resolve — so footnote references have
+a single representation (§1.1).
 
 ---
 
@@ -190,7 +189,7 @@ positions that name them accept them. This matches Isodoc, where
 | `preface` | `section_front+` | Front-matter sections (abstract/foreword/…, `content_section`). |
 | `sections` | `(section_body \| floating_title)+` | Main body. Isodoc's `sections` admits `floating-title` at top level alongside the body section types. |
 | `bibliography` | `references+` | Back matter; `references` is the sole `section_back` member. |
-| `bibdata` | *(empty)* | Atom: document-level bibliographic metadata. Stores a `BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item` attr. Required first child of `doc` (§8.1). |
+| `bibdata` | *(empty)* | Atom: document-level bibliographic metadata. Stores a `BibliographicItem` (from `@metanorma/relaton`, [`Relaton.spec.md`](./Relaton.spec.md)) as a single JSON `item` attr. Required first child of `doc` (§8.1). |
 | `bibitem` | *(empty)* | Atom: a single bibliography entry. Stores a `BibliographicItem` as a single JSON `item` attr. Permitted only inside `references` sections (§8.2). |
 | `clause` | `section_title? (block+ \| (clause \| terms \| definitions \| floating_title)+)` | Isodoc `Clause-Section`, **strict XOR**: a clause holds either blocks (leaf) or subclauses, never both — no hanging paragraphs in the numbered body hierarchy. Optional leading heading textblock. |
 | `annex` | `section_title? block* (clause \| terms \| definitions \| references \| floating_title)*` | Isodoc `Annex-Section-Body`, **non-strict**: optional prefatory blocks then subclauses (in any mix). **Doc-level** — `annex` is a direct child of `doc`, not nested in a container and not self-nesting. Admits `references` subclauses. Optional leading heading. |
@@ -205,7 +204,7 @@ positions that name them accept them. This matches Isodoc, where
 | `note`, `example`, `quote`, `review` | `block+` | Container blocks. |
 | `admonition` | `block+` | Container; `type` attr classifies it. |
 | `sourcecode` | `text*` | Raw text content (a `code_block`-style node). |
-| `formula` | *(empty)* | Atom leaf; math in `asciimath` attr (when `type="asciimath"`) or `mathml` attr (when `type="mathml"`). |
+| `formula` | *(empty)* | Atom leaf; math in `asciimath` attr (when `type='asciimath'`) or `mathml` attr (when `type='mathml'`). |
 | `stem` | *(empty)* | Inline atom leaf; inline-formula math in `asciimath`/`mathml` attr, selected by the `type` attr. |
 | `bullet_list` | `list_item+` | |
 | `ordered_list` | `list_item+` | |
@@ -254,18 +253,18 @@ following rules:
 
 | Node | Declared attributes (beyond `data`) | Source interface |
 |---|---|---|
-| `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` | `id`, `number` | `SectionAttrs` (= `BaseAttrs`; `title` is no longer an attribute — the heading is a `section_title` child node, §8.2) |
+| `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` | `id`, `number` | `SectionAttrs` (= `BaseAttrs`; `title` is not an attribute — the heading is a `section_title` child node, §8.2) |
 | `floating_title` | `id`, `depth` (default `1`) | Metanorma `<floating-title>` (RequiredId + required `depth` int + TextElement inline content) |
 | `section_title` | *(none beyond `data`)* | open — the heading text is inline content, not an attribute |
 | `preface`, `sections`, `bibliography` | `id`, `number` | `BaseAttrs` |
 | `bibdata` | `item` | open — a `BibliographicItem` JSON object (`@metanorma/relaton`). Default `null`. |
 | `bibitem` | `item` | open — a `BibliographicItem` JSON object (`@metanorma/relaton`). Default `null`. |
-| `formula` | `id`, `number`, `type` (enum `asciimath` \| `mathml`, default `"asciimath"`), `asciimath`, `mathml` | `FormulaAttrs` |
-| `stem` | `type` (enum `asciimath` \| `mathml`, default `"asciimath"`), `asciimath`, `mathml` | open |
+| `formula` | `id`, `number`, `type` (enum `asciimath` \| `mathml`, default `'asciimath'`), `asciimath`, `mathml` | `FormulaAttrs` |
+| `stem` | `type` (enum `asciimath` \| `mathml`, default `'asciimath'`), `asciimath`, `mathml` | open |
 | `figure` | `id`, `number`, `title` | `FigureAttrs` (the `src` attr is dropped — `src` lives only on the `image` child, avoiding a dual source of truth; see §17.1) |
 | `table` | `id`, `number`, `title` | `TableAttrs` |
 | `table_cell` | `colspan` (default `1`), `rowspan` (default `1`) | `TableCellAttrs` |
-| `image` | `src` (default `""`), `alt` | `ImageAttrs` (`src` required in TS → default `""` + runtime validation) |
+| `image` | `src` (default `''`), `alt` | `ImageAttrs` (`src` required in TS → default `''` + runtime validation) |
 | `admonition` | `type` | `AdmonitionAttrs` |
 | `sourcecode` | `language` | `SourcecodeAttrs` (the `text` field of `SourcecodeAttrs` is dropped — the code text lives in the node's `text*` content, not an attribute; carrying both would be a dual source of truth on conversion, §1.1) |
 | `ordered_list` | `order` (default `1`) | open (`Record<string, unknown>`) |
@@ -274,7 +273,7 @@ following rules:
 | `paragraph`, `note`, `example`, `quote`, `review`, `bullet_list`, `list_item`, `dl`, `dt`, `dd`, `table_head`, `table_body`, `table_foot`, `table_row`, `footnotes`, `soft_break` | *(none beyond `data`)* | open |
 
 **`image.src` validation.** Because `ImageAttrs.src` is required in TypeScript
-but ProseMirror needs a default, `src` defaults to `""` and the module exports a
+but ProseMirror needs a default, `src` defaults to `''` and the module exports a
 runtime guard `assertValidImageAttrs(attrs)` used by input rules / paste handling
 to reject empty `src`.
 
@@ -285,7 +284,7 @@ to reject empty `src`.
 | `link` | `href` | `LinkMarkAttrs` (`target` is dropped — Semantic-XML `<link>` carries a single required `target` URL, and `href` is that URL; a second URL-shaped attr would be a dual source of truth, §1.1) |
 | `xref` | `target` | `XrefMarkAttrs` |
 | `eref` | `cite` | open — the external citation key |
-| `concept` | `ref`, `kind` (enum `"eref" \| "xref" \| "termref"`, default `"xref"`) | open — `ref` is the concept reference; `kind` discriminates the Semantic-XML child element emitted on export (`<eref>` / `<xref>` / `<termref>`). Without `kind`, a flat `ref` cannot tell the converter which reference type to emit and conversion is ambiguous (§1.1). `erefstack` (a stack of erefs, the fourth XML choice) is not supported — folded into `eref`. |
+| `concept` | `ref`, `kind` (enum `'eref' \| 'xref' \| 'termref'`, default `'xref'`) | open — `ref` is the concept reference; `kind` discriminates the Semantic-XML child element emitted on export (`<eref>` / `<xref>` / `<termref>`). Without `kind`, a flat `ref` cannot tell the converter which reference type to emit and conversion is ambiguous (§1.1). `erefstack` (a stack of erefs, the fourth XML choice) is not supported — folded into `eref`. |
 | `bcp14` | `type` | open — BCP 14 keyword (e.g. `"MUST"`) |
 | `span` | `class` | open — generic span class |
 | `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`, `strike`, `smallcap` | *(none beyond `data`)* | boolean-style marks |
@@ -310,7 +309,7 @@ keep the mark model open; no `excludes` is set on any mark.
 
 Each entry below contributes one key to the `nodes` map passed to `new Schema`.
 `text` uses ProseMirror's built-in via `schema.text` — declare it explicitly
-with `group: "inline"` so `inline*` content resolves.
+with `group: 'inline'` so `inline*` content resolves.
 
 ### 8.0 The `CLASS` contract
 
@@ -320,11 +319,11 @@ Every CSS class emitted by a `toDOM` (and matched by the corresponding
 
 ```ts
 export const CLASS = {
-  doc: "mn-doc", preface: "mn-preface", /* …sections… */
-  bibdata: "mn-bibdata", bibitem: "mn-bibitem",
-  sectionTitle: "mn-section-title",
-  note: "mn-note", formula: "mn-formula", figure: "mn-figure",
-  smallcap: "mn-smallcap", xref: "mn-xref", /* … */
+  doc: 'mn-doc', preface: 'mn-preface', /* …sections… */
+  bibdata: 'mn-bibdata', bibitem: 'mn-bibitem',
+  sectionTitle: 'mn-section-title',
+  note: 'mn-note', formula: 'mn-formula', figure: 'mn-figure',
+  smallcap: 'mn-smallcap', xref: 'mn-xref', /* … */
 } as const;
 ```
 
@@ -354,19 +353,19 @@ public API (§11).
 /**
  * The four document regions a section type may belong to.
  *
- * - `"front"` — front matter (inside `preface`).
- * - `"body"`  — main body (inside `sections`).
- * - `"annex"` — annexes (doc-level siblings; no container).
- * - `"back"`  — back matter (inside `bibliography`).
+ * - `'front'` — front matter (inside `preface`).
+ * - `'body'`  — main body (inside `sections`).
+ * - `'annex'` — annexes (doc-level siblings; no container).
+ * - `'back'`  — back matter (inside `bibliography`).
  */
-export type SectionCohort = "front" | "body" | "annex" | "back";
+export type SectionCohort = 'front' | 'body' | 'annex' | 'back';
 
 /** Section type name → its cohort. Authoritative mapping (§8.2 group assignments must agree). */
 export const SECTION_COHORT: Readonly<Record<string, SectionCohort>>;
 
 /**
  * Cohort → the container node name it belongs in (`front`→`preface`,
- * `body`→`sections`, `back`→`bibliography`). The `"annex"` cohort is
+ * `body`→`sections`, `back`→`bibliography`). The `'annex'` cohort is
  * deliberately absent: annexes are doc-level siblings (see `DOC_CHILD_ORDER`),
  * not children of a container.
  */
@@ -402,11 +401,11 @@ deliberately not offered — the user creates a new section instead.
 
 | Node | Spec essentials |
 |---|---|
-| `doc` | `content: "(bibdata preface? sections? annex* bibliography? footnotes?)"`; `toDOM: ["div", {class: CLASS.doc}, 0]`; no `parseDOM`. Annexes are doc-level siblings between `sections` and `bibliography` (Isodoc root child order). |
-| `bibdata` | `content: ""`; `atom: true`; `attrs: { item: { default: null }, ...DATA_ATTR }`; `toDOM: ["div", {class: CLASS.bibdata}]`; no `parseDOM` (doc-level, created by default doc / loader). |
-| `preface` | `content: "section_front+"`; `toDOM: ["section", {class: CLASS.preface}, 0]`; `parseDOM: [{tag: "section.mn-preface"}]`. |
-| `sections` | `content: "(section_body \| floating_title)+"`; `toDOM: ["section", {class: CLASS.sections}, 0]`; `parseDOM: [{tag: "section.mn-sections"}]`. Isodoc's `sections` admits `floating-title` at top level alongside the body section types (§8.3). |
-| `bibliography` | `content: "references+"`; `toDOM: ["section", {class: CLASS.bibliography}, 0]`; `parseDOM: [{tag: "section.mn-bibliography"}]`. |
+| `doc` | `content: '(bibdata preface? sections? annex* bibliography? footnotes?)'`; `toDOM: ['div', {class: CLASS.doc}, 0]`; no `parseDOM`. Annexes are doc-level siblings between `sections` and `bibliography` (Isodoc root child order). |
+| `bibdata` | `content: ''`; `atom: true`; `attrs: { item: { default: null }, ...DATA_ATTR }`; `toDOM: ['div', {class: CLASS.bibdata}]`; no `parseDOM` (doc-level, created by default doc / loader). |
+| `preface` | `content: 'section_front+'`; `toDOM: ['section', {class: CLASS.preface}, 0]`; `parseDOM: [{tag: 'section.mn-preface'}]`. |
+| `sections` | `content: '(section_body \| floating_title)+'`; `toDOM: ['section', {class: CLASS.sections}, 0]`; `parseDOM: [{tag: 'section.mn-sections'}]`. Isodoc's `sections` admits `floating-title` at top level alongside the body section types (§8.3). |
+| `bibliography` | `content: 'references+'`; `toDOM: ['section', {class: CLASS.bibliography}, 0]`; `parseDOM: [{tag: 'section.mn-bibliography'}]`. |
 
 The three containers (`preface`, `sections`, `bibliography`) each admit only
 their own cohort's section types — no bare blocks — matching Isodoc, where the
@@ -421,12 +420,12 @@ All section nodes share `toDOM`/`parseDOM` shape (a `<section>` whose class is
 function sectionToDOM(cls: string) {
   return (node: Node) => {
     const attrs: Record<string, string> = { class: cls };
-    if (node.attrs.id !== null) attrs["data-id"] = node.attrs.id;
-    if (node.attrs.number !== null) attrs["data-number"] = node.attrs.number;
-    return ["section", attrs, 0] as DOMOutputSpec;
+    if (node.attrs.id !== null) attrs['data-id'] = node.attrs.id;
+    if (node.attrs.number !== null) attrs['data-number'] = node.attrs.number;
+    return ['section', attrs, 0] as DOMOutputSpec;
   };
 }
-// parseDOM: [{ tag: `section.${cls}`, getAttrs(el) { return { id: el.getAttribute("data-id"), number: el.getAttribute("data-number") } } }]
+// parseDOM: [{ tag: `section.${cls}`, getAttrs(el) { return { id: el.getAttribute('data-id'), number: el.getAttribute('data-number') } } }]
 ```
 
 Each section node is assigned to exactly one **cohort group** (§4) that
@@ -485,7 +484,8 @@ matching Metanorma Semantic XML's `<title>` child element (§17).
 
 **Bibliography entries.** The `references` section node's content expression
 permits `bibitem` atom nodes after the prefatory blocks. Each `bibitem` stores a
-`BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item` attr
+`BibliographicItem` (from `@metanorma/relaton`, see
+[`Relaton.spec.md`](./Relaton.spec.md)) as a single JSON `item` attr
 and renders as a compact summary via a NodeView. `bibitem` has no group
 membership — it is insertable only inside `references` via a dedicated command,
 not as a general block.
@@ -494,15 +494,15 @@ not as a general block.
 
 | Node | `content` | `toDOM` | `parseDOM` |
 |---|---|---|---|
-| `paragraph` | `inline*` | `["p", 0]` | `[{tag: "p"}]` |
-| `note` | `block+` | `["div", {class: CLASS.note}, 0]` | `[{tag: "div.mn-note"}]` |
-| `example` | `block+` | `["div", {class: CLASS.example}, 0]` | `[{tag: "div.mn-example"}]` |
-| `quote` | `block+` | `["blockquote", 0]` | `[{tag: "blockquote"}]` |
-| `review` | `block+` | `["div", {class: CLASS.review}, 0]` | `[{tag: "div.mn-review"}]` |
-| `admonition` | `block+` | `["div", {class: \`mn-admonition ${type}\`, "data-type": type}, 0]` (function) | `[{tag: "div.mn-admonition", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
-| `sourcecode` | `text*`, `code: true` | `["pre", {class: \`language-${language}\`}, ["code", 0]]` (function) | `[{tag: "pre", getAttrs: el => ({ language: /language-(\S+)/.exec(el.className)?.[1] ?? null })}]` |
-| `formula` | *(empty)* atom | `["div", {class: CLASS.formula, "data-type": type, "data-asciimath": asciimath, "data-mathml": mathml, "data-number": number}]` (function; no content slot; only the encoding selected by `type` is authoritative — see §17.2) | `[{tag: "div.mn-formula", getAttrs: el => ({ type: el.getAttribute("data-type") ?? "asciimath", asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml"), number: el.getAttribute("data-number") })}]` |
-| `floating_title` | `inline*` (no group — **groupless textblock**) | `["div", {class: CLASS.floatingTitle, "data-id": id, "data-depth": depth}, 0]` (function) | `[{tag: "div.mn-floating-title", getAttrs: el => ({ id: el.getAttribute("data-id"), depth: Number(el.getAttribute("data-depth") ?? "1") })}]` |
+| `paragraph` | `inline*` | `['p', 0]` | `[{tag: 'p'}]` |
+| `note` | `block+` | `['div', {class: CLASS.note}, 0]` | `[{tag: 'div.mn-note'}]` |
+| `example` | `block+` | `['div', {class: CLASS.example}, 0]` | `[{tag: 'div.mn-example'}]` |
+| `quote` | `block+` | `['blockquote', 0]` | `[{tag: 'blockquote'}]` |
+| `review` | `block+` | `['div', {class: CLASS.review}, 0]` | `[{tag: 'div.mn-review'}]` |
+| `admonition` | `block+` | `['div', {class: \`mn-admonition ${type}\`, 'data-type': type}, 0]` (function) | `[{tag: 'div.mn-admonition', getAttrs: el => ({ type: el.getAttribute('data-type') })}]` |
+| `sourcecode` | `text*`, `code: true` | `['pre', {class: \`language-${language}\`}, ['code', 0]]` (function) | `[{tag: 'pre', getAttrs: el => ({ language: /language-(\S+)/.exec(el.className)?.[1] ?? null })}]` |
+| `formula` | *(empty)* atom | `['div', {class: CLASS.formula, 'data-type': type, 'data-asciimath': asciimath, 'data-mathml': mathml, 'data-number': number}]` (function; no content slot; only the encoding selected by `type` is authoritative — see §17.2) | `[{tag: 'div.mn-formula', getAttrs: el => ({ type: el.getAttribute('data-type') ?? 'asciimath', asciimath: el.getAttribute('data-asciimath'), mathml: el.getAttribute('data-mathml'), number: el.getAttribute('data-number') })}]` |
+| `floating_title` | `inline*` (no group — **groupless textblock**) | `['div', {class: CLASS.floatingTitle, 'data-id': id, 'data-depth': depth}, 0]` (function) | `[{tag: 'div.mn-floating-title', getAttrs: el => ({ id: el.getAttribute('data-id'), depth: Number(el.getAttribute('data-depth') ?? '1') })}]` |
 
 `floating_title` is a **groupless textblock**: it has no PM group membership, so
 it can appear only where a content expression names it explicitly — at the top
@@ -510,7 +510,7 @@ level of `sections`, and in the subclause branches of `clause` and `annex`
 (§8.2). This mirrors Isodoc's `floating-title`, which is never a `BasicBlock`;
 the editor's legal positions are in exact parity with Isodoc, so a converter
 needs no positional coercion (§17.6).
-| `section_title` | `inline*` (no group) | `["div", {class: CLASS.sectionTitle}, 0]` | `[{tag: "div.mn-section-title"}]` |
+| `section_title` | `inline*` (no group) | `['div', {class: CLASS.sectionTitle}, 0]` | `[{tag: 'div.mn-section-title'}]` |
 
 **`sourcecode.code: true`.** The `sourcecode` node spec sets `code: true`, the
 ProseMirror convention marking a textblock as a code block. This is what makes
@@ -522,23 +522,23 @@ command work inside `sourcecode`; the editor-commands package relies on it
 
 | Node | `group` | `content` | `toDOM` | `parseDOM` |
 |---|---|---|---|---|
-| `bullet_list` | `block` | `list_item+` | `["ul", 0]` | `[{tag: "ul"}]` |
-| `ordered_list` | `block` | `list_item+` | `["ol", attrs, 0]` where `attrs` contains `start` only when `order > 1` (function) | `[{tag: "ol", getAttrs: el => ({ order: el.hasAttribute("start") ? Number(el.getAttribute("start")) : 1 })}]` |
-| `list_item` | — | `block+` | `["li", 0]` | `[{tag: "li"}]` |
-| `dl` | `block` | `(dt dd)+` | `["dl", 0]` | `[{tag: "dl"}]` |
-| `dt` | — | `inline*` | `["dt", 0]` | `[{tag: "dt"}]` |
-| `dd` | — | `block+` | `["dd", 0]` | `[{tag: "dd"}]` |
+| `bullet_list` | `block` | `list_item+` | `['ul', 0]` | `[{tag: 'ul'}]` |
+| `ordered_list` | `block` | `list_item+` | `['ol', attrs, 0]` where `attrs` contains `start` only when `order > 1` (function) | `[{tag: 'ol', getAttrs: el => ({ order: el.hasAttribute('start') ? Number(el.getAttribute('start')) : 1 })}]` |
+| `list_item` | — | `block+` | `['li', 0]` | `[{tag: 'li'}]` |
+| `dl` | `block` | `(dt dd)+` | `['dl', 0]` | `[{tag: 'dl'}]` |
+| `dt` | — | `inline*` | `['dt', 0]` | `[{tag: 'dt'}]` |
+| `dd` | — | `block+` | `['dd', 0]` | `[{tag: 'dd'}]` |
 
 ### 8.5 Table nodes
 
 | Node | `content` | `toDOM` | `parseDOM` |
 |---|---|---|---|
-| `table` | `(table_head \| table_body \| table_foot)+`, `group: "block"` | `["table", 0]` | `[{tag: "table"}]` |
-| `table_head` | `table_row+` | `["thead", 0]` | `[{tag: "thead"}]` |
-| `table_body` | `table_row+` | `["tbody", 0]` | `[{tag: "tbody"}]` |
-| `table_foot` | `table_row+` | `["tfoot", 0]` | `[{tag: "tfoot"}]` |
-| `table_row` | `table_cell+` | `["tr", 0]` | `[{tag: "tr"}]` |
-| `table_cell` | `block+` | `["td", {colspan, rowspan}, 0]` (function) | `[{tag: "td"}, {tag: "th"}]` (both map to `table_cell`) |
+| `table` | `(table_head \| table_body \| table_foot)+`, `group: 'block'` | `['table', 0]` | `[{tag: 'table'}]` |
+| `table_head` | `table_row+` | `['thead', 0]` | `[{tag: 'thead'}]` |
+| `table_body` | `table_row+` | `['tbody', 0]` | `[{tag: 'tbody'}]` |
+| `table_foot` | `table_row+` | `['tfoot', 0]` | `[{tag: 'tfoot'}]` |
+| `table_row` | `table_cell+` | `['tr', 0]` | `[{tag: 'tr'}]` |
+| `table_cell` | `block+` | `['td', {colspan, rowspan}, 0]` (function) | `[{tag: 'td'}, {tag: 'th'}]` (both map to `table_cell`) |
 
 **Note.** The catalog has no `th` type; both `<td>` and `<th>` parse to
 `table_cell`.
@@ -547,24 +547,24 @@ command work inside `sourcecode`; the editor-commands package relies on it
 
 | Node | `content` | `atom`/leaf | `toDOM` | `parseDOM` |
 |---|---|---|---|---|
-| `figure` | `(image \| block)*`, `group: "block"` | — | `["figure", {class: CLASS.figure, "data-id": id}, 0]` (function) | `[{tag: "figure"}]` |
-| `image` | *(empty)* | atom, `draggable: true` | `["img", {src, alt, "data-src": src}]` (function; **no content slot** — leaf) | `[{tag: "img", getAttrs: el => ({ src: el.getAttribute("src"), alt: el.getAttribute("alt") })}]` |
+| `figure` | `(image \| block)*`, `group: 'block'` | — | `['figure', {class: CLASS.figure, 'data-id': id}, 0]` (function) | `[{tag: 'figure'}]` |
+| `image` | *(empty)* | atom, `draggable: true` | `['img', {src, alt, 'data-src': src}]` (function; **no content slot** — leaf) | `[{tag: 'img', getAttrs: el => ({ src: el.getAttribute('src'), alt: el.getAttribute('alt') })}]` |
 
 ### 8.7 Footnote nodes
 
 | Node | `content` | inline? | `toDOM` | `parseDOM` |
 |---|---|---|---|---|
-| `footnotes` | `footnote_entry+` | no | `["section", {class: CLASS.footnotes}, 0]` | `[{tag: "section.mn-footnotes"}, {tag: "ol.mn-footnotes"}]` |
-| `footnote_entry` | `block+` | no | `["div", {class: CLASS.footnoteEntry, "data-id": id, "data-number": number}, 0]` (function) | `[{tag: ".mn-footnote-entry", getAttrs: el => ({ id: el.getAttribute("data-id"), number: el.getAttribute("data-number") })}]` |
-| `footnote_marker` | *(empty)* | **yes** (`group: "inline"`, `inline: true`, atom) | `["sup", {class: CLASS.footnoteMarker, "data-target": target}]` (function; no content slot) | `[{tag: "sup.mn-footnote-marker", getAttrs: el => ({ target: el.getAttribute("data-target") })}]` |
+| `footnotes` | `footnote_entry+` | no | `['section', {class: CLASS.footnotes}, 0]` | `[{tag: 'section.mn-footnotes'}, {tag: 'ol.mn-footnotes'}]` |
+| `footnote_entry` | `block+` | no | `['div', {class: CLASS.footnoteEntry, 'data-id': id, 'data-number': number}, 0]` (function) | `[{tag: '.mn-footnote-entry', getAttrs: el => ({ id: el.getAttribute('data-id'), number: el.getAttribute('data-number') })}]` |
+| `footnote_marker` | *(empty)* | **yes** (`group: 'inline'`, `inline: true`, atom) | `['sup', {class: CLASS.footnoteMarker, 'data-target': target}]` (function; no content slot) | `[{tag: 'sup.mn-footnote-marker', getAttrs: el => ({ target: el.getAttribute('data-target') })}]` |
 
 ### 8.8 Leaf inline nodes
 
 | Node | `group` | `toDOM` | `parseDOM` |
 |---|---|---|---|
 | `text` | `inline` | *(built-in)* | *(built-in)* |
-| `soft_break` | `inline`, `inline: true`, `atom: true` | `["br"]` | `[{tag: "br"}]` |
-| `stem` | `inline`, `inline: true`, `atom: true` | `["span", {class: CLASS.stem, "data-type": type, "data-asciimath": asciimath, "data-mathml": mathml}]` (function; no content slot; only the encoding selected by `type` is authoritative) | `[{tag: "span.mn-stem", getAttrs: el => ({ type: el.getAttribute("data-type") ?? "asciimath", asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml") })}]` |
+| `soft_break` | `inline`, `inline: true`, `atom: true` | `['br']` | `[{tag: 'br'}]` |
+| `stem` | `inline`, `inline: true`, `atom: true` | `['span', {class: CLASS.stem, 'data-type': type, 'data-asciimath': asciimath, 'data-mathml': mathml}]` (function; no content slot; only the encoding selected by `type` is authoritative) | `[{tag: 'span.mn-stem', getAttrs: el => ({ type: el.getAttribute('data-type') ?? 'asciimath', asciimath: el.getAttribute('data-asciimath'), mathml: el.getAttribute('data-mathml') })}]` |
 
 ---
 
@@ -577,25 +577,25 @@ with the mark tag and `0` (content hole), and `parseDOM` uses the tag.
 
 | Mark | `toDOM` | `parseDOM` |
 |---|---|---|
-| `emphasis` | `["em", 0]` | `[{tag: "em"}, {tag: "i"}]` |
-| `strong` | `["strong", 0]` | `[{tag: "strong"}, {tag: "b"}]` |
-| `subscript` | `["sub", 0]` | `[{tag: "sub"}]` |
-| `superscript` | `["sup", 0]` | `[{tag: "sup"}]` |
-| `code` | `["code", 0]` | `[{tag: "code"}]` |
-| `underline` | `["u", 0]` | `[{tag: "u"}]` |
-| `strike` | `["s", 0]` | `[{tag: "s"}, {tag: "strike"}, {tag: "del"}]` |
-| `smallcap` | `["span", {class: CLASS.smallcap}, 0]` | `[{tag: "span.mn-smallcap"}, {style: "font-variant=small-caps"}]` |
+| `emphasis` | `['em', 0]` | `[{tag: 'em'}, {tag: 'i'}]` |
+| `strong` | `['strong', 0]` | `[{tag: 'strong'}, {tag: 'b'}]` |
+| `subscript` | `['sub', 0]` | `[{tag: 'sub'}]` |
+| `superscript` | `['sup', 0]` | `[{tag: 'sup'}]` |
+| `code` | `['code', 0]` | `[{tag: 'code'}]` |
+| `underline` | `['u', 0]` | `[{tag: 'u'}]` |
+| `strike` | `['s', 0]` | `[{tag: 's'}, {tag: 'strike'}, {tag: 'del'}]` |
+| `smallcap` | `['span', {class: CLASS.smallcap}, 0]` | `[{tag: 'span.mn-smallcap'}, {style: 'font-variant=small-caps'}]` |
 
 ### 9.2 Reference / semantic marks
 
 | Mark | Attrs | `toDOM` | `parseDOM` |
 |---|---|---|---|
-| `link` | `href` | `["a", {href}, 0]` (function; omit attr when null) | `[{tag: "a[href]", getAttrs: el => ({ href: el.getAttribute("href") })}]` |
-| `xref` | `target` | `["a", {class: CLASS.xref, "data-target": target}, 0]` (function) | `[{tag: "a.mn-xref", getAttrs: el => ({ target: el.getAttribute("data-target") })}]` |
-| `eref` | `cite` | `["cite", {class: CLASS.eref, "data-cite": cite}, 0]` (function) | `[{tag: "cite.mn-eref", getAttrs: el => ({ cite: el.getAttribute("data-cite") })}]` |
-| `concept` | `ref`, `kind` | `["span", {class: CLASS.concept, "data-ref": ref, "data-kind": kind}, 0]` (function) | `[{tag: "span.mn-concept", getAttrs: el => ({ ref: el.getAttribute("data-ref"), kind: el.getAttribute("data-kind") ?? "xref" })}]` |
-| `bcp14` | `type` | `["span", {class: CLASS.bcp14, "data-type": type}, 0]` (function) | `[{tag: "span.mn-bcp14", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
-| `span` | `class` | `["span", {class}, 0]` (function) | `[{tag: "span[data-class]", getAttrs: el => ({ class: el.getAttribute("data-class") }), priority: 1}]` |
+| `link` | `href` | `['a', {href}, 0]` (function; omit attr when null) | `[{tag: 'a[href]', getAttrs: el => ({ href: el.getAttribute('href') })}]` |
+| `xref` | `target` | `['a', {class: CLASS.xref, 'data-target': target}, 0]` (function) | `[{tag: 'a.mn-xref', getAttrs: el => ({ target: el.getAttribute('data-target') })}]` |
+| `eref` | `cite` | `['cite', {class: CLASS.eref, 'data-cite': cite}, 0]` (function) | `[{tag: 'cite.mn-eref', getAttrs: el => ({ cite: el.getAttribute('data-cite') })}]` |
+| `concept` | `ref`, `kind` | `['span', {class: CLASS.concept, 'data-ref': ref, 'data-kind': kind}, 0]` (function) | `[{tag: 'span.mn-concept', getAttrs: el => ({ ref: el.getAttribute('data-ref'), kind: el.getAttribute('data-kind') ?? 'xref' })}]` |
+| `bcp14` | `type` | `['span', {class: CLASS.bcp14, 'data-type': type}, 0]` (function) | `[{tag: 'span.mn-bcp14', getAttrs: el => ({ type: el.getAttribute('data-type') })}]` |
+| `span` | `class` | `['span', {class}, 0]` (function) | `[{tag: 'span[data-class]', getAttrs: el => ({ class: el.getAttribute('data-class') }), priority: 1}]` |
 
 **`span` parse priority.** The generic `span` mark parses with low priority
 (`priority: 1`) so that the more specific `span.mn-smallcap` / `span.mn-concept`
@@ -606,9 +606,9 @@ with the mark tag and `0` (content hole), and `parseDOM` uses the tag.
 ## 10. Schema assembly
 
 ```ts
-import { Schema } from "prosemirror-model";
-import { metanormaNodes } from "./nodes";
-import { metanormaMarks } from "./marks";
+import { Schema } from 'prosemirror-model';
+import { metanormaNodes } from './nodes';
+import { metanormaMarks } from './marks';
 
 export const metanormaSchema = new Schema({
   nodes: metanormaNodes,
@@ -626,7 +626,7 @@ in §3 for readability.
 ## 11. Public API (`index.ts`)
 
 ```ts
-import type { Schema, NodeSpec, MarkSpec } from "prosemirror-model";
+import type { Schema, NodeSpec, MarkSpec } from 'prosemirror-model';
 
 /** The assembled schema. */
 export const metanormaSchema: Schema;
@@ -640,13 +640,13 @@ export const NODE_NAMES: readonly string[];   // 46 entries, in §3.1 order
 export const MARK_NAMES: readonly string[];   // 14 entries, in §3.2 order
 
 /** The CSS class emitted by every `toDOM`/`parseDOM` rule (§8.0). */
-export const CLASS: { readonly doc: "mn-doc"; /* …one key per emitting node/mark… */ };
+export const CLASS: { readonly doc: 'mn-doc'; /* …one key per emitting node/mark… */ };
 export type ClassName = (typeof CLASS)[keyof typeof CLASS];
 
 /** Section cohort metadata (§8.0a). */
-export type SectionCohort = "front" | "body" | "annex" | "back";
+export type SectionCohort = 'front' | 'body' | 'annex' | 'back';
 export const SECTION_COHORT: Readonly<Record<string, SectionCohort>>;
-/** No `"annex"` key — annexes are doc-level siblings, not container children (§8.0a). */
+/** No `'annex'` key — annexes are doc-level siblings, not container children (§8.0a). */
 export const COHORT_CONTAINER: Readonly<Record<string, string>>;
 export const DOC_CHILD_ORDER: readonly string[];
 export const FRONT_TYPES: readonly string[];
@@ -724,8 +724,8 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
    whose content expression mentions `image`.
 8. `table_cell` parses both `<td>` and `<th>`; `colspan`/`rowspan` default to 1.
 9. `soft_break`, `footnote_marker`, and `stem` are inline atoms (`inline: true`,
-   `atom: true`, `group: "inline"`); all three may appear inside `paragraph`.
-10. `assertValidImageAttrs({ src: "" })` throws; `assertValidImageAttrs({ src: "x.png" })` does not.
+   `atom: true`, `group: 'inline'`); all three may appear inside `paragraph`.
+10. `assertValidImageAttrs({ src: '' })` throws; `assertValidImageAttrs({ src: 'x.png' })` does not.
 
 ---
 
@@ -792,30 +792,29 @@ renames and structural reshapes (e.g. `cite` → `citeas`, `href` → `target`,
 `number` → `reference`, the `section_title` child node → a `<title>`/`<name>`
 child element, the doc-level `footnotes`/`footnote_entry`/`footnote_marker` split → a single inline
 `<fn>` with body). Name and shape differences are **not** incompatibilities.
+`<eref citeas>`, `<link target>`, and `<fn reference>` are direct renames of
+the typed editor attrs (`cite`, `href`, `number`) — no invention involved.
 Presentation XML is generated downstream from Semantic XML by the pipeline's
 presentation transform; the editor never authors it.
 
-Two dual-source-of-truth issues are resolved in this spec so that conversion is
-unambiguous:
+Four dual-source-of-truth issues are resolved in this spec so that conversion
+is unambiguous; §1.1 enumerates them (§17.1–§17.3 detail the first three):
 
 ### 17.1 `src` lives only on `image` (not `figure`)
 
-`figure` no longer carries a `src` attribute (§6.1). The image source is stored
-exactly once, on the `image` child of the figure. This removes the previous
-ambiguity where `figure.src` and `figure > image.src` could disagree with no
-way to decide which is authoritative. A figure's image is always its `image`
-child node.
+`figure` carries no `src` attribute (§6.1). The image source is stored
+exactly once, on the `image` child of the figure, so the two can never
+disagree; a figure's image is always its `image` child node.
 
 ### 17.2 `formula` / `stem` carry a `type` discriminator
 
-Both `formula` and `stem` now declare a `type` attribute (enum: `"asciimath"` |
-`"mathml"`, default `"asciimath"`). The `type` selects which encoding is
+Both `formula` and `stem` declare a `type` attribute (enum: `'asciimath'` |
+`'mathml'`, default `'asciimath'`). The `type` selects which encoding is
 **authoritative** for conversion; the converter emits only that encoding
 (Metanorma `<stem type="AsciiMath">` or `<stem type="MathML">` carries a single
 encoding). The non-selected attribute may still be populated for editor-side
-preview but is **ignored on export**. This removes the previous ambiguity where
-parallel, simultaneously-populated `asciimath` and `mathml` attributes had no
-defined winner.
+preview but is **ignored on export**, so parallel `asciimath` and `mathml`
+attributes always have a defined winner.
 
 ### 17.3 `concept` carries a `kind` discriminator
 
@@ -825,15 +824,15 @@ the current document), or `<termref>` (definition in a termbase). Each maps to a
 different output element, so a single flat reference string cannot tell the
 converter which one to emit.
 
-The `concept` mark therefore declares a `kind` attribute (enum: `"eref"` |
-`"xref"` | `"termref"`, default `"xref"`) alongside `ref` (§6.2, §9.2). `kind`
+The `concept` mark therefore declares a `kind` attribute (enum: `'eref'` |
+`'xref'` | `'termref'`, default `'xref'`) alongside `ref` (§6.2, §9.2). `kind`
 selects the XML child element; `ref` supplies the pointer value
 (`<eref citeas>` / `<xref target>` / `<termref target>`). The default of
-`"xref"` keeps export deterministic even when `kind` is unset, so the
+`'xref'` keeps export deterministic even when `kind` is unset, so the
 internal-concept-definition case works without an explicit `kind`.
 
 The fourth XML choice, `<erefstack>` (a stack of erefs), is **not supported** —
-it is folded into `kind: "eref"` (a single `<eref>`), which is the common case.
+it is folded into `kind: 'eref'` (a single `<eref>`), which is the common case.
 This is a known coverage gap, not an ambiguity.
 
 ### 17.4 Values the converter must invent (schema coverage gaps)
@@ -849,7 +848,6 @@ subset, not ambiguities:
 | `<image id="…">` | required | Synthesise a content GUID (the editor does not model `id` on `image`). |
 | `<floating-title depth="…">` | required | Derive from heading level context, else a constant default. |
 | `<review reviewer="…">` | required | Default placeholder (the editor does not model `reviewer`). |
-| `<eref citeas="…">`, `<link target="…">`, `<fn reference="…">` | required | Direct rename of the editor attr (`cite`, `href`, `number`). |
 
 ### 17.5 Features not represented (dropped on import)
 
