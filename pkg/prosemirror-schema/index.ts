@@ -1,9 +1,9 @@
 /**
  * Public API for `@metanorma/prosemirror-schema` (§11).
  *
- * Implements [`docs/schema.spec.md`](../../docs/schema.spec.md) **v5** — the
- * source of truth for the document model (46 node types, 14 mark types,
- * content model, attributes, and DOM serialization rules).
+ * Implements [`docs/schema.spec.md`](../../docs/schema.spec.md) — the source
+ * of truth for the document model (46 node types, 14 mark types, content
+ * model, attributes, and DOM serialization rules).
  *
  * Assembles the single ProseMirror `Schema` whose node/mark vocabulary,
  * content model, attributes, and DOM serialization rules are aligned with the
@@ -17,6 +17,7 @@ import { Schema } from 'prosemirror-model';
 
 import { metanormaNodes } from './nodes.js';
 import { metanormaMarks } from './marks.js';
+
 
 // ---------------------------------------------------------------------------
 // Assembled schema (§10)

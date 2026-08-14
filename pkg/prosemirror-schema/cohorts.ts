@@ -2,12 +2,12 @@
  * Section cohort metadata — the canonical domain model for which document
  * region each section type belongs to (§8.0a).
  *
- * The three cohort groups in `groups.ts` (`section_front`, `section_body`,
- * `section_back`) drive ProseMirror's content validation: each container
- * (`preface`, `sections`, `bibliography`) admits only the section types in its
- * cohort. This module provides the companion metadata that commands and the
- * toolbar consume — cohort membership, container mapping, doc ordering, and
- * the section-type lists used to build menus.
+ * The cohort groups declared in `groups.ts` drive ProseMirror's content
+ * validation: each container (`preface`, `sections`, `bibliography`) admits
+ * only the section types in its cohort. This module provides the companion
+ * metadata that commands and the toolbar consume — cohort membership,
+ * container mapping, doc ordering, and the section-type lists used to build
+ * menus.
  *
  * It is also the design hook for future same-cohort type changes: a future
  * `changeSectionType(state, target, dispatch)` would guard with
@@ -17,13 +17,10 @@
  */
 
 /**
- * The three document regions a section type may belong to.
- *
- * - `"front"` — front matter (inside `preface`).
- * - `"body"`  — main body (inside `sections`).
- * - `"back"`  — back matter (inside `bibliography`).
+ * The document region a section type belongs to — the members of this union
+ * and their meaning are documented in §8.0a.
  */
-export type SectionCohort = "front" | "body" | "annex" | "back";
+export type SectionCohort = 'front' | 'body' | 'annex' | 'back';
 
 /**
  * Section type name → its cohort. Authoritative mapping consulted by commands
@@ -32,31 +29,31 @@ export type SectionCohort = "front" | "body" | "annex" | "back";
  */
 export const SECTION_COHORT: Readonly<Record<string, SectionCohort>> = {
   // Front matter
-  abstract: "front",
-  foreword: "front",
-  introduction: "front",
-  acknowledgements: "front",
-  content_section: "front",
+  abstract: 'front',
+  foreword: 'front',
+  introduction: 'front',
+  acknowledgements: 'front',
+  content_section: 'front',
   // Body
-  clause: "body",
-  terms: "body",
-  definitions: "body",
+  clause: 'body',
+  terms: 'body',
+  definitions: 'body',
   // Annexes — doc-level siblings, no container
-  annex: "annex",
+  annex: 'annex',
   // Back matter
-  references: "back",
+  references: 'back',
 };
 
 /**
  * Cohort → the container node name it belongs in. Used by `insertSection` to
- * resolve the target container for a given section type. The `"annex"` cohort
+ * resolve the target container for a given section type. The `annex` cohort
  * is deliberately absent: annexes are doc-level siblings (see
  * {@link DOC_CHILD_ORDER}), not children of a container.
  */
 export const COHORT_CONTAINER: Readonly<Record<string, string>> = {
-  front: "preface",
-  body: "sections",
-  back: "bibliography",
+  front: 'preface',
+  body: 'sections',
+  back: 'bibliography',
 };
 
 /**
@@ -66,7 +63,7 @@ export const COHORT_CONTAINER: Readonly<Record<string, string>> = {
  * insertion position.
  */
 export const DOC_CHILD_ORDER: readonly string[] = [
-  "bibdata", "preface", "sections", "annex", "bibliography", "footnotes",
+  'bibdata', 'preface', 'sections', 'annex', 'bibliography', 'footnotes',
 ];
 
 // ---------------------------------------------------------------------------
@@ -75,22 +72,22 @@ export const DOC_CHILD_ORDER: readonly string[] = [
 
 /** Front-matter section types, in canonical (document-appearance) order. */
 export const FRONT_TYPES: readonly string[] = [
-  "abstract", "foreword", "introduction", "acknowledgements", "content_section",
+  'abstract', 'foreword', 'introduction', 'acknowledgements', 'content_section',
 ];
 
 /** Body section types, in canonical order. */
 export const BODY_TYPES: readonly string[] = [
-  "clause", "terms", "definitions",
+  'clause', 'terms', 'definitions',
 ];
 
 /** Annex section types — doc-level siblings, no container. */
 export const ANNEX_TYPES: readonly string[] = [
-  "annex",
+  'annex',
 ];
 
 /** Back-matter section types. */
 export const BACK_TYPES: readonly string[] = [
-  "references",
+  'references',
 ];
 
 /**

@@ -10,11 +10,9 @@
  *
  * ## Namespace
  *
- * All emitted classes carry the `mn-` prefix. The earlier mix of namespaced
- * (`mn-clause`, `mn-sections`, …) and bare (`figure`, `formula`, `xref`, …)
- * names was unified to the `mn-` prefix in schema.spec.md **v4** for collision
- * safety when the editor is mounted inside a host page that defines its own
- * `.figure` / `.note` / `.example` rules.
+ * All emitted classes carry the `mn-` prefix, for collision safety when the
+ * editor is mounted inside a host page that defines its own `.figure` /
+ * `.note` / `.example` rules.
  *
  * ## Scope
  *
