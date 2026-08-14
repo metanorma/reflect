@@ -107,25 +107,29 @@ wrap inside the same transaction (one undo step); `insertSection`,
 
 #### floating_title is a distinct concept, not a section
 
-The schema also defines a `floating_title` block node (`group: "block"`,
-`content: "inline*"`, attrs `{ id, depth, data }` — i.e. it carries
-`id`/`depth`/`data` but its heading text is inline content, not an attribute).
-It renders as a non-`<section>` `<div class="mn-floating-title">` and is
-deliberately placed **outside the numbered section hierarchy** — per
+The schema also defines a `floating_title` node — a **groupless textblock**
+(no PM group membership, `content: "inline*"`, attrs `{ id, depth, data }` —
+it carries `id`/`depth`/`data` but its heading text is inline content, not an
+attribute). It renders as a non-`<section>` `<div class="mn-floating-title">`
+and is deliberately placed **outside the numbered section hierarchy** — per
 [Metanorma's documentation](https://www.metanorma.org/author/topics/sections/),
 "a floating title is a title that is placed outside the numbered hierarchy of
 clauses … not uniquely referable like normal clauses." It is therefore **not**
 an alternative to a `section_title` (which is the heading *of* a numbered
 section node that participates in nesting and cross-referencing) but a
-free-standing, unnumbered heading block.
+free-standing, unnumbered heading.
+
+Because it is groupless, `floating_title` can appear only where a content
+expression names it explicitly — at the top level of `sections`, and in the
+subclause branches of `clause` and `annex` (schema §8.3). These positions match
+Isodoc's `floating-title` exactly (it is never a `BasicBlock`), so a converter
+needs no positional coercion.
 
 **Consequence for this toolbar:** the Section popover (§4.2) lists only the
 ten section node types; it does **not** offer `floating_title`, and the
-structural commands never produce one. Inserting a `floating_title` is a
-*block-element* operation (it is in the `block` group, like `paragraph`/
-`note`/`example`), not a structural-section operation. It is **deferred to a
-future "block elements" toolbar group**; the sections feature does not insert
-it.
+structural commands never produce one. There is no toolbar command to insert
+a `floating_title`; it is **deferred to a future "block elements" toolbar
+group** (or document import), and the sections feature does not insert it.
 
 ### 2.3 Attributes
 
@@ -478,7 +482,12 @@ export function demoteClause(state: EditorState, dispatch?: (tr: Transaction) =>
    content**: when the target sibling is a body `clause` holding a block run,
    the strict-XOR auto-wrap folds those blocks into a subclause first, so the
    fragment validated is `clause(wrapped blocks)` + the moved clause, not the
-   sibling's raw content.
+   sibling's raw content. The post-accommodation classifier counts
+   `floating_title` as a **subsection-run member** (like `section_body`
+   children), not a block — a sibling clause holding
+   `[section_title, floating_title]` is already in the subclause branch and
+   is not auto-wrapped ([EditorCommands.spec.md](./../EditorCommands.spec.md)
+   §5.5).
 4. Dispatch order is **delete the moved clause → wrap the sibling's blocks →
    insert**: the delete runs first because the clause's original positions are
    computed against the pre-wrap document, and the wrap changes sizes before

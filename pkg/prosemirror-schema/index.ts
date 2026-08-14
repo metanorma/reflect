@@ -66,9 +66,12 @@ export const NODE_NAMES: readonly string[] = [
   'bibitem',
   // SECTION_TITLE_TYPES (1)
   'section_title',
-  // BLOCK_TYPES (9)
+  // BLOCK_TYPES (8)
   'paragraph', 'note', 'admonition', 'example', 'sourcecode',
-  'formula', 'quote', 'review', 'floating_title',
+  'formula', 'quote', 'review',
+  // FLOATING_TITLE_TYPES (1) — groupless textblock, named explicitly in
+  // clause/annex subsection runs and at `sections` top level
+  'floating_title',
   // LIST_TYPES (6)
   'bullet_list', 'ordered_list', 'list_item', 'dl', 'dt', 'dd',
   // TABLE_TYPES (6)

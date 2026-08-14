@@ -127,7 +127,7 @@ Mirrors `schema.spec.md` §4 (ProseMirror group design):
 | Group constant | Value | Members (excerpt) |
 |---|---|---|
 | `INLINE_GROUP` | `"inline"` | `text`, `footnote_marker`, `stem` |
-| `BLOCK_GROUP` | `"block"` | `paragraph`, `note`, `example`, `sourcecode`, `formula`, `quote`, `review`, `floating_title`, lists, `dl`, table nodes, `figure` |
+| `BLOCK_GROUP` | `"block"` | `paragraph`, `note`, `example`, `sourcecode`, `formula`, `quote`, `review`, lists, `dl`, table nodes, `figure` |
 | `SECTION_GROUP` | `"section"` | `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` |
 
 ### 4.2 Attribute helpers
@@ -452,10 +452,11 @@ components.
 ### 5.7 Potential further developments
 
 - **`floating_title` insertion.** The `sections` group inserts only the ten
-  `section`-group node types; the standalone `floating_title` block node (an
-  unnumbered heading outside the section hierarchy) is not inserted by any
-  current toolbar group. It is deferred to a future "block elements" toolbar
-  group (see `sections.md` §2.2).
+  `section`-group node types; the standalone `floating_title` node (a
+  groupless textblock — an unnumbered heading outside the section hierarchy,
+  admissible only at `sections` top level and in `clause`/`annex` subclause
+  branches; see `sections.md` §2.2) is not inserted by any current toolbar
+  group. It is deferred to a future "block elements" toolbar group.
 
 ## 6. Command layering (alignment with `EditorCommands.spec.md`)
 

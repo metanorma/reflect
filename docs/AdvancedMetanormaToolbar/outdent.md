@@ -167,8 +167,12 @@ The button's `isEnabled` mirrors this exactly, so outdent is disabled in:
   (no wrappable ancestor to lift out of).
 - A paragraph that is the **direct** child of a `doc` section container when
   that container cannot accept the lifted paragraph.
-- Inside atom nodes (`formula`, `image`) and `sourcecode`
-  and `floating_title` (these are not wrappable textblock contexts for `lift`).
+- Inside atom nodes (`formula`, `image`) and `sourcecode` — these are not
+  wrappable textblock contexts for `lift`. The groupless `floating_title`
+  textblock is also never lifted: it has no `block` group membership, so no
+  legal lift target accepts it (it is admissible only where named explicitly —
+  `sections` top level and `clause`/`annex` subclause branches; lifting it out
+  would place it where the content model forbids).
 
 When in doubt: the `lift(state) === true` query is the source of truth, not
 a hand-maintained allow-list. This means `isEnabled` automatically tracks

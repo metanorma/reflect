@@ -54,8 +54,9 @@ export function activeMarkTypes(state: EditorState): readonly MarkType[] {
 
 /**
  * Whether the selection sits in inline content (§5.1 enabled rule). Returns
- * `false` inside atom nodes (`formula`, `floating_title`, `image`) and the
- * code-only `sourcecode` node (`content: "text*"`, not rich text).
+ * `false` inside atom nodes (`formula`, `image`) and the code-only `sourcecode`
+ * node (`content: "text*"`, not rich text). (`floating_title` is a textblock
+ * with inline content, so it IS an inline context.)
  */
 export function isInlineContext(state: EditorState): boolean {
   const parent = state.selection.$from.parent;
@@ -64,8 +65,8 @@ export function isInlineContext(state: EditorState): boolean {
     return false;
   }
   // `inlineContent` is true when the node's content expression accepts inline
-  // nodes (text). Atom/leaf nodes (formula, image, floating_title) and pure
-  // block-content nodes have it false.
+  // nodes (text). Atom/leaf nodes (formula, image) and pure block-content
+  // nodes have it false.
   return parent.type.inlineContent;
 }
 

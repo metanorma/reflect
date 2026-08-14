@@ -105,13 +105,14 @@ construct.
 | `SECTION_ANNEX_TYPES` (1) | `annex` |
 | `SECTION_BACK_TYPES` (1) | `references` |
 | `BIBITEM_TYPES` (1) | `bibitem` |
-| `BLOCK_TYPES` (9) | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `floating_title` |
+| `BLOCK_TYPES` (8) | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review` |
 | `LIST_TYPES` (6) | `bullet_list`, `ordered_list`, `list_item`, `dl`, `dt`, `dd` |
 | `TABLE_TYPES` (6) | `table`, `table_head`, `table_body`, `table_foot`, `table_row`, `table_cell` |
 | `MEDIA_TYPES` (2) | `figure`, `image` |
 | `FOOTNOTE_TYPES` (3) | `footnotes`, `footnote_marker`, `footnote_entry` |
 | `INLINE_ATOM_TYPES` (1) | `stem` |
 | `SECTION_TITLE_TYPES` (1) | `section_title` |
+| `FLOATING_TITLE_TYPES` (1) | `floating_title` |
 | `LEAF_TYPES` (2) | `text`, `soft_break` |
 
 **Note.** `section_title` is a standalone textblock (content `inline*`) that
@@ -120,10 +121,13 @@ a member of any PM content group (neither `block` nor `inline`), so it cannot be
 inserted as a general block or appear in arbitrary containers — only the section
 content expressions reference it (§8.2).
 
-**Note.** `floating_title` is listed in `BLOCK_TYPES` and is modelled as a
-**block textblock** with `content: "inline*"` and a `depth` attribute (§8.3). It
-carries `id` and `depth` (not `SectionAttrs`). Its inline content is the heading
-text, so it supports full inline markup (emphasis, links, etc.).
+**Note.** `floating_title` is a **groupless textblock** (content `inline*`,
+no PM group membership), modelled after Isodoc's `floating-title`, which is
+never a `BasicBlock`. Like `section_title`, it can appear only where a content
+expression names it explicitly — at the top level of `sections`, and in the
+subclause branches of `clause` and `annex` (§8.2). Carrying `id` and `depth`
+(not `SectionAttrs`), its inline content is the heading text, so it supports
+full inline markup (emphasis, links, etc.).
 
 ### 3.2 Mark types (14)
 
@@ -149,7 +153,7 @@ groups are introduced:
 | PM group | Members | Notes |
 |---|---|---|
 | `inline` | `text`, `soft_break`, `footnote_marker`, `stem` | Inline content of paragraphs / terms. |
-| `block` | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `bullet_list`, `ordered_list`, `dl`, `table`, `figure`, `floating_title` | General block-level children of sections, list items, cells, etc. Deliberately **excludes** `image`, `list_item`, `dt`, `dd`, `table_*` parts, `footnote_entry`, and `section_title` (contextual only — `section_title` appears solely as the optional leading child of a section node). |
+| `block` | `paragraph`, `note`, `admonition`, `example`, `sourcecode`, `formula`, `quote`, `review`, `bullet_list`, `ordered_list`, `dl`, `table`, `figure` | General block-level children of sections, list items, cells, etc. Deliberately **excludes** `image`, `list_item`, `dt`, `dd`, `table_*` parts, `footnote_entry`, `section_title`, and `floating_title` (all contextual — see below). |
 | `section_front` | `abstract`, `foreword`, `introduction`, `acknowledgements`, `content_section` | Front-matter section nodes (inside `preface`). |
 | `section_body` | `clause`, `terms`, `definitions` | Body section nodes (inside `sections`). Nestable: a body section's content expression may reference `section_body` members for nesting. |
 | `section_annex` | `annex` | Annex section nodes — **doc-level siblings**, not children of any container (§8.1). |
@@ -166,6 +170,16 @@ container** — `annex` nodes are direct children of `doc`, ordered after
 `doc.content` expression rather than a container's. The companion cohort
 metadata (§8.0a) maps each type to its cohort and drives command-level routing.
 
+**Groupless nodes.** Two textblocks carry **no** PM group membership and are
+admissible only where a content expression names them explicitly:
+`section_title` (the optional leading heading child of a section node, §8.2) and
+`floating_title` (the free-standing unnumbered heading, admitted at `sections`
+top level and in the subclause branches of `clause` and `annex`, §8.3). Because
+neither is in the `block` group, neither can be inserted as a general block or
+appear inside container blocks (`note`, `example`, `dd`, …) — only the
+positions that name them accept them. This matches Isodoc, where
+`floating-title` is never a `BasicBlock`.
+
 ---
 
 ## 5. Content model overview
@@ -174,7 +188,7 @@ metadata (§8.0a) maps each type to its cohort and drives command-level routing.
 |---|---|---|
 | `doc` | `(bibdata preface? sections? annex* bibliography? footnotes?)` | Root: required bibdata (document metadata), optional front matter, body, **doc-level annexes** (Isodoc root child order: after `sections`, before `bibliography`), back matter, footnotes container. |
 | `preface` | `section_front+` | Front-matter sections (abstract/foreword/…, `content_section`). |
-| `sections` | `section_body+` | Main body. |
+| `sections` | `(section_body \| floating_title)+` | Main body. Isodoc's `sections` admits `floating-title` at top level alongside the body section types. |
 | `bibliography` | `references+` | Back matter; `references` is the sole `section_back` member. |
 | `bibdata` | *(empty)* | Atom: document-level bibliographic metadata. Stores a `BibliographicItem` (from `@metanorma/relaton`) as a single JSON `item` attr. Required first child of `doc` (§8.1). |
 | `bibitem` | *(empty)* | Atom: a single bibliography entry. Stores a `BibliographicItem` as a single JSON `item` attr. Permitted only inside `references` sections (§8.2). |
@@ -186,7 +200,7 @@ metadata (§8.0a) maps each type to its cohort and drives command-level routing.
 | `definitions` | `section_title? (block \| definitions)+` | Isodoc `definitions`: at least one child required. |
 | `references` | `section_title? block* bibitem* references*` | Isodoc `references`: exact ordered sequence — prefatory blocks, then `bibitem` entries, then nested `references`. Optional leading heading. |
 | `section_title` | `inline*` | Standalone textblock: the heading of its parent section. Appears only as the optional leading child of a section node (no group membership). |
-| `floating_title` | `inline*` | Block textblock; free-standing unnumbered heading. Carries `id` and `depth` attrs. |
+| `floating_title` | `inline*` | **Groupless textblock** (no PM group); free-standing unnumbered heading. Carries `id` and `depth` attrs. Admissible only where named explicitly: at `sections` top level, and in the subclause branches of `clause` and `annex` (§8.3) — never as a general `block`. |
 | `paragraph` | `inline*` | |
 | `note`, `example`, `quote`, `review` | `block+` | Container blocks. |
 | `admonition` | `block+` | Container; `type` attr classifies it. |
@@ -391,7 +405,7 @@ deliberately not offered — the user creates a new section instead.
 | `doc` | `content: "(bibdata preface? sections? annex* bibliography? footnotes?)"`; `toDOM: ["div", {class: CLASS.doc}, 0]`; no `parseDOM`. Annexes are doc-level siblings between `sections` and `bibliography` (Isodoc root child order). |
 | `bibdata` | `content: ""`; `atom: true`; `attrs: { item: { default: null }, ...DATA_ATTR }`; `toDOM: ["div", {class: CLASS.bibdata}]`; no `parseDOM` (doc-level, created by default doc / loader). |
 | `preface` | `content: "section_front+"`; `toDOM: ["section", {class: CLASS.preface}, 0]`; `parseDOM: [{tag: "section.mn-preface"}]`. |
-| `sections` | `content: "section_body+"`; `toDOM: ["section", {class: CLASS.sections}, 0]`; `parseDOM: [{tag: "section.mn-sections"}]`. |
+| `sections` | `content: "(section_body \| floating_title)+"`; `toDOM: ["section", {class: CLASS.sections}, 0]`; `parseDOM: [{tag: "section.mn-sections"}]`. Isodoc's `sections` admits `floating-title` at top level alongside the body section types (§8.3). |
 | `bibliography` | `content: "references+"`; `toDOM: ["section", {class: CLASS.bibliography}, 0]`; `parseDOM: [{tag: "section.mn-bibliography"}]`. |
 
 The three containers (`preface`, `sections`, `bibliography`) each admit only
@@ -488,7 +502,14 @@ not as a general block.
 | `admonition` | `block+` | `["div", {class: \`mn-admonition ${type}\`, "data-type": type}, 0]` (function) | `[{tag: "div.mn-admonition", getAttrs: el => ({ type: el.getAttribute("data-type") })}]` |
 | `sourcecode` | `text*`, `code: true` | `["pre", {class: \`language-${language}\`}, ["code", 0]]` (function) | `[{tag: "pre", getAttrs: el => ({ language: /language-(\S+)/.exec(el.className)?.[1] ?? null })}]` |
 | `formula` | *(empty)* atom | `["div", {class: CLASS.formula, "data-type": type, "data-asciimath": asciimath, "data-mathml": mathml, "data-number": number}]` (function; no content slot; only the encoding selected by `type` is authoritative — see §17.2) | `[{tag: "div.mn-formula", getAttrs: el => ({ type: el.getAttribute("data-type") ?? "asciimath", asciimath: el.getAttribute("data-asciimath"), mathml: el.getAttribute("data-mathml"), number: el.getAttribute("data-number") })}]` |
-| `floating_title` | `inline*`, `group: "block"` | `["div", {class: CLASS.floatingTitle, "data-id": id, "data-depth": depth}, 0]` (function) | `[{tag: "div.mn-floating-title", getAttrs: el => ({ id: el.getAttribute("data-id"), depth: Number(el.getAttribute("data-depth") ?? "1") })}]` |
+| `floating_title` | `inline*` (no group — **groupless textblock**) | `["div", {class: CLASS.floatingTitle, "data-id": id, "data-depth": depth}, 0]` (function) | `[{tag: "div.mn-floating-title", getAttrs: el => ({ id: el.getAttribute("data-id"), depth: Number(el.getAttribute("data-depth") ?? "1") })}]` |
+
+`floating_title` is a **groupless textblock**: it has no PM group membership, so
+it can appear only where a content expression names it explicitly — at the top
+level of `sections`, and in the subclause branches of `clause` and `annex`
+(§8.2). This mirrors Isodoc's `floating-title`, which is never a `BasicBlock`;
+the editor's legal positions are in exact parity with Isodoc, so a converter
+needs no positional coercion (§17.6).
 | `section_title` | `inline*` (no group) | `["div", {class: CLASS.sectionTitle}, 0]` | `[{tag: "div.mn-section-title"}]` |
 
 **`sourcecode.code: true`.** The `sourcecode` node spec sets `code: true`, the
@@ -861,14 +882,12 @@ coercion, not ambiguity — there is a single valid target):
   `<tbody>` (with optional `thead`/`tfoot`).
 - `note`/`example`/`quote`/`review`/`admonition`/`dd` allow `block+`; XML
   restricts their bodies to paragraphs (with footnote) plus a limited subset.
-- `floating_title` sits in the `block` group, so the editor admits it in block
-  positions where Isodoc only allows it as a **subsection-level alternative** —
-  directly inside `clause`'s block branch, inside `terms`/`definitions`/
-  `references` prefatory blocks, and inside container blocks (`note`,
-  `example`, …). On export the converter relocates such a `floating_title` to
-  the nearest legal subsection position, or converts it to plain text when no
-  such position exists.
 - `content_section` serializes as a `<clause>` element — its name is the
   grammar's internal pattern name (`Content-Section`, reached from `<content>`),
   not an XML element name (§8.2).
+
+`floating_title` is **not** a source of over-permissiveness: it is a groupless
+textblock whose legal positions (§8.3) — `sections` top level and the subclause
+branches of `clause` and `annex` — match Isodoc exactly, so no positional
+coercion applies on export.
 

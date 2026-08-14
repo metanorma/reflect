@@ -333,13 +333,19 @@ function ensureSubclauseCapacity(
   let blockStartIdx = 0;
   if (clause.child(0)?.type.name === 'section_title') blockStartIdx = 1;
 
-  // Classify the clause's current body children.
+  // Classify the clause's current body children. `floating_title` is a
+  // subsection-run member (Isodoc lists it alongside clause/terms/definitions),
+  // NOT a block — a clause holding [title, floating_title, clause] is already
+  // in the subclause branch and must not be auto-wrapped.
   let hasBlocks = false;
   let hasSubclauses = false;
   for (let i = blockStartIdx; i < clause.childCount; i++) {
     const child = clause.child(i);
-    if (child.type.isInGroup('section_body')) hasSubclauses = true;
-    else hasBlocks = true;
+    if (child.type.isInGroup('section_body') || child.type.name === 'floating_title') {
+      hasSubclauses = true;
+    } else {
+      hasBlocks = true;
+    }
   }
 
   if (!hasBlocks || hasSubclauses) {
@@ -605,6 +611,8 @@ export function demoteClause(
   // body `clause` holding blocks, the strict-XOR auto-wrap will fold those
   // blocks into a subclause first, so the content the moved clause joins is
   // `clause(wrapped blocks)` + the moved clause — validate against THAT.
+  // (`floating_title` counts as a subsection-run member, as in
+  // ensureSubclauseCapacity.)
   let effectiveSiblingContent = targetSibling.content;
   if (targetSibling.type.name === 'clause') {
     let blockStartIdx = 0;
@@ -613,8 +621,11 @@ export function demoteClause(
     let hasSubclauses = false;
     for (let i = blockStartIdx; i < targetSibling.childCount; i++) {
       const child = targetSibling.child(i);
-      if (child.type.isInGroup('section_body')) hasSubclauses = true;
-      else hasBlocks = true;
+      if (child.type.isInGroup('section_body') || child.type.name === 'floating_title') {
+        hasSubclauses = true;
+      } else {
+        hasBlocks = true;
+      }
     }
     if (hasBlocks && !hasSubclauses && clauseType !== undefined) {
       // Replace the block run with a wrapping clause node.

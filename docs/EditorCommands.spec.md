@@ -177,7 +177,7 @@ account for them:
 | `sourcecode` has `code: true` | Code-newline behaviour applies inside `sourcecode`; stock code-newline detection works because `code: true` is honoured by `EditorState`. |
 | A defined set of **atom** nodes (`image`, `formula`, `footnote_marker`, `soft_break`, `stem`) has `content: ""` | The cursor can never be *inside* these; commands must handle node-selections on and adjacency to atoms via `createParagraphNear`-style logic rather than attempting to split them. |
 | `section_title` is a textblock (`content: "inline*"`) that appears only as the optional leading child of a section node | Enter inside a `section_title` does not split it into two section_titles (that would produce two headings for one section); instead the `exitSectionTitle` command (§2.7) moves the cursor to the section's first body block or inserts one. Backspace on an empty `section_title` deletes the title but preserves the section (§4.4.9). |
-| `floating_title` is a textblock (`content: "inline*"`, not an atom) | It splits like a `paragraph` under Enter (the default `splitBlockKeepMarks` branch); it is no longer an atom, so `createParagraphNear` does not fire for it. |
+| `floating_title` is a **groupless textblock** (`content: "inline*"`, no PM group membership) | It splits like a `paragraph` under Enter (the default `splitBlockKeepMarks` branch); it is a textblock, not an atom, so `createParagraphNear` does not fire for it. Its grouplessness means `findWrapping` rejects list wrapping with no special case (a list cannot wrap a groupless node). |
 | Optional attrs default to `null`; the catch-all `data` attr exists on every node/mark | Commands that create nodes should rely on schema defaults (omit unset attrs) rather than constructing explicit `null`/`{}` attr maps, so `data` and defaults are preserved consistently. |
 
 Individual commands' detailed behaviour with respect to these facts is specified
@@ -587,9 +587,9 @@ table does what it does in a paragraph, nothing more.
 cursor cannot rest *inside* them; it can only node-select them or sit in a gap
 cursor beside them. (`footnote_marker` and `soft_break` are *inline* atoms and
 are never the target of Enter — Enter inside a paragraph that contains them
-just splits the paragraph around them. `floating_title` is no longer an atom
-  — it is a textblock with `inline*` content, so Enter inside it
-splits it via the default `splitBlockKeepMarks` branch, just like a paragraph.)
+just splits the paragraph around them. `floating_title` is a textblock with
+`inline*` content — not an atom — so Enter inside it splits it via the
+default `splitBlockKeepMarks` branch, just like a paragraph.)
 
 | Selection | Context | Effect | Invariant |
 |---|---|---|---|
@@ -1277,10 +1277,10 @@ cell by deletion; arrow keys or a dedicated toolbar are the way out.
 `image` and `formula` are block-level atoms (empty content, `atom: true`);
 the cursor cannot rest *inside* them. (`footnote_marker` and `soft_break` are
 inline atoms; Backspace at the cursor immediately after one deletes it via
-default character handling, not this feature. `floating_title` is no longer an
-  atom — it is a textblock with `inline*` content, so Backspace
-on an empty `floating_title` deletes the block via the §4.7.3 walk, just like
-an empty paragraph.)
+default character handling, not this feature. `floating_title` is a textblock
+with `inline*` content — not an atom — so Backspace on an empty
+`floating_title` deletes the block via the §4.7.3 walk, just like an empty
+paragraph.)
 
 | Selection | Context | Effect | Invariant |
 |---|---|---|---|
@@ -1941,7 +1941,11 @@ function ensureSubclauseCapacity(
 Behaviour:
 
 1. Classify the clause's body children (after the optional `section_title`):
-   block run vs. subclause run.
+   block run vs. subclause run. `floating_title` counts as a **subsection-run
+   member** (like `section_body` children): a clause holding
+   `[section_title, floating_title, clause]` is already in the subclause
+   branch and must not be auto-wrapped. This mirrors Isodoc, which lists
+   `floating-title` alongside the section alternatives, not as a `BasicBlock`.
 2. **Nothing to restructure** when the clause is empty or already holds
    subclauses — return the end-of-content insert position with
    `wrapped: false`.

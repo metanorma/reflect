@@ -28,7 +28,21 @@ group ("Annexes"). `promoteClause` refuses when the clause is its parent's only
 child, and `insertLeadingParagraph` was removed (hanging paragraphs are now
 schema-forbidden).
 
-**Affected specs:** schema.spec.md §3.1/§4/§5/§8.0a/§8.1/§8.2/§11/§17.5/§17.6,
+`floating_title` was removed from the `block` group — it is now a **groupless
+textblock** (like `section_title`), admissible only where a content expression
+names it explicitly. Its legal positions match Isodoc's `floating-title`
+exactly: at the top level of `sections` (newly admitted — `sections` content
+became `(section_body | floating_title)+`), and in the subclause branches of
+`clause` and `annex`. This position parity means the §17.6 floating-title
+relocation coercion is deleted (no positional coercion is needed). The
+`ensureSubclauseCapacity` and `demoteClause` post-accommodation classifiers
+treat `floating_title` as a subsection-run member (not a block), so a clause
+holding `[section_title, floating_title, clause]` is recognised as already in
+the subclause branch and is not auto-wrapped. `floating_title` moved out of the
+`BLOCK_TYPES` (9→8) node-group constant into its own `FLOATING_TITLE_TYPES`
+line in `NODE_NAMES`.
+
+**Affected specs:** schema.spec.md §3.1/§4/§5/§8.0a/§8.1/§8.2/§8.3/§11/§17.5/§17.6,
 EditorCommands.spec.md §5, AdvancedMetanormaToolbar/sections.md §2/§4/§5/§6/§8,
 plus pkg/prosemirror-schema, pkg/editor-commands, and pkg/toolbar code.
 

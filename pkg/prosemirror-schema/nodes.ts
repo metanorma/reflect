@@ -83,7 +83,7 @@ const structuralNodes: Record<string, NodeSpec> = {
       allowGapCursor: true,
     },
     sections: {
-      content: 'section_body+',
+      content: '(section_body | floating_title)+',
       attrs: baseAttrs(),
       toDOM: () => ['section', { class: CLASS.sections }, 0],
       parseDOM: [{ tag: `section.${CLASS.sections}` }],
@@ -364,9 +364,17 @@ const blockNodes: Record<string, NodeSpec> = {
     toDOM: () => ['div', { class: CLASS.review }, 0],
     parseDOM: [{ tag: `div.${CLASS.review}` }],
   },
+  /**
+   * The `floating_title` node — a free-standing unnumbered heading. A
+   * **groupless textblock**: it has NO group membership, so it can only appear
+   * where a content expression names it explicitly — as a subsection-level
+   * alternative in `clause` and `annex` subclause runs, and at the top level of
+   * `sections` (mirroring Isodoc's `floating-title`, which is never a
+   * `BasicBlock`). This keeps the editor's legal positions in exact parity
+   * with the Isodoc model, so a converter needs no positional coercion.
+   */
   floating_title: {
     content: `${INLINE_GROUP}*`,
-    group: BLOCK_GROUP,
     attrs: { id: { default: null }, depth: { default: 1 }, ...DATA_ATTR },
     toDOM: (node) => {
       const attrs: Record<string, string> = { class: CLASS.floatingTitle };

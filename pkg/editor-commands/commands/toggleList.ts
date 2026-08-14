@@ -90,12 +90,14 @@ export function toggleList(
   }
 
   // §3.4 — node selections on atoms are not applicable. A block atom
-  // (`image`/`formula`/`floating_title`) is in the `block` group, so
-  // `findWrapping` would otherwise happily wrap it; the spec forbids that
-  // (test X3). Non-atom node selections on whole blocks (e.g. a paragraph)
-  // fall through to the range logic, which reduces them to a single-block
-  // range (§3.4). Structural nodes that cannot be wrapped are rejected later
-  // by `findWrapping`/`liftTarget` returning null.
+  // (`image`/`formula`) is in the `block` group, so `findWrapping` would
+  // otherwise happily wrap it; the spec forbids that (test X3). Non-atom node
+  // selections on whole blocks (e.g. a paragraph) fall through to the range
+  // logic, which reduces them to a single-block range (§3.4). Structural nodes
+  // that cannot be wrapped are rejected later by `findWrapping`/`liftTarget`
+  // returning null. (`floating_title` is a groupless textblock — its legal
+  // parents accept no lists, so `findWrapping` rejects list wrapping there
+  // without a special case.)
   if (state.selection instanceof NodeSelection && state.selection.node.isAtom) {
     return false;
   }

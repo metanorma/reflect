@@ -3,9 +3,10 @@
  * atom or beside a gap cursor (spec §2.4.7).
  *
  * Re-exported unchanged from `prosemirror-commands`. The Metanorma schema's
- * block-level atoms (`image`, `formula`, `floating_title`) have empty content;
- * the cursor cannot rest inside them, so Enter near one creates an adjacent
- * empty paragraph in which to type.
+ * block-level atoms (`image`, `formula`) have empty content; the cursor cannot
+ * rest inside them, so Enter near one creates an adjacent empty paragraph in
+ * which to type. (`floating_title` is a textblock, not an atom — it can host
+ * the cursor directly.)
  *
  * Section references (e.g. §2.4.1) in this file refer to
  * `docs/EditorCommands.spec.md`.
