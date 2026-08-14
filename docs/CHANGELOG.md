@@ -65,7 +65,7 @@ floating title.
 EditorCommands.spec.md §5, AdvancedMetanormaToolbar/sections.md §2/§4/§5/§6/§8,
 plus pkg/prosemirror-schema, pkg/editor-commands, and pkg/toolbar code.
 
-**Commits:** *(pending)*
+**Commits:** `9fe3757`, `768dd36`.
 
 ---
 
@@ -89,7 +89,7 @@ MetanormaProseMirror.spec.md (§2, §5, §6, §9.4), EditorCommands.spec.md
 (header), undo-redo.md (§6.2), README.md (index), plus pkg/prosemirror-editor
 and pkg/editor-gui code.
 
-**Commits:** *(pending)*
+**Commits:** `30d79db`, `7b262099`.
 
 ---
 
