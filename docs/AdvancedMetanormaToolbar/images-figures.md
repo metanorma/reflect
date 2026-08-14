@@ -52,8 +52,8 @@ Three consequences drive the entire design:
    `figure` containing the `image`. This is why there is a single button, not two
    (see §4).
 2. **`image.src` defaults to `""` but must be non-empty.** ProseMirror requires
-   every attribute to declare a default; because the TypeScript `ImageAttrs`
-   marks `src` as required, the schema uses `""` as the placeholder default and
+   every attribute to declare a default; the image source is semantically
+   required, so the schema uses `""` as the placeholder default and
    pushes the real requirement to a **runtime guard**, `assertValidImageAttrs`,
    which throws when `src` is missing or empty. The pure `insertImage` command
    (§6) enforces this requirement before creating the node by validating `src`

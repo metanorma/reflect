@@ -49,7 +49,7 @@ document model — 46 node types and 14 mark types.
 | 9 | [Mark specifications](./schema.spec.md#9-mark-specifications) |
 | 10 | [Schema assembly](./schema.spec.md#10-schema-assembly) |
 | 11 | [Public API (`index.ts`)](./schema.spec.md#11-public-api-index-ts) |
-| 12 | [JSON round-trip (`MetanormaNode` compatibility)](./schema.spec.md#12-json-round-trip-metanormanode-compatibility) |
+| 12 | [JSON round-trip (open attribute model)](./schema.spec.md#12-json-round-trip-open-attribute-model) |
 | 13 | [TypeScript constraints](./schema.spec.md#13-typescript-constraints) |
 | 14 | [Acceptance criteria](./schema.spec.md#14-acceptance-criteria) |
 | 15 | [Default document](./schema.spec.md#15-default-document) |

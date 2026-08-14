@@ -125,7 +125,8 @@ no PM group membership), modelled after Isodoc's `floating-title`, which is
 never a `BasicBlock`. Like `section_title`, it can appear only where a content
 expression names it explicitly — at the top level of `sections`, and in the
 subclause branches of `clause` and `annex` (§8.2). Carrying `id` and `depth`
-(not `SectionAttrs`), its inline content is the heading text, so it supports
+(not the `id`/`number` pair of section nodes, §6.1), its inline content is
+the heading text, so it supports
 full inline markup (emphasis, links, etc.).
 
 ### 3.2 Mark types (14)
@@ -234,14 +235,13 @@ beyond its typed attributes, carried in `Record<string, unknown>`
 attributes must be **declared** with a default, so this schema adopts the
 following rules:
 
-1. **Typed attributes** listed in `NodeAttrsByType` / `MarkAttrsByType` are
-   declared explicitly with `default: null` for every optional field (mirroring
-   the `?` optionality in the source).
+1. **Typed attributes** — those enumerated for each node and mark in §6.1 /
+   §6.2 — are declared explicitly with `default: null` for every optional
+   field.
 2. **Catch-all `data` attribute.** Every node and mark declares a
-   `data: { default: {} }` attribute that captures the open index-signature
-   keys (`[key: string]: unknown`) for round-tripping. `data` is **serialized
-   to JSON but never rendered to the DOM**; it preserves arbitrary attributes
-   the typed interfaces permit.
+   `data: { default: {} }` attribute that captures the extra keys beyond the
+   typed set (§12's open `attrs` record) for round-tripping. `data` is
+   **serialized to JSON but never rendered to the DOM**.
 3. **Numeric defaults.** `table_cell`'s `colspan`/`rowspan` default to `1`
    (not `null`) because they are real table-spanning values; `ordered_list`
    adds `order: { default: 1 }` (permitted by its open attr set).
@@ -251,43 +251,43 @@ following rules:
 
 ### 6.1 Attribute map by node
 
-| Node | Declared attributes (beyond `data`) | Source interface |
+| Node | Declared attributes (beyond `data`) | Notes |
 |---|---|---|
-| `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` | `id`, `number` | `SectionAttrs` (= `BaseAttrs`; `title` is not an attribute — the heading is a `section_title` child node, §8.2) |
-| `floating_title` | `id`, `depth` (default `1`) | Metanorma `<floating-title>` (RequiredId + required `depth` int + TextElement inline content) |
-| `section_title` | *(none beyond `data`)* | open — the heading text is inline content, not an attribute |
-| `preface`, `sections`, `bibliography` | `id`, `number` | `BaseAttrs` |
-| `bibdata` | `item` | open — a `BibliographicItem` JSON object (`@metanorma/relaton`). Default `null`. |
-| `bibitem` | `item` | open — a `BibliographicItem` JSON object (`@metanorma/relaton`). Default `null`. |
-| `formula` | `id`, `number`, `type` (enum `asciimath` \| `mathml`, default `'asciimath'`), `asciimath`, `mathml` | `FormulaAttrs` |
-| `stem` | `type` (enum `asciimath` \| `mathml`, default `'asciimath'`), `asciimath`, `mathml` | open |
-| `figure` | `id`, `number`, `title` | `FigureAttrs` (the `src` attr is dropped — `src` lives only on the `image` child, avoiding a dual source of truth; see §17.1) |
-| `table` | `id`, `number`, `title` | `TableAttrs` |
-| `table_cell` | `colspan` (default `1`), `rowspan` (default `1`) | `TableCellAttrs` |
-| `image` | `src` (default `''`), `alt` | `ImageAttrs` (`src` required in TS → default `''` + runtime validation) |
-| `admonition` | `type` | `AdmonitionAttrs` |
-| `sourcecode` | `language` | `SourcecodeAttrs` (the `text` field of `SourcecodeAttrs` is dropped — the code text lives in the node's `text*` content, not an attribute; carrying both would be a dual source of truth on conversion, §1.1) |
-| `ordered_list` | `order` (default `1`) | open (`Record<string, unknown>`) |
-| `footnote_entry` | `id`, `number` | open |
-| `footnote_marker` | `id`, `target` | open |
-| `paragraph`, `note`, `example`, `quote`, `review`, `bullet_list`, `list_item`, `dl`, `dt`, `dd`, `table_head`, `table_body`, `table_foot`, `table_row`, `footnotes`, `soft_break` | *(none beyond `data`)* | open |
+| `clause`, `annex`, `content_section`, `abstract`, `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`, `references` | `id`, `number` | `title` is not an attribute — the heading is a `section_title` child node (§8.2). |
+| `floating_title` | `id`, `depth` (default `1`) | Mirrors Metanorma `<floating-title>` (RequiredId + required `depth` int + TextElement inline content). |
+| `section_title` | *(none beyond `data`)* | The heading text is inline content, not an attribute. |
+| `preface`, `sections`, `bibliography` | `id`, `number` | |
+| `bibdata` | `item` | A `BibliographicItem` JSON object (`@metanorma/relaton`). Default `null`. |
+| `bibitem` | `item` | A `BibliographicItem` JSON object (`@metanorma/relaton`). Default `null`. |
+| `formula` | `id`, `number`, `type` (enum `asciimath` \| `mathml`, default `'asciimath'`), `asciimath`, `mathml` | |
+| `stem` | `type` (enum `asciimath` \| `mathml`, default `'asciimath'`), `asciimath`, `mathml` | |
+| `figure` | `id`, `number`, `title` | The `src` attr is dropped — `src` lives only on the `image` child, avoiding a dual source of truth (§17.1). |
+| `table` | `id`, `number`, `title` | |
+| `table_cell` | `colspan` (default `1`), `rowspan` (default `1`) | Real table-spanning values, hence `1` not `null` (§6 rule 3). |
+| `image` | `src` (default `''`), `alt` | `src` is required semantically → default `''` + the runtime guard below. |
+| `admonition` | `type` | |
+| `sourcecode` | `language` | A `text` attr is deliberately absent — the code text lives in the node's `text*` content, not an attribute; carrying both would be a dual source of truth on conversion (§1.1). |
+| `ordered_list` | `order` (default `1`) | |
+| `footnote_entry` | `id`, `number` | |
+| `footnote_marker` | `id`, `target` | |
+| `paragraph`, `note`, `example`, `quote`, `review`, `bullet_list`, `list_item`, `dl`, `dt`, `dd`, `table_head`, `table_body`, `table_foot`, `table_row`, `footnotes`, `soft_break` | *(none beyond `data`)* | |
 
-**`image.src` validation.** Because `ImageAttrs.src` is required in TypeScript
-but ProseMirror needs a default, `src` defaults to `''` and the module exports a
-runtime guard `assertValidImageAttrs(attrs)` used by input rules / paste handling
-to reject empty `src`.
+**`image.src` validation.** The image source is semantically required, but
+ProseMirror needs an attr default, so `src` defaults to `''` and the module
+exports a runtime guard `assertValidImageAttrs(attrs)` used by input rules /
+paste handling to reject empty `src`.
 
 ### 6.2 Attribute map by mark
 
-| Mark | Declared attributes (beyond `data`) | Source |
+| Mark | Declared attributes (beyond `data`) | Notes |
 |---|---|---|
-| `link` | `href` | `LinkMarkAttrs` (`target` is dropped — Semantic-XML `<link>` carries a single required `target` URL, and `href` is that URL; a second URL-shaped attr would be a dual source of truth, §1.1) |
-| `xref` | `target` | `XrefMarkAttrs` |
-| `eref` | `cite` | open — the external citation key |
-| `concept` | `ref`, `kind` (enum `'eref' \| 'xref' \| 'termref'`, default `'xref'`) | open — `ref` is the concept reference; `kind` discriminates the Semantic-XML child element emitted on export (`<eref>` / `<xref>` / `<termref>`). Without `kind`, a flat `ref` cannot tell the converter which reference type to emit and conversion is ambiguous (§1.1). `erefstack` (a stack of erefs, the fourth XML choice) is not supported — folded into `eref`. |
-| `bcp14` | `type` | open — BCP 14 keyword (e.g. `"MUST"`) |
-| `span` | `class` | open — generic span class |
-| `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`, `strike`, `smallcap` | *(none beyond `data`)* | boolean-style marks |
+| `link` | `href` | Single URL attr — Semantic-XML `<link>` carries one required `target` URL, and `href` is that URL; a second URL-shaped attr would be a dual source of truth (§1.1). |
+| `xref` | `target` | |
+| `eref` | `cite` | The external citation key. |
+| `concept` | `ref`, `kind` (enum `'eref' \| 'xref' \| 'termref'`, default `'xref'`) | `ref` is the concept reference; `kind` discriminates the Semantic-XML child element emitted on export (`<eref>` / `<xref>` / `<termref>`). Without `kind`, a flat `ref` cannot tell the converter which reference type to emit and conversion is ambiguous (§1.1). `erefstack` (a stack of erefs, the fourth XML choice) is not supported — folded into `eref`. |
+| `bcp14` | `type` | BCP 14 keyword (e.g. `"MUST"`). |
+| `span` | `class` | Generic span class. |
+| `emphasis`, `strong`, `subscript`, `superscript`, `code`, `underline`, `strike`, `smallcap` | *(none beyond `data`)* | Boolean-style marks. |
 
 ---
 
@@ -661,12 +661,13 @@ export function assertValidImageAttrs(attrs: { src?: unknown }): asserts attrs i
 
 ---
 
-## 12. JSON round-trip (`MetanormaNode` compatibility)
+## 12. JSON round-trip (open attribute model)
 
-A `MetanormaNode` is `{ type, attrs?, content?, marks?, text? }`, and a
-`MetanormaMark` is `{ type, attrs? }`. ProseMirror's `Node.toJSON()` /
-`Mark.toJSON()` already emit exactly these fields, so the round-trip contract
-reduces to:
+A document is the JSON tree `{ type, attrs?, content?, marks?, text? }` (the
+`MetanormaDocument` / `MetanormaMark` types,
+`pkg/prosemirror-editor/types.ts`), with open `attrs` records. ProseMirror's
+`Node.toJSON()` / `Mark.toJSON()` already emit exactly these fields, so the
+round-trip contract reduces to:
 
 1. **`nodeFromJSON`** accepts any well-formed `MetanormaDocument`. Unknown
    attributes on a node/mark are stored into that node/mark's `data` attribute
