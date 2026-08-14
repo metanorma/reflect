@@ -794,3 +794,76 @@ export function insertSection(
   dispatch(tr);
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// insertFloatingTitle
+// ---------------------------------------------------------------------------
+
+/**
+ * Insert a new empty `floating_title` (an unnumbered free-standing heading —
+ * NOT a section node) at the cursor's legal position.
+ *
+ * `floating_title` is groupless, admissible only where a content expression
+ * names it: at `sections` top level, and in the subclause branches of `clause`
+ * and `annex`. Applicability is schema-derived — walk the ancestor chain and
+ * ask each ancestor whether it admits a `floating_title` child at the cursor
+ * index (`canReplaceWith`). No hardcoded position list.
+ *
+ * **Strict-XOR interaction (by design):** inserting a `floating_title` into a
+ * clause whose body children are blocks is schema-invalid (FT belongs to the
+ * subclause branch), so the predicate returns `false` there and the button
+ * disables. No auto-wrap is performed — unlike a subclause insertion, an FT
+ * never *needs* a subclause sibling to be legal, so silently restructuring
+ * blocks would be a surprising side effect. (Revisit if the UX proves
+ * annoying; the auto-wrap machinery exists in `ensureSubclauseCapacity`.)
+ *
+ * On dispatch the FT is created with a generated `id` and `depth` 1, inserted
+ * after the deepest ancestor that admits it, and the cursor lands inside the
+ * new textblock for immediate typing.
+ *
+ * @returns `true` if a transaction was / would be dispatched, `false` when no
+ *          ancestor admits a `floating_title` at the cursor.
+ */
+export function insertFloatingTitle(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+): boolean {
+  const { $from } = state.selection;
+  const ftType = state.schema.nodes['floating_title'];
+  if (ftType === undefined) return false;
+
+  // Applicability walk: find the deepest ancestor that admits an FT child at
+  // the cursor index. Schema-derived — covers sections/clause/annex and
+  // rejects preface, containers, and blocks-only clauses automatically.
+  let admittingDepth = -1;
+  for (let d = $from.depth; d >= 1; d--) {
+    const ancestor = $from.node(d);
+    const index = $from.indexAfter(d);
+    if (parentAccepts(ancestor, ftType, index)) {
+      admittingDepth = d;
+      break;
+    }
+  }
+  if (admittingDepth < 0) return false;
+
+  if (dispatch === undefined) return true;
+
+  const tr = state.tr;
+  const ft = ftType.createAndFill({ id: generateId(), depth: 1 });
+  if (ft === null) return false;
+
+  // Insert INSIDE the admitting ancestor, after the child the cursor is in.
+  // `$from.after(admittingDepth + 1)` is the position after the cursor's
+  // direct-or-indirect child at that level — i.e. the next sibling slot inside
+  // the admitting ancestor (never after the ancestor itself, which would be
+  // illegal for a container like `sections` and would trigger ProseMirror's
+  // auto-wrapping).
+  const insertPos = $from.after(admittingDepth + 1);
+  tr.insert(insertPos, ft);
+
+  // Cursor inside the new FT textblock (inside its opening token).
+  tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)));
+  tr.scrollIntoView();
+  dispatch(tr);
+  return true;
+}

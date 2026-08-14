@@ -246,8 +246,10 @@ The advanced groups are produced by a factory (unlike the static base groups)
 because several need feature-specific callbacks (see §5.2). Three of the six
 advanced groups contain **stateful** controls (`tables`, `images`, `refs`) that
 use the `ToolbarControlEntry` variant of `ToolbarEntry` (base spec §10.2); the
-other three (`sections`, `dl`, `history`) contain only plain
-`ToolbarButtonEntry` buttons.
+`sections` group contains the `SectionPopover` control entry (a
+`popover="auto"` menu of the ten section types) plus three plain
+`ToolbarButtonEntry` buttons (Promote, Demote, Floating title), and `dl` and
+`history` contain only plain buttons.
 
 ### 5.2 `AdvancedMetanormaToolbarProps`
 
@@ -359,7 +361,7 @@ pkg/editor-commands/                  ← pure commands (no React, no DOM, no Ed
   commands/
     insertTable.ts                        ← insertTable(state, dispatch?, rows, cols), canInsertTable
     insertImage.ts                        ← insertImage(state, dispatch?, attrs), canInsertFigure
-    sections.ts                           ← wrapInClause, promoteClause, demoteClause, setSectionType
+    sections.ts                           ← wrapInClause, promoteClause, demoteClause, insertSection, insertFloatingTitle
     referenceMarks.ts                     ← applyReferenceMark, toggleXref/Eref/Concept/Bcp14, insertFootnoteMarker/insertStem
     definitionList.ts                     ← insertDefinitionList, addDefinitionPair (+ helpers)
     history.ts                            ← undo, redo (re-exports of prosemirror-history)
@@ -371,13 +373,14 @@ pkg/toolbar/                          ← @metanorma/toolbar (advanced additions
   groups/
     tablesGroup.tsx                       ← stateful: TableSizePicker + view adapter
     imagesGroup.tsx                       ← stateful: ImageInsertDialog + view adapter
-    sectionsGroup.tsx                     ← view adapter over editor-commands
+    sectionsGroup.tsx                     ← view adapter over editor-commands + SectionPopover
     refsGroup.tsx                         ← stateful: popovers + view adapter
     definitionListGroup.tsx               ← view adapter over editor-commands
     historyGroup.tsx                      ← view adapter over editor-commands
     index.ts                              ← buildAdvancedGroups (+ baseGroups re-export from base spec)
   TableSizePicker.tsx                     ← grid-picker popover UI
   ImageInsertDialog.tsx                   ← URL/upload dialog UI
+  SectionPopover.tsx                      ← cohort-grouped section-type menu (sections.md §4.2)
   plugins/
     definitionListKeymap.ts               ← Enter/Backspace keymap (UI-layer plugin)
   AdvancedMetanormaToolbar.tsx            ← thin assembler
@@ -404,7 +407,8 @@ are specified by `MetanormaToolbar.spec.md` §12.
 export { insertTable, canInsertTable } from "./commands/insertTable.js";
 export { insertImage, canInsertFigure } from "./commands/insertImage.js";
 export {
-  wrapInClause, promoteClause, demoteClause, setSectionType,
+  wrapInClause, promoteClause, demoteClause, insertSection,
+  insertFloatingTitle,
 } from "./commands/sections.js";
 export {
   applyReferenceMark,
@@ -433,7 +437,8 @@ export { ImageInsertDialog } from "./ImageInsertDialog.js";
 export {
   insertTable, canInsertTable,
   insertImage, canInsertFigure,
-  wrapInClause, promoteClause, demoteClause, setSectionType,
+  wrapInClause, promoteClause, demoteClause, insertSection,
+  insertFloatingTitle,
   applyReferenceMark,
   toggleXref, toggleEref, toggleConcept, toggleBcp14,
   insertFootnoteMarker, insertStem,
@@ -451,12 +456,12 @@ components.
 
 ### 5.7 Potential further developments
 
-- **`floating_title` insertion.** The `sections` group inserts only the ten
-  `section`-group node types; the standalone `floating_title` node (a
-  groupless textblock — an unnumbered heading outside the section hierarchy,
-  admissible only at `sections` top level and in `clause`/`annex` subclause
-  branches; see `sections.md` §2.2) is not inserted by any current toolbar
-  group. It is deferred to a future "block elements" toolbar group.
+- **`floating_title` depth editing.** The Floating title button inserts
+  `floating_title` with `depth: 1`; there is no control for adjusting the
+  `depth` attribute (which mirrors Metanorma's `<floating-title depth>`), nor
+  a Promote/Demote analogue for floating titles. A depth control could reuse
+  the clause nesting machinery if floating-title indentation proves
+  necessary in practice.
 
 ## 6. Command layering (alignment with `EditorCommands.spec.md`)
 
@@ -583,7 +588,7 @@ This satisfies `EditorCommands.spec.md` §1.8 (purity) without losing the UX:
 |---|---|---|
 | `tables.md` | `insertTable(state, dispatch?, rows, cols)`; `canInsertTable(state)` is the predicate form | `TableSizePicker.tsx` (popover) + toolbar `run` adapter |
 | `images-figures.md` | `insertImage(state, dispatch?, attrs)`; `canInsertFigure(state)` predicate | `ImageInsertDialog.tsx` (URL/upload) + toolbar `run` adapter |
-| `sections.md` | `wrapInClause`, `promoteClause`, `demoteClause`, `setSectionType` (+ legality helpers) | toolbar `run` adapter (no view-taking overloads) |
+| `sections.md` | `wrapInClause`, `promoteClause`, `demoteClause`, `insertSection`, `insertFloatingTitle` (+ legality helpers) | toolbar `run` adapter + `SectionPopover.tsx` (no view-taking overloads) |
 | `reference-marks.md` | `applyReferenceMark`, `toggleXref/Eref/Concept/Bcp14`, `insertFootnoteMarker`, `insertStem` | per-mark popover/prompt UI + toolbar `run` adapter |
 | `definition-lists.md` | `insertDefinitionList`, `addDefinitionPair` (pure `Command` only; no `(view)` overload) | `definitionListKeymap.ts` plugin + toolbar `run` adapter |
 | `undo-redo.md` | `undo`, `redo` (re-exported from `prosemirror-history`, standard names) | toolbar `run` adapter; history plugin wiring in `state.ts` (`@metanorma/prosemirror-editor`) |

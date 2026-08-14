@@ -52,6 +52,7 @@ export {
   promoteClause,
   demoteClause,
   insertSection,
+  insertFloatingTitle,
   applyReferenceMark,
   toggleXref,
   toggleEref,

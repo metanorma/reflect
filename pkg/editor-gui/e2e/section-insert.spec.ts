@@ -145,20 +145,62 @@ test.describe('section-insert', () => {
     expect(childTypes).not.toContain('table');
   });
 
-  test('A nested Content section can be inserted inside an abstract (front-matter nesting)', async ({ page }) => {
+  test('Floating title button is enabled in a blocks-only clause (inserts at sections level)', async ({ page }) => {
     await openEditor(page);
     await typeInEditor(page, 'body text');
 
-    // Insert an abstract (creates preface).
-    await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Abstract', exact: true }).click();
+    // The default doc's clause is blocks-only (title+paragraph). The deepest
+    // admitting ancestor is `sections` itself, so the button IS enabled and
+    // the FT lands at sections top level, after the clause.
+    const ftBtn = toolbarButton(page, 'Floating title');
+    await expect(ftBtn).toBeEnabled();
 
-    const doc = await getDoc(page) as { content: Array<{ type: string; content?: unknown[] }> };
+    await ftBtn.click();
+
+    const doc = await getDoc(page) as {
+      content: Array<{ type: string; content?: Array<{ type: string }> }>;
+    };
+    const sections = doc.content.find((c) => c.type === 'sections');
+    const sectionsChildren = sections?.content ?? [];
+    const types = sectionsChildren.map((c) => c.type);
+    expect(types).toContain('floating_title');
+    expect(types).toContain('clause');
+    // FT comes after the clause
+    expect(types.indexOf('floating_title')).toBeGreaterThan(types.indexOf('clause'));
+    // FT is NOT inside the clause
+    const clause = sectionsChildren.find((c) => c.type === 'clause') as
+      { type: string; content?: Array<{ type: string }> } | undefined;
+    const clauseKids = (clause?.content ?? []).map((c) => c.type);
+    expect(clauseKids).not.toContain('floating_title');
+    // depth attr
     const docStr = JSON.stringify(doc);
+    expect(docStr).toContain('"depth":1');
+  });
 
-    // A preface container should exist and contain the abstract.
-    expect(docStr).toContain('"preface"');
-    expect(docStr).toContain('"abstract"');
+  test('Floating title lands in the subclause run after a clause insert', async ({ page }) => {
+    await openEditor(page);
+    await typeInEditor(page, 'body text');
+
+    // Insert a Clause — the auto-wrap puts the original blocks into a
+    // subclause, so the outer clause is now in the subclause branch.
+    await toolbarButton(page, 'Section').click();
+    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
+
+    // Now insert a floating title — it goes inside the outer clause, after
+    // the new clause.
+    await toolbarButton(page, 'Floating title').click();
+
+    const doc = await getDoc(page) as {
+      content: Array<{ type: string; content?: unknown[] }>;
+    };
+    const sections = doc.content.find((c) => c.type === 'sections');
+    const outer = (sections?.content ?? []).find((c: { type: string }) => c.type === 'clause') as
+      { type: string; content: Array<{ type: string }> } | undefined;
+    const kids = (outer?.content ?? []).map((c) => c.type);
+    // [section_title, clause(wrapped blocks), clause(new), floating_title]
+    expect(kids[0]).toBe('section_title');
+    expect(kids.filter((t) => t === 'clause').length).toBe(2);
+    expect(kids[kids.length - 1]).toBe('floating_title');
   });
 
   test('A second front-matter insert appends to the existing preface (no duplicate container)', async ({ page }) => {

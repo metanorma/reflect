@@ -77,6 +77,7 @@ export {
   promoteClause,
   demoteClause,
   insertSection,
+  insertFloatingTitle,
 } from './commands/sections.js';
 
 // Reference marks (reference-marks.md).

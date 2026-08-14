@@ -42,6 +42,25 @@ the subclause branch and is not auto-wrapped. `floating_title` moved out of the
 `BLOCK_TYPES` (9→8) node-group constant into its own `FLOATING_TITLE_TYPES`
 line in `NODE_NAMES`.
 
+A **Floating title** button was added to the Section structure group (fourth
+entry, after Demote). Its tooltip — "Insert floating title (an unnumbered
+heading — not a section)" — carries the clarification that a floating title is
+not technically a section, which is also why it is a standalone button rather
+than an entry in the Section popover. The new `insertFloatingTitle` command
+derives its applicability from the schema: it walks the ancestor chain asking
+each ancestor `parentAccepts(…, floating_title, indexAfter)` and inserts after
+the **deepest admitting ancestor**, so the three legal zones (top level of
+`sections`, `clause` subclause branch, `annex` subclause branch) emerge from
+the content expressions with no hardcoded position list. In a blocks-only
+clause the deepest admitting ancestor is `sections`, so the FT lands at
+`sections` top level with **no auto-wrap** — a deliberate asymmetry with
+`ensureSubclauseCapacity`, since an FT never *needs* a subclause sibling to be
+legal. The insertion position is computed as `$from.after(admittingDepth + 1)`;
+`after(admittingDepth)` would place the node *after* the admitting ancestor
+itself, which is illegal for a container like `sections` and triggers
+ProseMirror's silent content-fitting — a phantom `annex` wrapper around the
+floating title.
+
 **Affected specs:** schema.spec.md §3.1/§4/§5/§8.0a/§8.1/§8.2/§8.3/§11/§17.5/§17.6,
 EditorCommands.spec.md §5, AdvancedMetanormaToolbar/sections.md §2/§4/§5/§6/§8,
 plus pkg/prosemirror-schema, pkg/editor-commands, and pkg/toolbar code.

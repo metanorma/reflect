@@ -2,10 +2,12 @@
  * `sections` group — section insertion + clause nesting operations
  * (sections.md §4).
  *
- * Three entries: Section insertion (popover control), Promote, Demote. The
- * Section popover lists all ten section types grouped by cohort; selecting one
- * calls the pure `insertSection` command, which routes the section to the
- * correct container. Promote/Demote operate on body-section nesting.
+ * Four entries: Section insertion (popover control), Promote, Demote, and
+ * Floating title. The Section popover lists all ten section types grouped by
+ * cohort; selecting one calls the pure `insertSection` command, which routes
+ * the section to the correct container. Promote/Demote operate on
+ * body-section nesting. Floating title inserts the groupless unnumbered
+ * heading (not technically a section — the button tooltip says so).
  */
 
 import React from "react";
@@ -15,6 +17,7 @@ import type { EditorState } from "prosemirror-state";
 import {
   promoteClause,
   demoteClause,
+  insertFloatingTitle,
 } from "@metanorma/editor-commands";
 
 import type { ToolbarGroupDef } from "../types.js";
@@ -28,6 +31,11 @@ function canPromote(state: EditorState): boolean {
 /** Whether demote is enabled: mirrors `demoteClause`'s applicability. */
 function canDemote(state: EditorState): boolean {
   return demoteClause(state) === true;
+}
+
+/** Whether floating-title insertion is enabled at the cursor. */
+function canInsertFloatingTitle(state: EditorState): boolean {
+  return insertFloatingTitle(state) === true;
 }
 
 /**
@@ -69,6 +77,21 @@ export function sectionsGroup(): ToolbarGroupDef {
           isEnabled: canDemote,
           run: (view: EditorView) => {
             demoteClause(view.state, view.dispatch);
+            view.focus();
+          },
+        },
+      },
+      // ── Floating title (unnumbered heading — not a section) ──
+      {
+        kind: "button",
+        descriptor: {
+          key: "sections-floating-title",
+          label: "Floating title",
+          title: "Insert floating title (an unnumbered heading — not a section)",
+          isActive: (_state: EditorState) => false,
+          isEnabled: canInsertFloatingTitle,
+          run: (view: EditorView) => {
+            insertFloatingTitle(view.state, view.dispatch);
             view.focus();
           },
         },

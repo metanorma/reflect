@@ -1759,14 +1759,15 @@ executability.
 
 ---
 
-## 5. Section insertion (`insertSection`)
+## 5. Section and floating-title insertion
 
-This section specifies the **section insertion feature** of
+This section specifies the **section and floating-title insertion features** of
 `@metanorma/editor-commands`: a single command that creates a new section node
 of any of the ten section types, routing it to the correct location based on
 its cohort ([schema.spec.md](./schema.spec.md) §8.0a). Insertion, container
 creation, and sibling anchoring are unified into one command backed by shared
-helpers.
+helpers. The companion `insertFloatingTitle` command (§5.8) inserts the
+groupless unnumbered heading node at the cursor's legal position.
 
 ### 5.1 Scope
 
@@ -1774,6 +1775,8 @@ In scope:
 
 - The `insertSection(state, typeName, dispatch?)` command and its
   cohort-routing algorithm.
+- The `insertFloatingTitle(state, dispatch?)` command and its schema-derived
+  ancestor-walk applicability (§5.8).
 - The `ensureContainer(tr, containerName)` helper (single source of truth for
   doc-level container creation).
 - The `ensureSubclauseCapacity(tr, $from, hit)` helper (the strict-clause
@@ -1996,11 +1999,128 @@ Both produce a `section_title` + `paragraph` body and land the cursor in the
 `section_title`. Both use `ensureContainer` for the doc-top-level fallback
 (creating a `sections` container if none exists).
 
-### 5.8 Public API
+### 5.8 Floating-title insertion (`insertFloatingTitle`)
+
+`floating_title` is a **groupless textblock** ([schema.spec.md](./schema.spec.md)
+§8.3): an unnumbered free-standing heading that is *not* a section node and
+does not participate in the numbered section hierarchy. It is admissible only
+where a content expression names it explicitly — at `sections` top level, and
+in the subclause branches of `clause` and `annex`.
+
+#### 5.8.1 Signature
+
+```ts
+import type { EditorState, Transaction } from "prosemirror-state";
+
+/**
+ * Insert a new empty `floating_title` (an unnumbered free-standing heading —
+ * NOT a section node) at the cursor's legal position.
+ *
+ * @returns `true` if a transaction was / would be dispatched, `false` when no
+ *          ancestor admits a `floating_title` at the cursor.
+ */
+export function insertFloatingTitle(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+): boolean;
+```
+
+A plain `Command` — no `(schema) => Command` factory (§1.6.2): the node is
+intrinsically specific to the Metanorma vocabulary, and the type is resolved
+through `state.schema`.
+
+#### 5.8.2 Applicability — schema-derived ancestor walk
+
+Applicability carries **no hardcoded position list**. The command walks the
+ancestor chain of `state.selection.$from` from `$from.depth` down to `1` and,
+for each ancestor, asks whether it admits a `floating_title` child at the
+cursor's slot:
+
+```ts
+parentAccepts(ancestor, floating_titleType, $from.indexAfter(d))
+```
+
+`parentAccepts` (specified in
+[AdvancedMetanormaToolbar/sections.md](./AdvancedMetanormaToolbar/sections.md)
+§5.1) is built on `canReplaceWith` over the content match, so the answer is
+derived from the content expressions themselves. The **deepest admitting
+ancestor wins** — the walk breaks at the first hit.
+
+The three legal zones emerge from the content expressions rather than being
+enumerated:
+
+| Zone | Admitting ancestor | Why |
+|---|---|---|
+| Top level of `sections` | `sections` (`(section_body \| floating_title)+`) | names `floating_title` explicitly |
+| Clause subclause branch | `clause` (`(clause \| terms \| definitions \| floating_title)+`) | names it in the subclause alternative |
+| Annex subclause branch | `annex` (`(clause \| … \| floating_title)*`) | names it in the subclause alternative |
+
+Every other context is refused **automatically** as an admitting ancestor:
+`preface` and the other doc-level containers do not name `floating_title`;
+container blocks (`note`, `example`, `quote`, `dd`, table cells) accept only
+`block`-group children, and a groupless node is not in that group; a
+blocks-only `clause` is in its block branch, where the subclause alternative
+is unavailable (the command still succeeds there via the enclosing `sections`
+— §5.8.4). When *no* ancestor admits, the command returns `false` (query and
+dispatch alike).
+
+#### 5.8.3 Insertion semantics
+
+When dispatched, the command builds a single transaction (§1.7):
+
+1. **Build the node.** `floating_titleType.createAndFill({ id: generateId(),
+   depth: 1 })` — an empty textblock; the heading text is typed into it after
+   insertion. `depth` mirrors Metanorma's `<floating-title depth>` attribute
+   and starts at 1. Returns `false` if `createAndFill` cannot fill.
+2. **Insert inside the admitting ancestor**, after the cursor's child at that
+   level: `insertPos = $from.after(admittingDepth + 1)`.
+3. **Cursor inside the new textblock** (`TextSelection.near` at
+   `insertPos + 1`, inside the node's opening token) so the user types the
+   heading immediately.
+4. `tr.scrollIntoView()`; `dispatch(tr)`; return `true`.
+
+#### 5.8.4 Strict-XOR interaction — no auto-wrap (deliberate)
+
+`clause` is a strict XOR (§5.5), so a `floating_title` cannot join a clause
+that holds a block run — it belongs to the subclause branch. In that context
+the deepest admitting ancestor is **`sections`** (the enclosing clause rejects
+it, the container does not), and the command **succeeds**: the floating title
+lands at `sections` top level rather than inside the clause. It is neither
+wrapped into a subclause nor refused.
+
+This is a deliberate asymmetry with `ensureSubclauseCapacity` (§5.5). A
+subclause insertion *needs* the auto-wrap to be legal at all — a `clause`
+holding a block run has nowhere to put one. A floating title never *needs* a
+subclause sibling to be legal: the deeper position may be unavailable, but a
+legal position at `sections` top level always is. Silently restructuring the
+user's clause to keep the insertion one level deeper would be a surprising
+side effect, so no wrap is performed.
+
+#### 5.8.5 Position arithmetic — the load-bearing `+ 1`
+
+`insertPos` is `$from.after(admittingDepth + 1)`, the next sibling slot
+**inside** the admitting ancestor. Using `$from.after(admittingDepth)` instead
+yields the position **after the admitting ancestor node itself** — for a
+container like `sections` that position is illegal (the doc's content
+expression does not admit a bare `floating_title` child). ProseMirror's
+`tr.insert` does not fail there: its content-fitting wraps the node in a legal
+wrapper, silently producing a **phantom `annex`** around the floating title.
+The `+ 1` is load-bearing.
+
+#### 5.8.6 Relationship to `insertSection`
+
+`insertFloatingTitle` is a peer of `insertSection` (§5.2) with a deliberately
+simpler shape: no cohort routing, no container creation, no
+`ensureSubclauseCapacity` accommodation — the ancestor walk alone determines
+both applicability and placement. Where `insertSection` places the cursor in
+the new section's `section_title`, here the whole node *is* the textblock.
+
+### 5.9 Public API
 
 The package's `index.ts` exports:
 
 - `insertSection` — the command specified in §5.2.
+- `insertFloatingTitle` — the command specified in §5.8.
 - `nearestBodySectionAncestor` — the helper specified in §5.6.
 
 The `ensureContainer` (§5.4) and `ensureSubclauseCapacity` (§5.5) helpers are

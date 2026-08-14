@@ -126,10 +126,15 @@ Isodoc's `floating-title` exactly (it is never a `BasicBlock`), so a converter
 needs no positional coercion.
 
 **Consequence for this toolbar:** the Section popover (§4.2) lists only the
-ten section node types; it does **not** offer `floating_title`, and the
-structural commands never produce one. There is no toolbar command to insert
-a `floating_title`; it is **deferred to a future "block elements" toolbar
-group** (or document import), and the sections feature does not insert it.
+ten section node types — it does **not** offer `floating_title`, because an
+unnumbered heading is not a section type and does not belong in a
+cohort-grouped section menu. Insertion is provided by the dedicated
+**Floating title** button (§4.5), whose tooltip states the distinction
+explicitly: *"Insert floating title (an unnumbered heading — not a
+section)"*. The structural commands (`promoteClause`, `demoteClause`) never
+produce a `floating_title` either; it is inserted only by
+`insertFloatingTitle` ([EditorCommands.spec.md](./../EditorCommands.spec.md)
+§5.8).
 
 ### 2.3 Attributes
 
@@ -185,13 +190,16 @@ export type ToolbarGroup =
 The minimal set is a **Section insertion control** (a popover listing all ten
 section types). The structural operations that follow naturally from the
 nesting model are **Promote** (decrease nesting depth) and **Demote** (increase
-nesting depth). The set:
+nesting depth). Because a `floating_title` is legal in the same zones the
+section commands navigate and is not reachable through the popover, a fourth
+button — **Floating title** — completes the set. The set:
 
 | # | Button | Label | Purpose |
 |---|---|---|---|
 | 1 | Section (popover) | `Section` | Opens a popover listing all ten section types grouped by cohort (Front matter / Body / Annexes / Back matter). Selecting a type calls the pure `insertSection` command, which routes the new section to the correct location — container for front/body/back cohorts, doc level for annexes — creating the container if needed. The new section gets an empty `section_title` heading and a `paragraph` body; the cursor lands in the `section_title`. |
 | 2 | Promote clause | `Promote` | Lift the nearest enclosing clause out one nesting level (move it to be a sibling of its parent clause). Disabled at the top structural level, and when the clause is its parent's only child (promoting it would empty the parent). |
 | 3 | Demote clause | `Demote` | Nest the nearest enclosing clause as the last child of its preceding sibling clause (one level deeper). Disabled when no legal deeper target exists. |
+| 4 | Floating title | `Floating title` | Insert an empty `floating_title` textblock at the cursor's legal position via the pure `insertFloatingTitle` command — an unnumbered free-standing heading, deliberately **not** a section node and not in the popover. The tooltip carries that clarification explicitly: "Insert floating title (an unnumbered heading — not a section)". Disabled where no ancestor admits a `floating_title` (§4.5). |
 
 **Why this set, and not more.** Section insertion is the single most-requested
 structural action. The Section popover unifies all ten types into one control
@@ -202,7 +210,10 @@ without changing node identity, and they round-trip each other. The cohort
 routing (`insertSection` calls `ensureContainer` to create the right container,
 or inserts annexes directly at the doc level) means the user never has to
 manually create a `preface` or `bibliography` container before inserting a
-front/back section — the command does it.
+front/back section — the command does it. Floating title earns its own button
+because it is the one structural heading the popover must never offer: putting
+it in a cohort-grouped section menu would misrepresent it as a section type,
+so it lives beside the popover as a plain button instead.
 
 ### 4.2 Button: Section (popover)
 
@@ -261,6 +272,17 @@ label ("Abstract", "Foreword", "Clause", "Annex", "References", etc.).
 | `isActive` | `false` |
 | `isEnabled` | `demoteClause(state) === true` — mirrors the command's applicability: the nearest enclosing clause has a preceding sibling in the `section_body` group that can legally contain a clause **after** the strict-XOR accommodation (a block-bearing sibling clause gets its blocks wrapped into a subclause first), so it can be reparented as that sibling's last child. Disabled at the top of a container with no preceding-section sibling, or when the only candidate parent cannot legally hold the clause even post-accommodation. |
 | `run` | Toolbar adapter calls `demoteClause(view.state, view.dispatch)` (§5.3), then `view.focus()`. |
+
+### 4.5 Button: Floating title
+
+| Field | Value |
+|---|---|
+| `key` | `"sections-floating-title"` |
+| `label` | `Floating title` |
+| `title` | `"Insert floating title (an unnumbered heading — not a section)"` — the tooltip carries the clarification that a floating title is **not technically a section**: it is a free-standing heading outside the numbered hierarchy, which is why it is a separate button rather than an entry in the Section popover (§4.2). |
+| `isActive` | `false` — insertion is not a toggle; the button is never shown active. |
+| `isEnabled` | `insertFloatingTitle(state) === true` — the command query, mirroring the Promote / Demote pattern (§4.3, §4.4) so `isEnabled` stays exactly in sync with the command's applicability. Enabled exactly where some ancestor admits a `floating_title` child at the cursor index: `sections` top level, a `clause` subclause branch, or an `annex` subclause branch. **Not** disabled in a blocks-only clause — the clause itself rejects the FT, but `sections` further out admits it, and the deepest admitting ancestor wins, so the FT is inserted at `sections` top level (`EditorCommands.spec.md` §5.8.4). Disabled in `preface` and the other doc-level containers, and inside container blocks (`note`, `example`, `quote`, `dd`, table cells) — see the summary table in §6. |
+| `run` | Toolbar adapter calls `insertFloatingTitle(view.state, view.dispatch)` (§5.6), then `view.focus()`. The cursor lands inside the new empty `floating_title` textblock for immediate typing — no prompt, no dialog, no `window.prompt`. |
 
 ## 5. Commands
 
@@ -584,17 +606,48 @@ or exported as utilities. None of them take an `EditorView` or touch the DOM.
 `nearestBodySectionAncestor` and `insertSection` are documented in
 [`EditorCommands.spec.md`](./../EditorCommands.spec.md) §5.
 
+### 5.6 Floating-title insertion (`insertFloatingTitle`)
+
+Floating-title insertion is handled by the pure `insertFloatingTitle` command,
+specified in [`EditorCommands.spec.md`](./../EditorCommands.spec.md) §5.8. It is
+exported from `@metanorma/editor-commands`, re-exported through
+`@metanorma/toolbar`, and consumed by the Floating title button (§4.5).
+
+The command is schema-derived end to end: it walks the ancestor chain of the
+cursor, asks each ancestor `parentAccepts(ancestor, floating_titleType,
+$from.indexAfter(d))` (§5.1), and inserts after the **deepest admitting
+ancestor** — the three legal zones (top level of `sections`, `clause`
+subclause branch, `annex` subclause branch) fall out of the content
+expressions with no hardcoded position list, and `preface`, the doc-level
+containers, and block contexts (`note`/`example`/`quote`/`dd`/cells) are
+refused automatically. On dispatch it creates an empty `floating_title`
+(`createAndFill({ id: generateId(), depth: 1 })`), inserts it inside the
+admitting ancestor after the cursor's child at that level
+(`$from.after(admittingDepth + 1)`), and lands the cursor inside the new
+textblock — one transaction, `scrollIntoView`, no prompt.
+
+Two behaviours worth noting when wiring the button:
+
+- **No auto-wrap.** In a blocks-only `clause` the deepest admitting ancestor is
+  `sections`, so the FT lands at `sections` top level. The command never
+  auto-wraps blocks into a subclause (a deliberate asymmetry with
+  `ensureSubclauseCapacity` — an FT never *needs* a subclause sibling to be
+  legal), which is why the button stays enabled there.
+- **`isEnabled` mirrors the command.** The button queries
+  `insertFloatingTitle(state) === true` directly, exactly like Promote/Demote
+  (§4.3/§4.4), rather than reimplementing the walk as a separate predicate.
+
 ## 6. Active / enabled detection (UI wiring)
 
 Each button's `isEnabled` is a pure `(state) => boolean` selector evaluated via
 `useEditorStateSelector`, exactly as in `MetanormaToolbar.spec.md` §7.
 
-The Promote and Demote buttons query the command directly (`promoteClause(state)
-=== true` / `demoteClause(state) === true`), mirroring the command's
-applicability so that `isEnabled` stays exactly in sync. The Section popover
-trigger is always enabled — `insertSection` creates the container if missing
-and annexes always have a doc-level target, so there is always a valid
-insertion target.
+The Promote, Demote, and Floating title buttons query their commands directly
+(`promoteClause(state) === true` / `demoteClause(state) === true` /
+`insertFloatingTitle(state) === true`), mirroring the command's applicability
+so that `isEnabled` stays exactly in sync. The Section popover trigger is
+always enabled — `insertSection` creates the container if missing and annexes
+always have a doc-level target, so there is always a valid insertion target.
 
 ```typescript
 import { useEditorStateSelector, useEditorEventCallback } from "@handlewithcare/react-prosemirror";
@@ -604,6 +657,11 @@ const canPromote = useEditorStateSelector((state) => promoteClause(state) === tr
 
 // Demote enabled?
 const canDemote = useEditorStateSelector((state) => demoteClause(state) === true);
+
+// Floating title enabled?
+const canInsertFloatingTitle = useEditorStateSelector(
+  (state) => insertFloatingTitle(state) === true,
+);
 ```
 
 These predicates lean on the exported commands (`promoteClause`, `demoteClause`)
@@ -621,6 +679,7 @@ re-renders, matching the base toolbar's performance contract.
 | Section (popover) | Never — there is always a valid insertion target (containers are created if missing; annexes always have a doc-level target). |
 | Promote | Nearest clause is already a top-level child of `sections` (or not inside a `section_body` parent); no enclosing clause at all; or the clause is its **parent's only child** (promoting it would empty the parent). |
 | Demote | No preceding sibling in the `section_body` group that can legally hold the clause even after the strict-XOR auto-wrap; or the clause is the first child of its parent. |
+| Floating title | No ancestor admits a `floating_title` at the cursor — inside `preface` or the other doc-level containers, or inside a container block (`note`, `example`, `quote`, `dd`, a table cell). **Not** disabled in a blocks-only `clause`: the clause rejects the FT but `sections` further out admits it, so the insertion goes to `sections` top level (§4.5). |
 
 ## 7. The section heading (`section_title` child node)
 
@@ -715,6 +774,11 @@ Feature-specific accessibility additions beyond the baseline (README §2.5 /
   with Escape (the popover API's light-dismiss or an explicit handler).
 - **Promote / Demote** — `aria-describedby` can point at a hidden live region
   announcing the current nesting depth (e.g. "Clause at level 2").
+- **Floating title** — a plain `<button>`; its accessible name comes from the
+  visible label `Floating title`, and the `title` tooltip supplies the
+  longer description ("an unnumbered heading — not a section"). Because the
+  node it inserts is a real textblock (not an atom), the cursor lands in it
+  and screen readers announce the new editable heading immediately.
 
 **Nesting depth and heading-level representation.** There is **no depth cap**:
 the schema permits unbounded `clause`-within-`clause` nesting, and the toolbar
