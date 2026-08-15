@@ -2,30 +2,33 @@
 
 // Spec reverse-dependency report.
 //
-// Given a spec file path, prints every other doc under docs/ that links to it.
-// Use this to find which specs to review when you change one.
+// Given a spec file path (under docs/ or a colocated pkg/<pkg>/README.spec.md
+// — placement per CONVENTIONS.md §1.1), prints every other spec that links to
+// it. Use this to find which specs to review when you change one.
 //
 // Usage:
 //   node scripts/spec-impact.mjs docs/schema.spec.md
-//   yarn spec-impact docs/EditorCommands.spec.md
+//   node scripts/spec-impact.mjs pkg/relaton/README.spec.md
 //
 // Zero runtime dependencies — pure Node fs + path. Picks up new specs and
 // subpackage docs automatically (no hardcoded spec list).
 //
 // See docs/CONVENTIONS.md §6.
 
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const docsDir = join(root, 'docs');
+const pkgDir = join(root, 'pkg');
 
 const target = process.argv[2];
 
 if (!target) {
-  console.error('Usage: node scripts/spec-impact.mjs <docs/path-to-spec.md>');
+  console.error('Usage: node scripts/spec-impact.mjs <spec-path.md>');
   console.error('Example: node scripts/spec-impact.mjs docs/schema.spec.md');
+  console.error('Example: node scripts/spec-impact.mjs pkg/relaton/README.spec.md');
   process.exit(1);
 }
 
@@ -46,10 +49,32 @@ async function walk(dir) {
   return files;
 }
 
+// The spec corpus: every docs/**/*.md file, plus every colocated
+// pkg/<pkg>/README.spec.md (CONVENTIONS.md §1.1).
+async function specFiles() {
+  const files = await walk(docsDir);
+  let packages = [];
+  try {
+    packages = await readdir(pkgDir);
+  } catch {
+    // No pkg/ directory — corpus only.
+  }
+  for (const name of packages) {
+    const candidate = join(pkgDir, name, 'README.spec.md');
+    try {
+      const s = await stat(candidate);
+      if (s.isFile()) files.push(candidate);
+    } catch {
+      // Package has no colocated spec.
+    }
+  }
+  return files;
+}
+
 const linkRe = /\[([^\]]*)\]\(([^)]+)\)/g;
 
 async function main() {
-  const files = await walk(docsDir);
+  const files = await specFiles();
   const referrers = [];
 
   for (const file of files) {

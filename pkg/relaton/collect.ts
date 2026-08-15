@@ -1,5 +1,5 @@
 /**
- * Document-walking helper — `collectBibliographyItems` (Relaton.spec.md §4).
+ * Document-walking helper — `collectBibliographyItems` (README.spec.md §4).
  *
  * Gathers all `BibliographicItem` values from a ProseMirror document JSON
  * (or a live PM node) without depending on `prosemirror-model`. This keeps
@@ -63,7 +63,7 @@ function extractItem(node: PmNodeJson): BibliographicItem | null {
 /**
  * Walk a ProseMirror document (JSON or live node) and collect all
  * `BibliographicItem` values from `bibdata` and `bibitem` nodes
- * (Relaton.spec.md §4).
+ * (README.spec.md §4).
  *
  * The `bibdata` node (document-level metadata, the first child of `doc`) is
  * collected first, followed by every `bibitem` node in document order.

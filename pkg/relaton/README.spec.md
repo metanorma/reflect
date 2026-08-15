@@ -1,10 +1,11 @@
 # Metanorma Relaton — Bibliographic Model Specification
 
-This spec defines the package providing a deliberate-subset Relaton
-bibliographic data model for the Metanorma editor. It is consumed by the schema
-([schema.spec.md](./schema.spec.md) §8) (`bibdata` / `bibitem` node attrs), the
-editor (`eref` citation resolution, NodeView summaries), and the GUI (document
-title display).
+This is the specification of the `@metanorma/relaton` package: a
+deliberate-subset Relaton bibliographic data model for the Metanorma editor.
+It is colocated with the package per the placement policy
+(docs/CONVENTIONS.md §1.1), so every published version bundles the contract
+it implements. Consumers of the package are listed in the repository
+documentation index, `docs/README.md`.
 
 **Scope.** This package owns the `BibliographicItem` TypeScript type, pure
 derivation helpers (`citeas`, `label`, `primaryDocid`), and a document walker
@@ -444,6 +445,8 @@ so malformed attrs are silently skipped rather than crashing the helpers.
 
 ```
 pkg/relaton/
+  README.spec.md            — this specification (colocated per
+                              docs/CONVENTIONS.md §1.1)
   index.ts                  — public API re-exports
   types.ts                  — BibliographicItem + component types + emptyBibliographicItem
   helpers.ts                — citeas, label, primaryDocid, mainTitle, formatContributor, primaryAuthor
@@ -461,18 +464,7 @@ Test with `yarn workspace @metanorma/relaton test`.
 
 ---
 
-## 6. Consumers
-
-| Consumer | What it uses |
-|---|---|
-| `@metanorma/prosemirror-schema` | `BibliographicItem` type (for `bibdata`/`bibitem` attr documentation) |
-| `@metanorma/prosemirror-editor` | `label()` / `citeas()` for NodeView summaries |
-| `@metanorma/toolbar` | `BibliographicItem` type + `BibliographicItemForm` for bib editing, `collectBibliographyItems` + `label` for eref picker |
-| `editor-gui` | `BibliographicItem` type + `mainTitle` for sidebar title display |
-
----
-
-## 7. Test plan
+## 6. Test plan
 
 Headless unit tests (no DOM, no ProseMirror), run via `node:test`:
 

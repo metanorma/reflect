@@ -1,25 +1,28 @@
 # Reflect — Documentation Index
 
-This directory holds the functional and component specifications for the
-Reflect rich-text editing stack — a Metanorma editor. The core specs below
+This directory holds the specification **corpus** for the Reflect rich-text
+editing stack — a Metanorma editor: the cross-package and internal-package
+specs, the governance conventions, and the change log. The core specs below
 describe a layered architecture: a **schema** (data model) is consumed by an
 **editor component** (React + ProseMirror), which in turn hosts a **toolbar**
 (user operations). Each spec links to the others; the dependency flows
 downward. The
 [`AdvancedMetanormaToolbar/`](./AdvancedMetanormaToolbar/README.md) directory
-extends the toolbar with six advanced feature areas.
+extends the toolbar with six advanced feature areas. Specs for packages
+intended for independent publication are **colocated** with their package at
+`pkg/<pkg>/README.spec.md` — see [`CONVENTIONS.md`](./CONVENTIONS.md) §1.1.
 
 **Spec governance.** Cross-referencing, change-tracking, and tooling
 conventions live in [`CONVENTIONS.md`](./CONVENTIONS.md); curated change records
 live in [`CHANGELOG.md`](./CHANGELOG.md). Run `yarn check-specs` before
-submitting a PR that touches `docs/`; use `yarn spec-impact docs/<spec>.md` to
+submitting a PR that touches a spec; use `yarn spec-impact <spec-path.md>` to
 find what to review when changing a spec.
 
 ```
 schema.spec.md            ← source of truth for the document model
         ↑ consumed by              ↑ consumes (bibitem model)
-MetanormaProseMirror.spec.md  ← React editor component (mounts ProseMirror)   Relaton.spec.md
-        ↑ hosts (as a child)
+MetanormaProseMirror.spec.md  ← React editor component          pkg/relaton/README.spec.md
+        ↑ hosts (as a child)                                         (colocated)
 MetanormaToolbar.spec.md      ← schema-bound toolbar UI
 ```
 
@@ -102,16 +105,26 @@ and the advanced-toolbar node/section/reference commands. Re-exported through
 
 ---
 
-### [`Relaton.spec.md`](./Relaton.spec.md) — Bibliographic Model
+### [`pkg/relaton/README.spec.md`](../pkg/relaton/README.spec.md) — Bibliographic Model
 
 Defines `@metanorma/relaton`, a deliberate-subset Relaton bibliographic data
 model providing the `BibliographicItem` type, pure derivation helpers
 (`citeas`, `label`, `primaryDocid`, `mainTitle`), and a zero-PM-dependency
-document walker (`collectBibliographyItems`). Consumed by the schema
-(`bibdata` / `bibitem` node attrs), the editor (`eref` citation resolution,
-NodeView summaries), and the GUI (document title display). No ProseMirror
-dependency, no XML/YAML parsing — the editor's only serialization format is
-ProseMirror JSON (`.mn.json`).
+document walker (`collectBibliographyItems`). No ProseMirror dependency, no
+XML/YAML parsing — the editor's only serialization format is ProseMirror
+JSON (`.mn.json`).
+
+**Colocated spec.** The package is intended for independent publication, so
+its specification lives in the package itself (see
+[`CONVENTIONS.md`](./CONVENTIONS.md) §1.1) and ships inside every tarball.
+Consumers of the package:
+
+| Consumer | What it uses |
+|---|---|
+| `@metanorma/prosemirror-schema` | `BibliographicItem` type (for `bibdata`/`bibitem` attr documentation) |
+| `@metanorma/prosemirror-editor` | `label()` / `citeas()` for NodeView summaries |
+| `@metanorma/toolbar` | `BibliographicItem` type + `BibliographicItemForm` for bib editing, `collectBibliographyItems` + `label` for eref picker |
+| `editor-gui` | `BibliographicItem` type + `mainTitle` for sidebar title display |
 
 ---
 

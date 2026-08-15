@@ -1,5 +1,5 @@
 /**
- * Pure derivation helpers over `BibliographicItem` (Relaton.spec.md §3).
+ * Pure derivation helpers over `BibliographicItem` (README.spec.md §3).
  *
  * These functions contain no runtime state and no ProseMirror dependency. They
  * are the single source of truth for deriving citation keys, display labels,
@@ -22,7 +22,7 @@ import type {
 } from './types.js';
 
 /**
- * Return the primary document identifier, if any (Relaton.spec.md §3.1).
+ * Return the primary document identifier, if any (README.spec.md §3.1).
  *
  * The primary identifier is the `docid` whose `primary` flag is `true`. If none
  * is explicitly flagged, the first `docid` is used (Relaton convention). Returns
@@ -35,7 +35,7 @@ export function primaryDocid(item: BibliographicItem): DocId | null {
 }
 
 /**
- * Return the citation key (`citeas`) for the item, if any (Relaton.spec.md §3.2).
+ * Return the citation key (`citeas`) for the item, if any (README.spec.md §3.2).
  *
  * This is the identifier string used by `eref` marks' `cite` attribute and by
  * the Metanorma converter for `<eref citeas="…">`. It is derived from the
@@ -47,7 +47,7 @@ export function citeas(item: BibliographicItem): string | null {
 }
 
 /**
- * Return the main title content of the item, if any (Relaton.spec.md §3.3).
+ * Return the main title content of the item, if any (README.spec.md §3.3).
  *
  * Prefers a title with `type: "main"`; falls back to the first title;
  * returns `null` when there are no titles.
@@ -59,7 +59,7 @@ export function mainTitle(item: BibliographicItem): TypedTitle | null {
 }
 
 /**
- * Format a contributor's entity name for display (Relaton.spec.md §3.4).
+ * Format a contributor's entity name for display (README.spec.md §3.4).
  *
  * Persons render as `"Prefix Surname, Given, Credentials"` (or `completename`
  * when undecomposed). Organisations render as their name, optionally followed
@@ -145,7 +145,7 @@ function formatDecomposedName(n: PersonName): string {
 
 /**
  * Return the primary author (first contributor with an `"author"` role), if
- * any (Relaton.spec.md §3.5). A contributor matches when any of its roles has
+ * any (README.spec.md §3.5). A contributor matches when any of its roles has
  * `type === "author"`.
  */
 export function primaryAuthor(item: BibliographicItem): Contributor | null {
@@ -157,7 +157,7 @@ export function primaryAuthor(item: BibliographicItem): Contributor | null {
 }
 
 /**
- * Return a compact human-readable label for the item (Relaton.spec.md §3.6).
+ * Return a compact human-readable label for the item (README.spec.md §3.6).
  *
  * Used by the `eref` picker (dropdown entries) and by the `bibdata` /
  * `bibitem` NodeViews (summary line). The format is intentionally simple:

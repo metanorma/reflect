@@ -1,5 +1,5 @@
 /**
- * Headless tests for @metanorma/relaton (Relaton.spec.md §7).
+ * Headless tests for @metanorma/relaton (README.spec.md §6).
  *
  * Run: yarn workspace @metanorma/relaton test
  *

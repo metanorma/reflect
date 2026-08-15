@@ -190,7 +190,7 @@ positions that name them accept them. This matches Isodoc, where
 | `preface` | `section_front+` | Front-matter sections (abstract/foreword/…, `content_section`). |
 | `sections` | `(section_body \| floating_title)+` | Main body. Isodoc's `sections` admits `floating-title` at top level alongside the body section types. |
 | `bibliography` | `references+` | Back matter; `references` is the sole `section_back` member. |
-| `bibdata` | *(empty)* | Atom: document-level bibliographic metadata. Stores a `BibliographicItem` (from `@metanorma/relaton`, [`Relaton.spec.md`](./Relaton.spec.md)) as a single JSON `item` attr. Required first child of `doc` (§8.1). |
+| `bibdata` | *(empty)* | Atom: document-level bibliographic metadata. Stores a `BibliographicItem` (from `@metanorma/relaton`, [`README.spec.md`](../pkg/relaton/README.spec.md)) as a single JSON `item` attr. Required first child of `doc` (§8.1). |
 | `bibitem` | *(empty)* | Atom: a single bibliography entry. Stores a `BibliographicItem` as a single JSON `item` attr. Permitted only inside `references` sections (§8.2). |
 | `clause` | `section_title? (block+ \| (clause \| terms \| definitions \| floating_title)+)` | Isodoc `Clause-Section`, **strict XOR**: a clause holds either blocks (leaf) or subclauses, never both — no hanging paragraphs in the numbered body hierarchy. Optional leading heading textblock. |
 | `annex` | `section_title? block* (clause \| terms \| definitions \| references \| floating_title)*` | Isodoc `Annex-Section-Body`, **non-strict**: optional prefatory blocks then subclauses (in any mix). **Doc-level** — `annex` is a direct child of `doc`, not nested in a container and not self-nesting. Admits `references` subclauses. Optional leading heading. |
@@ -484,8 +484,8 @@ matching Metanorma Semantic XML's `<title>` child element (§17).
 
 **Bibliography entries.** The `references` section node's content expression
 permits `bibitem` atom nodes after the prefatory blocks. Each `bibitem` stores a
-`BibliographicItem` (from `@metanorma/relaton`, see
-[`Relaton.spec.md`](./Relaton.spec.md)) as a single JSON `item` attr
+  `BibliographicItem` (from `@metanorma/relaton`, see
+  [`README.spec.md`](../pkg/relaton/README.spec.md)) as a single JSON `item` attr
 and renders as a compact summary via a NodeView. `bibitem` has no group
 membership — it is insertable only inside `references` via a dedicated command,
 not as a general block.

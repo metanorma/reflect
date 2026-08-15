@@ -2,10 +2,12 @@
 
 // Spec cross-reference integrity checker.
 //
-// Validates that every relative markdown link in docs/**/*.md resolves to an
-// existing file, that no spec carries the removed **Spec version:** /
-// **Spec dependencies:** header lines, and that specs are free of transition
-// prose (per CONVENTIONS.md §4: specs are current-state only).
+// Validates that every relative markdown link in the spec files — docs/**/*.md
+// plus every colocated pkg/<pkg>/README.spec.md (placement per
+// CONVENTIONS.md §1.1) — resolves to an existing file, that no spec carries
+// the removed **Spec version:** / **Spec dependencies:** header lines, and
+// that specs are free of transition prose (per CONVENTIONS.md §4: specs are
+// current-state only).
 //
 // Zero runtime dependencies — pure Node fs + path. Picks up new specs and
 // subpackage docs automatically (no hardcoded spec list).
@@ -18,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const docsDir = join(root, 'docs');
+const pkgDir = join(root, 'pkg');
 
 async function walk(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -28,6 +31,28 @@ async function walk(dir) {
       files.push(...await walk(full));
     } else if (entry.name.endsWith('.md')) {
       files.push(full);
+    }
+  }
+  return files;
+}
+
+// The spec corpus: every docs/**/*.md file, plus every colocated
+// pkg/<pkg>/README.spec.md (CONVENTIONS.md §1.1).
+async function specFiles() {
+  const files = await walk(docsDir);
+  let packages = [];
+  try {
+    packages = await readdir(pkgDir);
+  } catch {
+    // No pkg/ directory — corpus only.
+  }
+  for (const name of packages) {
+    const candidate = join(pkgDir, name, 'README.spec.md');
+    try {
+      const s = await stat(candidate);
+      if (s.isFile()) files.push(candidate);
+    } catch {
+      // Package has no colocated spec.
     }
   }
   return files;
@@ -90,7 +115,7 @@ const errors = [];
 const warnings = [];
 
 async function main() {
-  const files = await walk(docsDir);
+  const files = await specFiles();
 
   for (const file of files) {
     const relPath = relative(root, file);
@@ -149,7 +174,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`✓ Spec check passed (${files.length} docs checked, ${warnings.length} warning(s)).`);
+  console.log(`✓ Spec check passed (${files.length} spec files checked, ${warnings.length} warning(s)).`);
 }
 
 main().catch((err) => {

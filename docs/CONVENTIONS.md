@@ -1,7 +1,7 @@
 # Spec governance conventions
 
-This document is the authority for how the specs under `docs/` are governed:
-cross-referencing, change tracking, and the tooling that enforces
+This document is the authority for how the specs in this repository are
+governed: cross-referencing, change tracking, and the tooling that enforces
 consistency. It supersedes any earlier governance conventions that lived in
 session memory.
 
@@ -19,11 +19,44 @@ MetanormaToolbar.spec.md       ← schema-bound toolbar UI
 AdvancedMetanormaToolbar/      ← six advanced feature areas
 
 EditorCommands.spec.md         ← command library (consumes schema)
-Relaton.spec.md                ← bibliographic model (consumed by schema)
+pkg/relaton/README.spec.md     ← bibliographic model (consumed by schema;
+                                  colocated — see §1.1)
 ```
 
 When two specs appear to disagree, the lower (more specific) one wins for its
 own scope; the schema spec is the root authority for the document model.
+
+### 1.1 Spec placement
+
+A spec lives in one of two places, decided by the release intent of the
+package it specifies:
+
+- **Corpus specs** live in `docs/` (the default). This is where specs for
+  internal workspace packages and cross-package features belong — e.g.
+  `EditorCommands.spec.md`, or the `AdvancedMetanormaToolbar/` suite, which
+  spans three packages.
+- **Colocated specs** live in the package they specify, at
+  `pkg/<pkg>/README.spec.md`. This is the placement for a package intended
+  for independent publication: npm always packs `README*` files regardless of
+  the `files` field, so every released version bundles its own contract
+  snapshot, and an installed version's spec describes exactly that version.
+
+Corollaries of colocation:
+
+- A colocated spec is **self-contained**: it does not enumerate its consumers
+  or other packages' integration details. Consumer and integration facts live
+  in the repository documentation index (`docs/README.md`).
+- Links **into** a colocated spec are ordinary relative markdown links (the
+  tooling validates them across both locations). Links **out of** a colocated
+  spec resolve within the repository but not inside a published tarball — keep
+  colocated specs link-free.
+
+Current placements: corpus — `schema.spec.md`*, `MetanormaProseMirror.spec.md`,
+`MetanormaToolbar.spec.md`, `EditorCommands.spec.md`, the
+`AdvancedMetanormaToolbar/` suite; colocated — `pkg/relaton/README.spec.md`.
+
+*\* `prosemirror-schema` and `prosemirror-minimap` are also slated for
+independent publication; their specs migrate at their own release.*
 
 
 ## 2. Provenance model: Git, not version numbers
@@ -33,10 +66,10 @@ manifests. Use these commands for provenance:
 
 | Question | Command |
 |---|---|
-| What changed in this spec? | `git log --oneline -- docs/<spec>.md` |
-| When did a line last change? | `git blame docs/<spec>.md` |
-| What did the spec look like at a past commit? | `git show <sha>:docs/<spec>.md` |
-| What changed in the last edit? | `git diff HEAD~1 -- docs/<spec>.md` |
+| What changed in this spec? | `git log --oneline -- <spec>.md` |
+| When did a line last change? | `git blame <spec>.md` |
+| What did the spec look like at a past commit? | `git show <sha>:<spec>.md` |
+| What changed in the last edit? | `git diff HEAD~1 -- <spec>.md` |
 
 Specs carry **no `**Spec version:**` or `**Spec dependencies:**` header lines.**
 These were removed because they were a hand-maintained cache of information
@@ -84,7 +117,7 @@ Specs describe what the system **is**, not how it got there. Three tiers:
    CHANGELOG is intentionally incomplete — it is a curated selection, not an
    exhaustive log.
 3. **`git log` — raw history.** For everything not meeting the CHANGELOG bar.
-   `git log --oneline -- docs/<spec>.md` is the first-stop changelog for any
+   `git log --oneline -- <spec>.md` is the first-stop changelog for any
    spec.
 
 
@@ -125,15 +158,17 @@ heavy `>` prefixes that serve no structural purpose.
 
 Two scripts maintain spec integrity. Both are zero-dependency Node scripts under
 `scripts/`; both pick up new specs and subpackage docs automatically (no
-hardcoded spec lists).
+hardcoded spec lists). They cover every spec location defined in §1.1: the
+`docs/` corpus and the colocated `pkg/<pkg>/README.spec.md` files.
 
 ### `scripts/check-specs.mjs` — CI gate
 
 Run via `yarn check-specs` (or `node scripts/check-specs.mjs`). Wired into CI
 on every PR and push. Validates:
 
-1. **Link integrity** — every relative markdown link in every `docs/**/*.md`
-   resolves to an existing file. Catches renames, moves, and deletes.
+1. **Link integrity** — every relative markdown link in every spec file
+   (`docs/**/*.md` and `pkg/*/README.spec.md`) resolves to an existing file.
+   Catches renames, moves, and deletes.
 2. **Header hygiene** — no spec carries the removed `**Spec version:**` or
    `**Spec dependencies:**` lines (regression guard).
 3. **Transition-prose guard** (warnings) — flags patterns that belong in the
@@ -146,18 +181,15 @@ on every PR and push. Validates:
 
 ### `scripts/spec-impact.mjs` — reverse-dependency report (on demand)
 
-Run via `yarn spec-impact docs/<spec>.md`. Prints every doc that links to the
-given spec. Use it to find what to review when changing a spec:
+Run via `yarn spec-impact <spec-path.md>` (e.g.
+`yarn spec-impact pkg/relaton/README.spec.md`). Prints every doc that links to
+the given spec. Use it to find what to review when changing a spec:
 
 ```
-$ node scripts/spec-impact.mjs docs/schema.spec.md
+$ node scripts/spec-impact.mjs pkg/relaton/README.spec.md
 Referenced by:
-  docs/CONVENTIONS.md
-  docs/MetanormaProseMirror.spec.md
-  docs/EditorCommands.spec.md
-  docs/Relaton.spec.md
-  docs/AdvancedMetanormaToolbar/README.md
   docs/README.md
+  docs/schema.spec.md
 ```
 
 This recovers the coordination value the old dependency-manifest system provided

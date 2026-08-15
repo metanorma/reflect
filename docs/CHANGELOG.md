@@ -1,9 +1,41 @@
 # Spec changelog
 
 Curated records of significant spec transitions. Not every spec edit appears
-here — routine changes are in `git log -- docs/`. Entry bar: the change spans
+here — routine changes are in `git log`. Entry bar: the change spans
 multiple commits or specs, or its narrative isn't recoverable from commit
 messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
+
+---
+
+## 2026-08-14 — Colocated-spec policy; Relaton spec moved into pkg/relaton
+
+Adopted a two-tier spec placement policy (CONVENTIONS.md §1.1): corpus specs
+stay in `docs/`; a spec whose package is intended for **independent
+publication** is colocated at `pkg/<pkg>/README.spec.md`, where the `README*`
+name guarantees npm packs it into the tarball — each released version then
+bundles the contract it implements (specs remain version-free; the release
+tag/tarball is the snapshot identifier). Colocated specs are self-contained:
+consumer/integration facts live in the repo index (`docs/README.md`), and
+outbound links are avoided (they don't resolve inside a tarball).
+
+`docs/Relaton.spec.md` (git-mv'd, history preserved) moved to
+`pkg/relaton/README.spec.md` as the pilot: its preamble now states the
+package contract, its former §6 Consumers table was relocated to
+`docs/README.md`'s Relaton section, and Test plan renumbered §7→§6.
+`prosemirror-schema` and `prosemirror-minimap` are slated for the same
+migration at their own releases.
+
+`check-specs.mjs` and `spec-impact.mjs` became multi-root: the spec corpus is
+now `docs/**/*.md` + every `pkg/*/README.spec.md` (link integrity, header
+hygiene, and transition-prose checks cover both; spec-impact resolves
+cross-tree links).
+
+**Affected specs:** CONVENTIONS.md (§1.1 placement, §2/§4 path-neutral
+recipes, §7 multi-root tooling), docs/README.md (corpus index + Relaton
+consumer table), docs/schema.spec.md (2 inbound links), and
+pkg/relaton/README.spec.md (formerly docs/Relaton.spec.md).
+
+**Commits:** *(pending)*
 
 ---
 

@@ -14,7 +14,7 @@
  * it has zero dependencies on ProseMirror, `@metanorma/toolbar`, or any other
  * editor package. React is a peer dependency.
  *
- * @see docs/Relaton.spec.md §2
+ * @see docs/README.spec.md §2
  */
 
 import React, { useState, useCallback } from 'react';

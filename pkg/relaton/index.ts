@@ -1,15 +1,13 @@
 /**
  * Public API for `@metanorma/relaton`.
  *
- * Implements [`docs/Relaton.spec.md`](../../docs/Relaton.spec.md) **v1** —
+ * Implements the colocated specification `README.spec.md` (this package) —
  * a deliberate subset of the Relaton bibliographic model, with pure derivation
  * helpers and a PM-doc walker. No ProseMirror dependency, no React dependency,
  * no XML/YAML parsing.
  *
- * Consumed by:
- * - `@metanorma/toolbar` — `<BibliographicItemForm>` + eref picker.
- * - `@metanorma/prosemirror-editor` — `bibdata` / `bibitem` NodeViews.
- * - `editor-gui` — Sidebar metadata button.
+ * Consumers are listed in the repository documentation index
+ * (`docs/README.md`).
  */
 
 // Types (§2)

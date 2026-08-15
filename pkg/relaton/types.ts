@@ -1,6 +1,6 @@
 /**
  * Bibliographic-item types — a deliberate subset of the Relaton model
- * (Relaton.spec.md §2).
+ * (README.spec.md §2).
  *
  * The full Relaton `BibliographicItem` (relaton-bib Ruby gem, expressed in
  * `lib/metanorma/validate/biblio.rng`) is deeply nested and recursive
@@ -14,7 +14,7 @@
  * without breaking existing serialised documents (unknown keys in persisted
  * JSON are tolerated by the editor's loader).
  *
- * @see docs/Relaton.spec.md §2
+ * @see docs/README.spec.md §2
  */
 
 // ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@
 // ---------------------------------------------------------------------------
 
 /**
- * A typed title of a bibliographic item (Relaton.spec.md §2.1).
+ * A typed title of a bibliographic item (README.spec.md §2.1).
  *
  * Mirrors Relaton's `<title type="…" language="…" script="…">` element. The
  * `type` attribute is open-ended but common values are `main` (default),
@@ -40,7 +40,7 @@ export interface TypedTitle {
 }
 
 /**
- * A document identifier within a named scheme (Relaton.spec.md §2.2).
+ * A document identifier within a named scheme (README.spec.md §2.2).
  *
  * Mirrors Relaton's `<docidentifier type="…" scope="…" primary="…">`. The
  * `primary` flag marks the identifier used for citation (`citeas`); by
@@ -61,7 +61,7 @@ export interface DocId {
 }
 
 /**
- * Contact information shared by persons and organisations (Relaton.spec.md §2.3).
+ * Contact information shared by persons and organisations (README.spec.md §2.3).
  *
  * Mirrors Relaton's `<contact>` element which collects address, phone, email
  * and URI sub-elements. All fields optional.
@@ -78,7 +78,7 @@ export interface ContactInfo {
 }
 
 /**
- * An organisation contributor (Relaton.spec.md §2.3).
+ * An organisation contributor (README.spec.md §2.3).
  *
  * Mirrors Relaton's `<organization>`. Subdivisions recurse as nested
  * `Organization` entries; the editor exposes the first-level name only, but
@@ -100,7 +100,7 @@ export interface Organization {
 }
 
 /**
- * A person's name, decomposed into parts (Relaton.spec.md §2.3).
+ * A person's name, decomposed into parts (README.spec.md §2.3).
  *
  * Mirrors Relaton's `<name>` inside `<person>`. Either `completename` or the
  * decomposed fields (surname / given) should be populated.
@@ -121,7 +121,7 @@ export interface PersonName {
 }
 
 /**
- * An organisational affiliation of a person (Relaton.spec.md §2.3).
+ * An organisational affiliation of a person (README.spec.md §2.3).
  *
  * Mirrors Relaton's `<affiliation>` inside `<person>`.
  */
@@ -135,7 +135,7 @@ export interface Affiliation {
 }
 
 /**
- * A person contributor (Relaton.spec.md §2.3).
+ * A person contributor (README.spec.md §2.3).
  */
 export interface Person {
   /** The person's name. */
@@ -154,7 +154,7 @@ export interface Person {
 export type ContributorEntity = Person | Organization;
 
 /**
- * A role played by a contributor (Relaton.spec.md §2.3).
+ * A role played by a contributor (README.spec.md §2.3).
  *
  * Mirrors Relaton's `<role type="…">` element with a mandatory `type` attribute
  * (controlled vocabulary: author, publisher, editor, …) and optional
@@ -170,7 +170,7 @@ export interface Role {
 }
 
 /**
- * A contributor to the bibliographic item (Relaton.spec.md §2.3).
+ * A contributor to the bibliographic item (README.spec.md §2.3).
  *
  * Mirrors Relaton's `<contributor><role type="…"/>…</contributor>`. A
  * contributor has one or more roles; the `role` array is always non-empty.
@@ -183,7 +183,7 @@ export interface Contributor {
 }
 
 /**
- * A significant date in the item's lifecycle (Relaton.spec.md §2.4).
+ * A significant date in the item's lifecycle (README.spec.md §2.4).
  *
  * Mirrors Relaton's `<date type="…"><on>…</on></date>` (point) or
  * `<date type="…"><from>…</from><to>…</to></date>` (range). Dates are ISO 8601
@@ -204,7 +204,7 @@ export interface BibDate {
 }
 
 /**
- * A stage or substage value (Relaton.spec.md §2.5).
+ * A stage or substage value (README.spec.md §2.5).
  *
  * Mirrors Relaton's `<stage>` / `<substage>` element which carries a value
  * plus optional `abbreviation` attribute and `<name>` child.
@@ -219,7 +219,7 @@ export interface Stage {
 }
 
 /**
- * Publication / preparation status (Relaton.spec.md §2.5).
+ * Publication / preparation status (README.spec.md §2.5).
  *
  * Mirrors Relaton's `<status><stage/><substage/><iteration/></status>`. The
  * stage/substage values are SDO-specific codes (e.g. ISO uses `"60"` / `"00"`
@@ -235,7 +235,7 @@ export interface DocStatus {
 }
 
 /**
- * Copyright information (Relaton.spec.md §2.6).
+ * Copyright information (README.spec.md §2.6).
  *
  * Mirrors Relaton's `<copyright><from>…</from><to>…</to><owner>…</owner></copyright>`.
  * An item may have multiple copyright entries (different owners / years); each
@@ -251,7 +251,7 @@ export interface Copyright {
 }
 
 /**
- * A typed URI associated with a bibliographic item (Relaton.spec.md §2.7).
+ * A typed URI associated with a bibliographic item (README.spec.md §2.7).
  *
  * Mirrors Relaton's `<uri type="…">` element (the `bsource` / `TypedUri`
  * define in biblio.rng). The `type` attribute is open-ended but commonly uses
@@ -268,7 +268,7 @@ export interface Uri {
 }
 
 /**
- * A classification entry (Relaton.spec.md §2.8).
+ * A classification entry (README.spec.md §2.8).
  *
  * Mirrors Relaton's `<classification type="…">value</classification>`.
  */
@@ -280,7 +280,7 @@ export interface Classification {
 }
 
 /**
- * Validity period of a bibliographic item (Relaton.spec.md §2.8).
+ * Validity period of a bibliographic item (README.spec.md §2.8).
  *
  * Mirrors Relaton's `<validity>` element.
  */
@@ -298,7 +298,7 @@ export interface Validity {
 // ---------------------------------------------------------------------------
 
 /**
- * A bibliographic description of a document (Relaton.spec.md §2).
+ * A bibliographic description of a document (README.spec.md §2).
  *
  * Used for:
  * - **Document metadata** — the `bibdata` node's `item` attr (exactly one per
@@ -311,7 +311,7 @@ export interface Validity {
  * This is a deliberate subset of the full Relaton `BibliographicItem`. All
  * array fields default to empty arrays in the helpers; `null` marks "not set".
  *
- * @see docs/Relaton.spec.md §2
+ * @see docs/README.spec.md §2
  */
 export interface BibliographicItem {
   /** Bibliographic type (ISO 690 / BibTeX superset), e.g. `"standard"`, `"article"`. */
@@ -359,7 +359,7 @@ export interface BibliographicItem {
  * Seeds a single empty main title and a single empty primary docid, per
  * Relaton's `<oneOrMore>` cardinality for both `<title>` and `<docidentifier>`.
  *
- * @see docs/Relaton.spec.md §2.7
+ * @see docs/README.spec.md §2.7
  */
 export function emptyBibliographicItem(): BibliographicItem {
   return {
