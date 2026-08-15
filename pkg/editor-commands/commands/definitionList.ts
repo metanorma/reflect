@@ -16,6 +16,8 @@ import { TextSelection } from 'prosemirror-state';
 import type { EditorState, Transaction } from 'prosemirror-state';
 import type { Node, Schema, ResolvedPos } from 'prosemirror-model';
 
+import { canReplaceCurrentBlockWith } from '../util.js';
+
 
 // ---------------------------------------------------------------------------
 // Pure state-reading predicates (shared by buttons and keymap)
@@ -34,14 +36,16 @@ export function inDefinitionList(state: EditorState): boolean {
 }
 
 /**
- * True when the selection's parent accepts `block` content and `dl` is legal at
- * the cursor (definition-lists.md §4.1 enabled detection).
+ * Whether the cursor's textblock can be **replaced** by a `dl` in its parent
+ * (definition-lists.md §4.1 enabled detection). Replacement-shaped to mirror
+ * `insertDefinitionList`, which `replaceRangeWith`s over the textblock's
+ * extent. Excludes `section_title` — a heading is not body content, so the
+ * Def list button stays disabled while editing one.
  */
 export function canInsertBlock(state: EditorState): boolean {
-  const { $from } = state.selection;
   const dlType = state.schema.nodes['dl'];
   if (dlType === undefined) return false;
-  return $from.parent.contentMatchAt($from.index()).matchType(dlType) !== null;
+  return canReplaceCurrentBlockWith(state, dlType);
 }
 
 /**

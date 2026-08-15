@@ -15,7 +15,7 @@
  * `toBeHidden()` — not `toHaveCount(0)`.
  */
 import { expect, test } from '@playwright/test';
-import { getDoc, openEditor, toolbarButton, typeInEditor, clickEditor } from './helpers.js';
+import { getDoc, openEditor, toolbarButton, typeInEditor, clickEditor, clickBodyParagraph } from './helpers.js';
 
 test.describe('popovers', () => {
 
@@ -25,7 +25,9 @@ test.describe('popovers', () => {
   test.describe('TableSizePicker', () => {
     test('grid hover updates the readout; clicking a cell inserts a table', async ({ page }) => {
       await openEditor(page);
-      await typeInEditor(page, 'before ');
+      // Caret in the body paragraph (Table is disabled in a heading).
+      await clickBodyParagraph(page);
+      await page.keyboard.type('before ');
 
       // Open the picker.
       await toolbarButton(page, 'Table').click();
@@ -91,7 +93,9 @@ test.describe('popovers', () => {
   test.describe('ImageInsertDialog', () => {
     test('URL + alt text flow inserts a figure with an image', async ({ page }) => {
       await openEditor(page);
-      await typeInEditor(page, 'intro ');
+      // Caret in the body paragraph (Image is disabled in a heading).
+      await clickBodyParagraph(page);
+      await page.keyboard.type('intro ');
 
       // Open the dialog.
       await toolbarButton(page, 'Image').click();

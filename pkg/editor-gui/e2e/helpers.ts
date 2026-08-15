@@ -38,6 +38,41 @@ export async function clickEditor(page: Page): Promise<void> {
   await p.click({ force: true });
 }
 
+/**
+ * Place the caret in the body PARAGRAPH (not the `section_title` heading).
+ *
+ * The default document's clause is `section_title + paragraph`; the plain
+ * {@link clickEditor} click can resolve into the heading, where
+ * block-insertion buttons (Def list, Table, Image, …) are disabled by design —
+ * a heading is not body content.
+ *
+ * Self-verifying: types a probe character, asks the app whether the caret's
+ * parent textblock is a paragraph (via the e2e hook's DOM state), removes the
+ * probe, and retries the click if it landed in the heading.
+ */
+export async function clickBodyParagraph(page: Page): Promise<void> {
+  const pm = editor(page);
+  await pm.focus();
+  const p = page.locator('.appwrapper .mn-prosemirror .ProseMirror p').first();
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const box = await p.boundingBox();
+    if (box === null) throw new Error('clickBodyParagraph: no paragraph found');
+    await page.mouse.click(box.x + Math.min(10, box.width / 2), box.y + box.height / 2);
+    // Probe: type, check the caret's textblock DOM parent, undo.
+    await page.keyboard.type('x');
+    const inParagraph = await page.evaluate(() => {
+      const sel = document.getSelection();
+      const node = sel?.focusNode;
+      const el = node instanceof Element ? node : node?.parentElement;
+      return el?.closest('p') !== null && el?.closest('.mn-section-title') === null;
+    });
+    await page.keyboard.press('Backspace');
+    if (inParagraph) return;
+  }
+  throw new Error('clickBodyParagraph: caret would not land in the body paragraph');
+}
+
 /** The toolbar container (`role="toolbar"`). */
 export function toolbar(page: Page): Locator {
   return page.getByRole('toolbar');

@@ -6,7 +6,14 @@
  * DOM — this is where the `window.__mnGetDoc` test hook earns its keep.
  */
 import { expect, test } from '@playwright/test';
-import { clickEditor, getDoc, openEditor, toolbarButton, typeInEditor } from './helpers.js';
+import {
+  clickBodyParagraph,
+  clickEditor,
+  getDoc,
+  openEditor,
+  toolbarButton,
+  typeInEditor,
+} from './helpers.js';
 
 test.describe('keyboard', () => {
 
@@ -55,17 +62,53 @@ test.describe('keyboard', () => {
   });
 
   test('Backspace refuses inside a definition list (preserves (dt dd)+)', async ({ page }) => {
-    // NOTE: The `Def list` toolbar button is currently always disabled inside
-    // a paragraph because `canInsertBlock` checks contentMatchAt against the
-    // paragraph (inline-only) rather than the clause parent. This is a real
-    // enabled-state bug in pkg/editor-commands/commands/definitionList.ts
-    // (canInsertBlock). Until it is fixed, we cannot e2e-test the Backspace-
-    // in-dl refusal rule through the UI. The rule itself is covered by the
-    // headless command tests (EditorCommands.spec.md §4.10 BD1).
-    // When canInsertBlock is fixed, replace this skip with the real UI flow:
-    //   insert dl → type term → Enter → type desc → Home → Backspace → assert
-    //   dl/dt/dd structure unchanged.
-    test.skip(true, 'canInsertBlock bug: Def list button always disabled in a paragraph');
+    await openEditor(page);
+    // Ensure the caret is in the body paragraph (not the section_title
+    // heading, where Def list is disabled by design).
+    await clickBodyParagraph(page);
+
+    // Insert a dl via the Def list button (replaces the current paragraph;
+    // text promotion requires a selection, so the caret-only case yields an
+    // empty term — type the term directly into the dt afterwards).
+    await toolbarButton(page, 'Def list').click();
+
+    let docStr = JSON.stringify(await getDoc(page));
+    expect(docStr).toContain('"dl"');
+    expect(docStr).toContain('"dt"');
+    expect(docStr).toContain('"dd"');
+    // The cursor is in the dt — type the term there.
+    await page.keyboard.type('term text');
+    docStr = JSON.stringify(await getDoc(page));
+    expect(docStr).toContain('term text');
+
+    // Enter from the dt commits the term and moves into the dd's paragraph.
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('description');
+    docStr = JSON.stringify(await getDoc(page));
+    expect(docStr).toContain('description');
+
+    // Backspace at the start of the dd's first block: the BD1 refusal rule —
+    // the dl/dt/dd structure is preserved (no structural unwind mid-list).
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Backspace');
+
+    const after = JSON.stringify(await getDoc(page));
+    expect(after).toContain('"dl"');
+    expect(after).toContain('"dt"');
+    expect(after).toContain('"dd"');
+    expect(after).toContain('term text');
+  });
+
+  test('Def list button is disabled while the cursor is in a section heading', async ({ page }) => {
+    await openEditor(page);
+    await typeInEditor(page, 'body text');
+
+    // Move into the section_title (ArrowUp from the first body paragraph).
+    await page.keyboard.press('ArrowUp');
+
+    // The Def list button must be disabled in a heading — a heading is not
+    // body content and must not be replaceable by a dl.
+    await expect(toolbarButton(page, 'Def list')).toBeDisabled();
   });
 
   test('Shift-Enter inserts a soft_break inside a paragraph', async ({ page }) => {

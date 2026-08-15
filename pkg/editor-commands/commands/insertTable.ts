@@ -16,7 +16,7 @@ import { TextSelection } from 'prosemirror-state';
 import type { EditorState, Transaction } from 'prosemirror-state';
 import type { Node, Schema } from 'prosemirror-model';
 
-import { generateId } from '../util.js';
+import { generateId, canInsertBlockAdjacent } from '../util.js';
 
 
 /** Maximum grid-picker dimensions (tables.md §5.1 — 10 × 10). */
@@ -30,8 +30,9 @@ const clamp = (n: number, lo: number, hi: number): number =>
  * True when a table may be inserted at the current selection (tables.md §7.2).
  *
  * Refuses to nest tables (bails if any ancestor is a `table_cell` or `table`),
- * requires the parent to accept `block` content (so the `table` node has a
- * valid slot), and rejects multi-block range selections.
+ * requires a slot for the table immediately after the cursor's textblock in
+ * its block parent, and rejects multi-block range selections. The cursor's
+ * textblock must be body content — not a `section_title` heading.
  */
 export function canInsertTable(state: EditorState): boolean {
   const { $from } = state.selection;
@@ -48,24 +49,12 @@ export function canInsertTable(state: EditorState): boolean {
     }
   }
 
-  // 2. The immediate parent must accept the table node (block group check).
+  // 2. A slot for the table must exist immediately after the cursor's
+  // textblock, in the textblock's own parent (insertion-shaped; excludes
+  // section_title via the shared body-block context).
   const table = schema.nodes['table'];
   if (table === undefined) return false;
-  if ($from.parent.type.contentMatch.matchType(table) === null) {
-    // The parent may itself be a block container (sections, table_cell, …)
-    // whose contentMatch at the cursor index admits a table. Check the
-    // ancestor chain for any node that can receive a table child.
-    let ok = false;
-    for (let d = $from.depth; d >= 0; d--) {
-      const ancestor = $from.node(d);
-      const index = $from.indexAfter(d);
-      if (ancestor.canReplaceWith(index, index, table)) {
-        ok = true;
-        break;
-      }
-    }
-    if (!ok) return false;
-  }
+  if (!canInsertBlockAdjacent(state, table)) return false;
 
   // 3. A range selection spanning multiple block siblings is not supported in
   // v1.

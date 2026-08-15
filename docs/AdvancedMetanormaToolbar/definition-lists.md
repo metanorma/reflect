@@ -151,25 +151,28 @@ lookup under `noUncheckedIndexedAccess`. The hand-rolled loop above is shown
 for clarity; production code should use the shared helpers.
 
 **Enabled detection.** `dl` is in the `block` group, so it is legal wherever
-a block is accepted — top-level sections, clauses, table cells, list items,
-`dd` (nested), etc. The button is enabled when the parent's content
-expression includes the `block` group. ProseMirror exposes this via
-`selection.$from.parent.contentMatchAt(parent.childCount).matchType(...)`; a
-practical check is:
+a block is accepted — clauses, table cells, list items, `dd` (nested), etc.
+`insertDefinitionList` **replaces** the cursor's textblock with the new `dl`,
+so the legality question is replacement-shaped and asked of the **block
+parent** (the node holding the textblock), not of the textblock itself:
 
 ```typescript
 function canInsertBlock(state: EditorState): boolean {
-  const { $from } = state.selection;
-  // dl is a block node; legal iff parent accepts a block at the cursor
-  return $from.parent.contentMatchAt($from.index()).matchType(
-    state.schema.nodes.dl,
-  ) !== null;
+  // walk to the block parent; exclude section_title (a heading is not
+  // body content); replacement-shaped to mirror replaceRangeWith
+  return canReplaceCurrentBlockWith(state, state.schema.nodes.dl);
 }
 ```
 
+`canReplaceCurrentBlockWith` (internal to `@metanorma/editor-commands`,
+`util.ts`) resolves the cursor's body-block context and asks
+`parent.canReplaceWith(index, index + 1, dl)`.
+
 Inside atom/inline-only nodes (`formula`, `image`,
-`sourcecode`, `floating_title`, a `dt`) the parent does not accept `block`, so the check
-correctly returns `false`.
+`sourcecode`, `floating_title`, a `dt`) the block parent does not accept a
+`dl` replacement, so the check correctly returns `false`. A `section_title`
+heading also returns `false` — the shared body-block context excludes it, so
+the heading can never be replaced by a `dl`.
 
 **Note on nesting:** `dd` has content `block+`, so a `dl` is legal *inside*
 a `dd` (nested definition lists). `dt` has content `inline*`, so a `dl` is

@@ -17,7 +17,7 @@ import type { EditorState, Transaction } from 'prosemirror-state';
 
 import { assertValidImageAttrs } from '@metanorma/prosemirror-schema';
 
-import { generateId } from '../util.js';
+import { generateId, canInsertBlockAdjacent } from '../util.js';
 
 
 /**
@@ -33,9 +33,10 @@ export interface InsertImageAttrs {
  * Validate that a figure may be inserted at the current selection
  * (images-figures.md §6.3, §8.2).
  *
- * Because `figure` is a `block`, validity depends on an ancestor that holds
- * blocks, not on `$from.parent` (which is usually a paragraph). Walks up the
- * resolution and asks each ancestor whether the figure can occupy a child slot.
+ * Because `figure` is a `block`, validity depends on the parent that holds
+ * blocks, not on `$from.parent` (which is usually a paragraph). Asks whether
+ * a figure can occupy the slot immediately after the cursor's textblock. The
+ * textblock must be body content — not a `section_title` heading.
  */
 export function canInsertFigure(state: EditorState): boolean {
   const figureType = state.schema.nodes['figure'];
@@ -43,12 +44,7 @@ export function canInsertFigure(state: EditorState): boolean {
   const { $from, $to } = state.selection;
   // v1: cursor / single-block only.
   if (!$from.sameParent($to)) return false;
-  for (let d = $from.depth; d >= 0; d--) {
-    const ancestor = $from.node(d);
-    const index = $from.indexAfter(d);
-    if (ancestor.canReplaceWith(index, index, figureType)) return true;
-  }
-  return false;
+  return canInsertBlockAdjacent(state, figureType);
 }
 
 /**
