@@ -136,4 +136,57 @@ test.describe('keyboard', () => {
     expect(docStr).toContain('"strong"');
     expect(docStr).toContain('bold this');
   });
+
+  test('Enter inside a floating title exits to a new clause (last child)', async ({ page }) => {
+    await openEditor(page);
+    await clickBodyParagraph(page);
+    // Blocks-only clause → FT inserts at sections level (after the clause).
+    await toolbarButton(page, 'Floating title').click();
+    // Cursor is in the FT; Enter should exit, creating the clause it titles.
+    await page.keyboard.press('Enter');
+
+    const doc = await getDoc(page) as { content: Array<{ type: string; content?: unknown[] }> };
+    const sections = doc.content.find((c) => c.type === 'sections') as
+      { content: Array<{ type: string; content: unknown[] }> } | undefined;
+    const kids = (sections?.content ?? []).map((c) => c.type);
+    // [clause(original), floating_title, clause(new)]
+    expect(kids[kids.length - 1]).toBe('clause');
+    expect(kids.filter((t) => t === 'clause').length).toBe(2);
+    expect(kids[kids.length - 2]).toBe('floating_title');
+    // The new clause has a section_title + paragraph; the cursor is in it.
+    const newClause = sections?.content[kids.length - 1] as
+      { content: Array<{ type: string }> } | undefined;
+    const newKids = (newClause?.content ?? []).map((c) => c.type);
+    expect(newKids).toContain('section_title');
+    expect(newKids).toContain('paragraph');
+    // Typing after Enter lands in the new clause's heading.
+    await page.keyboard.type('New section');
+    const after = JSON.stringify(await getDoc(page));
+    expect(after).toContain('New section');
+  });
+
+  test('Enter inside a floating title jumps to the next sibling when one exists', async ({ page }) => {
+    await openEditor(page);
+    await clickBodyParagraph(page);
+    await toolbarButton(page, 'Floating title').click();
+    // First FT is last child; Enter creates a clause (cursor in its heading).
+    await page.keyboard.press('Enter');
+    // Go back up into the FT (ArrowUp from the new clause's section_title).
+    await page.keyboard.press('ArrowUp');
+    // Type proves the caret is in the FT.
+    await page.keyboard.type('1');
+    // Enter again — now the FT HAS a following sibling (the clause) → jump.
+    await page.keyboard.press('Enter');
+
+    const before = JSON.stringify(await getDoc(page));
+    // No new clause was created (still exactly 2).
+    const clauseCount = (before.match(/"type":"clause"/g) ?? []).length;
+    expect(clauseCount).toBe(2);
+    // The caret moved into the following clause's heading — typing goes there.
+    await page.keyboard.type('Landed');
+    const after = JSON.stringify(await getDoc(page));
+    expect(after).toContain('Landed');
+    // And the FT text is unchanged apart from the '1' typed into it.
+    expect(after).toContain('"floating_title"');
+  });
 });

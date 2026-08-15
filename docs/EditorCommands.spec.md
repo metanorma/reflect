@@ -177,7 +177,7 @@ account for them:
 | `sourcecode` has `code: true` | Code-newline behaviour applies inside `sourcecode`; stock code-newline detection works because `code: true` is honoured by `EditorState`. |
 | A defined set of **atom** nodes (`image`, `formula`, `footnote_marker`, `soft_break`, `stem`) has `content: ""` | The cursor can never be *inside* these; commands must handle node-selections on and adjacency to atoms via `createParagraphNear`-style logic rather than attempting to split them. |
 | `section_title` is a textblock (`content: "inline*"`) that appears only as the optional leading child of a section node | Enter inside a `section_title` does not split it into two section_titles (that would produce two headings for one section); instead the `exitSectionTitle` command (§2.7) moves the cursor to the section's first body block or inserts one. Backspace on an empty `section_title` deletes the title but preserves the section (§4.4.9). |
-| `floating_title` is a **groupless textblock** (`content: "inline*"`, no PM group membership) | It splits like a `paragraph` under Enter (the default `splitBlockKeepMarks` branch); it is a textblock, not an atom, so `createParagraphNear` does not fire for it. Its grouplessness means `findWrapping` rejects list wrapping with no special case (a list cannot wrap a groupless node). |
+| `floating_title` is a **groupless textblock** (`content: "inline*"`, no PM group membership) | Enter inside a `floating_title` does not split it into two headings — in every context that admits a `floating_title` (`sections`, a clause/annex subclause run) the only legal followers are other subclause-run members, never a bare paragraph. Instead the `exitFloatingTitle` command (§2.4.8, §2.7) moves the cursor to the next sibling or inserts the clause the title names. Its grouplessness means `findWrapping` rejects list wrapping with no special case (a list cannot wrap a groupless node). |
 | Optional attrs default to `null`; the catch-all `data` attr exists on every node/mark | Commands that create nodes should rely on schema defaults (omit unset attrs) rather than constructing explicit `null`/`{}` attr maps, so `data` and defaults are preserved consistently. |
 
 Individual commands' detailed behaviour with respect to these facts is specified
@@ -430,9 +430,10 @@ chainCommands(
   enterDefinitionList,    // 2. inside dl / dt / dd
   splitListItem,          // 3. inside a list_item
   exitSectionTitle,       // 4. inside a section_title (move to body / insert body)
-  exitContainerBlock,     // 5. empty para at the end of a container block
-  createParagraphNear,    // 6. node-selection on / gap-cursor beside an atom
-  splitBlockKeepMarks,    // 7. default: split the innermost textblock
+  exitFloatingTitle,      // 5. inside a floating_title (move to next sibling / insert clause)
+  exitContainerBlock,     // 6. empty para at the end of a container block
+  createParagraphNear,    // 7. node-selection on / gap-cursor beside an atom
+  splitBlockKeepMarks,    // 8. default: split the innermost textblock
 )
 ```
 
@@ -612,6 +613,17 @@ The cursor is always inside some textblock; it is never "inside" a `clause`,
   cursor to the section's first body block, or inserts an empty paragraph as
   the body if none exists. Enter never splits a `section_title` into two (a
   section has at most one heading).
+- **`floating_title`** (the unnumbered free-standing heading textblock) is
+  handled by the dedicated `exitFloatingTitle` command (§2.7, chain position
+  5). A `floating_title` may appear only in `sections` or a clause/annex
+  subclause run, where the only legal followers are other subclause-run
+  members — a bare paragraph can never follow it. Enter inside a
+  `floating_title` therefore does not split it (a second heading is not what
+  Enter means there); the command moves the cursor to the start of the next
+  sibling (whatever it is), or — when the title is its parent's last child —
+  inserts the clause the title names (empty `section_title` + `paragraph`,
+  cursor in the heading). Consecutive titles remain reachable via the
+  dedicated floating-title insertion command, same as `section_title`.
 - For front-matter sections (`abstract`, `foreword`, `introduction`,
   `acknowledgements`, `content_section`), whose content is
   `section_title? block* content_section*`, Enter on the last empty paragraph
@@ -637,8 +649,8 @@ behaviour:
 3. **Atoms are never split or entered.** `image`, `formula`,
    `footnote_marker`, `soft_break`, `stem` are never given content; Enter beside one
    creates an adjacent paragraph instead. (`floating_title` and `section_title`
-   are textblocks, not atoms — Enter splits `floating_title` normally and exits
-   `section_title` to the body via `exitSectionTitle`.)
+   are textblocks, not atoms — Enter exits `section_title` to the body via
+   `exitSectionTitle`, and exits `floating_title` via `exitFloatingTitle`.)
 4. **No transaction leaves the selection on a forbidden position.** After any
    structural step the selection resolves to a valid cursor (typically via
    `TextSelection.near`), never inside an atom or between two structural nodes
@@ -683,6 +695,7 @@ The Enter feature introduces the following commands in
 | `enterDefinitionList` | `Command` | custom | Manage the `(dt dd)+` flow: commit a term to its `dd`, start a new `(dt dd)` entry, or exit the `dl`. Preempts the generic split. |
 | `splitListItem` | `(schema) => Command` | adapted from `prosemirror-schema-list` | Continue a `bullet_list`/`ordered_list` by splitting the item's inner block into a new item, or exit the list (one level) on an empty trailing item. Generalised for `list_item` content `block+`. |
 | `exitSectionTitle` | `Command` | custom | When the cursor is inside a `section_title` textblock (the heading of a section node), move the cursor to the section's first body block, or insert an empty `paragraph` as the first body block if none exists. Preempts the generic split so Enter inside a heading does not produce a second heading textblock. |
+| `exitFloatingTitle` | `Command` | custom | When the cursor is inside a `floating_title` textblock (an unnumbered free-standing heading), move the cursor to the start of the next sibling, or — when the title is its parent's last child — insert a new `clause` (empty `section_title` + `paragraph`, cursor in the heading) after it. Preempts the generic split so Enter inside a floating title starts the titled section rather than producing a second heading. |
 | `exitContainerBlock` | `Command` | custom | Lift an empty trailing paragraph out of a `block+` container (`note`, `example`, `quote`, `review`, `admonition`, `figure`), removing the container if it would become empty. |
 | `createParagraphNear` | `Command` | re-exported from `prosemirror-commands` | Create an empty paragraph adjacent to a node-selected atom or at a gap cursor beside one. |
 | `splitBlockKeepMarks` | `Command` | adapted from `prosemirror-commands` | Default fallback: split the innermost textblock (typically a `paragraph`) carrying active marks, after deleting any ranged selection. |
@@ -726,6 +739,7 @@ import {
   enterDefinitionList,
   splitListItem,
   exitSectionTitle,
+  exitFloatingTitle,
   exitContainerBlock,
   createParagraphNear,
   splitBlockKeepMarks,
@@ -739,6 +753,7 @@ const enterBinding = chainCommands(
   enterDefinitionList,
   splitListItem(metanormaSchema),
   exitSectionTitle,
+  exitFloatingTitle,
   exitContainerBlock,
   createParagraphNear,
   splitBlockKeepMarks,
