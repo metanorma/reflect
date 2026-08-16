@@ -7,6 +7,42 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-08-15 — Empty-section-placeholder fixes: sibling inserts, atomic wraps, caret placement
+
+Three fixes from the same session of placeholder-related section bugs
+(`pkg/editor-commands/commands/sections.ts`,
+`pkg/prosemirror-editor/plugins/placeholderClick.ts`):
+
+1. **Section-menu inserts are siblings.** `insertSection`'s body cohort no
+   longer calls `ensureSubclauseCapacity` — a sibling never modifies the
+   enclosing clause's body, so the strict clause XOR is not engaged. (User
+   decision: Section-menu choices create sibling sections.)
+2. **Strict-XOR wraps are atomic, and all-empty runs are replaced.**
+   `ensureSubclauseCapacity` swaps the block run via a single
+   `tr.replaceWith` (the old `delete`+`insert` passed through a
+   schema-invalid title-only intermediate, which the fitter "repaired" by
+   splitting the clause — a phantom duplicate-id sibling). A run that is
+   entirely empty placeholders is not wrapped at all: `demoteClause` /
+   `wrapInClause` swap it for the incoming clause instead (no phantom
+   headingless sub-clause). Content-bearing runs wrap as before.
+3. **`placeholderClickPlugin`** (new base plugin in
+   `@metanorma/prosemirror-editor`): Firefox 153 left the caret unmoved when
+   clicking the `::before` placeholder of an empty textblock (pseudo-element
+   region — no text node to hit-test; Chromium had narrower dead zones). On a
+   plain left-click into an empty textblock the plugin maps the position via
+   `view.posAtDOM` and, at mouseup, places a collapsed `TextSelection` there,
+   carrying `storedMarks` over. Native double-click/shift/drag untouched.
+
+**Affected specs:** docs/EditorCommands.spec.md (§5.2, §5.3, §5.5, §5.7),
+docs/AdvancedMetanormaToolbar/sections.md (§5.2, §5.3, §5.4),
+docs/MetanormaProseMirror.spec.md (§6.2). Firefox project added to
+playwright.config.ts.
+
+**Commits:** `dce2260`, `98cf1c6`, `920fc55`.
+
+---
+
+
 ## 2026-08-14 — Colocated-spec policy; Relaton spec moved into pkg/relaton
 
 Adopted a two-tier spec placement policy (CONVENTIONS.md §1.1): corpus specs
