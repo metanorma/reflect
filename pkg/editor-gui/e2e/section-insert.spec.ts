@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, typeInEditor, getDoc, clickEditor } from './helpers.js';
+import { openEditor, toolbarButton, typeInEditor, getDoc, clickEditor, clickBodyParagraph } from './helpers.js';
 
 test.describe('section-insert', () => {
   test('Section button opens popover; menu shows all section types in four groups', async ({ page }) => {
@@ -143,6 +143,41 @@ test.describe('section-insert', () => {
     expect(childTypes).toContain('clause');
     expect(childTypes).not.toContain('paragraph');
     expect(childTypes).not.toContain('table');
+  });
+
+  test('The auto-wrapped subclause gets a section_title (no headingless wrap)', async ({ page }) => {
+    await openEditor(page);
+    // Caret in the body paragraph (Section-insert buttons are disabled in a
+    // heading, and the caret must be in body text to trigger the wrap).
+    await clickBodyParagraph(page);
+    await page.keyboard.type('place cursor here');
+
+    // Insert Terms inside the text-bearing clause — the strict-XOR
+    // accommodation auto-wraps the blocks into a subclause.
+    await toolbarButton(page, 'Section').click();
+    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Terms', exact: true }).click();
+
+    const doc = await getDoc(page) as {
+      content: Array<{ type: string; content?: unknown[] }>;
+    };
+    const sections = doc.content.find((c) => c.type === 'sections') as
+      { content: Array<{ type: string; content: Array<{ type: string; content?: unknown[] }> }> } | undefined;
+    const outer = (sections?.content ?? []).find((c) => c.type === 'clause');
+
+    // The auto-wrap clause is the one containing the original text.
+    const wrapClause = (outer?.content ?? []).find(
+      (c) => c.type === 'clause'
+        && JSON.stringify(c).includes('place cursor here'),
+    ) as { content: Array<{ type: string }> } | undefined;
+
+    expect(wrapClause).toBeDefined();
+    // The wrap clause must lead with a section_title — without it the wrapped
+    // text sits in a headingless clause, and `section_title?` being a leading
+    // child means no command can add one afterwards.
+    const wrapKids = (wrapClause?.content ?? []).map((c) => c.type);
+    expect(wrapKids[0]).toBe('section_title');
+    // ...and the original text is preserved after the title.
+    expect(wrapKids).toContain('paragraph');
   });
 
   test('Floating title button is enabled in a blocks-only clause (inserts at sections level)', async ({ page }) => {

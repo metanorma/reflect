@@ -367,11 +367,21 @@ function ensureSubclauseCapacity(
   }
 
   // Cut the block run and re-insert it inside a fresh clause at the same
-  // position (a wrap: delete then insert the wrapped node).
+  // position (a wrap: delete then insert the wrapped node). The wrap clause
+  // gets an empty section_title like every other created clause — without it
+  // the wrapped content lands in a headingless clause, and because
+  // `section_title?` is a leading child there is no later way to add one.
   const blocksSlice = tr.doc.slice(blockRunStart, blockRunStart + blockRunSize);
+  const sectionTitleType = tr.doc.type.schema.nodes['section_title'];
+  const titleNode = sectionTitleType !== undefined
+    ? sectionTitleType.create()
+    : null;
+  const wrapContent = titleNode !== null
+    ? Fragment.from(titleNode).append(blocksSlice.content)
+    : blocksSlice.content;
   const wrapClause = clauseType.create(
     { id: generateId() },
-    blocksSlice.content,
+    wrapContent,
   );
   tr.delete(blockRunStart, blockRunStart + blockRunSize);
   tr.insert(blockRunStart, wrapClause);
