@@ -35,7 +35,7 @@ recipes, §7 multi-root tooling), docs/README.md (corpus index + Relaton
 consumer table), docs/schema.spec.md (2 inbound links), and
 pkg/relaton/README.spec.md (formerly docs/Relaton.spec.md).
 
-**Commits:** *(pending)*
+**Commits:** `751874e`.
 
 ---
 
