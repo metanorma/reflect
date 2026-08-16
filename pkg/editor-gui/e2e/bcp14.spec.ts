@@ -28,13 +28,11 @@ test.describe('bcp14', () => {
   test('non-empty selection: dialog wraps the selection with the mark', async ({ page }) => {
     await openEditor(page);
     await typeInEditor(page, 'this MUST be done');
-    // Select "MUST"
-    await page.keyboard.press('Home');
-    for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
-    await page.keyboard.press('Shift+ArrowRight');
-    await page.keyboard.press('Shift+ArrowRight');
-    await page.keyboard.press('Shift+ArrowRight');
-    await page.keyboard.press('Shift+ArrowRight');
+    // Select "MUST" by double-clicking the word (real user behaviour, and
+    // deterministic: a keyboard Home/ArrowRight dance races ProseMirror's
+    // async selectionchange observation under synthetic input).
+    await page.locator('.ProseMirror p', { hasText: 'MUST' }).first()
+      .dblclick({ position: { x: 60, y: 10 } });
 
     await toolbarButton(page, 'Bcp14').click();
     const dialog = promptPopover(page);

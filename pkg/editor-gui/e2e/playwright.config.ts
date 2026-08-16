@@ -39,5 +39,13 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // Firefox is the second engine for cross-browser regressions. Skippable
+    // in environments without the browser installed (`playwright install
+    // firefox`); the placeholder-click suite relies on it (a Firefox-only
+    // native-caret gap motivated the placeholderClickPlugin).
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
   ],
 });

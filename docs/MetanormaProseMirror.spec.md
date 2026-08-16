@@ -285,6 +285,29 @@ Requirements:
    criterion §14.5 guarantees `nodeFromJSON` accepts that shape.
 3. `opts.plugins` are appended **after** `reactKeys()` so consumer plugins cannot
    accidentally displace it.
+4. **Base plugins.** `createInitialEditorState` installs, in order:
+   `reactKeys()`, `gapCursor()` (prosemirror-gapcursor), and
+   `placeholderClickPlugin()` (below). Consumer plugins come after all three.
+5. **Gap-cursor text guard.** While the selection is a `GapCursor`, block text
+   input and keypress (`handleTextInput` / `handleKeyPress` returning `true`) —
+   gap positions have no textblock context, and the default `findWrapping`
+   behaviour would insert an unwanted `section > paragraph`. Users create
+   content at a gap via a command (e.g. the Section popover).
+
+**`placeholderClickPlugin`** (`plugins/placeholderClick.ts`) normalizes caret
+placement for clicks on the styled placeholder of an empty textblock (§9.4).
+Empty textblocks render only a trailing `<br>` plus the CSS `::before`
+placeholder, so clicks on the placeholder glyphs hit a pseudo-element region
+with no text node to hit-test: Firefox (153) produces no caret position for
+such clicks when focus was elsewhere, leaving the caret in the previous block
+(and typing goes to the wrong place); Chromium has narrow edge dead zones. On
+a plain left-click whose target resolves to an empty textblock, the plugin
+maps the position through `view.posAtDOM` (never hit-test coordinates) and,
+at mouseup — after ProseMirror's own mouse pipeline has settled — dispatches a
+collapsed `TextSelection` inside that block when the selection is not already
+there, carrying `storedMarks` over (`setSelection` nulls them). The handler
+returns `false`: double-click word selection, shift-extend, and drag remain
+fully intact. Exported for reuse and testing.
 
 ---
 

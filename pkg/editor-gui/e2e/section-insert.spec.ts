@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, typeInEditor, getDoc, clickEditor, clickBodyParagraph } from './helpers.js';
+import { openEditor, toolbarButton, typeInEditor, getDoc, clickEditor } from './helpers.js';
 
 test.describe('section-insert', () => {
   test('Section button opens popover; menu shows all section types in four groups', async ({ page }) => {
@@ -30,23 +30,27 @@ test.describe('section-insert', () => {
     }
   });
 
-  test('Selecting "Clause" inserts a clause sibling after the current section', async ({ page }) => {
+  test('Selecting "Clause" inserts a sibling clause after the current section', async ({ page }) => {
     await openEditor(page);
     await typeInEditor(page, 'first clause');
 
-    // Insert a second clause via the Section popover.
+    // Insert a second clause via the Section popover — a SIBLING after the
+    // current one (Section-menu choices create sibling sections).
     await toolbarButton(page, 'Section').click();
     await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
 
     const doc = await getDoc(page) as { content: Array<{ type: string; content?: unknown[] }> };
 
-    // Under the strict clause model, inserting a clause into a text-bearing
-    // clause wraps the original blocks into a subclause first, so the top-level
-    // count is 2 clauses inside sections (the original + the new one).
+    // The original clause keeps its body; the new clause is a top-level
+    // sibling inside sections.
     const sections = doc.content.find((c) => c.type === 'sections');
     const sectionsChildren = (sections?.content ?? []) as Array<{ type: string }>;
     const topLevelClauses = sectionsChildren.filter((c) => c.type === 'clause');
     expect(topLevelClauses.length).toBe(2);
+    // ...and the ORIGINAL clause still holds its paragraph as a direct child
+    // (no auto-wrap into a subclause).
+    const first = topLevelClauses[0] as { content?: Array<{ type: string }> };
+    expect((first?.content ?? []).map((c) => c.type)).toContain('paragraph');
   });
 
   test('Selecting "Abstract" creates a preface container and inserts the abstract inside it', async ({ page }) => {
@@ -118,7 +122,7 @@ test.describe('section-insert', () => {
     expect(sectionsChildren).not.toContain('annex');
   });
 
-  test('Inserting a clause inside a text-bearing clause auto-wraps its blocks (strict model)', async ({ page }) => {
+  test('Inserting a clause inside a text-bearing clause creates a sibling (no auto-wrap)', async ({ page }) => {
     await openEditor(page);
     await typeInEditor(page, 'intro text');
 
@@ -130,32 +134,29 @@ test.describe('section-insert', () => {
       content: Array<{ type: string; content?: unknown[] }>;
     };
 
-    // Find the top-level clause inside sections.
+    // Sibling semantics: the original clause keeps [section_title, paragraph]
+    // as direct children; the new clause is a SIBLING after it.
     const sections = doc.content.find((c) => c.type === 'sections');
-    const outer = (sections?.content ?? []).find((c: { type: string }) => c.type === 'clause') as
-      { type: string; content: Array<{ type: string }> } | undefined;
-    expect(outer).toBeDefined();
-
-    const childTypes = (outer?.content ?? []).map((c) => c.type);
-    // Strict model: title + subclause(wrapped original blocks) + new clause.
-    // No hanging paragraph remains a direct child of the outer clause.
-    expect(childTypes[0]).toBe('section_title');
-    expect(childTypes).toContain('clause');
-    expect(childTypes).not.toContain('paragraph');
-    expect(childTypes).not.toContain('table');
+    const sectionsChildren = (sections?.content ?? []) as Array<{ type: string; content?: Array<{ type: string }> }>;
+    expect(sectionsChildren.map((c) => c.type)).toEqual(['clause', 'clause']);
+    const original = sectionsChildren[0];
+    const childTypes = (original?.content ?? []).map((c) => c.type);
+    expect(childTypes).toEqual(['section_title', 'paragraph']);
+    // The typed text survives in the original clause's body.
+    expect(JSON.stringify(original)).toContain('intro text');
   });
 
-  test('The auto-wrapped subclause gets a section_title (no headingless wrap)', async ({ page }) => {
+  test('The auto-wrapped subclause gets a section_title (no headingless wrap) — via Demote', async ({ page }) => {
     await openEditor(page);
-    // Caret in the body paragraph (Section-insert buttons are disabled in a
-    // heading, and the caret must be in body text to trigger the wrap).
-    await clickBodyParagraph(page);
-    await page.keyboard.type('place cursor here');
-
-    // Insert Terms inside the text-bearing clause — the strict-XOR
-    // accommodation auto-wraps the blocks into a subclause.
+    // Two sibling clauses; demoting the second into the first exercises the
+    // wrap path that still uses ensureSubclauseCapacity (the Demote command).
+    await typeInEditor(page, 'first body');
     await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Terms', exact: true }).click();
+    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
+    await page.keyboard.type('second heading');
+
+    // Demote the second clause into the first (cursor is in the second).
+    await toolbarButton(page, 'Demote').click();
 
     const doc = await getDoc(page) as {
       content: Array<{ type: string; content?: unknown[] }>;
@@ -164,20 +165,72 @@ test.describe('section-insert', () => {
       { content: Array<{ type: string; content: Array<{ type: string; content?: unknown[] }> }> } | undefined;
     const outer = (sections?.content ?? []).find((c) => c.type === 'clause');
 
-    // The auto-wrap clause is the one containing the original text.
-    const wrapClause = (outer?.content ?? []).find(
-      (c) => c.type === 'clause'
-        && JSON.stringify(c).includes('place cursor here'),
-    ) as { content: Array<{ type: string }> } | undefined;
-
-    expect(wrapClause).toBeDefined();
-    // The wrap clause must lead with a section_title — without it the wrapped
-    // text sits in a headingless clause, and `section_title?` being a leading
-    // child means no command can add one afterwards.
+    // The demoted structure: [title, wrapClause(original blocks), clause(moved)].
+    const kids = (outer?.content ?? []).map((c) => c.type);
+    expect(kids[0]).toBe('section_title');
+    expect(kids.filter((t) => t === 'clause').length).toBe(2);
+    // The wrap clause (the FIRST subclause) must LEAD with a section_title —
+    // without it the wrapped text sits in a headingless clause, and
+    // `section_title?` being a leading child means no command can add one
+    // afterwards.
+    const wrapClause = (outer?.content ?? []).find((c) => c.type === 'clause');
     const wrapKids = (wrapClause?.content ?? []).map((c) => c.type);
     expect(wrapKids[0]).toBe('section_title');
-    // ...and the original text is preserved after the title.
+    // ...and the wrapped body content is preserved after the title.
     expect(wrapKids).toContain('paragraph');
+  });
+
+  test('Demote into an empty-body sibling replaces the placeholder (no phantom clause)', async ({ page }) => {
+    await openEditor(page);
+    // The reported document shape, loaded verbatim via the test hook: first
+    // clause ("fff") has only its empty placeholder paragraph; "sadf" carries
+    // body text. Deterministic — no click choreography.
+    await page.evaluate(() => {
+      (window).__mnLoadDoc?.({
+        type: 'doc',
+        content: [
+          { type: 'bibdata', attrs: { item: null, data: {} } },
+          { type: 'sections', content: [
+            { type: 'clause', attrs: { id: '_document_container' }, content: [
+              { type: 'section_title', content: [{ type: 'text', text: 'fff' }] },
+              { type: 'paragraph' },
+            ] },
+            { type: 'clause', attrs: { id: 'sadf-clause' }, content: [
+              { type: 'section_title', content: [{ type: 'text', text: 'sadf' }] },
+              { type: 'paragraph', content: [{ type: 'text', text: 'testtestasdfsdfasdf' }] },
+            ] },
+          ] },
+        ],
+      });
+    });
+
+    // Caret into the sadf clause's body via keyboard: click the first <p>
+    // (lands in fff's empty paragraph after the placeholderClick fix), then
+    // ArrowDown into sadf's body.
+    const p = page.locator('.ProseMirror p').first();
+    await p.click({ force: true });
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+
+    await toolbarButton(page, 'Demote').click();
+
+    const doc = await getDoc(page) as {
+      content: Array<{ type: string; content?: unknown[] }>;
+    };
+    const sections = doc.content.find((c) => c.type === 'sections') as
+      { content: Array<{ type: string; content: Array<{ type: string; content?: unknown[] }> }> } | undefined;
+    const outer = (sections?.content ?? []).find((c) => c.type === 'clause');
+    const outerKids = (outer?.content ?? []).map((c) => c.type);
+
+    // The empty placeholder paragraph is REPLACED by the demoted clause —
+    // no phantom headingless subclause ahead of it.
+    expect(outerKids).toEqual(['section_title', 'clause']);
+    // ...and the demoted clause keeps its heading + body.
+    const moved = (outer?.content ?? []).find((c) => c.type === 'clause') as
+      { content?: Array<{ type: string; content?: unknown[] }> } | undefined;
+    const movedJSON = JSON.stringify(moved);
+    expect(movedJSON).toContain('sadf');
+    expect(movedJSON).toContain('testtestasdfsdfasdf');
   });
 
   test('Floating title button is enabled in a blocks-only clause (inserts at sections level)', async ({ page }) => {
@@ -212,30 +265,30 @@ test.describe('section-insert', () => {
     expect(docStr).toContain('"depth":1');
   });
 
-  test('Floating title lands in the subclause run after a clause insert', async ({ page }) => {
+  test('Floating title lands at sections top level after a sibling clause insert', async ({ page }) => {
     await openEditor(page);
     await typeInEditor(page, 'body text');
 
-    // Insert a Clause — the auto-wrap puts the original blocks into a
-    // subclause, so the outer clause is now in the subclause branch.
+    // Insert a Clause — a SIBLING after the current one (no auto-wrap: the
+    // original clause stays in the blocks branch).
     await toolbarButton(page, 'Section').click();
     await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
 
-    // Now insert a floating title — it goes inside the outer clause, after
-    // the new clause.
+    // Now insert a floating title. The cursor is in the new sibling clause
+    // (blocks-only), so the deepest admitting ancestor is `sections` itself.
     await toolbarButton(page, 'Floating title').click();
 
     const doc = await getDoc(page) as {
       content: Array<{ type: string; content?: unknown[] }>;
     };
     const sections = doc.content.find((c) => c.type === 'sections');
-    const outer = (sections?.content ?? []).find((c: { type: string }) => c.type === 'clause') as
-      { type: string; content: Array<{ type: string }> } | undefined;
-    const kids = (outer?.content ?? []).map((c) => c.type);
-    // [section_title, clause(wrapped blocks), clause(new), floating_title]
-    expect(kids[0]).toBe('section_title');
-    expect(kids.filter((t) => t === 'clause').length).toBe(2);
-    expect(kids[kids.length - 1]).toBe('floating_title');
+    const sectionsChildren = (sections?.content ?? []) as Array<{ type: string; content?: Array<{ type: string }> }>;
+    const types = sectionsChildren.map((c) => c.type);
+    // Two sibling clauses, then the FT at sections top level.
+    expect(types).toEqual(['clause', 'clause', 'floating_title']);
+    // Neither original clause got restructured.
+    const first = sectionsChildren[0];
+    expect((first?.content ?? []).map((c) => c.type)).toEqual(['section_title', 'paragraph']);
   });
 
   test('A second front-matter insert appends to the existing preface (no duplicate container)', async ({ page }) => {

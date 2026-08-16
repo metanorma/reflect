@@ -98,12 +98,13 @@ nested `references`. Any "insert section" / "demote" operation must be
 disabled when the insertion or demotion target cannot legally receive the
 node under these expressions.
 
-**Strict-XOR accommodation.** Because `clause` is strict, inserting a
-subclause into a block-bearing clause requires the blocks to be folded into a
-subclause first. The `ensureSubclauseCapacity` helper
+**Strict-XOR accommodation.** Because `clause` is strict, *nesting* into a
+block-bearing clause requires the blocks to be folded into a subclause first.
+The `ensureSubclauseCapacity` helper
 ([EditorCommands.spec.md](./../EditorCommands.spec.md) §5.5) performs that
-wrap inside the same transaction (one undo step); `insertSection`,
-`wrapInClause`, and `demoteClause` all invoke it.
+wrap inside the same transaction (one undo step); `wrapInClause` and
+`demoteClause` invoke it. `insertSection` does not — Section-menu inserts are
+**sibling** insertions that never modify the enclosing clause's body.
 
 #### floating_title is a distinct concept, not a section
 
@@ -418,13 +419,13 @@ child after insertion, not passed as a parameter.
    newly created) `sections` container. The container creation, the wrap, and
    the selection move are all part of the same transaction.
 5. **Strict-XOR accommodation.** When the enclosing body `clause` holds a block
-   run, call `ensureSubclauseCapacity`
-   ([EditorCommands.spec.md](./../EditorCommands.spec.md) §5.5) to wrap those
-   blocks into a subclause first — the same transaction, one undo step — then
-   re-derive the block range against the post-wrap document before wrapping.
-   Without this step the wrap would produce the forbidden blocks-plus-subclause
-   mix inside the enclosing clause.
-6. Wrap the range with the clause using `tr.wrap(range, [{ type: clause, attrs }])`,
+   run, the `ensureSubclauseCapacity`
+   ([EditorCommands.spec.md](./../EditorCommands.spec.md) §5.5) wrap IS the
+   nesting: under the strict XOR the whole block run moves into the wrap
+   clause together (leaving any block behind would produce the forbidden
+   blocks-plus-subclause mix), so the command dispatches with the cursor in
+   the wrap clause's `section_title` instead of wrapping a second time.
+6. Otherwise wrap the range with the clause using `tr.wrap(range, [{ type: clause, attrs }])`,
    **or**, when wrapping a collapsed cursor, insert the clause + children via
    `tr.replaceSelectionWith` / a manual `ReplaceAroundStep` that preserves the
    surrounding block. (The exact step shape is an implementation detail; the
@@ -510,11 +511,17 @@ export function demoteClause(state: EditorState, dispatch?: (tr: Transaction) =>
    `[section_title, floating_title]` is already in the subclause branch and
    is not auto-wrapped ([EditorCommands.spec.md](./../EditorCommands.spec.md)
    §5.5).
-4. Dispatch order is **delete the moved clause → wrap the sibling's blocks →
+4. Dispatch order is **delete the moved clause → accommodate the sibling →
    insert**: the delete runs first because the clause's original positions are
-   computed against the pre-wrap document, and the wrap changes sizes before
-   them (deleting the later clause does not shift the earlier sibling's
-   positions, keeping the arithmetic simple).
+   computed against the pre-wrap document, and the accommodation changes sizes
+   before them (deleting the later clause does not shift the earlier sibling's
+   positions, keeping the arithmetic simple). The accommodation itself
+   ([EditorCommands.spec.md](./../EditorCommands.spec.md) §5.5) is either a
+   **wrap** of the sibling's content-bearing block run (the moved clause is
+   inserted after the wrap clause) or, when the run is entirely empty
+   placeholders, an **atomic swap** of the run for the moved clause itself
+   (`replaceWith` — never delete-then-insert; see §5.5 for the phantom-sibling
+   failure mode that motivates it).
 5. Restore a selection inside the moved clause (map the old selection through
    the step mapping). `dispatch(tr.scrollIntoView())`; return `true`.
 
@@ -547,9 +554,9 @@ Section insertion is handled by the pure `insertSection` command, specified in
 [`EditorCommands.spec.md`](./../EditorCommands.spec.md) §5. It is re-exported
 through `@metanorma/editor-commands` and consumed by the toolbar's
 `SectionPopover` (§4.2). The command routes the new section by cohort — three
-rules: **body** → sibling after the nearest body section (auto-wrapping a block
-run via `ensureSubclauseCapacity` first) or append to a found-or-created
-`sections` container; **annex** → doc-level insert after the last annex /
+rules: **body** → sibling after the nearest body section or append to a
+found-or-created `sections` container (no auto-wrap: a sibling never modifies
+the enclosing clause's body); **annex** → doc-level insert after the last annex /
 immediately after `sections`; **front/back** → find-or-create container and
 insert at the cursor position when it sits directly inside, else append — using
 the shared `ensureContainer` helper

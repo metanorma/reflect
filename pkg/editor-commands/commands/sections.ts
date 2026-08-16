@@ -294,6 +294,19 @@ interface SubclauseCapacity {
   readonly insertPos: number;
   /** True when the clause's leading blocks were wrapped into a subclause. */
   readonly wrapped: boolean;
+  /** Doc position of the wrap clause's opening token (post-wrap). */
+  readonly wrapClauseStart: number;
+  /**
+   * When the clause's block run is ENTIRELY empty placeholder blocks (zero
+   * inline content — e.g. the default title+empty-paragraph shape), the run
+   * should be REPLACED by the incoming subclause rather than wrapped: wrapping
+   * it would create a phantom headingless subclause holding nothing but
+   * placeholders. `replaceRunStart`/`replaceRunEnd` delimit the run (doc
+   * positions, pre-modification) for the caller's atomic `replaceWith`.
+   * Both are `-1` otherwise.
+   */
+  readonly replaceRunStart: number;
+  readonly replaceRunEnd: number;
 }
 
 /**
@@ -321,7 +334,13 @@ function ensureSubclauseCapacity(
   const clauseType = tr.doc.type.schema.nodes['clause'];
   if (clauseType === undefined) {
     // Cannot wrap without the clause type; report the plain end position.
-    return { insertPos: $from.after(hit.depth), wrapped: false };
+    return {
+      insertPos: $from.after(hit.depth),
+      wrapped: false,
+      wrapClauseStart: -1,
+      replaceRunStart: -1,
+      replaceRunEnd: -1,
+    };
   }
 
   const clauseStart = $from.before(hit.depth);
@@ -351,7 +370,13 @@ function ensureSubclauseCapacity(
   if (!hasBlocks || hasSubclauses) {
     // Nothing to restructure: either empty, subclauses-only, or the strict
     // schema already forbids the mixed case. Insert at the end of content.
-    return { insertPos: clauseStart + 1 + clause.content.size, wrapped: false };
+    return {
+      insertPos: clauseStart + 1 + clause.content.size,
+      wrapped: false,
+      wrapClauseStart: -1,
+      replaceRunStart: -1,
+      replaceRunEnd: -1,
+    };
   }
 
   // Wrap the block run into a new clause as the parent's first body child.
@@ -364,6 +389,29 @@ function ensureSubclauseCapacity(
   let blockRunSize = 0;
   for (let i = blockStartIdx; i < clause.childCount; i++) {
     blockRunSize += clause.child(i).nodeSize;
+  }
+
+  // ALL-EMPTY RUN: every block in the run is an empty placeholder (zero
+  // inline content — the shape every created clause starts with). Wrapping it
+  // would create a phantom headingless subclause holding nothing but
+  // placeholders; the incoming subclause should REPLACE the run instead
+  // (atomically — see the replaceWith note below). Empty textblocks carry no
+  // content, so absorbing them loses nothing.
+  let runHasContent = false;
+  for (let i = blockStartIdx; i < clause.childCount; i++) {
+    if (clause.child(i).content.size > 0) {
+      runHasContent = true;
+      break;
+    }
+  }
+  if (!runHasContent) {
+    return {
+      insertPos: blockRunStart,
+      wrapped: false,
+      wrapClauseStart: -1,
+      replaceRunStart: blockRunStart,
+      replaceRunEnd: blockRunStart + blockRunSize,
+    };
   }
 
   // Cut the block run and re-insert it inside a fresh clause at the same
@@ -383,11 +431,23 @@ function ensureSubclauseCapacity(
     { id: generateId() },
     wrapContent,
   );
-  tr.delete(blockRunStart, blockRunStart + blockRunSize);
-  tr.insert(blockRunStart, wrapClause);
+  // Swap the block run for the wrap clause ATOMICALLY. A delete followed by
+  // an insert is NOT equivalent here: deleting the run would leave the clause
+  // with only its section_title — an invalid intermediate state under the
+  // strict XOR (`block+` / subclause branches both require content) — so the
+  // fitter silently keeps the blocks (the delete becomes a no-op) and the
+  // subsequent insert SPLITS the clause, producing a phantom duplicate-id
+  // sibling. replaceWith never passes through the invalid state.
+  tr.replaceWith(blockRunStart, blockRunStart + blockRunSize, wrapClause);
 
   // The new subclause goes after the wrap clause.
-  return { insertPos: blockRunStart + wrapClause.nodeSize, wrapped: true };
+  return {
+    insertPos: blockRunStart + wrapClause.nodeSize,
+    wrapped: true,
+    wrapClauseStart: blockRunStart,
+    replaceRunStart: -1,
+    replaceRunEnd: -1,
+  };
 }
 
 /**
@@ -481,7 +541,40 @@ export function wrapInClause(
   );
   if (enclosingClause !== null
     && enclosingClause.node.type.isInGroup('section_body')) {
-    ensureSubclauseCapacity(tr, range.$from, enclosingClause);
+    const cap = ensureSubclauseCapacity(tr, range.$from, enclosingClause);
+    if (cap.wrapped) {
+      // The accommodation wrap IS the nesting the user asked for: under the
+      // strict XOR a clause holding blocks cannot keep any block when a
+      // subclause appears — the whole run moves into the wrap clause together.
+      // Re-nesting the cursor's block inside it would leave a mixed
+      // [wrapClause, remaining blocks] body, which the schema forbids
+      // (`tr.wrap` would throw "Invalid content for node clause").
+      // Give the wrap clause a fresh id and land the cursor in its title.
+      const $wrapTitle = tr.doc.resolve(cap.wrapClauseStart + 2);
+      tr.setSelection(TextSelection.near($wrapTitle, 1));
+      tr.scrollIntoView();
+      dispatch(tr);
+      return true;
+    }
+    if (cap.replaceRunStart >= 0) {
+      // The clause's block run is entirely empty placeholders — wrapping the
+      // cursor's empty block would nest a placeholder inside a phantom
+      // headingless clause. Instead, REPLACE the run with the new clause
+      // atomically (same reasoning as demoteClause's replacedRun branch).
+      const newClause = clauseType.create(
+        clauseAttrs,
+        sectionTitle !== undefined
+          ? Fragment.from(sectionTitle).append(Fragment.from(leadingParagraph))
+          : Fragment.from(leadingParagraph),
+      );
+      tr.replaceWith(cap.replaceRunStart, cap.replaceRunEnd, newClause);
+      const cursorOffset = sectionTitle !== undefined ? 2 : 2;
+      tr.setSelection(TextSelection.near(
+        tr.doc.resolve(cap.replaceRunStart + cursorOffset), 1));
+      tr.scrollIntoView();
+      dispatch(tr);
+      return true;
+    }
     // Re-derive the range against the post-wrap doc.
     const offset = tr.doc.nodeSize - state.doc.nodeSize;
     const $newFrom = tr.doc.resolve($from.pos + offset);
@@ -682,18 +775,33 @@ export function demoteClause(
   // currently holding blocks, wrap them into a subclause so the moved clause
   // can legally become a sibling (same transaction, one undo step).
   let finalInsertAt = insertAt;
+  let clauseNowAt: number | null = null;
   if (targetSibling.type.name === 'clause') {
     // Resolve a position inside the sibling (its content end, one token in
     // from the sibling's opening) so ensureSubclauseCapacity can classify it.
     const $siblingEnd = tr.doc.resolve(insertAt - 1);
     const siblingHit = { node: targetSibling, depth: parentDepth + 1 };
     const cap = ensureSubclauseCapacity(tr, $siblingEnd, siblingHit);
-    if (cap.wrapped) finalInsertAt = cap.insertPos;
+    if (cap.wrapped) {
+      finalInsertAt = cap.insertPos;
+    } else if (cap.replaceRunStart >= 0) {
+      // The sibling's block run is entirely empty placeholders — swap the
+      // run for the incoming clause in ONE atomic replaceWith step. Deleting
+      // the run first would pass through the invalid title-only clause state
+      // (the fitter no-ops the delete — see the note in
+      // ensureSubclauseCapacity), and inserting after the run would leave
+      // the placeholders stranded ahead of the clause.
+      tr.replaceWith(cap.replaceRunStart, cap.replaceRunEnd, hit.node);
+      clauseNowAt = cap.replaceRunStart;
+    }
   }
 
-  tr.insert(finalInsertAt, hit.node);
+  if (clauseNowAt === null) {
+    tr.insert(finalInsertAt, hit.node);
+    clauseNowAt = finalInsertAt;
+  }
   // Restore selection inside the moved clause.
-  tr.setSelection(TextSelection.near(tr.doc.resolve(finalInsertAt + 1)));
+  tr.setSelection(TextSelection.near(tr.doc.resolve(clauseNowAt + 1)));
   tr.scrollIntoView();
   dispatch(tr);
   return true;
@@ -709,9 +817,8 @@ export function demoteClause(
  * `sections`, or `bibliography`) if it does not exist.
  *
  * **Body cohort** (clause, terms, definitions): inserts as a sibling after
- * the nearest enclosing body section (auto-wrapping any block siblings first,
- * per the strict clause model), or appends to the `sections` container if no
- * body-section ancestor exists.
+ * the nearest enclosing body section, or appends to the `sections` container
+ * if no body-section ancestor exists.
  *
  * **Annex cohort** (annex): annexes are doc-level siblings — inserted after
  * the last existing annex, or immediately after `sections`, before
@@ -763,18 +870,13 @@ export function insertSection(
     // Annex cohort: doc-level sibling after the last annex / after sections.
     insertPos = annexInsertPos(tr);
   } else if (cohort === 'body') {
-    // Body cohort: try to insert as sibling after the nearest body-section.
+    // Body cohort: insert as a SIBLING after the nearest enclosing body
+    // section. A sibling never violates the strict clause XOR — the enclosing
+    // clause's body is untouched — so no auto-wrap accommodation is needed
+    // here (§5.5 applies only to the nesting commands).
     const hit = nearestBodySectionAncestor($from);
     if (hit !== null) {
-      // Insert after the nearest body section's closing token.
       insertPos = $from.after(hit.depth);
-      // Strict-XOR accommodation: when the enclosing body section is a
-      // `clause` holding blocks, wrap them into a subclause first so the new
-      // section can legally become a child (same transaction).
-      if (hit.node.type.name === 'clause') {
-        const cap = ensureSubclauseCapacity(tr, $from, hit);
-        if (cap.wrapped) insertPos = cap.insertPos;
-      }
     } else {
       // No body-section ancestor — find or create the `sections` container,
       // then insert at the cursor position if it's inside the container,

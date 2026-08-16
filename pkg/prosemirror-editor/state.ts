@@ -15,6 +15,7 @@ import { reactKeys } from "@handlewithcare/react-prosemirror";
 import { keymap } from "prosemirror-keymap";
 import { gapCursor } from "prosemirror-gapcursor";
 import { metanormaSchema } from "@metanorma/prosemirror-schema";
+import { placeholderClickPlugin } from "./plugins/placeholderClick.js";
 import { history, undo, redo, type HistoryOptions } from "@metanorma/editor-commands";
 import type { MetanormaDocument } from "./types.js";
 
@@ -109,7 +110,11 @@ export function createInitialEditorState(opts: {
    */
   history?: HistoryOptions | false;
 }): EditorState {
-  const basePlugins: Plugin[] = [reactKeys(), gapCursor()];
+  const basePlugins: Plugin[] = [
+    reactKeys(),
+    gapCursor(),
+    placeholderClickPlugin(),
+  ];
 
   // When the selection is a GapCursor, typing should not create content via
   // findWrapping (which would insert an unwanted section > paragraph). Block

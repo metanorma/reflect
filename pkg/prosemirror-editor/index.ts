@@ -29,6 +29,8 @@ export {
   buildUndoRedoKeymap,
 } from "./state.js";
 
+export { placeholderClickPlugin } from "./plugins/placeholderClick.js";
+
 export {
   ImageNodeView,
   FigureNodeView,

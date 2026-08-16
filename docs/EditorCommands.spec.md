@@ -1820,9 +1820,9 @@ import type { EditorState, Transaction } from "prosemirror-state";
  * location based on its cohort. Creates the container (preface, sections, or
  * bibliography) if it does not exist.
  *
- * Body cohort (clause, terms, definitions): inserts as a sibling after the
- * nearest enclosing body section, auto-wrapping any block run that sibling
- * holds into a subclause first (the strict clause XOR, §5.5). With no
+ * Body cohort (clause, terms, definitions): inserts as a SIBLING after the
+ * nearest enclosing body section. A sibling never modifies the ancestor's
+ * body, so the strict clause XOR (§5.5) is not engaged. With no
  * body-section ancestor, finds or creates the `sections` container and inserts
  * there (at the cursor position when it sits directly in the container, else
  * appended).
@@ -1867,14 +1867,13 @@ When `dispatch` is supplied and `typeName` is a recognized section type
 3. **Route by cohort — three rules:**
    - **Body cohort** (`clause`, `terms`, `definitions`): find the nearest
      enclosing body-section ancestor via `nearestBodySectionAncestor($from)`
-     (§5.6). If one exists and is a `clause` holding a block run, first call
-     `ensureSubclauseCapacity` (§5.5) so the new section can legally become a
-     subclause sibling, then insert after the accommodation point. If the
-     ancestor holds no blocks, insert as a sibling immediately after it (at
-     `$from.after(hit.depth)`). If no body-section ancestor exists, find or
-     create the `sections` container via `ensureContainer` (§5.4) and insert at
-     the cursor position when it sits directly inside the container, else
-     append.
+     (§5.6). If one exists, insert the new section as a **sibling immediately
+     after it** (at `$from.after(hit.depth)`). A sibling never modifies the
+     ancestor's body, so the strict clause XOR (§5.5) is not engaged by this
+     path — `ensureSubclauseCapacity` is deliberately NOT called here.
+     If no body-section ancestor exists, find or create the `sections`
+     container via `ensureContainer` (§5.4) and insert at the cursor position
+     when it sits directly inside the container, else append.
    - **Annex cohort** (`annex`): doc-level insert via `annexInsertPos` — after
      the last existing `annex` child of the doc, or immediately after
      `sections` (before `bibliography` / `footnotes`) when no annex exists.
@@ -1932,28 +1931,41 @@ therefore reach a state where the user, inside a block-bearing clause, asks for
 a new subclause — an insertion the strict content expression would reject.
 
 `ensureSubclauseCapacity` is the accommodation. It is an internal helper
-(mutates the caller's transaction in place) invoked by `insertSection`'s
-body-cohort path and by `wrapInClause`:
+(mutates the caller's transaction in place) invoked by `wrapInClause` and
+`demoteClause` (the nesting commands). `insertSection` does NOT call it —
+Section-menu inserts are sibling insertions that never modify the enclosing
+clause's body:
 
 ```ts
 /**
  * Strict-XOR accommodation for body clauses. When a subclause insertion is
  * requested inside a `clause` that currently holds blocks (after its
  * `section_title`), those blocks are first wrapped into one new subclause,
- * which becomes the parent's first body child. If the clause is empty or
- * already holds subclauses, no restructuring is needed.
+ * which becomes the parent's first body child — UNLESS the block run is
+ * entirely empty placeholders, in which case the run is reported for the
+ * caller to REPLACE. If the clause is empty or already holds subclauses, no
+ * restructuring is needed.
  *
  * All steps go into the caller's transaction — one undo step.
  *
- * @returns The insert position for the new subclause, and whether a wrap
- *          happened. When `wrapped` is true the caller must re-derive any
- *          positions it computed against the pre-wrap doc.
+ * @returns The insert position for the new subclause, whether a wrap happened,
+ *          and (when wrapped) the doc position of the wrap clause's opening
+ *          token; or (for an all-empty run) the run's delimiting doc
+ *          positions for the caller's atomic replaceWith. When `wrapped` is
+ *          true the caller must re-derive any positions it computed against
+ *          the pre-wrap doc.
  */
 function ensureSubclauseCapacity(
   tr: Transaction,
   $from: ResolvedPos,
   hit: { readonly node: Node; readonly depth: number },
-): { readonly insertPos: number; readonly wrapped: boolean };
+): {
+  readonly insertPos: number;
+  readonly wrapped: boolean;
+  readonly wrapClauseStart: number;
+  readonly replaceRunStart: number;
+  readonly replaceRunEnd: number;
+};
 ```
 
 Behaviour:
@@ -1967,15 +1979,30 @@ Behaviour:
 2. **Nothing to restructure** when the clause is empty or already holds
    subclauses — return the end-of-content insert position with
    `wrapped: false`.
-3. **Block run present** — cut the run and re-insert it inside a fresh
-   `clause` (generated `id`) at the same position. The wrapped blocks become
-   the parent's first body child, and the new subclause goes immediately after
-   it: return `wrapped: true` with the post-wrap insert position.
+3. **All-empty block run** (every block in the run has zero inline content —
+   the shape every created clause starts with: empty `paragraph` after its
+   `section_title`) — do NOT wrap. Wrapping would create a phantom headingless
+   subclause holding nothing but placeholders. Instead report the run's
+   delimiting positions (`replaceRunStart`/`replaceRunEnd`); the caller swaps
+   the run for the incoming clause in ONE atomic `replaceWith` step. Empty
+   textblocks carry no content, so absorbing them loses nothing.
+4. **Content-bearing block run** — replace the run with a fresh `clause`
+   (generated `id`) wrapping it, in ONE atomic `tr.replaceWith` step. The
+   wrapped blocks become the parent's first body child, and the new subclause
+   goes immediately after it: return `wrapped: true` with the post-wrap insert
+   position and the wrap clause's position.
+
+   Both replacement steps MUST be atomic (`replaceWith`), never `delete` +
+   `insert`: the intermediate state after deleting the run — a clause holding
+   only its `section_title` — is schema-invalid under the strict XOR, so the
+   fitter silently keeps the blocks (the delete becomes a no-op) and the
+   following insert SPLITS the clause, producing a phantom duplicate-id
+   sibling.
 
 The wrap is composed **within the caller's single transaction**: one command,
 one transaction, **one undo step**. Callers must re-derive positions computed
-against the pre-wrap document (`tr.doc.nodeSize` deltas) — both `insertSection`
-and `wrapInClause` do so.
+against the pre-wrap document (`tr.doc.nodeSize` deltas) — `wrapInClause` and
+`demoteClause` do so.
 
 ### 5.6 `nearestBodySectionAncestor($pos)`
 
@@ -2003,12 +2030,14 @@ and is skipped.
 
 - `wrapInClause` wraps the selection's block(s) in a new `clause`, moving the
   existing content inside the clause. It is the "promote this paragraph into a
-  subsection" action. When the enclosing body clause holds blocks, it calls
-  `ensureSubclauseCapacity` (§5.5) before wrapping, so the result satisfies the
-  strict XOR.
-- `insertSection` creates a new section *in place* (splitting the current
-  block), routed to the correct location by cohort. It is the "add a new
-  section here" action invoked by the Section popover.
+  subsection" action. When the enclosing body clause holds blocks, the
+  `ensureSubclauseCapacity` (§5.5) wrap IS the nesting — under the strict XOR
+  the whole block run moves into the wrap clause together (no partial
+  re-nesting), and the cursor lands in its `section_title`.
+- `insertSection` creates a new section **as a sibling** after the nearest
+  enclosing body section (or routed by cohort when none exists). It is the
+  "add a new section here" action invoked by the Section popover, and it never
+  restructures the enclosing clause.
 
 Both produce a `section_title` + `paragraph` body and land the cursor in the
 `section_title`. Both use `ensureContainer` for the doc-top-level fallback

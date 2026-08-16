@@ -149,17 +149,17 @@ test.describe('section title', () => {
     }, index);
     expect(await placeholderOf(0)).toBe('"Section heading"');
 
-    // The real user flow: insert a clause via the Section popover — the cursor
-    // lands in the new clause's empty section_title. Note this makes THREE
-    // empty titles: the outer clause's own, the auto-wrapped body sub-clause's
-    // (ensureSubclauseCapacity), and the new clause's — ALL must show the
-    // placeholder (matching is per-element, not per-editor).
+    // The real user flow: insert a clause via the Section popover — a SIBLING
+    // after the current clause; the cursor lands in the new clause's empty
+    // section_title. TWO empty titles exist now: the original clause's and the
+    // new sibling's — both must show the placeholder (matching is per-element,
+    // not per-editor).
     await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
     await page.keyboard.type('body text');
     await toolbarButton(page, 'Section').click();
     await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
-    for (let i = 0; i < 3; i++) expect(await placeholderOf(i)).toBe('"Section heading"');
+    for (let i = 0; i < 2; i++) expect(await placeholderOf(i)).toBe('"Section heading"');
 
     // Typing the heading fills the new clause's title (last in DOM order) —
     // its placeholder disappears, while the still-empty titles keep theirs.
@@ -178,13 +178,52 @@ test.describe('section title', () => {
     const titleTexts = doc.content
       .filter((n: any) => n.type === 'sections')
       .flatMap((s: any) => collectTitles(s));
-    expect(titleTexts).toEqual(['', '', 'Scope']);
+    expect(titleTexts).toEqual(['', 'Scope']);
     expect(await placeholderOf(0)).toBe('"Section heading"');
-    expect(await placeholderOf(1)).toBe('"Section heading"');
-    expect(await placeholderOf(2)).toBe('none');
+    expect(await placeholderOf(1)).toBe('none');
 
     // Deleting back to empty restores it.
     for (let i = 0; i < 5; i++) await page.keyboard.press('Backspace');
-    expect(await placeholderOf(2)).toBe('"Section heading"');
+    expect(await placeholderOf(1)).toBe('"Section heading"');
+  });
+
+  test('clicking the placeholder focuses the empty title (Firefox caret regression)', async ({ page }) => {
+    await openEditor(page);
+
+    // Regression (Firefox 153): clicking the ::before placeholder of an empty
+    // section_title produced NO caret position — neither the browser's native
+    // caret nor ProseMirror's coordinate path — so the caret stayed in the
+    // previously-focused block and typing went to the wrong place. The
+    // placeholderClickPlugin (pkg/prosemirror-editor) normalizes this by
+    // mapping the click through the DOM node instead of coordinates.
+    //
+    // Exercise BOTH orderings: title-click first (fresh focus) and
+    // paragraph-click → title-click (the failing sequence — focus elsewhere
+    // first is what triggers the Firefox gap).
+    const clickTitleAt = async (dx: number) => {
+      const box = await page.locator('.mn-section-title').first().boundingBox();
+      await page.mouse.click(box.x + dx, box.y + box.height / 2);
+    };
+    const titleText = async () => {
+      const doc = (await getDoc(page)) as any;
+      const clause = doc.content.find((n: any) => n.type === 'sections')?.content?.[0];
+      return (clause?.content ?? [])
+        .filter((c: any) => c.type === 'section_title')
+        .map((c: any) => (c.content ?? []).map((t: any) => t.text ?? '').join(''))
+        .join('');
+    };
+
+    // Sequence 1: click the placeholder mid-glyphs, type.
+    await clickTitleAt(60);
+    await page.keyboard.type('A');
+    expect(await titleText()).toBe('A');
+
+    // Sequence 2: focus the body paragraph first, then click the placeholder.
+    await page.keyboard.press('Backspace'); // clear the title back to empty
+    const pbox = await page.locator('.ProseMirror p').first().boundingBox();
+    await page.mouse.click(pbox.x + 10, pbox.y + pbox.height / 2);
+    await clickTitleAt(60);
+    await page.keyboard.type('B');
+    expect(await titleText()).toBe('B');
   });
 });
