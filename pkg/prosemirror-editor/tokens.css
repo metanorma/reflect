@@ -31,8 +31,7 @@
     --mn-border:           #cccccc;  /* hairlines, popover/dialog edges */
     --mn-text:             inherit;  /* body text — follow host */
     --mn-text-muted:       #808080;  /* secondary text */
-    --mn-text-placeholder: #b0b0b0;  /* input/empty-clause placeholders */
-    --mn-empty-marker:     #aaaaaa;  /* empty-clause ::before content glyph */
+    --mn-text-placeholder: #b0b0b0;  /* input/empty-heading placeholders */
     --mn-accent:           #4a90d9;  /* brand accent */
     --mn-focus:            var(--mn-accent);  /* focus outline */
     --mn-active:           #e0e0e0;  /* active/hover fill (buttons, cells) */
@@ -78,7 +77,6 @@
     --mn-text:             inherit;
     --mn-text-muted:       #808080;
     --mn-text-placeholder: #b0b0b0;
-    --mn-empty-marker:     #aaaaaa;
     --mn-accent:           #4a90d9;
     --mn-focus:            var(--mn-accent);
     --mn-active:           #e0e0e0;
@@ -95,7 +93,6 @@
     --mn-text:             inherit;
     --mn-text-muted:       #aaaaaa;
     --mn-text-placeholder: #666666;
-    --mn-empty-marker:     #666666;
     --mn-accent:           #4a90d9;
     --mn-focus:            var(--mn-accent);
     --mn-active:           #3a3a3a;

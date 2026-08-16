@@ -421,7 +421,7 @@ other stylesheet consumes these via `var(--mn-*)` and contains NO colour
 literals.
 
 Token inventory: `--mn-surface`, `--mn-surface-muted`, `--mn-border`,
-`--mn-text`, `--mn-text-muted`, `--mn-text-placeholder`, `--mn-empty-marker`,
+`--mn-text`, `--mn-text-muted`, `--mn-text-placeholder`,
 `--mn-accent`, `--mn-focus` (= accent), `--mn-active`, `--mn-danger`,
 `--mn-shadow`, `--mn-on-dark`; spacing scale `--mn-space-1` … `--mn-space-6`
 (`0.25em` … `2em`); `--mn-radius-sm`/`md` (`2px`/`4px`);
@@ -441,7 +441,7 @@ Change cadence: editor UX changes. Consumers:
 
 - `.mn-prosemirror` — editor surface wrapper (focus outline, min-height).
 - `.mn-prosemirror .ProseMirror` — the `contenteditable` element (padding,
-  typography baseline, placeholder colour for the empty default clause).
+  typography baseline).
 - `.mn-image-placeholder` — empty-src placeholder rendered by
   `ImageNodeView` (§7.3).
 
@@ -454,7 +454,8 @@ editor logic depends on. Consumes `var(--mn-*)` throughout.
 - `figure.mn-figure` — figure spacing and centring.
 - `.mn-formula` — formula panel (mono font, muted background).
 - `.mn-section-title` — section heading typography (the `section_title`
-  textblock, schema §8.3), with an `:empty` placeholder.
+  textblock, schema §8.3), with an empty-heading placeholder (shown while the
+  title contains nothing but ProseMirror's trailing break).
 - `.mn-floating-title` — floating-title typography.
 - `pre.language-*` — sourcecode panel (highlighter-interop class, not in the
   `CLASS` contract — schema §8.0).

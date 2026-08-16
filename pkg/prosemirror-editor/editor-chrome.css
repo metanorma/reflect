@@ -2,9 +2,8 @@
  * editor-chrome.css — affordances the EDITOR needs to function (§9).
  *
  * Everything here exists because the editor has UI that the source document
- * does not: the editable surface, the empty-clause placeholder, the image-src
- * placeholder. These rules change when editor UX changes, not when document
- * presentation changes.
+ * does not: the editable surface, the image-src placeholder. These rules
+ * change when editor UX changes, not when document presentation changes.
  *
  * Cascade: declared in the `chrome` layer (see style.css), which sits ABOVE
  * `tokens` (so it can consume them) and BELOW `document` (so a document rule
@@ -36,13 +35,6 @@
     outline: none;
     white-space: pre-wrap;
     word-wrap: break-word;
-  }
-
-  /* Placeholder colour for the empty default clause */
-  .mn-prosemirror .ProseMirror p:first-child:empty::before {
-    color: var(--mn-empty-marker);
-    content: attr(data-placeholder);
-    cursor: text;
   }
 
   /* ---- Image node: empty-src placeholder ---- */

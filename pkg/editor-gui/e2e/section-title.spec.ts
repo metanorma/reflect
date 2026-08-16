@@ -134,4 +134,57 @@ test.describe('section title', () => {
     // The default doc should already contain a section_title (from DEFAULT_MN_DOC).
     expect(docBefore).toContain('section_title');
   });
+
+  test('empty section_title shows the styled placeholder; typing replaces it', async ({ page }) => {
+    await openEditor(page);
+
+    // The default doc's clause ships an EMPTY section_title, so the placeholder
+    // must render immediately. It is a ::before overlay — assert via computed
+    // style (ProseMirror's trailing <br> means the element is never :empty,
+    // which is exactly the bug class this test guards against).
+    const placeholderOf = (index: number) => page.evaluate((i) => {
+      const els = document.querySelectorAll('.mn-section-title');
+      const el = els[i];
+      return el ? getComputedStyle(el, '::before').content : 'not found';
+    }, index);
+    expect(await placeholderOf(0)).toBe('"Section heading"');
+
+    // The real user flow: insert a clause via the Section popover — the cursor
+    // lands in the new clause's empty section_title. Note this makes THREE
+    // empty titles: the outer clause's own, the auto-wrapped body sub-clause's
+    // (ensureSubclauseCapacity), and the new clause's — ALL must show the
+    // placeholder (matching is per-element, not per-editor).
+    await clickEditor(page);
+    await page.keyboard.press('Enter'); // exit section_title → body paragraph
+    await page.keyboard.type('body text');
+    await toolbarButton(page, 'Section').click();
+    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
+    for (let i = 0; i < 3; i++) expect(await placeholderOf(i)).toBe('"Section heading"');
+
+    // Typing the heading fills the new clause's title (last in DOM order) —
+    // its placeholder disappears, while the still-empty titles keep theirs.
+    await page.keyboard.type('Scope');
+    const doc = (await getDoc(page)) as any;
+    const collectTitles = (node: any, acc: string[] = []): string[] => {
+      for (const c of node?.content ?? []) {
+        if (c.type === 'section_title') {
+          acc.push((c.content ?? []).map((t: any) => t.text ?? '').join(''));
+        } else if (c.type === 'clause') {
+          collectTitles(c, acc);
+        }
+      }
+      return acc;
+    };
+    const titleTexts = doc.content
+      .filter((n: any) => n.type === 'sections')
+      .flatMap((s: any) => collectTitles(s));
+    expect(titleTexts).toEqual(['', '', 'Scope']);
+    expect(await placeholderOf(0)).toBe('"Section heading"');
+    expect(await placeholderOf(1)).toBe('"Section heading"');
+    expect(await placeholderOf(2)).toBe('none');
+
+    // Deleting back to empty restores it.
+    for (let i = 0; i < 5; i++) await page.keyboard.press('Backspace');
+    expect(await placeholderOf(2)).toBe('"Section heading"');
+  });
 });

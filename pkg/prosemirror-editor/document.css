@@ -44,7 +44,14 @@
     border-bottom: 1px solid var(--mn-border);
   }
 
-  .mn-prosemirror .mn-section-title:empty::before {
+  /*
+   * Empty-title placeholder. ProseMirror keeps a trailing
+   * <br class="ProseMirror-trailingBreak"> inside every empty textblock, so
+   * :empty never matches — the selector must key off that break instead.
+   * (The `:only-child` guard keeps a heading with real content from
+   * matching while its last inline node is deleted mid-edit.)
+   */
+  .mn-prosemirror .mn-section-title:has(> .ProseMirror-trailingBreak:only-child)::before {
     content: "Section heading";
     color: var(--mn-text-placeholder);
     font-weight: 400;
