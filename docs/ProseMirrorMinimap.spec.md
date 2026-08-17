@@ -13,9 +13,10 @@ renderer, and a draggable viewport overlay. The consumer owns the *policy*: the
 ProseMirror schema, the node classification, the visual theme, and the DOM
 placement. The package has no dependency on
 [`schema.spec.md`](./schema.spec.md) — it walks any `prosemirror-model`
-document — and ships a default classifier that keys off node type groups, which
-is the seam a group-structured schema (e.g. the Metanorma cohorts,
-[schema.spec.md](./schema.spec.md) §4) plugs into.
+document — and ships a default classifier keyed off node type groups, with an
+ancestor stack in the classifier contract — the seam a group-structured schema
+(e.g. the Metanorma cohorts,
+[schema.spec.md](./schema.spec.md) §4) plugs into (§5.1, §5.3).
 
 ---
 
@@ -74,7 +75,8 @@ path.
 The package integrates at exactly one point: an `EditorView`. `createMinimap()`
 returns a ProseMirror plugin that observes transactions and the scroll
 container; the rendering component (`Minimap`, §11) mounts into any DOM
-container the consumer provides and reads the controller through the plugin.
+container the consumer provides and reads the controller through the
+view-keyed registry (`getMinimapController(view)`, §7.1).
 The host editor component ([`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) §5)
 treats the minimap like any other child rendered alongside `ProseMirrorDoc`.
 
@@ -89,7 +91,7 @@ TypeScript source at `pkg/prosemirror-minimap/`:
 |---|---|
 | `index.ts` | Public API re-exports (§13). |
 | `types.ts` | All public types: `MinimapOptions`, `MinimapClassifier`, `MinimapTheme`, `LayerDeclaration`, message payloads. |
-| `plugin.ts` | `createMinimap(options)` — the ProseMirror plugin (§7.1). |
+| `plugin.ts` | `createMinimap(options)` — the ProseMirror plugin; the view-keyed controller registry (`getMinimapController`, §7.1). |
 | `controller.ts` | `MinimapController` — the view plugin owning the block model, geometry, tiers, and scheduling (§7). |
 | `blockModel.ts` | Flattening walk, block list, paired incremental diff (§4.1, §7.2). |
 | `identity.ts` | Stable block identity via `WeakMap<Node, number>` (§4.3). |
@@ -104,7 +106,7 @@ TypeScript source at `pkg/prosemirror-minimap/`:
 | `overlay.ts` | Viewport indicator overlay element and drag handling (§9). |
 | `scroll.ts` | Scroll-mapping strategies: `proportional`, `precise` (§6.4, §10.1). |
 | `react.tsx` | The `Minimap` React component (§11). |
-| `minimap.css` | Structural styles and default theme tokens (§12). |
+| `minimap.css` | Structural styles and DOM-overlay tokens (§12). |
 | `test.mjs` | Headless `node:test` suite (§15). |
 
 ---
@@ -115,8 +117,8 @@ TypeScript source at `pkg/prosemirror-minimap/`:
 |---|---|---|
 | `prosemirror-model` | peer | `Node`, `Schema` types; `doc.descendants`. |
 | `prosemirror-state` | peer | `Plugin`, `PluginKey`, `Transaction`. |
-| `prosemirror-view` | peer | `EditorView` (controller reads `view.scrollDOM`, `view.coordsAtPos`). |
-| `react` | peer (optional) | Only `react.tsx` imports it; core packages stay framework-free. Consumers not using React import nothing from `react.tsx` via the package's export map. |
+| `prosemirror-view` | peer | `EditorView` (controller reads `view.dom`, `view.coordsAtPos`, `view.nodeDOM`; the scroll container is resolved from the view, §7.1). |
+| `react` | peer (optional) | Only `react.tsx` imports it; core packages stay framework-free. Consumers not using React import `"./core"`, which excludes `react.tsx` from the module graph entirely (§3.1). |
 | `typescript`, `@types/react`, the three prosemirror packages | dev | Compilation and the headless test suite. |
 
 No dependency on `@metanorma/prosemirror-schema`, `@metanorma/prosemirror-editor`,
@@ -124,9 +126,22 @@ or `@handlewithcare/react-prosemirror`. Zero runtime dependencies.
 
 `package.json` follows the sibling pattern (`type: "module"`, `main:
 "index.ts"`, `scripts.compile = "tsc --outdir compiled"`, `scripts.test =
-"node --test test.mjs"`), with an export map exposing `"."` (core + React) and
-`"./worker"` (the worker entry, for bundlers that need an explicit second
-entry point).
+"node --test test.mjs"`), with an export map exposing `"."` (core + React),
+`"./core"` (core only — the React-free entry; a bundler following it never
+resolves `react`), and `"./worker"` (the worker entry, for bundlers that need
+an explicit second entry point).
+
+### 3.1 Export map
+
+| Subpath | Contents | Resolves `react`? |
+|---|---|---|
+| `"."` | Public API (`index.ts`): everything in `"./core"` plus `react.tsx`'s `Minimap` component (§13). | yes (optional peer) |
+| `"./core"` | `plugin.ts`, `controller.ts`, the model/geometry/tier modules, renderers, `scroll.ts`, types — everything except `react.tsx`. | no |
+| `"./worker"` | `worker.ts` — the worker entry point, for bundlers that need an explicit second entry point. | no |
+
+The `"./core"` entry exists so a framework-free consumer never resolves the
+optional React peer: `index.ts` re-exports from `react.tsx`, so the top-level
+entry always pulls it in, while `./core` never mentions it.
 
 ---
 
@@ -143,11 +158,15 @@ flatten(doc, classifier): BlockRow[]
 For each node visited (pre-order, via `node.descendants` semantics):
 
 1. Inline nodes (`node.isInline`) are skipped — rows are block-level.
-2. The classifier's `row(node, depth)` decides whether the node contributes a
-   row (§5.1). A node that contributes a row may still be recursed into when
-   `classifier.recurse(node)` returns `true` (default: recurse into any node
-   that is neither a textblock nor a leaf/atom — container sections behave this
-   way: they are transparent as rows, their children are rows).
+2. The classifier's `row(node, depth, ancestors)` decides whether the node
+   contributes a row (§5.1). `ancestors` is the node's block-ancestor chain,
+   outermost first (document root excluded, the node itself excluded), letting
+   a row's class be derived from an ancestor — e.g. a heading colored by its
+   section's cohort (§5.3). A node that contributes a row may still be
+   recursed into when `classifier.recurse(node)` returns `true` (default:
+   recurse into any node that is neither a textblock nor a leaf/atom —
+   container sections behave this way: they are transparent as rows, their
+   children are rows).
 3. Row order is document order; the row list is the single source of minimap
    geometry.
 
@@ -232,7 +251,7 @@ For `calibrated` classes, real rendered heights are sampled opportunistically:
 ```ts
 interface MinimapClassifier {
   /** Visual class for a node as a row; null → not a row (descend per recurse()). */
-  row(node: Node, depth: number): RowSpec | null;
+  row(node: Node, depth: number, ancestors: readonly Node[]): RowSpec | null;
   /** Whether to visit children of a node that is itself a row. Default: !isTextblock && !isLeaf. */
   recurse?(node: Node): boolean;
 }
@@ -244,48 +263,78 @@ interface RowSpec {
 ```
 
 The classifier receives the live `Node`, so `row()` may branch on attrs
-(instance-specific heights), marks (via `node.marks`), or depth.
+(instance-specific heights), marks (via `node.marks`), or depth. `ancestors` is
+the node's block-ancestor chain, outermost first (the document root excluded,
+the node itself excluded) — the context a group-keyed classification needs
+when the row node itself is groupless (§5.2, §5.3).
 
 ### 5.2 Default classifier (group-keyed)
 
 The default classifier derives visual classes from **node type groups** — the
-schema's own cohort mechanism — rather than from type names:
+schema's own cohort mechanism — rather than from type names. Group membership
+is queried only through the public `NodeType.isInGroup(name)` API, evaluated
+against `groupOrder` — an ordered list of group names in `MinimapOptions`
+(default `[]`), first match wins:
 
 | Node shape | Row? | `classId` |
 |---|---|---|
-| Textblock (`node.isTextblock`) | yes | `"text"` (overridden to `"heading"` when the type belongs to a section-title group, if the consumer's groups express it) |
-| Atom or leaf block | yes | the node type's **first matching group name**, else `"atom"` |
+| Textblock (`node.isTextblock`) | yes | first `groupOrder` match, else `"text"` |
+| Atom or leaf block | yes | first `groupOrder` match, else the type's name |
 | Other block node | no (recurse) | — |
 | Inline node | skipped | — |
 
-Group-keyed classification is the growth seam: a schema that adds node types
-within existing groups inherits minimap treatment automatically; only a new
-*group* warrants a classifier or theme update. A consumer with cohort groups
-(e.g. `section_front` / `section_body` / `section_back` as defined in
-[schema.spec.md](./schema.spec.md) §4) gets cohort-colored rows with zero
-per-type code.
+A `classId` with no `theme.classes` entry renders with the `"text"` entry's
+color. Group-keyed classification is the growth seam: a schema that adds node
+types within existing groups inherits minimap treatment automatically; only a
+new *group* warrants a `groupOrder` or theme update.
+
+**What `groupOrder` does not do.** It keys rows by *their own* groups, so it
+only pays off when the row nodes themselves carry the group — an atom block in
+a cohort, or a textblock whose group differs from `"text"`. It cannot color a
+row by an *ancestor's* group: groupless row nodes (e.g. `section_title`,
+[schema.spec.md](./schema.spec.md) §4) never match any `groupOrder` entry.
+Ancestor-derived classification is what the classifier's `ancestors` argument
+is for (§5.1, §5.3); `groupOrder` alone cannot express it.
 
 ### 5.3 Consumer example (structured-document schema)
 
 For the Metanorma host, the classifier the GUI supplies maps classes to the
 schema's groups and cohorts — section containers remain transparent (their
-`section_title` children are the rows), and complex blocks get explicit
-strategies:
+`section_title` children are the rows, colored by the section's cohort via
+`ancestors`), and complex blocks get explicit strategies:
 
 ```ts
 const metanormaClassifier: MinimapClassifier = {
-  row(node, depth) {
-    if (node.type.name === "section_title") return { classId: "heading" };
-    if (node.type.groups.includes("block")) {
+  row(node, depth, ancestors) {
+    if (node.type.name === "section_title") {
+      // Groupless node (§4, schema.spec.md): its own groups never match —
+      // the section cohort comes from the nearest ancestor section.
+      for (let i = ancestors.length - 1; i >= 0; i--) {
+        const type = ancestors[i]!.type;
+        for (const cohort of ["section_front", "section_body", "section_annex", "section_back"] as const) {
+          if (type.isInGroup(cohort)) return { classId: `heading-${cohort}` };
+        }
+      }
+      return { classId: "heading" };
+    }
+    if (node.type.name === "floating_title") return { classId: "heading-floating" };
+    if (node.type.isInGroup("block")) {
       if (node.type.name === "sourcecode") return { classId: "code",
-        height: { kind: "estimate", rows: (n) => Math.max(2, n.attrs.text.split("\n").length) } };
+        // The code text is the node's text* content, not an attr (§6.1, schema.spec.md).
+        height: { kind: "estimate", rows: (n) => Math.max(2, n.textContent.split("\n").length) } };
       if (node.type.name === "figure") return { classId: "figure", height: { kind: "calibrated", defaultRows: 4 } };
       if (node.type.name === "table") return { classId: "table",
-        height: { kind: "estimate", rows: (n) => n.childCount + 1 } };
+        // childCount counts head/body/foot sections — descend to rows for size
+        height: { kind: "estimate", rows: (n) => countDescendants(n, "table_row") + 1 } };
       return { classId: "text" };
     }
-    if (node.isAtom) return { classId: node.type.groups[0] ?? "atom" };
+    if (node.isAtom) return { classId: node.type.name }; // default fallback (§5.2)
     return null; // containers descend
+  },
+  // figure/table are rows AND composites: without this override the walk would
+  // also descend into them and add a row per caption paragraph / cell (§4.1).
+  recurse(node) {
+    return node.type.name !== "figure" && node.type.name !== "table";
   },
 };
 ```
@@ -306,10 +355,16 @@ interface MinimapTheme {
 }
 ```
 
-A neutral default theme ships in `minimap.css` and `types.ts`; the consumer
-overrides any subset via `MinimapOptions.theme`. Colors resolve through CSS
-custom properties where the host provides them (e.g. `--mn-*` tokens), keeping
-dark/light theming in the consumer's token layer.
+A neutral `defaultTheme` ships in `types.ts`; the consumer overrides any
+subset via `MinimapOptions.theme`. The theme is the **single source of every
+canvas-painted value** — a worker cannot read computed styles, so nothing
+painted flows through CSS. A host that keeps its palette in CSS custom
+properties (e.g. the `--mn-*` layer,
+[`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) §9.2) reads
+them once in TypeScript (`getComputedStyle`) and passes the results in
+`theme`; a React host re-reads on theme-change events the same way. The one
+exception is the viewport indicator overlay (§9.1) — a DOM element, styled by
+CSS like any other (§12).
 
 ---
 
@@ -341,7 +396,8 @@ Mode is a `MinimapOptions.display` value; `auto` (default) selects `fit` when
 ### 6.3 Window mapping (scroll → row range)
 
 In `sliding` mode, with cached editor geometry (`scrollTop`, `scrollHeight`,
-`clientHeight` of `view.scrollDOM` — see §7.4 for when these are read):
+`clientHeight` of the scroll container resolved in §7.1 — see §7.4 for when
+these are read):
 
 ```ts
 scrollPct  = scrollTop / max(1, scrollHeight - clientHeight)   // NaN-safe → 0
@@ -362,7 +418,7 @@ strategies resolve a target row to an editor scroll position:
 | Strategy | Computation | Used for |
 |---|---|---|
 | `proportional` | `targetScrollTop = (rowCenterOffset / total) * (scrollHeight - clientHeight)` — pure arithmetic, no layout read. | Continuous drag; every pointermove. |
-| `precise` | Resolve the row's `pos` through `view.coordsAtPos(pos)` (or `view.nodeDOM`) and scroll the scrollDOM so that DOM rect lands at the equivalent container-relative offset. | Click commit and drag release — one layout-accurate snap per gesture. |
+| `precise` | Resolve the row's `pos` through `view.coordsAtPos(pos)` (or `view.nodeDOM`) and scroll the scroll container (§7.1) so that DOM rect lands at the equivalent container-relative offset. | Click commit and drag release — one layout-accurate snap per gesture. |
 
 The hybrid keeps the drag path free of forced layout while ending every gesture
 on the exact block. Precise snaps are user-initiated and budgeted one per
@@ -399,17 +455,34 @@ createMinimap(options?: MinimapOptions): Plugin
 
 Returns a plugin with two halves:
 
-- A **plugin key** (`minimapKey`) exposing `getState(view)` → controller
-  handle for the rendering component.
 - A **view plugin** (`MinimapController`) constructed with the `EditorView`,
   owning the mutable block model, geometry, tier state, calibration store, and
   the scheduler. The controller is not stored in editor state: derived caches
   of this size belong to the view, keyed by document reference
-  (`model.doc === view.state.doc` is the fast-path skip).
+  (`model.doc === view.state.doc` is the fast-path skip). It is reachable from
+  the rendering component through a module-level view-keyed registry,
+  `getMinimapController(view)`, exported alongside the plugin (§13) —
+  a `WeakMap<EditorView, MinimapController>` populated by the view plugin's
+  constructor and cleared on `destroy`. One live controller per view: a
+  second `Minimap` component bound to the same view shares it; a view
+  re-created under React StrictMode's double-invoked effects registers a
+  fresh controller, and the old one is collected with its view.
+- A **scroll-container contract.** ProseMirror's `EditorView` has no
+  scroll-container accessor — which element scrolls is a consumer layout
+  decision. The controller resolves it once, at construction: the nearest
+  ancestor-or-self of `view.dom` whose computed `overflow-y` is not `visible`,
+  falling back to `view.dom` itself when none scrolls (§10.1 then reads
+  `scrollTop` from it; §6.3/§6.4's cached `scrollHeight`/`clientHeight`
+  likewise). A consumer whose scrolling element is known statically may pass
+  `scrollContainer: (view) => HTMLElement` in `MinimapOptions` to skip the
+  walk. Resolution result is cached; §7.4's refresh points cover the rare
+  re-resolution cases (the `ResizeObserver` fires when the resolved element
+  changes size).
 
-`MinimapOptions` (all optional): `classifier`, `theme`, `display`, `layers`
-(§8.4), `worker` (§8.2), `overscanRows`, `sampleBudget`, `sliceBudgetMs`,
-tier thresholds, `onBlockHover` (§10.2).
+`MinimapOptions` (all optional): `classifier`, `groupOrder` (§5.2), `theme`,
+`display`, `layers` (§8.4), `worker` (§8.2), `scrollContainer` (§7.1),
+`overscanRows`, `sampleBudget`, `sliceBudgetMs`, tier thresholds,
+`onBlockHover` (§10.2).
 
 ### 7.2 Incremental transaction diffing
 
@@ -447,9 +520,10 @@ through a `requestAnimationFrame` loop with a per-frame budget
 ### 7.4 Geometry cache refresh points
 
 Editor scroll geometry (`scrollHeight`, `clientHeight`) is **cached**, never
-read per scroll event. Refresh points: `ResizeObserver` on the scroll DOM and
-content DOM; the post-paint tick after any `docChanged` transaction;
-`visibilitychange`. The scroll handler itself reads only `scrollTop` (§10.1).
+read per scroll event. Refresh points: `ResizeObserver` on the scroll container
+(§7.1) and the content DOM; the post-paint tick after any `docChanged`
+transaction; `visibilitychange`. The scroll handler itself reads only
+`scrollTop` (§10.1).
 
 ---
 
@@ -613,9 +687,10 @@ The overlay handles `pointerdown` → `setPointerCapture` → `pointermove` →
 
 ### 10.1 Scroll event rules
 
-The controller subscribes to `view.scrollDOM` `'scroll'` (passive). Per event
-it reads **only `scrollTop`**, then schedules a single rAF that: computes the
-window (§6.3, from cached geometry), updates the overlay transform (§9.1), and
+The controller subscribes to the resolved scroll container's `'scroll'` event
+(passive; container resolution is §7.1's contract). Per event it reads
+**only `scrollTop`**, then schedules a single rAF that: computes the window
+(§6.3, from cached geometry), updates the overlay transform (§9.1), and
 sends one coalesced `viewport`/`render` message (§8.5). No
 `getBoundingClientRect`, no `offsetHeight`, no style writes that would dirty
 layout occur in this path. Multiple scroll events within a frame collapse to
@@ -631,9 +706,9 @@ breakage, the package contracts the following surface now:
   pointer. `rowAt()` (§6.1) makes this O(log n).
 - `MinimapOptions.onBlockHover?: (info) => void` receives the same payload.
 - The row's `node` reference is reachable from the controller
-  (`minimapKey.getState(view).rowNode(row)`), giving a magnify view everything
-  it needs to clone one block's DOM subtree — bounded to a single node, hence
-  O(1) regardless of document size.
+  (`getMinimapController(view).rowNode(row)`, §7.1), giving a magnify view
+  everything it needs to clone one block's DOM subtree — bounded to a single
+  node, hence O(1) regardless of document size.
 
 The magnify view itself is out of scope (§16).
 
@@ -653,16 +728,23 @@ The magnify view itself is out of scope (§16).
 ```
 
 - Renders the container + canvas + overlay, wires the `ResizeObserver`, and
-  resolves the controller from `view` via `minimapKey` (the plugin must be in
-  the view's state; a missing plugin is a development-mode warning, not a
-  crash).
+  resolves the controller from `view` via `getMinimapController(view)` (§7.1;
+  the plugin must be installed in the view — a `null` return is a
+  development-mode warning, not a crash).
 - Placement is fully external: the component has no opinion about flex order,
   side, or size beyond filling its container.
-- Consumers hosting inside a React ProseMirror provider obtain `view` from
-  that provider's context hook and render `<Minimap>` as a sibling of the
-  editor surface (the host editor's `children` slot,
-  [`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) §5, is the
-  natural mount point).
+- Consumers hosting inside a React ProseMirror provider render `<Minimap>` as
+  a sibling of the editor surface, in the host editor's `children` slot
+  ([`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) §5 — the
+  natural mount point). There is no context hook that hands the `EditorView`
+  to a rendering component: the host's React ProseMirror library exposes
+  `useEditorEffect((view) => …)` as the one hook whose callback receives the
+  view; the component captures the view from it into local state on mount
+  (a layout effect fires after the view is created, and re-fires with the
+  same view reference thereafter, so a single assignment suffices).
+
+  A consumer that already holds the view by other means passes it directly —
+  the `view` prop is the only integration point the package defines.
 
 ---
 
@@ -674,10 +756,17 @@ The magnify view itself is out of scope (§16).
   overflow: hidden`), `.mn-minimap-canvas`, `.mn-minimap-viewport`
   (`position: absolute; left: 0; right: 0; pointer-events: auto`), and
   `.mn-minimap-building` (progress affordance hook).
-- Default theme values as CSS custom properties (`--mn-minimap-row-height`,
-  `--mn-minimap-indent`, per-class colors as `--mn-minimap-class-<id>`), all
-  overridable by the consumer and by the host's existing token layer
+- DOM-overlay theme values as CSS custom properties
+  (`--mn-minimap-viewport-color`, `--mn-minimap-viewport-alpha`,
+  `--mn-minimap-building-color`), overridable by the consumer and by the
+  host's existing token layer
   ([`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) §9.2).
+
+**Canvas-painted appearance is deliberately absent from this stylesheet.**
+The worker renderer cannot read computed styles, so every painted value
+(color, row height, indent, font) flows only through `MinimapTheme` (§5.4);
+the custom properties above style only the DOM overlay (§9.1) and the
+building affordance — elements the main thread lays out.
 
 The package ships **no** positioning rules — no `position: fixed`, no flex
 membership, no margins. Where the minimap sits (right rail, left rail, overlay
@@ -692,16 +781,19 @@ docks the toolbar and sidebar today.
 | Export | Kind | Section |
 |---|---|---|
 | `createMinimap` | function | §7.1 |
-| `minimapKey` | `PluginKey` | §7.1 |
+| `getMinimapController` | function (`(view) => MinimapController \| null`) | §7.1 |
 | `Minimap` | React component | §11 |
 | `MinimapOptions`, `MinimapClassifier`, `RowSpec`, `HeightStrategy`, `MinimapTheme`, `LayerDeclaration`, `LayerSpans`, `BlockRow`, `DisplayMode`, `Renderer` | types | §5, §6, §8 |
 | `defaultClassifier`, `defaultTheme` | constants | §5.2, §5.4 |
 | `flatten`, `rowAt` | pure functions (testing/introspection) | §4.1, §6.1 |
 | `InlineRenderer`, `RecordingRenderer` | classes | §8.3 |
+| `@metanorma/prosemirror-minimap/core` | subpath export (React-free) | §3.1 |
 | `@metanorma/prosemirror-minimap/worker` | subpath export | §8.2 |
 
-The controller type is exported for typing `minimapKey.getState(view)`; its
-mutating methods are internal-use and documented as such.
+The `MinimapController` type is exported for typing
+`getMinimapController(view)`'s return; its mutating methods are internal-use
+and documented as such. There is no `PluginKey` export: the plugin keeps no
+state (§7.1), so a key would expose nothing meaningful.
 
 ---
 
@@ -713,10 +805,13 @@ Same constraints as the sibling packages (root `tsconfig.json`): `strict`,
 array reads are non-null asserted only where the invariant is locally proven,
 e.g. prefix-sum bounds), `verbatimModuleSyntax` (`import type` for types),
 `isolatedModules`, `module: node16` — internal relative imports carry `.js`
-extensions. Worker code compiles under the same config; it must not import
-`prosemirror-*` (the worker receives only serializable data — §8.5), which
-the compiler enforces by module graph separation: `workerCore.ts` imports
-from `types.ts` and `layers.ts` only.
+extensions. Worker code compiles under the same config and must not import
+`prosemirror-*` (the worker receives only serializable data — §8.5). The
+compiler does **not** enforce this — a stray import would compile — so the
+headless suite does: a `node:test` case walks `workerCore.ts`'s compiled
+import graph and fails on any `prosemirror-*` specifier. The design keeps the
+graph separable: `workerCore.ts` imports from `types.ts` and `layers.ts`
+only, and `types.ts` itself imports no `prosemirror-*` types.
 
 ---
 
@@ -744,11 +839,18 @@ from `types.ts` and `layers.ts` only.
    `[f, l]`, draw calls exist only for `[f − overscan, l + overscan]`.
 7. **Layer order**: with layers `text (z=10)`, a consumer layer `(z=15)`,
    `selection (z=20)`, recorded draw order is ascending `z`.
-8. **Protocol**: a scripted host/`InlineRenderer` round trip exercises
-   `blocks` chunking, `textRequest`/`text` coalescing, and sparse updates.
+8. **Protocol**: a `WorkerRenderer` wired to an in-process `Worker` double
+   (same `postMessage`/`onmessage` surface as a real worker, backed by
+   synchronous function calls) exercises `blocks` chunking,
+   `textRequest`/`text` coalescing, and sparse updates. The message protocol
+   lives in the worker path only — `InlineRenderer` receives direct method
+   calls — so the test targets `WorkerRenderer`; `RecordingRenderer` covers
+   the draw-call side (tests 6–7).
 9. **Scroll mapping**: `proportional` maps window tops/ends to row ranges
    matching the binary-search reference; `precise` snap lands on the resolved
    row (mocked `coordsAtPos`).
+10. **Worker isolation**: the compiled import graph of `workerCore.ts`
+    contains no `prosemirror-*` specifier (§14).
 
 ### 15.2 Performance budgets
 
