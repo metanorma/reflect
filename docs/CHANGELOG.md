@@ -7,6 +7,50 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-08-16 — Enter at start of a non-empty section title inserts a sibling section above
+
+New Enter affordance (`pkg/editor-commands/commands/insertSectionAbove.ts`,
+chain position 4 in EditorCommands.spec.md §2.3): with the caret at offset 0
+of a **non-empty** `section_title` (collapsed selection), Enter now inserts a
+same-type sibling section **before** the current section (empty
+`section_title` + empty `paragraph`, fresh generated id) and **keeps the
+caret at offset 0 of the current title** — the Word / Google Docs / Apple
+Pages "Enter at start of a heading" convention. Previously the only
+section-before-this-one routes were the Section popover (inserts after the
+nearest body-section ancestor) and gap-cursor placement; this is the first
+first-class "insert above".
+
+Design constraints that shaped it (user-reviewed over three evaluation
+rounds):
+
+1. **Non-empty guard.** Every section-creation command lands the caret at
+   offset 0 of a fresh EMPTY title, where Enter must keep meaning "skip the
+   title, go to the body" — so the empty-title case falls through to
+   `exitSectionTitle` unchanged.
+2. **Schema-derived legality, not a hand-coded allow-list.** The command
+   pre-flights `parent.canReplaceWith(sectionIndex, sectionIndex,
+   sectionType)`; on refusal it returns `false` and the chain degrades to
+   `exitSectionTitle`. Stricter Metanorma flavors (e.g. one capping a
+   section type at a single occurrence, as an isodoc-style `abstract?`
+   preface would) get today's semantics with no command fork.
+3. **Ranged selections never fire it** — a selection sitting at offset 0
+   must not mint a section.
+4. §2.4.8's "Enter never creates a new section" and §2.6's "never silently
+   restructures" bullets were scoped (current-state specs) to name this as
+   the one deliberate, precedented exception.
+
+Verified headlessly (verify-sections.mjs STA1–STA6, 48 assertions) and by
+e2e in both engines (98 passed). Also fixed in passing: `exitSectionTitle`'s
+ranged-selection behaviour and `insertSection`'s missing `canReplaceWith`
+pre-flight were identified as follow-ups and deliberately left unchanged.
+
+**Affected specs:** docs/EditorCommands.spec.md (§2.3, §2.4.8, §2.5, §2.6,
+§2.7, §2.8, §2.10).
+
+**Commits:** `059a289`.
+
+---
+
 ## 2026-08-15 — Empty-section-placeholder fixes: sibling inserts, atomic wraps, caret placement
 
 Three fixes from the same session of placeholder-related section bugs
