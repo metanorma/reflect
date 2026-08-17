@@ -9,6 +9,47 @@
 import { expect, test } from '@playwright/test';
 import { openEditor, toolbarButton, getDoc, clickEditor } from './helpers.js';
 
+/** Load a two-clause doc: first clause titled "Foo" with body "Bar", second
+ * clause titled "Tail". Returns nothing; the caret is placed separately. */
+async function loadFooTailDoc(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => {
+    (window).__mnLoadDoc?.({
+      type: 'doc',
+      content: [
+        { type: 'bibdata', attrs: { item: null, data: {} } },
+        { type: 'sections', content: [
+          { type: 'clause', attrs: { id: '_foo' }, content: [
+            { type: 'section_title', content: [{ type: 'text', text: 'Foo' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'Bar' }] },
+          ] },
+          { type: 'clause', attrs: { id: '_tail' }, content: [
+            { type: 'section_title', content: [{ type: 'text', text: 'Tail' }] },
+            { type: 'paragraph' },
+          ] },
+        ] },
+      ],
+    });
+  });
+}
+
+/**
+ * Place the caret in the "Foo" clause's title, then settle.
+ *
+ * The 300ms settle is required: ProseMirror observes caret moves (click,
+ * ArrowUp, Home, …) via the async `selectionchange` event, so rapid synthetic
+ * keys race `view.state.selection` — an immediately-following Enter acts on
+ * the stale caret. A human cannot hit this window; synthetic tests can.
+ * Returns nothing; callers add their own offset nudges (ArrowRight,
+ * Backspace) and re-settle before pressing Enter.
+ */
+async function caretIntoFooTitle(page: import('@playwright/test').Page): Promise<void> {
+  const p = page.locator('.ProseMirror p').first();
+  await p.click({ force: true });
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Home');
+  await page.waitForTimeout(300);
+}
+
 test.describe('section title', () => {
 
   test('clause insertion places cursor in empty section_title; typing fills it', async ({ page }) => {
@@ -125,6 +166,106 @@ test.describe('section title', () => {
     }
     expect(titleText).toBe('Title');
     expect(docStr).toContain('paragraph text');
+  });
+
+  test('Enter at start of a non-empty title inserts an empty clause ABOVE (caret stays)', async ({ page }) => {
+    await openEditor(page);
+    await loadFooTailDoc(page);
+
+    // Caret into "Foo"'s title at offset 0 (helper settles after navigation).
+    await caretIntoFooTitle(page);
+
+    await page.keyboard.press('Enter');
+
+    // Structure: three top-level clauses now — the new empty one is FIRST
+    // (above Foo), Foo's id and text untouched, Tail last.
+    const doc = (await getDoc(page)) as any;
+    const sections = doc.content.find((n: any) => n.type === 'sections');
+    const clauses = sections.content;
+    expect(clauses).toHaveLength(3);
+    expect(clauses[0].attrs.id).not.toBe('_foo');
+    expect(clauses[0].attrs.id).not.toBe('_tail');
+    // The new sibling is [empty section_title, empty paragraph].
+    expect(clauses[0].content.map((c: any) => c.type)).toEqual(['section_title', 'paragraph']);
+    expect(clauses[0].content[0].content ?? []).toEqual([]);
+    // The original clause keeps its id, its title text, and its body.
+    expect(clauses[1].attrs.id).toBe('_foo');
+    expect((clauses[1].content[0].content ?? []).map((t: any) => t.text).join('')).toBe('Foo');
+    expect((clauses[1].content[1].content ?? []).map((t: any) => t.text).join('')).toBe('Bar');
+    expect(clauses[2].attrs.id).toBe('_tail');
+
+    // The caret is STILL at offset 0 of the ORIGINAL title: typing a probe
+    // prepends to "Foo", not to the new empty title above.
+    await page.keyboard.type('X');
+    const doc2 = (await getDoc(page)) as any;
+    const sections2 = doc2.content.find((n: any) => n.type === 'sections');
+    const titles = sections2.content.map((c: any) =>
+      (c.content.find((k: any) => k.type === 'section_title')?.content ?? [])
+        .map((t: any) => t.text).join(''));
+    expect(titles).toEqual(['', 'XFoo', 'Tail']);
+  });
+
+  test('Enter in an EMPTY title still exits to the body (staged-caret regression)', async ({ page }) => {
+    await openEditor(page);
+    // Load the Foo clause with an ALREADY-EMPTY title (deterministic — no
+    // in-test deletion needed). ArrowUp from the body lands at the empty
+    // title's only caret position, which is offset 0 by definition.
+    await page.evaluate(() => {
+      (window).__mnLoadDoc?.({
+        type: 'doc',
+        content: [
+          { type: 'bibdata', attrs: { item: null, data: {} } },
+          { type: 'sections', content: [
+            { type: 'clause', attrs: { id: '_foo' }, content: [
+              { type: 'section_title' },
+              { type: 'paragraph', content: [{ type: 'text', text: 'Bar' }] },
+            ] },
+            { type: 'clause', attrs: { id: '_tail' }, content: [
+              { type: 'section_title', content: [{ type: 'text', text: 'Tail' }] },
+              { type: 'paragraph' },
+            ] },
+          ] },
+        ],
+      });
+    });
+
+    const p = page.locator('.ProseMirror p').first();
+    await p.click({ force: true });
+    await page.keyboard.press('ArrowUp');
+    await page.waitForTimeout(300);
+
+    await page.keyboard.press('Enter');
+
+    // The caret must be in the body paragraph ("Bar"), and NO sibling clause
+    // was created — the sections container still holds exactly 2 clauses.
+    await page.keyboard.type('Z');
+    const doc = (await getDoc(page)) as any;
+    const sections = doc.content.find((n: any) => n.type === 'sections');
+    expect(sections.content).toHaveLength(2);
+    const foo = sections.content[0];
+    expect((foo.content[1].content ?? []).map((t: any) => t.text).join('')).toBe('ZBar');
+  });
+
+  test('Enter mid-title still exits to the body (non-zero offset regression)', async ({ page }) => {
+    await openEditor(page);
+    await loadFooTailDoc(page);
+
+    // Caret into "Foo"'s title at offset 1 (after "F").
+    await caretIntoFooTitle(page);
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(300);
+
+    await page.keyboard.press('Enter');
+
+    // Mid-title Enter exits to the body; no sibling clause is created.
+    await page.keyboard.type('Y');
+    const doc = (await getDoc(page)) as any;
+    const sections = doc.content.find((n: any) => n.type === 'sections');
+    expect(sections.content).toHaveLength(2);
+    const foo = sections.content[0];
+    // Title unchanged (Enter did not split or modify it).
+    expect((foo.content[0].content ?? []).map((t: any) => t.text).join('')).toBe('Foo');
+    expect((foo.content[1].content ?? []).map((t: any) => t.text).join('')).toBe('YBar');
   });
 
   test('doc JSON contains section_title node type after clause insertion', async ({ page }) => {

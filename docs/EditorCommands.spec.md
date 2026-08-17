@@ -429,11 +429,12 @@ chainCommands(
   newlineInCode,          // 1. inside sourcecode
   enterDefinitionList,    // 2. inside dl / dt / dd
   splitListItem,          // 3. inside a list_item
-  exitSectionTitle,       // 4. inside a section_title (move to body / insert body)
-  exitFloatingTitle,      // 5. inside a floating_title (move to next sibling / insert clause)
-  exitContainerBlock,     // 6. empty para at the end of a container block
-  createParagraphNear,    // 7. node-selection on / gap-cursor beside an atom
-  splitBlockKeepMarks,    // 8. default: split the innermost textblock
+  insertSectionAbove,     // 4. caret at start of a non-empty section_title
+  exitSectionTitle,       // 5. inside a section_title (move to body / insert body)
+  exitFloatingTitle,      // 6. inside a floating_title (move to next sibling / insert clause)
+  exitContainerBlock,     // 7. empty para at the end of a container block
+  createParagraphNear,    // 8. node-selection on / gap-cursor beside an atom
+  splitBlockKeepMarks,    // 9. default: split the innermost textblock
 )
 ```
 
@@ -442,11 +443,14 @@ generic split because their textblocks (`sourcecode`, `dt`, the boundary cases
 of `dd`) are not plain splittable paragraphs; list and container exit must
 preempt the default split so that pressing Enter on an empty list item or empty
 trailing paragraph exits the construct rather than adding yet another empty
-paragraph inside it; `exitSectionTitle` must preempt the default split so that
-pressing Enter inside a section heading moves to the body rather than producing
-a second heading textblock; `createParagraphNear` must preempt the split for node
-selections on atoms (which have no inline content to split). The generic split
-is the fallback.
+paragraph inside it; `insertSectionAbove` must precede `exitSectionTitle`
+because every state it fires on (caret inside a `section_title`) is also an
+`exitSectionTitle` trigger — only the offset-0/non-empty/collapsed/s legality
+conditions discriminate; `exitSectionTitle` must preempt the default split so
+that pressing Enter inside a section heading moves to the body rather than
+producing a second heading textblock; `createParagraphNear` must preempt the
+split for node selections on atoms (which have no inline content to split). The
+generic split is the fallback.
 
 **Nesting is resolved by each command's nearest-ancestor check, not by global
 recursion.** When the cursor sits in, say, a paragraph inside a `note` inside a
@@ -603,19 +607,37 @@ default `splitBlockKeepMarks` branch, just like a paragraph.)
 The cursor is always inside some textblock; it is never "inside" a `clause`,
 `sections`, `doc`, etc. in a way that Enter would split. Therefore:
 
-- Enter **never creates a new section** (`clause`, `annex`, …). New sections are
-  introduced by dedicated commands/toolbars, not by Enter, because auto-creating
-  sections on Enter would violate user expectation in a hierarchical document.
+- Enter **never creates a new section inside another section's body**, and
+  never splits a section node. The one place Enter creates a sibling section
+  is the start-of-title affordance of `insertSectionAbove` (below): a
+  deliberate word-processor parity feature, not structural restructuring by
+  accident. All other section creation is by dedicated commands/toolbars.
 - Enter **never splits a section node.**
 - **`section_title`** (the optional leading heading textblock of a section) is
-  handled by the dedicated `exitSectionTitle` command (§2.7, chain position 4),
-  which preempts the generic split: Enter inside a `section_title` moves the
-  cursor to the section's first body block, or inserts an empty paragraph as
-  the body if none exists. Enter never splits a `section_title` into two (a
-  section has at most one heading).
+  handled by two commands. `insertSectionAbove` (§2.7, chain position 4) fires
+  when the caret is a **collapsed `TextSelection` at offset 0 of a non-empty
+  `section_title`**: it inserts a new **same-type sibling section before the
+  current section** (empty `section_title` + empty `paragraph`, fresh generated
+  `id`) and **keeps the caret at offset 0 of the current title** — the
+  word-processor "Enter at start of a heading" convention (Word / Google Docs
+  / Apple Pages), where the block above is born empty and the caret stays with
+  the existing text. Legality is schema-derived: the command pre-flights
+  `sectionParent.canReplaceWith(titleIndex, titleIndex, sectionType)` and
+  returns `false` when the parent's content expression forbids the sibling
+  (e.g. a flavor that caps a section type at one occurrence), so stricter
+  Metanorma flavors degrade gracefully to the `exitSectionTitle` behaviour
+  without a command fork. Every other caret state in a title falls through to
+  `exitSectionTitle` (§2.7, chain position 5), which preempts the generic
+  split: Enter inside a `section_title` moves the cursor to the section's
+  first body block, or inserts an empty paragraph as the body if none exists.
+  Enter never splits a `section_title` into two (a section has at most one
+  heading). The offset-0/non-empty discrimination preserves the staged-caret
+  flows: every section-creation command (`wrapInClause`, `demoteClause`,
+  `insertSection`, `exitFloatingTitle`) lands the caret at offset 0 of a fresh
+  **empty** title, where Enter must still mean "go to the body".
 - **`floating_title`** (the unnumbered free-standing heading textblock) is
   handled by the dedicated `exitFloatingTitle` command (§2.7, chain position
-  5). A `floating_title` may appear only in `sections` or a clause/annex
+  6). A `floating_title` may appear only in `sections` or a clause/annex
   subclause run, where the only legal followers are other subclause-run
   members — a bare paragraph can never follow it. Enter inside a
   `floating_title` therefore does not split it (a second heading is not what
@@ -656,7 +678,10 @@ behaviour:
    `TextSelection.near`), never inside an atom or between two structural nodes
    where inline content is disallowed.
 5. **Section boundaries are respected.** Enter never moves content across a
-   section boundary in a way the content model forbids.
+   section boundary in a way the content model forbids. (`insertSectionAbove`
+   inserts a whole new sibling section without touching any existing content;
+   its `canReplaceWith` pre-flight guarantees the sibling is legal in the
+   parent.)
 6. **Marks are preserved or explicitly dropped.** Marks active at the split are
    carried to the new block via `storedMarks`, except where a mark is illegal in
    the destination (none currently exist in the schema, but the rule is stated
@@ -676,8 +701,13 @@ word-processor user expects:
 4. **Enter near an atom makes a place to type**, rather than leaving the user
    stranded with nowhere to put the cursor.
 5. **Enter inside a table is inert** (no surprise row/cell deletion).
-6. **Enter never silently restructures the document hierarchy** (no new
-   sections, no moved clauses, no split atoms).
+6. **Enter never silently restructures the document hierarchy** (no split
+   atoms, no moved clauses, no section created inside another section's body).
+   The one deliberate exception is `insertSectionAbove` (§2.4.8): a visible,
+   precedented, fully-undoable single-transaction insertion of an empty
+   sibling section at the caret's title start — it is the word-processor
+   convention (see the closing rule of this section), not a silent
+   restructure.
 
 When in doubt, Enter's effect matches the platform's dominant word-processor
 (Word / Google Docs) for the analogous construct.
@@ -694,6 +724,7 @@ The Enter feature introduces the following commands in
 | `newlineInCode` | `Command` | adapted from `prosemirror-commands` | Insert a `\n` when the cursor is inside a `code: true` block (only `sourcecode`). Preempts all other branches. |
 | `enterDefinitionList` | `Command` | custom | Manage the `(dt dd)+` flow: commit a term to its `dd`, start a new `(dt dd)` entry, or exit the `dl`. Preempts the generic split. |
 | `splitListItem` | `(schema) => Command` | adapted from `prosemirror-schema-list` | Continue a `bullet_list`/`ordered_list` by splitting the item's inner block into a new item, or exit the list (one level) on an empty trailing item. Generalised for `list_item` content `block+`. |
+| `insertSectionAbove` | `Command` | custom | Word/Docs/Pages heading-split analog. When the caret is a collapsed `TextSelection` at offset 0 of a **non-empty** `section_title`, insert a new same-type sibling section **before** the current section (empty `section_title` + empty `paragraph`, fresh generated `id`) and keep the caret at offset 0 of the current title. Schema-derived legality: pre-flights `parent.canReplaceWith(titleIndex, titleIndex, sectionType)`; on refusal returns `false` (stricter flavors degrade to `exitSectionTitle`). Fires before `exitSectionTitle` in the chain (every state it accepts is also an `exitSectionTitle` trigger). |
 | `exitSectionTitle` | `Command` | custom | When the cursor is inside a `section_title` textblock (the heading of a section node), move the cursor to the section's first body block, or insert an empty `paragraph` as the first body block if none exists. Preempts the generic split so Enter inside a heading does not produce a second heading textblock. |
 | `exitFloatingTitle` | `Command` | custom | When the cursor is inside a `floating_title` textblock (an unnumbered free-standing heading), move the cursor to the start of the next sibling, or — when the title is its parent's last child — insert a new `clause` (empty `section_title` + `paragraph`, cursor in the heading) after it. Preempts the generic split so Enter inside a floating title starts the titled section rather than producing a second heading. |
 | `exitContainerBlock` | `Command` | custom | Lift an empty trailing paragraph out of a `block+` container (`note`, `example`, `quote`, `review`, `admonition`, `figure`), removing the container if it would become empty. |
@@ -738,6 +769,7 @@ import {
   newlineInCode,
   enterDefinitionList,
   splitListItem,
+  insertSectionAbove,
   exitSectionTitle,
   exitFloatingTitle,
   exitContainerBlock,
@@ -752,6 +784,7 @@ const enterBinding = chainCommands(
   newlineInCode,
   enterDefinitionList,
   splitListItem(metanormaSchema),
+  insertSectionAbove,
   exitSectionTitle,
   exitFloatingTitle,
   exitContainerBlock,
@@ -835,6 +868,29 @@ rows:
   cursor moves to the start of that body block; no new node.
 - **ST2** cursor inside a `section_title` with no body block → empty `paragraph`
   inserted as the first body block; cursor in it.
+- **STA1** collapsed caret at offset 0 of a **non-empty** `section_title` of a
+  top-level body section → new same-type sibling section inserted **before**
+  the current section, with a fresh generated `id` and children
+  `[section_title, paragraph]` (both empty); the original section's `id` and
+  title text are unchanged; `doc.check()` passes; the caret remains at offset 0
+  of the **original** title (not the new section's).
+- **STA2** the same inside a nested clause's subclause run → the sibling lands
+  inside the same parent clause's run, before the current section — not at
+  `sections` top level.
+- **STA3** empty title, caret at offset 0 → command returns `false` (query);
+  Enter falls through to `exitSectionTitle` and exits to the body.
+- **STA4** caret at a non-zero offset of a non-empty title → command returns
+  `false`; Enter exits to the body.
+- **STA5** ranged selection starting at offset 0 of a non-empty title →
+  command returns `false` (collapsed-only guard); Enter exits to the body.
+- **STA6** a `references` section in `bibliography` → the sibling `references`
+  stays inside the trailing run (`block* bibitem* references*`), before the
+  current one.
+- **STA7** parent whose content expression forbids the same-type sibling
+  (e.g. a flavor capping a section type at one occurrence) → the
+  `canReplaceWith` pre-flight returns `false` without dispatching; Enter
+  degrades to `exitSectionTitle`. (Not representable in the current schema —
+  covered by guard review, not a headless assert.)
 
 Every row must also satisfy the global Acceptance criteria: single dispatch, no
 throw, valid resulting selection, query/dispatch parity, and headless

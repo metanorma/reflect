@@ -42,6 +42,7 @@ export { splitBlockKeepMarks } from './commands/splitBlockKeepMarks.js';
 export { splitListItem } from './commands/splitListItem.js';
 export { enterDefinitionList } from './commands/enterDefinitionList.js';
 export { exitContainerBlock } from './commands/exitContainerBlock.js';
+export { insertSectionAbove } from './commands/insertSectionAbove.js';
 export { exitSectionTitle } from './commands/exitSectionTitle.js';
 export { exitFloatingTitle } from './commands/exitFloatingTitle.js';
 export { createParagraphNear } from './commands/createParagraphNear.js';
