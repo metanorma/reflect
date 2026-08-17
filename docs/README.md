@@ -18,6 +18,11 @@ live in [`CHANGELOG.md`](./CHANGELOG.md). Run `yarn check-specs` before
 submitting a PR that touches a spec; use `yarn spec-impact <spec-path.md>` to
 find what to review when changing a spec.
 
+**Upstream reference.** [`metanorma-model.md`](./metanorma-model.md) records
+commit-pinned, verified facts about the Metanorma pipeline and grammars that
+the corpus derives from — most directly the schema spec's Metanorma alignment
+([`schema.spec.md`](./schema.spec.md) §1.1/§17).
+
 ```
 schema.spec.md            ← source of truth for the document model
         ↑ consumed by              ↑ consumes (bibitem model)

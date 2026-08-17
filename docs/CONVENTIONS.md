@@ -58,6 +58,14 @@ Current placements: corpus — `schema.spec.md`*, `MetanormaProseMirror.spec.md`
 *\* `prosemirror-schema` and `prosemirror-minimap` are also slated for
 independent publication; their specs migrate at their own release.*
 
+**Reference documents** (`docs/metanorma-model.md`) are a third kind of
+prose: verified, commit-pinned facts about *external* systems that corpus
+specs derive from. They are non-contractual input — they sit outside the §1
+hierarchy, and a spec citing one derives its own authority from itself. The
+tooling sweeps them like any other `docs/**/*.md` file. Reference docs carry
+a verification ledger (commit pins + dates); provenance for *their* contents
+is Git, as for specs (§2).
+
 
 ## 2. Provenance model: Git, not version numbers
 

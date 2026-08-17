@@ -54,6 +54,12 @@ selecting the authoritative encoding (§17.2); the `concept` mark carries a
 footnote references use a single `footnote_marker` node, with no competing
 `footnote` mark (§3.2).
 
+Upstream Metanorma facts this alignment rests on — the Semantic-XML grammar,
+the Semantic/Presentation layering test, element and identifier models — are
+pinned and stated once in
+[`metanorma-model.md`](./metanorma-model.md); this spec links there rather
+than restating them.
+
 ---
 
 ## 2. Module layout
@@ -788,7 +794,8 @@ As stated in §1.1, this schema covers a **subset** of the Metanorma document
 model. It is designed for **unambiguous convertibility**: every document the
 editor can produce must map to a single, well-defined Metanorma Semantic XML
 structure — the authoring form that `metanorma-standoc` validates
-(`isodoc-compile.rng`). A dedicated converter performs attribute/element
+(`isodoc-compile.rng`; pipeline and grammar facts are pinned in
+[`metanorma-model.md`](./metanorma-model.md)). A dedicated converter performs attribute/element
 renames and structural reshapes (e.g. `cite` → `citeas`, `href` → `target`,
 `number` → `reference`, the `section_title` child node → a `<title>`/`<name>`
 child element, the doc-level `footnotes`/`footnote_entry`/`footnote_marker` split → a single inline
