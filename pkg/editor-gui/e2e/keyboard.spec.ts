@@ -61,43 +61,105 @@ test.describe('keyboard', () => {
     expect(after).toContain('"clause"');
   });
 
-  test('Backspace refuses inside a definition list (preserves (dt dd)+)', async ({ page }) => {
-    await openEditor(page);
-    // Ensure the caret is in the body paragraph (not the section_title
-    // heading, where Def list is disabled by design).
-    await clickBodyParagraph(page);
+test('Def list preserves the paragraph text; Backspace deletes pairs atomically', async ({ page }) => {
+  await openEditor(page);
+  // Ensure the caret is in the body paragraph (not the section_title
+  // heading, where Def list is disabled by design).
+  await clickBodyParagraph(page);
+  await page.keyboard.type('my term');
 
-    // Insert a dl via the Def list button (replaces the current paragraph;
-    // text promotion requires a selection, so the caret-only case yields an
-    // empty term — type the term directly into the dt afterwards).
-    await toolbarButton(page, 'Def list').click();
+  // Insert a dl via the Def list button — the paragraph's ENTIRE text must
+  // promote into the dt (not be lost).
+  await toolbarButton(page, 'Def list').click();
 
-    let docStr = JSON.stringify(await getDoc(page));
-    expect(docStr).toContain('"dl"');
-    expect(docStr).toContain('"dt"');
-    expect(docStr).toContain('"dd"');
-    // The cursor is in the dt — type the term there.
-    await page.keyboard.type('term text');
-    docStr = JSON.stringify(await getDoc(page));
-    expect(docStr).toContain('term text');
+  let docStr = JSON.stringify(await getDoc(page));
+  expect(docStr).toContain('"dl"');
+  expect(docStr).toContain('"dt"');
+  expect(docStr).toContain('"dd"');
+  expect(docStr).toContain('my term');
 
-    // Enter from the dt commits the term and moves into the dd's paragraph.
-    await page.keyboard.press('Enter');
-    await page.keyboard.type('description');
-    docStr = JSON.stringify(await getDoc(page));
-    expect(docStr).toContain('description');
+  // Enter from the dt commits the term and moves into the dd's paragraph.
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('my description');
+  docStr = JSON.stringify(await getDoc(page));
+  expect(docStr).toContain('my description');
 
-    // Backspace at the start of the dd's first block: the BD1 refusal rule —
-    // the dl/dt/dd structure is preserved (no structural unwind mid-list).
-    await page.keyboard.press('Home');
-    await page.keyboard.press('Backspace');
+  // Backspace at the start of the dd's non-empty first block is the
+  // §4.4.4 claim-no-op (a join would cross the dt/dd boundary). Empty the
+  // block the way a user would: select its text, delete it.
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Shift+End');
+  await page.keyboard.press('Backspace');
 
-    const after = JSON.stringify(await getDoc(page));
-    expect(after).toContain('"dl"');
-    expect(after).toContain('"dt"');
-    expect(after).toContain('"dd"');
-    expect(after).toContain('term text');
+  // The dd's paragraph is now empty and is its dd's only block → Backspace
+  // deletes the whole (dt, dd) pair, and it was the only pair → the dl is
+  // replaced by a paragraph.
+  await page.keyboard.press('Backspace');
+  docStr = JSON.stringify(await getDoc(page));
+  expect(docStr).not.toContain('"dl"');
+  expect(docStr).not.toContain('"dt"');
+  expect(docStr).not.toContain('"dd"');
+  expect(docStr).toContain('"paragraph"');
+});
+
+test('Backspace in an empty dt deletes the whole pair despite dd content', async ({ page }) => {
+  await openEditor(page);
+  // The default doc's body paragraph is empty; Def list on a bare caret
+  // replaces it with an (empty dt, dd) pair, caret in the empty dt.
+  await clickBodyParagraph(page);
+  await toolbarButton(page, 'Def list').click();
+  await page.keyboard.press('Enter'); // commit the empty term → jump to the dd
+  await page.keyboard.type('description text');
+
+  // Navigate back into the (empty) dt: from the dd's start, ArrowUp — the
+  // only position in an empty dt is offset 0, so this is deterministic.
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowUp');
+  await page.waitForTimeout(300); // PM selectionchange settle (known race)
+
+  // Backspace in the empty dt deletes the pair (the dd's content goes with
+  // it) — and the dl had only that pair → replaced by a paragraph.
+  await page.keyboard.press('Backspace');
+
+  const docStr = JSON.stringify(await getDoc(page));
+  expect(docStr).not.toContain('"dl"');
+  expect(docStr).not.toContain('description text');
+});
+
+test('Backspace deletes only the empty paragraph in a multi-block dd', async ({ page }) => {
+  await openEditor(page);
+  // Load a dl whose dd has two paragraphs (the second empty) — building it
+  // by UI choreography is fragile (Enter in the last dd starts a new pair),
+  // so drive the rehydration path instead.
+  await page.evaluate(() => {
+    const w = window as unknown as { __mnLoadDoc?: (json: unknown) => boolean };
+    w.__mnLoadDoc?.({
+      type: 'doc',
+      content: [
+        { type: 'bibdata' },
+        { type: 'sections', content: [{ type: 'clause', attrs: { id: 'c1' }, content: [
+          { type: 'section_title', content: [{ type: 'text', text: 'T' }] },
+          { type: 'dl', content: [
+            { type: 'dt', content: [{ type: 'text', text: 'term' }] },
+            { type: 'dd', content: [
+              { type: 'paragraph', content: [{ type: 'text', text: 'first block' }] },
+              { type: 'paragraph' },
+            ] },
+          ] },
+        ] }] },
+      ],
+    });
   });
+  // Navigate: click the dd's second (empty) paragraph.
+  await page.locator('.appwrapper .mn-prosemirror .ProseMirror dd p').nth(1).click({ force: true });
+  await page.waitForTimeout(300); // selectionchange settle
+
+  await page.keyboard.press('Backspace');
+  const docStr = JSON.stringify(await getDoc(page));
+  expect(docStr).toContain('"dl"');
+  expect(docStr).toContain('first block');
+  expect((docStr.match(/"paragraph"/g) ?? []).length).toBe(1);
+});
 
   test('Def list button is disabled while the cursor is in a section heading', async ({ page }) => {
     await openEditor(page);

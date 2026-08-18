@@ -252,11 +252,12 @@ export function insertDefinitionList(state: EditorState, dispatch?: (tr: Transac
    into a single inline `dt`; the button is disabled for such selections).
 3. **Promote the current paragraph's text into the `dt` (term)** rather than
    discarding it. Because `dt` is `inline*` (text directly, no paragraph) and
-   `dd` is `block+` (needs a paragraph child), derive the term's inline content
-   from the selection slice, then build the pair via the shared helper
-   (`makePair`, §5.3). Behaviour by selection shape:
+   `dd` is `block+` (needs a paragraph child), take the **entire** textblock's
+   inline content (a collapsed caret or partial selection must not lose the
+   unselected text), then build the pair via the shared helper (`makePair`,
+   §5.3). Behaviour by selection shape:
    - **Collapsed cursor / selection within a single non-empty paragraph** — the
-     paragraph's text becomes the `dt` content; an empty `dd` (with an empty
+     whole paragraph's text becomes the `dt` content; an empty `dd` (with an empty
      paragraph placeholder, since `dd` is `block+`) is created below it; the
      cursor lands at the start of the `dt`. This mirrors how ProseMirror's
      `wrapIn` for bullet/ordered lists turns a paragraph into the first list
@@ -271,17 +272,16 @@ export function insertDefinitionList(state: EditorState, dispatch?: (tr: Transac
 
    const { dl, paragraph } = state.schema.nodes;
 
-   // Derive the term's inline content from the current paragraph's text.
-   // (An empty paragraph yields an empty fragment.)
-   const termContent = inlineContentFromSelection(state); // Node[] of text/inline
+   // Promote the ENTIRE textblock's inline content (a collapsed caret or
+   // partial selection must not lose the unselected text).
+   const termContent = state.selection.$from.parent.content; // Fragment
    const [termNode, descNode] = makePair(state.schema, termContent);
    const dlNode = dl.create({}, [termNode, descNode]);
    ```
 
-   `inlineContentFromSelection` extracts the inline nodes (text + inline
-   marks) of the selection's slice, dropping any block wrappers so the
-   content is legal as `dt`'s `inline*` content. For an empty paragraph it
-   returns `[]`.
+   `makePair` accepts the textblock's `content` fragment (or a `Node[]`) and
+   creates the `dt` with it as inline content, legal for `dt`'s `inline*`
+   content expression. For an empty textblock the fragment is empty.
 
 4. Replace the selection. If the selection covers block content (e.g. the user
    selected a paragraph), use `tr.replaceSelectionWith(dlNode)` when the
@@ -460,7 +460,7 @@ lives in `@metanorma/toolbar`, **not** in the commands package:
 | In a `dt` (term) | Move cursor to the start of **its** `dd` (do not insert anything) | User types the description |
 | In a `dd` (description) that is **not** the last node of the `dl` | Default behaviour (split block within dd, or move to next pair) | Normal block editing |
 | In the **last** `dd` of the `dl` | **Add a new `(dt, dd)` pair** (via `addDefinitionPair`) and move cursor to the new `dt` | Grow the list |
-| In the last `dd` when the term of its pair is **empty** | **Exit the dl**: insert a new paragraph after the dl, move cursor there, and remove the now-empty trailing pair if needed to keep `(dt dd)+` valid — all as a **single transaction** | Escape hatch out of the list |
+| In the last `dd` when the term of its pair is **empty** | **Exit the dl**: insert a new paragraph after the dl, move cursor there, and remove the now-empty trailing pair if needed to keep `(dt dd)+` valid — all as a **single transaction**. When the pair was the only one, the `dl` itself is replaced by the textblock its parent admits at that slot (see `EditorCommands.spec.md` §2.4.4) | Escape hatch out of the list |
 
 The last two rows are the key UX decisions: **Enter in the last dd adds a
 pair**, and **Enter in the last dd whose dt is empty exits the dl** (mirroring
@@ -508,30 +508,28 @@ imported from `@metanorma/editor-commands` (they read `state` only, never a
 
 ### 6.2 Backspace at start
 
-`Backspace` pressed at the **start** of a node should perform structural
-merging rather than default deletion, to avoid producing an invalid tree:
+`Backspace` at the **start** of an empty term or description block performs
+**pair-atomic deletion**. The normative behaviour table lives in
+`EditorCommands.spec.md` §4.4.4 (the command is `emptyTextblockBackspace`); in
+summary:
 
 | Cursor location | Backspace-at-start behaviour |
 |---|---|
-| Start of a `dt` (pair is not the first) | **No-op** (refuse). |
-| Start of the **first** `dt` | **No-op** (refuse). |
-| Start of a `dd` | **No-op** (refuse). |
+| Start of an empty block in a multi-block `dd` | Delete that block only (normal block deletion; the `dd` keeps its other blocks). |
+| Start of an empty `dt`, or an empty block that is a `dd`'s only child | Delete the **minimal schema-valid child range of the `dl`** — the whole `(dt, dd)` pair in this schema, deleting the partner's content with it (recoverable via Undo). Cursor at the end of the predecessor pair's last textblock (or the start of the next pair). |
+| The pair being deleted is the `dl`'s only pair | Replace the `dl` with the textblock its parent's content expression admits at that slot (an empty paragraph in this schema), cursor inside it. |
+| Start of a **non-empty** `dt`, or the `dd`'s first block | **Claim and no-op** (an empty transaction): the backward join would cross the dt/dd content-kind boundary — stock deletion could absorb the term into the preceding block and leave a lone `dd`. A non-first block of a `dd` joins normally within the `dd`. |
+| Ranged / node selections, mid-text positions | Not dl-specific: default deletion runs. |
 
-The guiding rule: **never delete a `dt` or `dd` such that the remaining dl
-fails `(dt dd)+`.** Backspace at the start of any `dt` or `dd` is a uniform
-**no-op**: the keymap returns `false` (falls through to default, which
-ProseMirror also refuses because the result would violate `(dt dd)+`). No
-cross-boundary text merge, no lift-to-paragraph conversion, and no special
-case for the first pair. **Rationale:** `dt` is `inline*` and `dd` is `block+`
-— they are *different content kinds*, so any merge across the `dd`→`dt` (or
-`dt`→`dd`) boundary is categorically lossy. Appending a term's inline text
-onto the end of the previous `dd` collapses the term into the description,
-destroying the term/description distinction the document model exists to
-express; appending a `dd`'s block content onto a `dt`'s inline content is
-schema-impossible without flattening blocks into inline. Mid-text deletion
-within a `dt`/`dd`'s content is unaffected (normal text deletion); removing a
-whole pair is done by selecting it and deleting (the ranged case, handled
-separately to keep `(dt dd)+` valid).
+The guiding rule: **deletion is stated against the schema, not a fixed
+grammar.** The minimal valid range is computed by widening from the empty child
+toward its semantic partner while the `dl`'s content expression rejects the
+remaining fragment — under a run-based flavor (`(dt+ dd+)`) this degrades to
+the minimal run instead of breaking. Cross-boundary text merging (`dt` inline
+content appended to `dd` block content or vice versa) remains categorically
+lossy and is never performed. `definitionListKeymap`'s Backspace binding
+always declines, so the chain's `emptyTextblockBackspace` owns this policy in
+one place.
 
 ### 6.3 Tab / Shift-Tab
 

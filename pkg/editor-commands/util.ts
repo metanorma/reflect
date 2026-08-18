@@ -114,3 +114,28 @@ export function canInsertBlockAdjacent(
   if (ctx === null) return false;
   return ctx.parent.canReplaceWith(ctx.index + 1, ctx.index + 1, type);
 }
+
+/**
+ * The textblock the parent's content expression admits at `index` — the
+ * generalized answer to "what block may replace the node at `index` here?".
+ *
+ * Uses the match's `defaultType` (the first type the expression accepts at
+ * that slot), kept only when a same-slot replacement by it is actually legal
+ * (`canReplaceWith(index, index + 1, type)`) and it is a textblock (so a
+ * cursor can live inside it). Returns `null` when no textblock is admissible
+ * — a slot like `(dl | table)` admits none.
+ *
+ * Shared by the dl-removal branches of `emptyTextblockBackspace` and the
+ * Enter-exit commands, so a restrictive flavor degrades uniformly instead of
+ * hard-coding "paragraph" where it would be schema-invalid.
+ */
+export function admittedTextblock(
+  parent: Node,
+  index: number,
+): NodeType | null {
+  const type = parent.contentMatchAt(index).defaultType;
+  if (type === null) return null;
+  if (!type.isTextblock) return null;
+  if (!parent.canReplaceWith(index, index + 1, type)) return null;
+  return type;
+}

@@ -72,11 +72,14 @@ function handleEnter(state: EditorState, dispatch?: (tr: Transaction) => void): 
   return false; // let default Enter handle intra-dd block splitting
 }
 
-/** Backspace-at-start handler (definition-lists.md §6.2). Always a no-op. */
+/**
+ * Backspace handler (definition-lists.md §6.2). Always declines: dl-aware
+ * Backspace behaviour is owned by `emptyTextblockBackspace` (EditorCommands
+ * spec §4.4.4 pair-atomic deletion), which the consumer's Backspace chain
+ * runs first. Returning `false` keeps the chain in charge and avoids binding
+ * the same policy in two places.
+ */
 function handleBackspace(_state: EditorState, _dispatch?: (tr: Transaction) => void): boolean {
-  // The spec mandates Backspace-at-start of any `dt` or `dd` is a uniform
-  // no-op: return false so the default handler runs (and ProseMirror also
-  // refuses because the result would violate `(dt dd)+`).
   return false;
 }
 

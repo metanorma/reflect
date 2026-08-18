@@ -538,7 +538,7 @@ adjacent `dd` nodes, and never with a trailing `dt` lacking a `dd`.
 | Collapsed | any | inside a `dt` with no following `dd` *(defensive; should not occur in a valid doc)* | Insert a `dd` (empty paragraph) after the `dt`; cursor in it. | Restores `(dt dd)+`. |
 | Collapsed | middle, or end of a non-last block | inside a `dd` | Split the inner block in place, within the `dd` (fallback `splitBlockKeepMarks`). | `dd` `block+`; alternation intact. |
 | Collapsed | end of the LAST block | the `dd` is the LAST child of the `dl`, block non-empty | **Start a new entry**: insert a `(dt empty, dd empty-paragraph)` pair after the `dd`; cursor in the new `dt`. | New complete pair; `(dt dd)+`. |
-| Collapsed | empty | the LAST `dd`'s only block is an empty paragraph | **Exit the dl**: remove the trailing `(dt dd)` pair; if it was the only pair, remove the `dl`; insert an empty paragraph after; cursor in it. | No dangling `dt`; no empty `dl`. |
+| Collapsed | empty | the LAST `dd`'s only block is an empty paragraph | **Exit the dl**: remove the trailing `(dt dd)` pair; if it was the only pair, remove the `dl` itself by replacing it with the textblock the dl's parent's content expression admits at the dl's slot (an empty `paragraph` in this schema; the exit refuses when no textblock is admissible there); insert an empty paragraph after a surviving dl. Cursor in the new paragraph. | No dangling `dt`; no empty `dl`; no schema-invalid replacement. |
 | Collapsed | empty | empty paragraph in a `dd` that is NOT last | Split in place (another paragraph in the `dd`); never exit mid-dl. | `(dt dd)+`. |
 | Ranged | any | within `dt` or `dd` | Delete the range, then apply the collapsed rule. | Alternation preserved. |
 | Node | — | — | See §2.4.7. | — |
@@ -1200,13 +1200,12 @@ of an empty textblock; if not, it returns `false` so that the ranged/character
 branches run.
 
 **Interaction with `definitionListKeymap` (definition-lists.md §6.2).** That
-keymap binds Backspace-at-start inside `dt`/`dd` to a uniform **no-op** to
-preserve `(dt dd)+`. When `definitionListKeymap()` is registered with higher
-precedence than the §4.8 chain (as its spec requires), it claims the event
-first and `emptyTextblockBackspace` never runs inside a `dt`/`dd`. When it is
-*not* registered, `emptyTextblockBackspace` itself refuses inside a `dl`
-(§4.4.4) so the invariant holds regardless. The two are therefore composable
-in either order; the dl invariant is never violated.
+keymap's Backspace handler always declines so the chain's
+`emptyTextblockBackspace` owns dl-aware deletion (§4.4.4 pair-atomic
+deletion) — the policy lives in one command, not in two bindings. When the
+keymap is registered with higher precedence, it claims the event and returns
+`false`, letting the chain run; when it is not registered, the chain runs
+directly. The dl invariant is upheld either way.
 
 ### 4.4 Behaviour by context
 
@@ -1285,23 +1284,38 @@ is never left empty.
 
 #### 4.4.4 Definition lists (`dl`, `dt`, `dd`)
 
-`emptyTextblockBackspace` **refuses inside a `dl`** (returns `false`), so the
-`(dt dd)+` alternation invariant is preserved regardless of whether
-`definitionListKeymap()` is registered:
+Backspace inside a `dl` is **pair-atomic**: the `(dt dd)+` alternation
+invariant is preserved by deleting whole schema-valid ranges, never by
+merging across the `dt`/`dd` content-kind boundary. The applicable case is
+"collapsed at the start of an **empty** textblock directly in dl structure"
+(the textblock is a `dt`, or its parent is a `dd`):
 
 | Selection | Zone | Context | Effect | Invariant |
 |---|---|---|---|---|
-| Collapsed | start-of-empty | inside a `dt` or inside a `dd` (an empty paragraph that is the only block of a `dd`) | **No-op** (`false`). Default handling also refuses because the result would violate `(dt dd)+` (a lone `dt`, or a `dd` removed from a pair). | `(dt dd)+` intact. |
-| Collapsed | any other | inside `dt` / `dd` | No-op (`false`). Default character deletion runs. | `(dt dd)+`. |
+| Collapsed | start-of-empty | empty block in a multi-block `dd` | Delete the empty block only (plain §4.7.3 deletion; the `dd` keeps its other blocks). | `dd` `block+` honoured; `(dt dd)+` intact. |
+| Collapsed | start-of-empty | the empty block is a `dd`'s only child, or the textblock is a `dt` | **Delete the minimal schema-valid child range of the `dl`** — computed by widening from the empty child's index (toward its semantic partner first: a `dd` widens left toward its `dt`, a `dt` widens right toward its `dd`) while `dl.contentMatch.matchFragment(remaining)` fails `validEnd`. In the `(dt dd)+` schema this is the whole `(dt dd)` pair, deleting the non-empty partner's content with it (recoverable via Undo). Cursor at the end of the predecessor pair's last textblock (or the start of the next pair when the deleted pair was first). | `(dt dd)+` intact at every intermediate state. |
+| Collapsed | start-of-empty | the widened range is the entire `dl` | **Replace the `dl`** with the textblock the dl's parent's content expression admits at the dl's slot — `parent.contentMatchAt(index).defaultType`, pre-flighted with `canReplaceWith` — cursor inside it. In this schema that is an empty `paragraph` everywhere a `dl` is legal. When **no** textblock is admissible at the slot (a restrictive flavor, e.g. a `(dl \| table)` body), delete the `dl` and continue the §4.7.3 walk from its position instead. | Parent's content expression honoured; no schema-invalid replacement; document keeps an editable position. |
+| Collapsed | any other | inside `dt` / `dd` | At the start of a **non-empty** textblock whose backward join would cross a dt/dd boundary (a `dt`, or the `dd`'s first block): **claim and no-op** — dispatch an empty transaction so neither stock `joinBackward`'s barrier deletion nor the browser's native merge can absorb the `dt`'s inline content across the boundary (leaving a lone `dd` — schema-invalid). A non-first block of a `dd` joins within the same `dd` via the default handler. Any other position: no-op (`false`), default character deletion runs. | `(dt dd)+`. |
 | Ranged | any | within `dt` or `dd` | No-op (`false`). `deleteSelection` runs. | `(dt dd)+`. |
 | Node | — | — | See §4.4.7. | — |
 
-This is the structural dual of the Enter feature's dl rules (§2.4.4): just as
-Enter commits a term or starts a new pair rather than splitting structural
-boundaries, Backspace refuses to break a pair. Removing a whole pair is done by
-selecting it and deleting (the ranged case). The rationale is identical to
-definition-lists.md §6.2: `dt` (`inline*`) and `dd` (`block+`) are different
-content kinds, so any cross-boundary merge is categorically lossy.
+Deeper nesting (an empty textblock inside, say, a `note` within a `dd`) does
+not enter the dl branch: the §4.7.3 walk handles it, and its stop-set treats
+an enclosing `dl` that would be emptied as a refusal — the same invariant,
+expressed as a walk stop.
+
+**Why widening rather than a hand-coded "delete the pair".** The pair is the
+atomic unit of the `(dt dd)+` schema this package targets, but the rule is
+stated against the schema, not against a fixed grammar: under a run-based
+flavor (`(dt+ dd+)`) the minimal valid deletion may be one `dt` of a run, and
+the widening loop finds it without a command fork. The firing condition is
+deliberately *always delete the widened range*: a mid-list no-op with no
+alternative gesture would be a dead end, and Undo already covers mistake
+recovery. This is the structural dual of the Enter feature's dl rules
+(§2.4.4): Enter commits terms and starts pairs; Backspace removes whole
+pairs. Cross-boundary text merging (appending a `dt`'s inline text to a `dd`'s
+block content or vice versa) remains categorically lossy and is never
+performed.
 
 #### 4.4.5 Container blocks (`note`, `example`, `quote`, `review`, `admonition`, `figure`)
 
@@ -1452,10 +1466,11 @@ Every branch of the Backspace chain upholds invariants dual to §2.5's:
    `footnote_entry+` in footnotes, `block+`/`(...)+` in a section or container)
    with zero children, the branch instead removes that parent (and recurses
    upward per §4.7.3) so the document stays valid.
-2. **The `(dt dd)+` alternation of `dl` is never broken.** No transaction
-   produced by Backspace deletes a `dt` or `dd` such that the remaining dl has
-   two adjacent `dt` or two adjacent `dd`, or a trailing `dt` without a `dd`.
-   Inside a `dt`/`dd`, Backspace at start is a no-op (§4.4.4).
+2. **The `(dt dd)+` alternation of `dl` is never broken.** Backspace inside a
+   `dl` deletes minimal schema-valid child ranges (§4.4.4) — whole `(dt, dd)`
+   pairs in this schema — never a lone `dt` or `dd`; when the whole `dl` goes,
+   it is replaced only by a block the parent's content expression admits at
+   that slot.
 3. **Atoms are never entered or split.** Block atoms (`image`, `formula`)
    are removed only by the chain's `deleteSelection` step under a node
    selection; the structural branch never enters them. (`floating_title` and
@@ -1568,8 +1583,15 @@ would dispatch, i.e. when **all** of:
    ranged);
 2. `$from.parent === $to.parent` and `$from.parentOffset === 0`;
 3. `$from.parent` (the innermost textblock) is empty (`content.size === 0`);
-4. the textblock is not inside a `dl` (i.e. no ancestor up to root is a `dt` or
-   `dd` whose parent is a `dl`);
+4. **dl branch (§4.4.4).** If the textblock is directly in dl structure — it
+   is a `dt`, or its parent is a `dd` — the §4.4.4 pair-atomic rules apply
+   instead of the general walk: an empty block in a multi-block `dd` is the
+   general walk (clause 5 continues below); otherwise the minimal
+   schema-valid child range of the `dl` is deleted (the whole pair in this
+   schema), and when that range is the entire `dl` the dl is replaced with
+   the parent-admitted textblock or unwound per §4.4.4. Positions nested
+   deeper inside a `dl` (e.g. inside a `note` within a `dd`) are not this
+   branch — the walk's stop-set refuses to empty the enclosing `dl`;
 5. the textblock is not the last block of a `table_cell` (the parent
    `table_cell`'s `childCount === 1` and that child is the textblock);
 6. **either** (a) the empty textblock is a `section_title` — the §4.4.9 guard
@@ -1594,6 +1616,15 @@ builds a single transaction (§1.7) that performs the walk:
    empty `paragraph` as the body; place the cursor at the start of the first
    body block (the re-seeded paragraph or the pre-existing first body block).
    Dispatch and return. The general walk does not run for `section_title`.
+0a. **`dl` branch (§4.4.4).** If the textblock is directly in dl structure —
+   it is a `dt`, or its parent is a `dd` with no other blocks — execute the
+   §4.4.4 pair-atomic deletion instead of the general walk: compute the
+   minimal schema-valid child range by widening from the empty child toward
+   its semantic partner; delete the range; when the range is the entire `dl`,
+   replace the `dl` with the parent-admitted textblock (cursor inside it) or,
+   when none is admissible, delete it and re-enter this walk at the `dl`'s
+   depth. An empty block in a multi-block `dd` falls through to the general
+   walk below. Dispatch and return.
 1. **Initialise the deletion set** to the empty textblock's range (its start and
    end positions in the document).
 2. **Walk up:** for the textblock's parent, ask:
@@ -1609,8 +1640,10 @@ builds a single transaction (§1.7) that performs the walk:
      dispatch nothing): §4.4.6 forbids emptying a cell. This guard is also
      reached up-front by applicability clause 5, but is re-checked here for
      safety.
-   - *If the parent is a `dl`, `dt`, or `dd`* → **abort and refuse** (§4.4.4).
-     Reached up-front by applicability clause 4, re-checked here for safety.
+   - *If the parent is a `dl`, `dt`, or `dd`* → **abort and refuse** (§4.4.4 —
+     the walk never empties an enclosing `dl`; direct dl positions were
+     already handled by step 0a, this stop catches deeper nesting such as a
+     `note` inside a `dd`).
    - *If the parent is a non-deletable container* (`doc`, `sections`, `preface`,
      `bibliography`) → **stop the walk.** Do not add this parent to the deletion
      set.
@@ -1774,10 +1807,31 @@ rows:
 - **BL4** empty paragraph in a nested `list_item` (only block, only item of the
   nested list) → nested item and nested list deleted; cursor in the parent item
   (at the end of its last block); parent list survives.
-- **BD1** empty paragraph as the only block of a `dd`, cursor at start → no-op
-  (`false`); `(dt dd)+` intact.
-- **BD2** cursor at start of a `dt` (any content) → no-op (`false`); `(dt dd)+`
-  intact.
+- **BD1** empty paragraph as the only block of a `dd`, cursor at start →
+  **delete the minimal schema-valid child range of the `dl`** (§4.4.4): in the
+  `(dt dd)+` schema, the whole `(dt dd)` pair — the term goes with its
+  description, even when non-empty (recoverable via Undo). When the range is
+  the entire `dl`, the `dl` is replaced with the parent-admitted textblock
+  (see BD3). `(dt dd)+` intact.
+- **BD2** cursor at start of an empty `dt` → **delete the pair** (same
+  widening as BD1): the following `dd`'s content goes with the term.
+  `(dt dd)+` intact.
+- **BD3** the widened range is the entire `dl` → the `dl` is replaced with
+  the textblock its parent's content expression admits at that slot (an empty
+  `paragraph` in this schema), cursor inside it; when no textblock is
+  admissible, the `dl` is deleted and the §4.7.3 walk continues from its
+  position.
+- **BD4** empty paragraph that is one of several blocks in a `dd` → paragraph
+  deleted (plain §4.7.3 deletion at the `dd` level); `dl`/`dd` survive
+  (§4.4.4 row 1).
+- **BD5** ranged selection or node selection within a `dl` → not this
+  feature's branch (`false`); `deleteSelection` runs.
+- **BD6** cursor at start of a **non-empty** `dt`, or of the `dd`'s first
+  (non-empty) block → **claim and no-op**: one empty transaction dispatched,
+  document unchanged — stock join cannot cross the dt/dd boundary (§4.4.4
+  row 4).
+- **BD7** cursor at start of a non-first block in a `dd` → declines
+  (`false`); stock `joinBackward` performs the intra-`dd` join.
 - **BN1** empty paragraph that is one of several blocks in a `note` → paragraph
   deleted; note survives.
 - **BN2** empty paragraph that is the **only** block of a `note` → note
@@ -1817,7 +1871,8 @@ rows:
 - **S1** every applicable row: assert no `bullet_list` / `ordered_list` / `dl` /
   container / table part / section is left with fewer children than its
   content expression requires.
-- **S2** every dl-affecting row (BD1, BD2): assert `(dt dd)+` intact.
+- **S2** every dl-affecting row (BD1–BD7): assert `(dt dd)+` intact and no
+  schema-invalid replacement node was inserted at the dl's former slot.
 - **S3** every applicable row: assert the resulting selection resolves to a
   valid `TextSelection` inside a textblock (never an atom, never a forbidden
   position between structural nodes).

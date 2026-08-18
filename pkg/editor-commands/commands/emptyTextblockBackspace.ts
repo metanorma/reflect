@@ -14,8 +14,14 @@
  * - collapsed cursor at the **start** of an **empty** textblock → walk the
  *   container stack deleting the textblock and any emptied parent; land the
  *   cursor at the end of the predecessor's last descendant textblock.
- * - inside a `dl` (`dt`/`dd`) → **refuse** (no-op): preserves `(dt dd)+`
- *   (spec §4.4.4, dual to definition-lists.md §6.2).
+ * - inside a `dl` → **pair-atomic deletion** (spec §4.4.4): an empty block
+ *   in a multi-block `dd` deletes normally (plain walk); an empty `dt` or an
+ *   empty `dd` deletes the minimal schema-valid child range — in the
+ *   `(dt dd)+` schema, the whole `(dt, dd)` pair — so the alternation
+ *   invariant is never broken. When the widened range is the whole `dl`, the
+ *   `dl` is replaced with the textblock the parent's content expression
+ *   admits at that slot (in this schema, an empty `paragraph`), falling back
+ *   to unwind-through-deletion when no textblock is admissible.
  * - inside the **last** block of a `table_cell` → **refuse** (no-op): a cell
  *   must retain at least one block (spec §4.4.6).
  * - when the walk reaches a non-deletable container (`sections`, `preface`,
@@ -34,10 +40,12 @@
 
 import type { Command } from 'prosemirror-state';
 import { TextSelection } from 'prosemirror-state';
+import type { EditorState, Transaction } from 'prosemirror-state';
+import { Fragment } from 'prosemirror-model';
 import type { ResolvedPos, Node } from 'prosemirror-model';
 
 import { NODE_NAME, nodeType, isEmptyTextblock } from '../schema.js';
-import { generateId } from '../util.js';
+import { admittedTextblock, generateId } from '../util.js';
 
 
 /**
@@ -54,8 +62,11 @@ const NON_DELETABLE_NAMES: ReadonlySet<string> = new Set([
 
 /**
  * Refuse nodes (spec §4.7.3 step 2): if the walk reaches one of these and it
- * would be emptied by the deletion, the command refuses entirely (`false`). The
- * up-front `dl` guard (§4.4.4) prevents reaching `dl`/`dt`/`dd` in practice;
+ * would be emptied by the deletion, the command refuses entirely (`false`).
+ * The dl branch (§4.4.4) handles `dl`/`dt`/`dd` *before* the walk is entered
+ * when the cursor is directly inside them; these entries are the walk's
+ * defense when the deletion would otherwise empty an enclosing `dl` from
+ * inside (e.g. a `note` inside a `dd`) — same policy, expressed as a stop.
  * `table_cell` can be reached when the textblock is nested inside other
  * containers within a cell. `footnotes` is included so Backspacing through the
  * last entry's empty paragraph refuses rather than cascading to delete the
@@ -80,9 +91,12 @@ type WalkResult =
     };
 
 /**
- * Walk the container stack from the textblock upward (spec §4.7.3), determining
- * the outermost node to delete (`cutDepth`), whether to refuse, and whether to
- * re-seed a non-deletable container.
+ * Walk the container stack from the node at `startDepth` upward (spec §4.7.3),
+ * determining the outermost node to delete (`cutDepth`), whether to refuse,
+ * and whether to re-seed a non-deletable container. `startDepth` is the depth
+ * of the outermost node the caller has already decided to delete (the empty
+ * textblock itself, or a whole `dl` after the §4.4.4 branch removed its
+ * content range).
  *
  * The walk advances `cutDepth` to each ancestor whose **only** child is the
  * node being deleted (i.e. the ancestor would be emptied). It stops at the
@@ -90,9 +104,9 @@ type WalkResult =
  * non-deletable container (→ re-seed if it would be emptied), or has other
  * children that survive (→ normal stop).
  */
-function walkContainerStack($from: ResolvedPos): WalkResult {
-  let cutDepth = $from.depth;
-  for (let d = $from.depth - 1; d >= 1; d--) {
+function walkContainerStack($from: ResolvedPos, startDepth: number): WalkResult {
+  let cutDepth = startDepth;
+  for (let d = startDepth - 1; d >= 1; d--) {
     const node = $from.node(d);
     const name = node.type.name;
 
@@ -122,6 +136,130 @@ function walkContainerStack($from: ResolvedPos): WalkResult {
 }
 
 /**
+ * The minimal schema-valid child range of `dlNode` whose deletion restores a
+ * valid `dl`, starting at `startIndex` (the empty child being deleted) —
+ * spec §4.4.4 pair-atomic deletion.
+ *
+ * Pure widening: try the single child first, then grow the range one child at
+ * a time — toward the semantic partner first (a `dd` widens left toward its
+ * `dt`, a `dt` widens right toward its `dd`), then symmetrically on the other
+ * side — while the `dl`'s content expression rejects the remaining fragment
+ * (`contentMatch.matchFragment(remaining).validEnd === false`). Returns the
+ * inclusive `[from, to]` child indices of the minimal valid range.
+ *
+ * In the `(dt dd)+` schema this always resolves to the whole `(dt, dd)` pair
+ * (a lone `dt` or `dd` is never valid); under a run-based flavor
+ * (`(dt+ dd+)`) it degrades to the minimal run that keeps the expression
+ * satisfied, instead of breaking.
+ */
+function widenToValidDlRange(
+  dlNode: Node,
+  startIndex: number,
+): { readonly from: number; readonly to: number } {
+  let from = startIndex;
+  let to = startIndex;
+  const valid = (lo: number, hi: number): boolean => {
+    const survivors: Node[] = [];
+    for (let i = 0; i < dlNode.childCount; i++) {
+      if (i < lo || i > hi) survivors.push(dlNode.child(i));
+    }
+    const remaining = Fragment.fromArray(survivors);
+    const match = dlNode.type.contentMatch.matchFragment(remaining);
+    return match !== null && match.validEnd;
+  };
+  // Widen toward the semantic partner first, then symmetrically.
+  const side = dlNode.child(startIndex).type.name === NODE_NAME.dd ? -1 : +1;
+  while (from > 0 || to < dlNode.childCount - 1) {
+    if (side === -1 && from > 0) {
+      from -= 1;
+    } else if (side === +1 && to < dlNode.childCount - 1) {
+      to += 1;
+    } else if (from > 0) {
+      from -= 1;
+    } else {
+      to += 1;
+    }
+    if (valid(from, to)) return { from, to };
+  }
+  return { from: 0, to: dlNode.childCount - 1 };
+}
+
+/**
+ * Whether a backward join from the cursor's textblock would cross a `dt`/`dd`
+ * boundary: the textblock is a `dt` (any position), or it is the **first**
+ * block of a `dd` (its backward neighbor is the pair's `dt`).
+ */
+function atDlStructureBoundary($from: ResolvedPos): boolean {
+  if ($from.parent.type.name === NODE_NAME.dt) return true;
+  const parent = $from.node($from.depth - 1);
+  return parent.type.name === NODE_NAME.dd && $from.index($from.depth - 1) === 0;
+}
+
+/**
+ * Plan the §4.4.4 dl deletion, or return `null` when the cursor's empty
+ * textblock is not directly in dl structure.
+ *
+ * Applicable when (a) the textblock itself is a `dt` (its parent is the
+ * `dl`), or (b) the textblock's parent is a `dd`. In case (a) the widened
+ * range always includes the `dt`; in case (b) it applies only when the empty
+ * block is the `dd`'s only child (an empty block in a multi-block `dd` is a
+ * plain §4.7.3 deletion — `null`).
+ */
+function dlBackspacePlan(
+  $from: ResolvedPos,
+): {
+  readonly dlNode: Node;
+  readonly dlDepth: number;
+  readonly range: { readonly from: number; readonly to: number };
+} | null {
+  const parent = $from.node($from.depth - 1);
+  let dlNode: Node | null = null;
+  let dlDepth = -1;
+  let startIndex = -1;
+
+  if (parent.type.name === NODE_NAME.dd) {
+    if (parent.childCount > 1) return null; // multi-block dd → plain walk
+    dlDepth = $from.depth - 2;
+    dlNode = $from.node(dlDepth);
+    startIndex = $from.index(dlDepth);
+  } else if ($from.parent.type.name === NODE_NAME.dt) {
+    dlDepth = $from.depth - 1;
+    dlNode = $from.node(dlDepth);
+    startIndex = $from.index(dlDepth);
+  }
+  if (dlNode === null || dlNode.type.name !== NODE_NAME.dl) return null;
+
+  return {
+    dlNode,
+    dlDepth,
+    range: widenToValidDlRange(dlNode, startIndex),
+  };
+}
+
+/**
+ * Offset of child `index` within `parent`'s content (position of the child's
+ * start token relative to inside the parent). `Fragment` has no iterator —
+ * sum node sizes (project lesson).
+ */
+function childOffset(parent: Node, index: number): number {
+  let offset = 0;
+  for (let i = 0; i < index; i++) offset += parent.child(i).nodeSize;
+  return offset;
+}
+
+/** Total size of the inclusive child range `[from, to]` of `parent`. */
+function childrenSize(
+  parent: Node,
+  range: { readonly from: number; readonly to: number },
+): number {
+  let size = 0;
+  for (let i = range.from; i <= range.to; i++) {
+    size += parent.child(i).nodeSize;
+  }
+  return size;
+}
+
+/**
  * Delete an empty textblock at the cursor and unwind the container stack
  * (spec §4).
  *
@@ -136,17 +274,81 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
   if (!selection.empty) return false;
   if (!$from.parent.isTextblock) return false;
   if ($from.parentOffset !== 0) return false;
+
+  // §4.4.4 (a) — claim-no-op at the start of a NON-empty textblock whose
+  // backward join would cross a dt/dd boundary: the textblock is a `dt`
+  // (merging into whatever precedes the dl or the previous pair), or it is
+  // the FIRST block of a `dd` (its backward neighbor is the pair's `dt`).
+  // Returning `false` here would let stock `joinBackward`'s deleteBarrier
+  // absorb the `dt`'s inline content into the preceding block, leaving a
+  // lone `dd` — the categorically-lossy cross-kind merge §4.4.4 forbids.
+  // Claiming with an empty transaction also prevents the browser's native
+  // contenteditable merge. A non-first block of a `dd` joins within the
+  // same `dd` and stays with the default handler.
+  if (!isEmptyTextblock($from.parent) && atDlStructureBoundary($from)) {
+    if (dispatch === undefined) return true;
+    dispatch(state.tr); // no steps: claims the keypress, changes nothing
+    return true;
+  }
+
   if (!isEmptyTextblock($from.parent)) return false;
 
-  // §4.4.4 — refuse inside a `dl` structure (`dl`/`dt`/`dd` ancestor).
-  for (let d = $from.depth; d >= 1; d--) {
-    const name = $from.node(d).type.name;
-    const inDl = name === NODE_NAME.dl
-      || name === NODE_NAME.dt
-      || name === NODE_NAME.dd;
-    if (inDl) {
-      return false;
+  // §4.4.4 (b) — pair-atomic deletion when the empty textblock sits DIRECTLY
+  // in dl structure: it is a `dt`, or its parent is a `dd`. Deeper nesting (a
+  // `note` inside a `dd`) does not enter here — the §4.7.3 walk's
+  // REFUSE_NAMES stops handle it with the same "never empty an enclosing
+  // dl" policy.
+  const dlBranch = dlBackspacePlan($from);
+  if (dlBranch !== null) {
+    if (dispatch === undefined) return true;
+    const tr = state.tr;
+    const planned = dlBranch;
+    const { dlNode, dlDepth } = planned;
+
+    if (planned.range.from === 0 && planned.range.to === dlNode.childCount - 1) {
+      // The widened range is the whole dl — remove the dl itself.
+      const dlIndex = $from.index(dlDepth - 1);
+      const dlParent = $from.node(dlDepth - 1);
+      const replacement = admittedTextblock(dlParent, dlIndex);
+      if (replacement !== null) {
+        // Replace the dl with the parent-admitted textblock (in this
+        // schema, an empty paragraph), cursor inside it.
+        const dlStart = $from.before(dlDepth);
+        tr.replaceWith(dlStart, dlStart + dlNode.nodeSize, replacement.create());
+        tr.setSelection(TextSelection.near(tr.doc.resolve(dlStart + 1)));
+        tr.scrollIntoView();
+        dispatch(tr);
+        return true;
+      }
+      // No textblock admissible at the slot — delete the dl and continue the
+      // container-stack unwind from the dl's position (emptied parents are
+      // deleted/refused per the walk's rules).
+      const walk = walkContainerStack($from, dlDepth);
+      if (walk.kind === 'refuse') return false;
+      const { cutDepth, reseed } = walk;
+      const delStart = $from.before(cutDepth);
+      tr.delete(delStart, $from.after(cutDepth));
+      if (reseed) {
+        seedMinimalClause(state, tr, delStart);
+      } else {
+        const dir = $from.index(cutDepth - 1) > 0 ? -1 : 1;
+        tr.setSelection(TextSelection.near(tr.doc.resolve(delStart), dir));
+      }
+      tr.scrollIntoView();
+      dispatch(tr);
+      return true;
     }
+
+    // Widened range is a strict part of the dl — delete it in one step.
+    const rangeStart = $from.before(dlDepth) + 1
+      + childOffset(dlNode, planned.range.from);
+    const rangeEnd = rangeStart + childrenSize(dlNode, planned.range);
+    tr.delete(rangeStart, rangeEnd);
+    const dir = planned.range.from > 0 ? -1 : 1;
+    tr.setSelection(TextSelection.near(tr.doc.resolve(rangeStart), dir));
+    tr.scrollIntoView();
+    dispatch(tr);
+    return true;
   }
 
   // §4.4.9 — section_title guard. If the empty textblock is a section_title,
@@ -236,7 +438,7 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
   }
 
   // §4.7.3 — walk the container stack.
-  const result = walkContainerStack($from);
+  const result = walkContainerStack($from, $from.depth);
   if (result.kind === 'refuse') return false;
 
   if (dispatch === undefined) return true;
@@ -250,17 +452,7 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
   tr.delete(delStart, delEnd);
 
   if (reseed) {
-    // §4.4.8 doc-start anchor: re-seed the emptied non-deletable container
-    // with a minimal `clause > paragraph` so the document has an editable
-    // position.
-    const clauseType = nodeType(state.schema, NODE_NAME.clause);
-    const paraType = nodeType(state.schema, NODE_NAME.paragraph);
-    if (clauseType !== null && paraType !== null) {
-      const para = paraType.create();
-      const clause = clauseType.create({ id: generateId() }, para);
-      tr.insert(delStart, clause);
-      tr.setSelection(TextSelection.near(tr.doc.resolve(delStart + 2)));
-    }
+    seedMinimalClause(state, tr, delStart);
   } else {
     // §4.7.3 step 3 — land the cursor.
     // `$from.index(cutDepth - 1)` is the deleted node's index within its
@@ -277,3 +469,21 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
   dispatch(tr);
   return true;
 };
+
+/**
+ * Re-seed an emptied non-deletable container at `pos` with a minimal
+ * `clause > paragraph` (§4.4.8 doc-start anchor), cursor inside.
+ */
+function seedMinimalClause(
+  state: EditorState,
+  tr: Transaction,
+  pos: number,
+): void {
+  const clauseType = nodeType(state.schema, NODE_NAME.clause);
+  const paraType = nodeType(state.schema, NODE_NAME.paragraph);
+  if (clauseType === null || paraType === null) return;
+  const para = paraType.create();
+  const clause = clauseType.create({ id: generateId() }, para);
+  tr.insert(pos, clause);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 2)));
+}

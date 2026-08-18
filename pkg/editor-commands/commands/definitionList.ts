@@ -14,9 +14,9 @@
 
 import { TextSelection } from 'prosemirror-state';
 import type { EditorState, Transaction } from 'prosemirror-state';
-import type { Node, Schema, ResolvedPos } from 'prosemirror-model';
+import type { Fragment, Node, Schema, ResolvedPos } from 'prosemirror-model';
 
-import { canReplaceCurrentBlockWith } from '../util.js';
+import { admittedTextblock, canReplaceCurrentBlockWith } from '../util.js';
 
 
 // ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ export function pairTermIsEmpty(
  */
 export function makePair(
   schema: Schema,
-  termContent?: readonly Node[] | null,
+  termContent?: Fragment | readonly Node[] | null,
 ): readonly [Node, Node] {
   const dtType = schema.nodes['dt'] ?? null;
   const ddType = schema.nodes['dd'] ?? null;
@@ -138,28 +138,24 @@ export function makePair(
 }
 
 /**
- * Extract the inline nodes (text + inline marks) of the current paragraph,
- * dropping block wrappers so the content is legal as `dt`'s `inline*` content
- * (definition-lists.md §5.1). For an empty paragraph returns `[]`.
+ * The inline nodes of the cursor's textblock, legal as `dt`'s `inline*`
+ * content (definition-lists.md §5.1 step 3). The **entire** textblock's
+ * content is promoted — a collapsed caret or a partial selection must not
+ * lose the unselected text when the paragraph is replaced by the `dl`. For an
+ * empty textblock returns an empty fragment.
  */
-function inlineContentFromSelection(state: EditorState): readonly Node[] {
-  const { from, to, empty } = state.selection;
-  if (empty) return [];
-  const slice = state.doc.slice(from, to, true);
-  // Flatten the slice into inline nodes, dropping block wrappers.
-  const nodes: Node[] = [];
-  slice.content.forEach((node) => {
-    if (node.isInline) {
-      nodes.push(node);
-    } else {
-      // Descend into block nodes to extract their inline content.
-      node.descendants((child) => {
-        if (child.isInline) nodes.push(child);
-        return true;
-      });
-    }
-  });
-  return nodes;
+function inlineContentOfTextblock(state: EditorState): Fragment {
+  return state.selection.$from.parent.content;
+}
+
+/**
+ * Whether the selection spans more than one block (`!$from.sameParent($to)`)
+ * — the shape `insertDefinitionList` refuses (definition-lists.md §5.1 step
+ * 2): it does not attempt to fold several blocks into a single inline `dt`.
+ */
+export function spansMultipleBlocks(state: EditorState): boolean {
+  const { $from, $to } = state.selection;
+  return !$from.sameParent($to);
 }
 
 // ---------------------------------------------------------------------------
@@ -176,6 +172,9 @@ export function insertDefinitionList(
   dispatch?: (tr: Transaction) => void,
 ): boolean {
   if (!canInsertBlock(state)) return false;
+  // A multi-block selection cannot fold into a single inline `dt` (§5.1
+  // step 2); refuse so the caller's button is disabled for that shape.
+  if (spansMultipleBlocks(state)) return false;
 
   if (dispatch === undefined) return true;
 
@@ -183,8 +182,8 @@ export function insertDefinitionList(
   const dlType = schema.nodes['dl'];
   if (dlType === undefined) return false;
 
-  // Derive the term's inline content from the selection's slice.
-  const termContent = inlineContentFromSelection(state);
+  // Promote the cursor's entire textblock content into the term.
+  const termContent = inlineContentOfTextblock(state);
   const [termNode, descNode] = makePair(schema, termContent);
   const dlNode = dlType.create({}, [termNode, descNode]);
 
@@ -330,34 +329,41 @@ export function exitDefinitionList(
   if (dispatch === undefined) return true;
 
   const tr = state.tr;
-  const paragraphType = state.schema.nodes['paragraph'];
-  if (paragraphType === undefined) return false;
 
-  // If the dl has only one pair, replace the entire dl with a paragraph.
   const dlNode = $from.node(theDlDepth);
-  const pairCount = dlNode.childCount; // each pair is dt + dd = 2 children
-  if (pairCount <= 2) {
-    // Remove the entire dl and insert a paragraph in its place.
+
+  // If the dl has only one pair, the exit removes the dl itself: replace it
+  // with the textblock the parent's content expression admits at the dl's
+  // slot (in this schema, an empty paragraph). If no textblock is
+  // admissible, refuse rather than leave an invalid document.
+  if (dlNode.childCount <= 2) {
+    const dlIndex = $from.index(theDlDepth - 1);
+    const replacement = admittedTextblock(
+      $from.node(theDlDepth - 1),
+      dlIndex,
+    );
+    if (replacement === null) return false;
     const dlStart = $from.before(theDlDepth);
     const dlEnd = $from.after(theDlDepth);
-    tr.delete(dlStart, dlEnd);
-    const para = paragraphType.create();
-    tr.insert(dlStart, para);
+    tr.replaceWith(dlStart, dlEnd, replacement.create());
     tr.setSelection(TextSelection.near(tr.doc.resolve(dlStart + 1)));
-  } else {
-    // Remove the trailing (dt, dd) pair, then insert a paragraph after the dl.
-    const dtStart = $from.before(theDdDepth) - 1; // -1 to reach the dt boundary
-    // The dt is the sibling before the dd.
-    const ddStart = $from.before(theDdDepth);
-    const ddEnd = $from.after(theDdDepth);
-    // Delete from the dt start (dtStart) to ddEnd.
-    tr.delete(dtStart >= 0 ? dtStart : ddStart - 2, ddEnd);
-    // Insert paragraph after the dl.
-    const dlEnd = tr.doc.resolve($from.pos).end(theDlDepth) + 1;
-    const para = paragraphType.create();
-    tr.insert(dlEnd, para);
-    tr.setSelection(TextSelection.near(tr.doc.resolve(dlEnd + 1)));
+    tr.scrollIntoView();
+    dispatch(tr);
+    return true;
   }
+
+  // Multi-pair: remove the trailing (dt, dd) pair — the dt is the sibling
+  // immediately before the dd, so its start is ddStart − dt.nodeSize — then
+  // insert the exit paragraph AFTER the dl (mapped through the deletion).
+  const ddStart = $from.before(theDdDepth);
+  const dtNode = dlNode.child($from.index(theDlDepth) - 1);
+  const pairStart = ddStart - dtNode.nodeSize;
+  const pairEnd = $from.after(theDdDepth);
+  tr.delete(pairStart, pairEnd);
+  const insertAt = tr.mapping.map($from.after(theDlDepth));
+  const paraType = state.schema.nodes['paragraph'];
+  if (paraType !== undefined) tr.insert(insertAt, paraType.create());
+  tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
 
   tr.scrollIntoView();
   dispatch(tr);

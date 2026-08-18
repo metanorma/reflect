@@ -37,6 +37,7 @@ import type { Command } from 'prosemirror-state';
 import { TextSelection } from 'prosemirror-state';
 
 import { NODE_NAME, nodeType, isEmptyTextblock } from '../schema.js';
+import { admittedTextblock } from '../util.js';
 
 
 /** Sentinel depth meaning "not inside a dl / dt / dd". */
@@ -118,33 +119,49 @@ export function enterDefinitionList(schema: Schema): Command {
       const isLastDd = ddIndex === dlNode.childCount - 1;
       const inner = $from.parent;
 
-      // B1: empty paragraph as the only block of the LAST dd → exit the dl.
-      if (
-        isLastDd &&
-        inner.type === paraType &&
-        isEmptyTextblock(inner) &&
-        inner === $from.node(ddDepth).firstChild
-      ) {
-        if (dispatch === undefined) return true;
-        const tr = state.tr;
-        // The trailing (dt dd) pair starts one child before this dd.
-        const prevSize = dlNode.child(ddIndex - 1).nodeSize;
-        const pairStart = $from.before(ddDepth) - prevSize;
-        const pairEnd = $from.after(ddDepth);
-        tr.delete(pairStart, pairEnd);
-        // If this was the only pair, the dl is now empty → remove it.
-        let insertAt = pairStart;
-        if (dlNode.childCount === 2) {
-          insertAt = $from.before(dlDepth);
-          tr.delete($from.before(dlDepth), $from.after(dlDepth));
+        // B1: empty paragraph as the only block of the LAST dd → exit the dl.
+        if (
+          isLastDd &&
+          inner.type === paraType &&
+          isEmptyTextblock(inner) &&
+          inner === $from.node(ddDepth).firstChild
+        ) {
+          if (dispatch === undefined) return true;
+          const tr = state.tr;
+          // If this was the only pair, the dl itself goes: replace it with
+          // the textblock the parent's content expression admits at the
+          // dl's slot (§2.4.4 — an empty paragraph in this schema). If no
+          // textblock is admissible there, refuse rather than leave an
+          // invalid document.
+          if (dlNode.childCount === 2) {
+            const dlIndex = $from.index(dlDepth - 1);
+            const replacement = admittedTextblock(
+              $from.node(dlDepth - 1),
+              dlIndex,
+            );
+            if (replacement === null) return false;
+            const dlStart = $from.before(dlDepth);
+            const dlEnd = $from.after(dlDepth);
+            tr.replaceWith(dlStart, dlEnd, replacement.create());
+            tr.setSelection(TextSelection.near(tr.doc.resolve(dlStart + 1)));
+            tr.scrollIntoView();
+            dispatch(tr);
+            return true;
+          }
+          // Multi-pair: remove the trailing (dt dd) pair, then insert the
+          // exit paragraph AFTER the dl (the deletion is inside the dl, so
+          // the after-dl position must be read through the mapping).
+          const pairStart = $from.before(ddDepth)
+            - dlNode.child(ddIndex - 1).nodeSize;
+          const pairEnd = $from.after(ddDepth);
+          tr.delete(pairStart, pairEnd);
+          const insertAt = tr.mapping.map($from.after(dlDepth));
+          tr.insert(insertAt, paraType.create());
+          tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
+          tr.scrollIntoView();
+          dispatch(tr);
+          return true;
         }
-        const para = paraType.create();
-        tr.insert(insertAt, para);
-        tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
-        tr.scrollIntoView();
-        dispatch(tr);
-        return true;
-      }
 
       // B2: end of the LAST block, dd is the LAST child of the dl, block
       // non-empty → start a new (dt dd) pair.
