@@ -7,6 +7,41 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-08-18 — Upstream isodoc→standoc grammar rename; terminology refresh + ledger re-pin
+
+Upstream renamed the grammar sources in `metanorma/standoc-models` (commit
+`4bad36724d`, 2026-08-17, *"grammars: rename isodoc.\* sources to standoc.\*
+(retire the misnomer)"*): `grammars/isodoc.rnc` → `grammars/standoc.rnc`,
+`isodoc-presentation.rnc` → `standoc-presentation.rnc`, and companions. No
+redirect was left (`isodoc.rnc` 404s at HEAD). Rationale: "Standoc" is the
+shared-layer grammar (the harmonized superset); "Isodoc" properly names the
+presentation-rendering gem, and the ISO flavour grammar is `isostandard.rnc`.
+
+- **`docs/metanorma-model.md`** re-pinned `standoc-models` `a3596dc9` →
+  `4bad3672` and gained a **naming note** distinguishing the three senses:
+  the `metanorma/isodoc` gem (unrenamed), the vendored runtime filename
+  `validate/isodoc-compile.rng` (deliberately retained upstream — gem code
+  loads that path), and the renamed grammar layer. Grammar-path references
+  throughout the ledger now say `standoc.rnc`/`standoc-presentation.rnc`.
+- **Verified the rename is content-neutral**: the diff between the old and new
+  pins is entirely from an intervening re-sync (`8bb23fd5631e`), recorded as a
+  drift block in the ledger: `OlAttributes.@type` widened to an open enum
+  (renderer-native format strings), and `ExampleBody` restructured into a
+  `ExampleBodyContent` hook (semantic content set unchanged).
+- **Terminology sweep** across `schema.spec.md` (~22 refs),
+  `EditorCommands.spec.md`, `AdvancedMetanormaToolbar/sections.md`, and pkg
+  JSDoc (`nodes.ts`, `sections.ts`): grammar-layer references now say
+  **Standoc**. References to the isodoc *gem* (`IsoDoc::Xref` rdoc link) and
+  the vendored `isodoc-compile.rng` runtime path are intentionally unchanged.
+  `schema.spec.md` §17.5's list-numbering gap row notes the upstream open-enum
+  drift.
+- The 2026-08-12 "Isodoc alignment" entry is left as written — historical
+  record of work done under the grammar's then-name.
+
+**Commits:** `30618c6`.
+
+---
+
 ## 2026-08-16 — Enter at start of a non-empty section title inserts a sibling section above
 
 New Enter affordance (`pkg/editor-commands/commands/insertSectionAbove.ts`,
