@@ -1980,7 +1980,7 @@ honoured. `ensureContainer` is only ever called for a container-backed cohort
 
 ### 5.5 `ensureSubclauseCapacity(tr, $from, hit)` — the strict-clause auto-wrap
 
-`clause` implements Isodoc's `Clause-Section` as a strict XOR: a clause holds
+`clause` implements Standoc's `Clause-Section` as a strict XOR: a clause holds
 either a block run or a subclause run, never both
 ([schema.spec.md](./schema.spec.md) §8.2). A document built by plain typing can
 therefore reach a state where the user, inside a block-bearing clause, asks for
@@ -2030,7 +2030,7 @@ Behaviour:
    block run vs. subclause run. `floating_title` counts as a **subsection-run
    member** (like `section_body` children): a clause holding
    `[section_title, floating_title, clause]` is already in the subclause
-   branch and must not be auto-wrapped. This mirrors Isodoc, which lists
+   branch and must not be auto-wrapped. This mirrors Standoc, which lists
    `floating-title` alongside the section alternatives, not as a `BasicBlock`.
 2. **Nothing to restructure** when the clause is empty or already holds
    subclauses — return the end-of-content insert position with

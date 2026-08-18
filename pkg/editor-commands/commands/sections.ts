@@ -353,7 +353,7 @@ function ensureSubclauseCapacity(
   if (clause.child(0)?.type.name === 'section_title') blockStartIdx = 1;
 
   // Classify the clause's current body children. `floating_title` is a
-  // subsection-run member (Isodoc lists it alongside clause/terms/definitions),
+  // subsection-run member (Standoc lists it alongside clause/terms/definitions),
   // NOT a block — a clause holding [title, floating_title, clause] is already
   // in the subclause branch and must not be auto-wrapped.
   let hasBlocks = false;

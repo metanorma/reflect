@@ -5,8 +5,10 @@ expressed in the Semantic XML that the Metanorma pipeline
 (`metanorma-standoc`) authors and validates (the compiled RelaxNG grammar
 `lib/metanorma/validate/isodoc-compile.rng` in
 [`metanorma/metanorma-standoc`](https://github.com/metanorma/metanorma-standoc),
-human-authored source `grammars/isodoc.rnc` in
-[`metanorma/standoc-models`](https://github.com/metanorma/standoc-models)).
+human-authored source `grammars/standoc.rnc` in
+[`metanorma/standoc-models`](https://github.com/metanorma/standoc-models) —
+renamed from `isodoc.rnc` upstream on 2026-08-17; see the naming note in
+[`metanorma-model.md`](./metanorma-model.md) §1).
 The goal is **alignment**: every construct the editor models corresponds to a
 well-defined Semantic-XML construct, so documents convert unambiguously (§1.1).
 Presentation XML — the rendering-oriented layer with `fmt-*` elements and
@@ -127,7 +129,7 @@ inserted as a general block or appear in arbitrary containers — only the secti
 content expressions reference it (§8.2).
 
 **Note.** `floating_title` is a **groupless textblock** (content `inline*`,
-no PM group membership), modelled after Isodoc's `floating-title`, which is
+no PM group membership), modelled after Standoc's `floating-title`, which is
 never a `BasicBlock`. Like `section_title`, it can appear only where a content
 expression names it explicitly — at the top level of `sections`, and in the
 subclause branches of `clause` and `annex` (§8.2). Carrying `id` and `depth`
@@ -172,7 +174,7 @@ cohort's section types (§8.1): the schema itself enforces that front-matter
 sections appear only in `preface`, body sections only in `sections`, and
 back-matter sections only in `bibliography`. The **annex cohort has no
 container** — `annex` nodes are direct children of `doc`, ordered after
-`sections` and before `bibliography` (Isodoc root child order), enforced by the
+`sections` and before `bibliography` (Standoc root child order), enforced by the
 `doc.content` expression rather than a container's. The companion cohort
 metadata (§8.0a) maps each type to its cohort and drives command-level routing.
 
@@ -183,7 +185,7 @@ admissible only where a content expression names them explicitly:
 top level and in the subclause branches of `clause` and `annex`, §8.3). Because
 neither is in the `block` group, neither can be inserted as a general block or
 appear inside container blocks (`note`, `example`, `dd`, …) — only the
-positions that name them accept them. This matches Isodoc, where
+positions that name them accept them. This matches Standoc, where
 `floating-title` is never a `BasicBlock`.
 
 ---
@@ -192,19 +194,19 @@ positions that name them accept them. This matches Isodoc, where
 
 | Node | Content expression | Rationale |
 |---|---|---|
-| `doc` | `(bibdata preface? sections? annex* bibliography? footnotes?)` | Root: required bibdata (document metadata), optional front matter, body, **doc-level annexes** (Isodoc root child order: after `sections`, before `bibliography`), back matter, footnotes container. |
+| `doc` | `(bibdata preface? sections? annex* bibliography? footnotes?)` | Root: required bibdata (document metadata), optional front matter, body, **doc-level annexes** (Standoc root child order: after `sections`, before `bibliography`), back matter, footnotes container. |
 | `preface` | `section_front+` | Front-matter sections (abstract/foreword/…, `content_section`). |
-| `sections` | `(section_body \| floating_title)+` | Main body. Isodoc's `sections` admits `floating-title` at top level alongside the body section types. |
+| `sections` | `(section_body \| floating_title)+` | Main body. Standoc's `sections` admits `floating-title` at top level alongside the body section types. |
 | `bibliography` | `references+` | Back matter; `references` is the sole `section_back` member. |
 | `bibdata` | *(empty)* | Atom: document-level bibliographic metadata. Stores a `BibliographicItem` (from `@metanorma/relaton`, [`README.spec.md`](../pkg/relaton/README.spec.md)) as a single JSON `item` attr. Required first child of `doc` (§8.1). |
 | `bibitem` | *(empty)* | Atom: a single bibliography entry. Stores a `BibliographicItem` as a single JSON `item` attr. Permitted only inside `references` sections (§8.2). |
-| `clause` | `section_title? (block+ \| (clause \| terms \| definitions \| floating_title)+)` | Isodoc `Clause-Section`, **strict XOR**: a clause holds either blocks (leaf) or subclauses, never both — no hanging paragraphs in the numbered body hierarchy. Optional leading heading textblock. |
-| `annex` | `section_title? block* (clause \| terms \| definitions \| references \| floating_title)*` | Isodoc `Annex-Section-Body`, **non-strict**: optional prefatory blocks then subclauses (in any mix). **Doc-level** — `annex` is a direct child of `doc`, not nested in a container and not self-nesting. Admits `references` subclauses. Optional leading heading. |
-| `content_section` | `section_title? block* content_section*` | Isodoc `content` (`Content-Section`): the unnumbered generic preface clause. **Front-matter only**; nests `content_section` subclauses. Serializes as `<clause>` on export (§17.6). Optional leading heading. |
-| `abstract`, `foreword`, `introduction`, `acknowledgements` | `section_title? block* content_section*` | Isodoc `Content-Section` shape: optional prefatory blocks, then `content_section` subclauses. Optional leading heading. |
-| `terms` | `section_title? block* (terms \| definitions)*` | Isodoc `terms`: prefatory blocks, then nested `terms`/`definitions` (the term-entry subtree is out of scope, §17.5). |
-| `definitions` | `section_title? (block \| definitions)+` | Isodoc `definitions`: at least one child required. |
-| `references` | `section_title? block* bibitem* references*` | Isodoc `references`: exact ordered sequence — prefatory blocks, then `bibitem` entries, then nested `references`. Optional leading heading. |
+| `clause` | `section_title? (block+ \| (clause \| terms \| definitions \| floating_title)+)` | Standoc `Clause-Section`, **strict XOR**: a clause holds either blocks (leaf) or subclauses, never both — no hanging paragraphs in the numbered body hierarchy. Optional leading heading textblock. |
+| `annex` | `section_title? block* (clause \| terms \| definitions \| references \| floating_title)*` | Standoc `Annex-Section-Body`, **non-strict**: optional prefatory blocks then subclauses (in any mix). **Doc-level** — `annex` is a direct child of `doc`, not nested in a container and not self-nesting. Admits `references` subclauses. Optional leading heading. |
+| `content_section` | `section_title? block* content_section*` | Standoc `content` (`Content-Section`): the unnumbered generic preface clause. **Front-matter only**; nests `content_section` subclauses. Serializes as `<clause>` on export (§17.6). Optional leading heading. |
+| `abstract`, `foreword`, `introduction`, `acknowledgements` | `section_title? block* content_section*` | Standoc `Content-Section` shape: optional prefatory blocks, then `content_section` subclauses. Optional leading heading. |
+| `terms` | `section_title? block* (terms \| definitions)*` | Standoc `terms`: prefatory blocks, then nested `terms`/`definitions` (the term-entry subtree is out of scope, §17.5). |
+| `definitions` | `section_title? (block \| definitions)+` | Standoc `definitions`: at least one child required. |
+| `references` | `section_title? block* bibitem* references*` | Standoc `references`: exact ordered sequence — prefatory blocks, then `bibitem` entries, then nested `references`. Optional leading heading. |
 | `section_title` | `inline*` | Standalone textblock: the heading of its parent section. Appears only as the optional leading child of a section node (no group membership). |
 | `floating_title` | `inline*` | **Groupless textblock** (no PM group); free-standing unnumbered heading. Carries `id` and `depth` attrs. Admissible only where named explicitly: at `sections` top level, and in the subclause branches of `clause` and `annex` (§8.3) — never as a general `block`. |
 | `paragraph` | `inline*` | |
@@ -407,14 +409,14 @@ deliberately not offered — the user creates a new section instead.
 
 | Node | Spec essentials |
 |---|---|
-| `doc` | `content: '(bibdata preface? sections? annex* bibliography? footnotes?)'`; `toDOM: ['div', {class: CLASS.doc}, 0]`; no `parseDOM`. Annexes are doc-level siblings between `sections` and `bibliography` (Isodoc root child order). |
+| `doc` | `content: '(bibdata preface? sections? annex* bibliography? footnotes?)'`; `toDOM: ['div', {class: CLASS.doc}, 0]`; no `parseDOM`. Annexes are doc-level siblings between `sections` and `bibliography` (Standoc root child order). |
 | `bibdata` | `content: ''`; `atom: true`; `attrs: { item: { default: null }, ...DATA_ATTR }`; `toDOM: ['div', {class: CLASS.bibdata}]`; no `parseDOM` (doc-level, created by default doc / loader). |
 | `preface` | `content: 'section_front+'`; `toDOM: ['section', {class: CLASS.preface}, 0]`; `parseDOM: [{tag: 'section.mn-preface'}]`. |
-| `sections` | `content: '(section_body \| floating_title)+'`; `toDOM: ['section', {class: CLASS.sections}, 0]`; `parseDOM: [{tag: 'section.mn-sections'}]`. Isodoc's `sections` admits `floating-title` at top level alongside the body section types (§8.3). |
+| `sections` | `content: '(section_body \| floating_title)+'`; `toDOM: ['section', {class: CLASS.sections}, 0]`; `parseDOM: [{tag: 'section.mn-sections'}]`. Standoc's `sections` admits `floating-title` at top level alongside the body section types (§8.3). |
 | `bibliography` | `content: 'references+'`; `toDOM: ['section', {class: CLASS.bibliography}, 0]`; `parseDOM: [{tag: 'section.mn-bibliography'}]`. |
 
 The three containers (`preface`, `sections`, `bibliography`) each admit only
-their own cohort's section types — no bare blocks — matching Isodoc, where the
+their own cohort's section types — no bare blocks — matching Standoc, where the
 root's children are the section elements themselves.
 
 ### 8.2 Section nodes
@@ -452,7 +454,7 @@ determines where it may appear. The group assignments agree with
 | `references` | `section_back` | `section_title? block* bibitem* references*` | `mn-references` |
 | `bibitem` | *(no group — only inside `references`)* | *(empty atom)* | `mn-bibitem` |
 
-**Strict clause XOR.** `clause` implements Isodoc's `Clause-Section` exactly: a
+**Strict clause XOR.** `clause` implements Standoc's `Clause-Section` exactly: a
 clause holds **either** a run of blocks (it is then a leaf) **or** a run of
 subclauses (`clause` / `terms` / `definitions` / `floating_title`) — never both.
 There are no hanging paragraphs in the numbered body hierarchy. The strictness
@@ -463,12 +465,12 @@ transaction ([EditorCommands.spec.md](./EditorCommands.spec.md) §5).
 
 **Annex placement.** `annex` is a **doc-level sibling**, not a child of
 `sections` — `doc.content` places `annex*` after `sections` and before
-`bibliography` (Isodoc root child order). Annexes do not nest inside each
+`bibliography` (Standoc root child order). Annexes do not nest inside each
 other; their subclauses are `clause` / `terms` / `definitions` / `references` /
 `floating_title`, preceded by optional prefatory blocks (`Annex-Section-Body`
 is non-strict, unlike `Clause-Section`).
 
-**`content_section` is Isodoc `content`.** The node's name is the grammar's
+**`content_section` is Standoc `content`.** The node's name is the grammar's
 internal pattern name (`Content-Section`, reached from the `<content>`
 element), not an XML element name: on export it serializes as a `<clause>`
 element (§17.6). It is **front-matter only** (inside `preface`) — the generic
@@ -478,7 +480,7 @@ subclauses.
 
 **Ordered `references` content.** `references` admits an exact ordered
 sequence — optional prefatory blocks, then `bibitem` entries, then nested
-`references` — matching Isodoc's `Bibliography-Section` rather than a free
+`references` — matching Standoc's `Bibliography-Section` rather than a free
 interleave.
 
 **Heading model.** Every section node's content expression begins with an
@@ -513,8 +515,8 @@ not as a general block.
 `floating_title` is a **groupless textblock**: it has no PM group membership, so
 it can appear only where a content expression names it explicitly — at the top
 level of `sections`, and in the subclause branches of `clause` and `annex`
-(§8.2). This mirrors Isodoc's `floating-title`, which is never a `BasicBlock`;
-the editor's legal positions are in exact parity with Isodoc, so a converter
+(§8.2). This mirrors Standoc's `floating-title`, which is never a `BasicBlock`;
+the editor's legal positions are in exact parity with Standoc, so a converter
 needs no positional coercion (§17.6).
 | `section_title` | `inline*` (no group) | `['div', {class: CLASS.sectionTitle}, 0]` | `[{tag: 'div.mn-section-title'}]` |
 
@@ -826,7 +828,7 @@ attributes always have a defined winner.
 
 ### 17.3 `concept` carries a `kind` discriminator
 
-Semantic-XML `<concept>` (isodoc) expresses its reference as a **choice of
+Semantic-XML `<concept>` (standoc) expresses its reference as a **choice of
 child elements** — `<eref>` (bibliographic definition), `<xref>` (definition in
 the current document), or `<termref>` (definition in a termbase). Each maps to a
 different output element, so a single flat reference string cannot tell the
@@ -868,7 +870,7 @@ The following Metanorma features exist in the covered element families but have
 | Sourcecode callouts, annotations, `<name>` caption, line numbering (`linenums`) | `<sourcecode>` | dropped — schema models raw code text only |
 | Table key/legend, table notes, column widths (`colgroup`), source citation | `<table>` | dropped — schema models head/body/foot rows only |
 | Row-header cells (`<th>` inside `<tbody>`) | `<tr>` | dropped — single `table_cell` type; only header rows (via `table_head`/`<thead>`) are distinguished |
-| List numbering style (`<ol type="…">`: roman/arabic/…) | `<ol>` | dropped — schema models `start` only |
+| List numbering style (`<ol type="…">`: roman/arabic/…) | `<ol>` | dropped — schema models `start` only; upstream `@type` is now an open enum (renderer-native format strings, e.g. metanorma-ietf `R%d`) |
 | Cell alignment (`align`, `valign`) | `<td>`/`<th>` | dropped |
 | Ordered-list `start`, section/block `obligation`, `unnumbered`, `number` override | various | carried via the `data` catch-all if present on import; not typed or editable |
 | `executivesummary` (preface section type) | root `<preface>` | dropped — the front-matter vocabulary covers `abstract`/`foreword`/`introduction`/`acknowledgements`/`content_section` only |
@@ -894,6 +896,6 @@ coercion, not ambiguity — there is a single valid target):
 
 `floating_title` is **not** a source of over-permissiveness: it is a groupless
 textblock whose legal positions (§8.3) — `sections` top level and the subclause
-branches of `clause` and `annex` — match Isodoc exactly, so no positional
+branches of `clause` and `annex` — match Standoc exactly, so no positional
 coercion applies on export.
 

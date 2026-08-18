@@ -20,14 +20,31 @@ All raw content is reachable as
 | Repository | Commit | Role |
 |---|---|---|
 | metanorma/metanorma-standoc | `601c3761` | AsciiDoc→Semantic-XML converter; runtime `validate/` grammars |
-| metanorma/standoc-models | `a3596dc9` | Human-authored grammar sources (`grammars/`) |
+| metanorma/standoc-models | `4bad3672` | Human-authored grammar sources (`grammars/`) |
 | metanorma/basicdoc-models | `d2a94b1a` | Base grammar (`basicdoc.rnc`); submodule of standoc-models |
 | metanorma/metanorma | `08ea913c` | Pipeline orchestrator (compile driver) |
 | metanorma/isodoc | `8d8f3524` | Semantic→Presentation-XML transform and renderers |
 
+**Naming note (three senses of "isodoc").** Upstream commit `4bad36724d`
+(2026-08-17, "grammars: rename isodoc.\* sources to standoc.\* (retire the
+misnomer)") renamed the grammar sources in `metanorma/standoc-models`:
+`isodoc.rnc`→`standoc.rnc`, `isodoc-presentation.rnc`→
+`standoc-presentation.rnc`, and companions. It did **not** rename: (a) the
+`metanorma/isodoc` **gem** (the Presentation-XML renderer — "Isodoc" properly
+names that gem); (b) the **vendored runtime filename** `validate/
+isodoc-compile.rng` in metanorma-standoc, deliberately retained because gem
+code loads that path; (c) `isostandard.rnc`, the actual ISO-flavour grammar.
+When this ledger or the corpus says **Standoc**, it means the shared grammar
+layer (`grammars/standoc.rnc`); **isodoc** references below the rename are the
+gem or the vendored runtime path. The rename commit is content-neutral for the
+semantic grammar (one comment word); the drift recorded in §4 came from the
+intervening re-sync `8bb23fd5631e`.
+
 **Re-verification.** Facts below were verified 2026-08-16 at these commits,
-except two marked *(2026-08-11)*, which predate the pinning. Re-verify on the
-next metanorma-standoc release; drift then surfaces as a diff against a known
+except two marked *(2026-08-11)*, which predate the pinning; §3/§4 were
+re-verified **2026-08-18** at `standoc-models@4bad3672` (post-rename;
+diff against the 2026-08-16 pin recorded in §4). Re-verify on the next
+metanorma-standoc release; drift then surfaces as a diff against a known
 commit.
 
 ## 2. Pipeline and artifacts
@@ -64,24 +81,24 @@ AsciiDoc ──(standoc makexml1 + cleanup)──► Semantic XML
 ## 3. Semantic vs Presentation — the layering test
 
 Grammar sources live in `standoc-models → grammars/`: `basicdoc.rnc` (base,
-from the basicdoc-models submodule), `isodoc.rnc` (the Standoc Semantic
-grammar, combines basicdoc), and `isodoc-presentation.rnc` (a separate
-Presentation grammar). The runtime `validate/` directory ships only the
-compiled combination — the `.rnc` sources are model-level artifacts, not wired
-into runtime validation.
+from the basicdoc-models submodule), `standoc.rnc` (the Standoc Semantic
+grammar, combines basicdoc; named `isodoc.rnc` before the 2026-08-17 rename —
+§1), and `standoc-presentation.rnc` (a separate Presentation grammar). The
+runtime `validate/` directory ships only the compiled combination — the `.rnc`
+sources are model-level artifacts, not wired into runtime validation.
 
-`isodoc-presentation.rnc` opens with `include "isodoc.rnc" { … }`, then
+`standoc-presentation.rnc` opens with `include "standoc.rnc" { … }`, then
 continues after the closing brace. The include block **redefines** base
 patterns (plain `=` — replacement, not addition); the post-block tail
 **extends** them with RelaxNG combines: `&=` (interleave — adds
 attributes/children) and `|=` (choice — adds alternatives).
 
 **The layering test.** A construct is authorable **Semantic** — fair game for
-the editor — if and only if it appears in `isodoc.rnc` (directly or via
-basicdoc.rnc); constructs that exist only in `isodoc-presentation.rnc` are
+the editor — if and only if it appears in `standoc.rnc` (directly or via
+basicdoc.rnc); constructs that exist only in `standoc-presentation.rnc` are
 authored by the presentation transform and must never be emitted by the
 editor. The test governs **membership**, not shape: a redefined construct
-still appears in `isodoc.rnc` and remains authorable in its Semantic shape.
+still appears in `standoc.rnc` and remains authorable in its Semantic shape.
 
 Presentation-only elements: `semx`, plus the `fmt-*` rendering elements
 (`fmt-title`, `fmt-name`, `fmt-xref-label`, `fmt-sourcecode`, `fmt-figure`,
@@ -116,11 +133,11 @@ attention — the transform performs the removal.
 
 **Note.** `number` and `branch-number` on `Section-Attributes` (user-supplied
 numbering overrides, mutually exclusive) are **Semantic** — base definitions in
-`isodoc.rnc`, not presentation additions.
+`standoc.rnc`, not presentation additions.
 
 ## 4. Element models (load-bearing subset)
 
-From `basicdoc-models → grammars/basicdoc.rnc` and `isodoc.rnc`:
+From `basicdoc-models → grammars/basicdoc.rnc` and `standoc.rnc`:
 
 | Element | Verified shape |
 |---|---|
@@ -130,7 +147,29 @@ From `basicdoc-models → grammars/basicdoc.rnc` and `isodoc.rnc`:
 | `figure` | `RequiredId` + `unnumbered?`/`subsequence?`/`class?`; no `src`, `title`, or `number` attribute. Body: optional caption child (`tname?`), then one of `image`/`video`/`audio`/`pre`/`paragraph-with-footnote+`/`figure*`, then `fn*`, `dl?`, `note*`, `source?` |
 | `image` | `RequiredId`; `src` (anyURI) and `mimetype` **required**; `alt?`, `title?`, `longdesc?`, `filename?`, `width?`, `height?` |
 | `formula` | `RequiredId`; body = **required** `stem` child, then `dl?`, `note*` — not an empty atom |
-| `stem` | **required** `type` = `MathML`\|`AsciiMath`\|`LaTeX` (basicdoc) plus **required** `block` boolean (isodoc combine) and `number-format?`; content = `text?`, `mathml?`, `asciimath?`, `latexmath?` child elements. Used both inline (in the `TextElement` choice) and as formula's math content |
+| `stem` | **required** `type` = `MathML`\|`AsciiMath`\|`LaTeX` (basicdoc) plus **required** `block` boolean (standoc combine) and `number-format?`; content = `text?`, `mathml?`, `asciimath?`, `latexmath?` child elements. Used both inline (in the `TextElement` choice) and as formula's math content |
+
+**Drift since the 2026-08-16 pin** (introduced by the re-sync
+`8bb23fd5631e`, 2026-08-17, shortly before the rename; verified 2026-08-18 at
+`4bad3672`):
+
+- `OlAttributes.@type` widened from the closed five-value enum
+  (`roman`\|`alphabet`\|`arabic`\|`roman_upper`\|`alphabet_upper`) to admit
+  **any text** — a renderer-native numbering format string passed through for
+  the target rendering language (e.g. xml2rfc v2 `R%d`, carried by
+  metanorma-ietf). The five named literals survive but are no longer exclusive.
+- `ExampleBody` is no longer redefined wholesale by standoc; the caption
+  (`tname?`), cardinality, and trailing `note*` moved back to the base layer
+  (`basicdoc.rnc`: `ExampleBody = tname?, ExampleBodyContent+, note*`) and
+  standoc overrides only the content-alternative hook `ExampleBodyContent`
+  (`formula | ul | ol | dl | quote | sourcecode |
+  paragraph-with-footnote | figure`) so higher layers' `|=` extensions attach
+  to the governing definition (metanorma-model-iso#160). **Semantic content
+  set is unchanged** for the editor's purposes.
+- Everything in the table above and §3 is otherwise byte-identical
+  (`sections`, `clause`/`Clause-Section`, annex structure, `preface`,
+  `bibliography`, `references`, `floating-title`, `section-title`, `table`,
+  `TdBody`, all `BasicBlock` extensions, `start`).
 
 `stem`'s display mode is the `block` boolean — not the `type` enum, which
 selects the encoding. The encoding lives in child elements selected by `type`;
@@ -139,7 +178,7 @@ there are no `asciimath`/`mathml` attributes on stem or formula.
 ## 5. Identifiers and cross-references
 
 Every id-bearing element carries `RequiredId = attribute id { xsd:ID }`
-(basicdoc — required). `isodoc.rnc` combines add optional `anchor` (text) and
+(basicdoc — required). `standoc.rnc` combines add optional `anchor` (text) and
 `source`.
 
 The upstream emission lifecycle (standoc):

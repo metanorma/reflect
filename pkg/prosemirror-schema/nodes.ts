@@ -64,7 +64,7 @@ function sectionParseRule(cls: string): readonly TagParseRule[] {
 
 const structuralNodes: Record<string, NodeSpec> = {
   doc: {
-    // Isodoc: annexes are doc-level siblings after `sections`, before
+    // Standoc: annexes are doc-level siblings after `sections`, before
     // `bibliography` (zero or more).
     content: '(bibdata preface? sections? annex* bibliography? footnotes?)',
     attrs: { ...DATA_ATTR },
@@ -124,7 +124,7 @@ const sectionTitleNode: Record<string, NodeSpec> = {
 };
 
 const sectionNodes: Record<string, NodeSpec> = {
-  // Isodoc Clause-Section: STRICT XOR — blocks (leaf) or subclauses, never
+  // Standoc Clause-Section: STRICT XOR — blocks (leaf) or subclauses, never
   // both (no hanging paragraphs in the numbered body hierarchy).
   clause: {
     content: `section_title? (${BLOCK_GROUP}+ | (clause | terms | definitions | floating_title)+)`,
@@ -134,7 +134,7 @@ const sectionNodes: Record<string, NodeSpec> = {
     toDOM: sectionToDOM(CLASS.clause),
     parseDOM: sectionParseRule(CLASS.clause),
   },
-  // Isodoc Annex-Section-Body: non-strict — prefatory blocks, then
+  // Standoc Annex-Section-Body: non-strict — prefatory blocks, then
   // subclauses (no self-nesting; annexes are doc-level siblings).
   annex: {
     content: `section_title? ${BLOCK_GROUP}* (clause | terms | definitions | references | floating_title)*`,
@@ -144,7 +144,7 @@ const sectionNodes: Record<string, NodeSpec> = {
     toDOM: sectionToDOM(CLASS.annex),
     parseDOM: sectionParseRule(CLASS.annex),
   },
-  // Isodoc Content-Section (`content`, preface-only): unnumbered generic
+  // Standoc Content-Section (`content`, preface-only): unnumbered generic
   // clause; blocks, then recursive content-subsections.
   content_section: {
     content: `section_title? ${BLOCK_GROUP}* content_section*`,
@@ -154,7 +154,7 @@ const sectionNodes: Record<string, NodeSpec> = {
     toDOM: sectionToDOM(CLASS.contentSection),
     parseDOM: sectionParseRule(CLASS.contentSection),
   },
-  // Isodoc Content-Section: front-matter sections nest content-subsections.
+  // Standoc Content-Section: front-matter sections nest content-subsections.
   abstract: {
     content: `section_title? ${BLOCK_GROUP}* content_section*`,
     group: SECTION_FRONT_GROUP,
@@ -187,7 +187,7 @@ const sectionNodes: Record<string, NodeSpec> = {
     toDOM: sectionToDOM(CLASS.acknowledgements),
     parseDOM: sectionParseRule(CLASS.acknowledgements),
   },
-  // Isodoc terms: prefatory blocks, then nested terms/definitions
+  // Standoc terms: prefatory blocks, then nested terms/definitions
   // (term-entry subtree out of scope).
   terms: {
     content: `section_title? ${BLOCK_GROUP}* (terms | definitions)*`,
@@ -197,7 +197,7 @@ const sectionNodes: Record<string, NodeSpec> = {
     toDOM: sectionToDOM(CLASS.terms),
     parseDOM: sectionParseRule(CLASS.terms),
   },
-  // Isodoc definitions: (BasicBlock | dl | definitions)+ — at least one
+  // Standoc definitions: (BasicBlock | dl | definitions)+ — at least one
   // child; dl is in the block group.
   definitions: {
     content: `section_title? (${BLOCK_GROUP} | definitions)+`,
@@ -207,7 +207,7 @@ const sectionNodes: Record<string, NodeSpec> = {
     toDOM: sectionToDOM(CLASS.definitions),
     parseDOM: sectionParseRule(CLASS.definitions),
   },
-  // Isodoc references: ordered — prefatory blocks, then entries, then
+  // Standoc references: ordered — prefatory blocks, then entries, then
   // nested references.
   references: {
     content: `section_title? ${BLOCK_GROUP}* bibitem* references*`,
@@ -377,9 +377,9 @@ const blockNodes: Record<string, NodeSpec> = {
    * **groupless textblock**: it has NO group membership, so it can only appear
    * where a content expression names it explicitly — as a subsection-level
    * alternative in `clause` and `annex` subclause runs, and at the top level of
-   * `sections` (mirroring Isodoc's `floating-title`, which is never a
+   * `sections` (mirroring Standoc's `floating-title`, which is never a
    * `BasicBlock`). This keeps the editor's legal positions in exact parity
-   * with the Isodoc model, so a converter needs no positional coercion.
+   * with the Standoc model, so a converter needs no positional coercion.
    */
   floating_title: {
     content: `${INLINE_GROUP}*`,

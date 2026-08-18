@@ -56,7 +56,7 @@ violation. The cohort metadata (`SECTION_COHORT`, `COHORT_CONTAINER`,
 **doc ordering constraint.** `doc.content` is strictly ordered:
 `(bibdata preface? sections? annex* bibliography? footnotes?)`. **Annexes are
 doc-level siblings** — the one section family that is a direct child of `doc`,
-placed after `sections` and before `bibliography` (Isodoc root child order).
+placed after `sections` and before `bibliography` (Standoc root child order).
 Every other section node appears inside `preface`, `sections`, or
 `bibliography`, and those three containers must appear in that fixed order.
 The `ensureContainer` helper
@@ -86,11 +86,11 @@ exactly one cohort group (schema §8.2):
 
 **Key distinction.** Three body section types (`clause`, `terms`,
 `definitions`) nest inside the numbered body hierarchy. `clause` is **strict**
-(Isodoc `Clause-Section`): it holds either a block run or a subclause run,
+(Standoc `Clause-Section`): it holds either a block run or a subclause run,
 never both — there are no hanging paragraphs in the numbered body. The four
 named front-matter types plus `content_section` follow the `Content-Section`
 shape (prefatory blocks, then `content_section` subclauses); `content_section`
-is Isodoc's `content` — the generic unnumbered preface clause, front-matter
+is Standoc's `content` — the generic unnumbered preface clause, front-matter
 only, serializing as `<clause>` on export (schema §17.6). `annex` is a
 doc-level sibling whose subclause vocabulary admits `references`. `references`
 (back) holds an ordered sequence of prefatory blocks, `bibitem` entries, then
@@ -123,7 +123,7 @@ free-standing, unnumbered heading.
 Because it is groupless, `floating_title` can appear only where a content
 expression names it explicitly — at the top level of `sections`, and in the
 subclause branches of `clause` and `annex` (schema §8.3). These positions match
-Isodoc's `floating-title` exactly (it is never a `BasicBlock`), so a converter
+Standoc's `floating-title` exactly (it is never a `BasicBlock`), so a converter
 needs no positional coercion.
 
 **Consequence for this toolbar:** the Section popover (§4.2) lists only the
