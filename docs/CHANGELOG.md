@@ -42,6 +42,65 @@ presentation-rendering gem, and the ISO flavour grammar is `isostandard.rnc`.
 
 ---
 
+## 2026-08-18 — Definition-list fixes: whole-textblock promotion, pair-atomic Backspace, dl removal policy
+
+Three user-reported dl defects fixed together (they share one root cause: dl
+behaviour was specified as refusal, not as schema-valid action):
+
+1. **Def list no longer loses the paragraph's text.**
+   `insertDefinitionList` promoted only the *selected* text into the new
+   `dt` — with a plain caret (the common case) the entire paragraph's text
+   was silently destroyed when the block was replaced. It now promotes the
+   **entire textblock's** inline content (`$from.parent.content`), and
+   refuses multi-block selections explicitly (`spansMultipleBlocks`).
+   (definition-lists.md §5.1 already mandated this; the code had diverged.)
+
+2. **Backspace inside a dl is pair-atomic instead of inert**
+   (EditorCommands.spec.md §4.4.4 rewritten). The old rule — Backspace
+   anywhere inside a `dl` is a uniform no-op — made empty terms/descriptions
+   undeletable and gave no incremental path to remove a list. New behaviour:
+   an empty block in a multi-block `dd` deletes normally; an empty `dt` or
+   an empty `dd` deletes the **minimal schema-valid child range of the dl**
+   (computed by widening toward the semantic partner while
+   `dl.contentMatch.matchFragment(remaining)` rejects the remainder — the
+   whole `(dt, dd)` pair in this schema, the non-empty partner included,
+   Undo-recoverable); a non-empty textblock at a dt/dd boundary is
+   **claimed with an empty transaction** so stock `joinBackward`'s barrier
+   deletion cannot absorb a term across the boundary (which would leave a
+   lone, schema-invalid `dd`).
+
+3. **A dl whose last pair is deleted is now removable.** When the widened
+   range is the whole `dl`, it is replaced by the textblock the *parent's
+   content expression* admits at that slot (`admittedTextblock`:
+   `contentMatchAt(index).defaultType` + `canReplaceWith` pre-flight — an
+   empty paragraph in every context of this schema), falling back to
+   delete-and-unwind where no textblock is admissible (a restrictive
+   `(dl | table)`-style slot). The Enter-exit paths (`enterDefinitionList`
+   B1, `exitDefinitionList`) share the same helper; both also had latent
+   bugs fixed (stale post-delete positions; the exit paragraph inserting
+   *inside* the dl schema-invalidly).
+
+Two design decisions, user-resolved: (a) the firing condition is *always
+delete the widened range* — content in the partner half goes with it rather
+than a mid-list no-op dead end; (b) dl removal is parent-admitted-block, not
+hard-coded "paragraph", precisely because a `dl` is legal in slots where a
+paragraph might not be under a composed schema. Both rules are stated
+against the schema (`(dt+ dd+)` flavors degrade gracefully via the widening
+loop), not against a fixed grammar.
+
+`definitionListKeymap`'s Backspace binding now always declines (the policy
+lives in `emptyTextblockBackspace` alone). Verified headlessly
+(`verify-dl.mjs`, 51 assertions: widening matrix, nested dl, boundary
+claims, Enter-exit, doc.check() at every step) and by e2e in both engines.
+
+**Affected specs:** docs/EditorCommands.spec.md (§2.4.4, §4.3, §4.4.4,
+§4.5, §4.7.1, §4.7.3, §4.10), docs/AdvancedMetanormaToolbar/definition-lists.md
+(§5.1, §6.1, §6.2).
+
+**Commits:** `7bdd585`.
+
+---
+
 ## 2026-08-16 — Enter at start of a non-empty section title inserts a sibling section above
 
 New Enter affordance (`pkg/editor-commands/commands/insertSectionAbove.ts`,
