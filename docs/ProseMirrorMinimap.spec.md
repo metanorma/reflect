@@ -8,8 +8,8 @@ click/drag-to-scroll navigation, and scales to multi-megabyte documents.
 
 **Scope.** The package owns the *pipeline*: document-model-derived block
 geometry, stable block identity, incremental transaction diffing, prefix-sum
-scroll mapping, adaptive rendering tiers, a layered `OffscreenCanvas` worker
-renderer, and a draggable viewport overlay. The consumer owns the *policy*: the
+scroll mapping, adaptive rendering tiers, a layered canvas renderer, and a
+draggable viewport overlay. The consumer owns the *policy*: the
 ProseMirror schema, the node classification, the visual theme, and the DOM
 placement. The package has no dependency on
 [`schema.spec.md`](./schema.spec.md) — it walks any `prosemirror-model`
@@ -52,8 +52,7 @@ option, not an import.
 
 **Why canvas.** A canvas minimap's cost is O(visible rows) per paint and
 O(changed blocks) per edit; it is virtualizable (only the visible window of the
-virtual minimap surface is drawn), transferable to a worker via
-`OffscreenCanvas` (all painting off the main thread), and programmable — it can
+virtual minimap surface is drawn) and programmable — it can
 draw structural information (nesting indent, per-class color) that a scaled DOM
 clone cannot express. A DOM-clone minimap (`transform: scale()` over a cloned
 subtree) is pixel-faithful but pays O(document DOM) per clone and per sync,
@@ -90,7 +89,7 @@ TypeScript source at `pkg/prosemirror-minimap/`:
 | File | Responsibility |
 |---|---|
 | `index.ts` | Public API re-exports (§13). |
-| `types.ts` | All public types: `MinimapOptions`, `MinimapClassifier`, `MinimapTheme`, `LayerDeclaration`, message payloads. |
+| `types.ts` | All public types: `MinimapOptions`, `MinimapClassifier`, `MinimapTheme`, `LayerDeclaration`, payload types (§8.1). |
 | `plugin.ts` | `createMinimap(options)` — the ProseMirror plugin; the view-keyed controller registry (`getMinimapController`, §7.1). |
 | `controller.ts` | `MinimapController` — the view plugin owning the block model, geometry, tiers, and scheduling (§7). |
 | `blockModel.ts` | Flattening walk, block list, paired incremental diff (§4.1, §7.2). |
@@ -99,9 +98,6 @@ TypeScript source at `pkg/prosemirror-minimap/`:
 | `geometry.ts` | Prefix-sum offsets, window mapping, row lookup (§6.1–§6.4). |
 | `tiers.ts` | Tier selection, hysteresis, aggregation (§6.5). |
 | `renderer.ts` | The `Renderer` interface, `InlineRenderer`, `RecordingRenderer` (test double) (§8.1, §8.3). |
-| `workerRenderer.ts` | `WorkerRenderer` — main-thread half of the worker protocol (§8.2). |
-| `workerCore.ts` | Worker-side render loop and layer registry (§8.2, §8.4). |
-| `worker.ts` | Worker entry point: `new Worker(new URL(...))` target (§8.2). |
 | `layers.ts` | Built-in layers: `text`, `selection`; span types (§8.4). |
 | `overlay.ts` | Viewport indicator overlay element and drag handling (§9). |
 | `scroll.ts` | Scroll-mapping strategies: `proportional`, `precise` (§6.4, §10.1). |
@@ -126,10 +122,9 @@ or `@handlewithcare/react-prosemirror`. Zero runtime dependencies.
 
 `package.json` follows the sibling pattern (`type: "module"`, `main:
 "index.ts"`, `scripts.compile = "tsc --outdir compiled"`, `scripts.test =
-"node --test test.mjs"`), with an export map exposing `"."` (core + React),
+"node --test test.mjs"`), with an export map exposing `"."` (core + React) and
 `"./core"` (core only — the React-free entry; a bundler following it never
-resolves `react`), and `"./worker"` (the worker entry, for bundlers that need
-an explicit second entry point).
+resolves `react`).
 
 ### 3.1 Export map
 
@@ -137,7 +132,6 @@ an explicit second entry point).
 |---|---|---|
 | `"."` | Public API (`index.ts`): everything in `"./core"` plus `react.tsx`'s `Minimap` component (§13). | yes (optional peer) |
 | `"./core"` | `plugin.ts`, `controller.ts`, the model/geometry/tier modules, renderers, `scroll.ts`, types — everything except `react.tsx`. | no |
-| `"./worker"` | `worker.ts` — the worker entry point, for bundlers that need an explicit second entry point. | no |
 
 The `"./core"` entry exists so a framework-free consumer never resolves the
 optional React peer: `index.ts` re-exports from `react.tsx`, so the top-level
@@ -181,12 +175,12 @@ textblock child is the row, and nesting is conveyed by indentation (§5.2).
 |---|---|---|
 | `key` | `number` | Stable identity (§4.3). Monotonic; never reused within a session. |
 | `pos` | `number` | Document position of the node (updated as positions shift; identity does not). |
-| `node` | `Node` | Reference to the document node (kept only on the main thread; never serialized to the worker). |
+| `node` | `Node` | Reference to the document node (main thread only; not part of the renderer-facing payload — see §8.1). |
 | `classId` | `string` | Visual class assigned by the classifier (§5.1). |
 | `depth` | `number` | Block-tree depth (drives indentation when the class opts in). |
 | `textLength` | `number` | `node.content.size` for textblocks; `0` otherwise. |
 | `heightRows` | `number` | Estimated height in rows (§4.4). |
-| `text` | `string \| null` | Cached plain text (`node.textContent`), populated lazily per worker request (§8.5). |
+| `text` | `string \| null` | Cached plain text (`node.textContent`), populated lazily for visible rows (§6.3, §8.1). |
 
 ### 4.3 Stable block identity
 
@@ -231,7 +225,7 @@ of navigation: §6.4 defines how a click lands precisely despite estimate error.
 For `calibrated` classes, real rendered heights are sampled opportunistically:
 
 - Sampling happens only inside the already-scheduled repaint frame, after the
-  worker render request has been issued, for at most `sampleBudget` blocks per
+  render request has been issued, for at most `sampleBudget` blocks per
   frame (default 4).
 - A sample is taken via `view.nodeDOM(row.pos)` → `getBoundingClientRect()`
   once per `row.key`; the per-class **running median** updates the class's
@@ -357,9 +351,12 @@ interface MinimapTheme {
 
 A neutral `defaultTheme` ships in `types.ts`; the consumer overrides any
 subset via `MinimapOptions.theme`. The theme is the **single source of every
-canvas-painted value** — a worker cannot read computed styles, so nothing
-painted flows through CSS. A host that keeps its palette in CSS custom
-properties (e.g. the `--mn-*` layer,
+canvas-painted value**: painting consumes only the declarative inputs passed
+through the `Renderer` interface (§8.1), never live DOM or computed styles.
+This keeps the renderer deterministic and fully observable by the headless
+`RecordingRenderer` (§8.3), and leaves the door open for a worker-backed
+renderer behind the same interface without changing any caller (§8.2). A host
+that keeps its palette in CSS custom properties (e.g. the `--mn-*` layer,
 [`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) §9.2) reads
 them once in TypeScript (`getComputedStyle`) and passes the results in
 `theme`; a React host re-reads on theme-change events the same way. The one
@@ -441,7 +438,7 @@ effective row count stays below the tier-2 bound; structure-bearing rows
 their runs are short. Tier selection is **hysteresis-guarded**: promotion
 happens at the threshold, demotion only at `0.9 ×` threshold, preventing tier
 flapping while editing near a boundary. A tier change re-publishes the full
-block payload (§8.5) but is rare (structural growth, not keystrokes).
+block payload (§8.1) but is rare (structural growth, not keystrokes).
 
 ---
 
@@ -480,7 +477,7 @@ Returns a plugin with two halves:
   changes size).
 
 `MinimapOptions` (all optional): `classifier`, `groupOrder` (§5.2), `theme`,
-`display`, `layers` (§8.4), `worker` (§8.2), `scrollContainer` (§7.1),
+`display`, `layers` (§8.4), `scrollContainer` (§7.1),
 `overscanRows`, `sampleBudget`, `sliceBudgetMs`, tier thresholds,
 `onBlockHover` (§10.2).
 
@@ -499,7 +496,7 @@ On each transaction:
    `pos` fields of carried rows whose positions shifted — a mapped-position
    update, not a re-walk.
 4. Heights, offsets (§6.1), and tier (§6.5) are recomputed from the changed
-   indices outward; the renderer receives a sparse `blocks` update (§8.5).
+   indices outward; the renderer receives a sparse `blocks` update (§8.1).
 
 ### 7.3 Time-sliced recomputation
 
@@ -531,8 +528,8 @@ transaction; `visibilitychange`. The scroll handler itself reads only
 
 ### 8.1 The `Renderer` interface
 
-All painting goes through one interface, so the worker, the inline fallback,
-and the test double are interchangeable:
+All painting goes through one interface, so the inline renderer and the test
+double are interchangeable:
 
 ```ts
 interface Renderer {
@@ -543,42 +540,61 @@ interface Renderer {
   setViewport(windowTop: number, windowHeight: number): void;
   setText(entries: Array<[row: number, text: string]>): void;
   setLayer(layerId: string, spans: LayerSpans): void;
-  requestText(from: number, to: number): void;  // worker → host callback path
+  requestText(from: number, to: number): void;
   render(): void;
   destroy(): void;
 }
 ```
 
-### 8.2 Worker renderer (`OffscreenCanvas`)
+The interface methods speak only serializable data — typed arrays, strings,
+plain numbers — never a live ProseMirror `Node` or DOM reference. `InlineRenderer`
+reads the plain text lazily out of the row model (§4.2's cached `text`) when
+`requestText` fires, so no data source is lost by the absence of a message
+boundary. This discipline is what makes the rendering seam a seam: the payload
+shapes (`setBlocks` chunked at `chunkRows` rows, default 2,000; `setText`
+pushed for visible rows) are deliberately transfer-ready — a future
+worker-backed renderer slots behind this interface as a new module with no
+caller-visible change (§8.2).
 
-The default renderer transfers the canvas off the main thread:
+### 8.2 Inline rendering only
 
-- The component creates the `<canvas>`, then
-  `canvas.transferControlToOffscreen()`, and constructs the worker via the
-  `worker` option — a factory `() => Worker`. The default factory uses
-  `new Worker(new URL("./worker.js", import.meta.url), { type: "module" })`.
-  Consumers whose bundlers need an explicit second entry point import
-  `@metanorma/prosemirror-minimap/worker` and pass their own factory.
-- `workerCore.ts` (worker side) owns the `OffscreenCanvas`, the block payload
-  arrays, the text cache, and the layer registry. It paints on message, inside
-  its own `requestAnimationFrame` coalescing — never spinning.
-- The main thread never calls a canvas API after transfer. Scroll-driven
-  repaints cost the main thread one small `postMessage` per rAF.
-- High-DPI: the worker sizes the backing store at `CSS size × dpr` and scales
-  the context once (`ctx.setTransform(dpr, 0, 0, dpr, 0, 0)`); `dpr` comes
-  from `devicePixelRatio` on `init`/`resize` messages.
+The package ships exactly one production renderer: `InlineRenderer`, painting
+on the main thread inside the rAF batch coalesced by the controller (§10.1).
+No worker, no `OffscreenCanvas` transfer, no message protocol.
 
-**Degradation.** If `OffscreenCanvas` or `Worker` is unavailable (or the
-consumer passes `worker: null`), the controller falls back to
-`InlineRenderer` — same interface, same layer registry, painting on the main
-thread inside the rAF batch. Correctness and layer behavior are identical;
-only thread ownership differs.
+### Why inline-only
 
-### 8.3 Inline fallback and test double
+- **Per-frame paint is window-bounded, not document-bounded.** Virtualization
+  (§6.3) caps painting at the visible window plus overscan — a few hundred
+  rows regardless of document size — and the tiers (§6.5) drive per-row cost
+  *down* as documents grow (tier 3 aggregates runs into ~tens of rectangles).
+  A repaint costs on the order of 0.05–0.5 ms in tiers 2/3 and up to ~1 ms in
+  tier 1; nothing here is worth a thread.
+- **The expensive stages cannot leave the main thread anyway.** The
+  `descendants()` walk, paired diff, height estimation, and prefix sums
+  operate on the PM document, whose nodes are main-thread-only (§4.2). The
+  model side — where the real cost lives — is already handled by time-slicing
+  (§7.3), not threading.
+- **The fidelity threshold where a worker pays is out of scope.** Offloading
+  a sub-millisecond paint only matters when per-row fidelity (per-token
+  coloring, sub-row shaping) or continuous animation pushes a repaint past
+  ~1 ms sustained on target hardware — and §16 disclaims per-visual-line
+  resolution and intra-row glyph alignment, treating tier 1 as a legibility
+  affordance, not a layout promise.
+
+**Reversal condition.** Enable a worker-backed renderer when a *measured,
+sustained* minimap repaint exceeds ~1 ms on target hardware, or when a
+continuously animating or higher-fidelity paint feature enters scope. It
+slots behind the unchanged `Renderer` interface (§8.1); nothing else in the
+contract moves. Worker-rAF/`OffscreenCanvas` support is no longer the
+obstacle it once was (all current engines ship it), so the decision is
+purely about measured need.
+
+### 8.3 Inline renderer and test double
 
 `InlineRenderer` (main thread) and `RecordingRenderer` (records draw calls,
 paints nothing — used by the headless suite to assert virtualization, layer
-order, and protocol behavior without a canvas implementation) both live in
+order, and draw behavior without a canvas implementation) both live in
 `renderer.ts`.
 
 ### 8.4 Layer registry and draw order
@@ -616,32 +632,9 @@ layer cost is O(spans), and spans are recomputed by the consumer's own state,
 not by the minimap. Selection spans are computed by the controller from
 `state.selection` mapped through the current row list.
 
-### 8.5 Message protocol
+### 8.5 Resizing
 
-Structural block data is transferred as typed arrays (not JSON) with one entry
-per row, chunked at `chunkRows` rows (default 2,000) per message:
-
-| Message | Direction | Payload | Notes |
-|---|---|---|---|
-| `init` | host → worker | offscreen canvas (transferred), size, dpr, theme, layers | Replies `ready`. |
-| `resize` | host → worker | size, dpr | |
-| `config` | host → worker | theme, layers | Theme switch without rebuild. |
-| `blocks` | host → worker | chunk: `Int32Array` row keys, `Int32Array` positions, `Uint16Array` depths, `Uint8Array` class indices, `Float32Array` heights, class-name table | Transferable buffers; a full publish is many chunks, a sparse update is one. |
-| `tier` | host → worker | tier id, aggregation map (row → aggregate) | |
-| `viewport` | host → worker | `windowTop`, `windowHeight` | Per rAF at most. |
-| `text` | host → worker | `[row, text][]` for the visible range | Pushed on viewport change and on `textRequest`. |
-| `textRequest` | worker → host | `from`, `to` row indices | Coalesced; host replies `text`. |
-| `layer` | host → worker | layer id + spans | |
-| `render` | host → worker | — | Coalesced with `viewport`. |
-| `rendered` | worker → host | painted row range, cost ms | Telemetry hook for §15 budgets. |
-| `error` | worker → host | message | Controller falls back to `InlineRenderer` on first worker error. |
-
-The worker paints only rows it holds text for in tier 1; tier 2/3 need no text
-at all, so very large documents in the aggregated tier never transfer text.
-
-### 8.6 Resizing
-
-A `ResizeObserver` on the minimap container drives `resize` messages. The
+A `ResizeObserver` on the minimap container drives `resize` calls. The
 overlay (§9) is repositioned from cached geometry in the same tick.
 
 ---
@@ -691,7 +684,7 @@ The controller subscribes to the resolved scroll container's `'scroll'` event
 (passive; container resolution is §7.1's contract). Per event it reads
 **only `scrollTop`**, then schedules a single rAF that: computes the window
 (§6.3, from cached geometry), updates the overlay transform (§9.1), and
-sends one coalesced `viewport`/`render` message (§8.5). No
+issues one coalesced `setViewport`/`render` call on the renderer (§8.1). No
 `getBoundingClientRect`, no `offsetHeight`, no style writes that would dirty
 layout occur in this path. Multiple scroll events within a frame collapse to
 one repaint.
@@ -763,10 +756,11 @@ The magnify view itself is out of scope (§16).
   ([`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) §9.2).
 
 **Canvas-painted appearance is deliberately absent from this stylesheet.**
-The worker renderer cannot read computed styles, so every painted value
-(color, row height, indent, font) flows only through `MinimapTheme` (§5.4);
-the custom properties above style only the DOM overlay (§9.1) and the
-building affordance — elements the main thread lays out.
+Every painted value (color, row height, indent, font) flows only through
+`MinimapTheme` (§5.4) — painting consumes only declarative inputs, never
+computed styles (§8.1); the custom properties above style only the DOM
+overlay (§9.1) and the building affordance — elements the main thread lays
+out.
 
 The package ships **no** positioning rules — no `position: fixed`, no flex
 membership, no margins. Where the minimap sits (right rail, left rail, overlay
@@ -788,7 +782,6 @@ docks the toolbar and sidebar today.
 | `flatten`, `rowAt` | pure functions (testing/introspection) | §4.1, §6.1 |
 | `InlineRenderer`, `RecordingRenderer` | classes | §8.3 |
 | `@metanorma/prosemirror-minimap/core` | subpath export (React-free) | §3.1 |
-| `@metanorma/prosemirror-minimap/worker` | subpath export | §8.2 |
 
 The `MinimapController` type is exported for typing
 `getMinimapController(view)`'s return; its mutating methods are internal-use
@@ -805,13 +798,7 @@ Same constraints as the sibling packages (root `tsconfig.json`): `strict`,
 array reads are non-null asserted only where the invariant is locally proven,
 e.g. prefix-sum bounds), `verbatimModuleSyntax` (`import type` for types),
 `isolatedModules`, `module: node16` — internal relative imports carry `.js`
-extensions. Worker code compiles under the same config and must not import
-`prosemirror-*` (the worker receives only serializable data — §8.5). The
-compiler does **not** enforce this — a stray import would compile — so the
-headless suite does: a `node:test` case walks `workerCore.ts`'s compiled
-import graph and fails on any `prosemirror-*` specifier. The design keeps the
-graph separable: `workerCore.ts` imports from `types.ts` and `layers.ts`
-only, and `types.ts` itself imports no `prosemirror-*` types.
+extensions.
 
 ---
 
@@ -839,18 +826,13 @@ only, and `types.ts` itself imports no `prosemirror-*` types.
    `[f, l]`, draw calls exist only for `[f − overscan, l + overscan]`.
 7. **Layer order**: with layers `text (z=10)`, a consumer layer `(z=15)`,
    `selection (z=20)`, recorded draw order is ascending `z`.
-8. **Protocol**: a `WorkerRenderer` wired to an in-process `Worker` double
-   (same `postMessage`/`onmessage` surface as a real worker, backed by
-   synchronous function calls) exercises `blocks` chunking,
-   `textRequest`/`text` coalescing, and sparse updates. The message protocol
-   lives in the worker path only — `InlineRenderer` receives direct method
-   calls — so the test targets `WorkerRenderer`; `RecordingRenderer` covers
-   the draw-call side (tests 6–7).
+8. **Virtualized text push**: the renderer receives `setText` entries only
+   for rows inside the visible window plus overscan, and `requestText` ranges
+   are coalesced across consecutive calls within a frame. Asserted via
+   `RecordingRenderer`.
 9. **Scroll mapping**: `proportional` maps window tops/ends to row ranges
    matching the binary-search reference; `precise` snap lands on the resolved
    row (mocked `coordsAtPos`).
-10. **Worker isolation**: the compiled import graph of `workerCore.ts`
-    contains no `prosemirror-*` specifier (§14).
 
 ### 15.2 Performance budgets
 
@@ -861,16 +843,15 @@ Measured on a synthetic ~5 MB document (~80,000 blocks) on commodity hardware:
 | First paint (visible-region-first slicing) | ≤ 32 ms from mount |
 | Full model build (wall, sliced at 5 ms/frame) | ≤ 250 ms |
 | Per-keystroke incremental update (single-block edit) | ≤ 1 ms main thread |
-| Scroll repaint (worker) | ≤ 4 ms per frame |
-| Main-thread work per scroll frame | ≤ 0.2 ms (one coalesced postMessage + overlay transform) |
+| Scroll repaint (inline, incl. paint) | ≤ 1 ms per frame |
+| Main-thread work per scroll frame outside paint | ≤ 0.2 ms (window computation + overlay transform) |
 | Click/drag mapping | O(log n); zero layout reads during drag |
 | Block-model memory | ≤ 40 MB |
-| Worker message size (steady-state scroll) | ≤ 64 bytes + visible-range text |
 
 Budgets are asserted in `test.mjs` where measurable headlessly (build, patch,
-mapping, memory) and verified in the browser via the `rendered` telemetry
-message; the browser verification is a manual check-list item for the
-consumer's e2e suite, not a package test.
+mapping, memory) and verified in the browser via renderer cost telemetry
+(recorded per repaint by `InlineRenderer`); the browser verification is a
+manual check-list item for the consumer's e2e suite, not a package test.
 
 ---
 

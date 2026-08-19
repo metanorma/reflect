@@ -139,8 +139,8 @@ Defines `@metanorma/prosemirror-minimap`, a schema-agnostic, block-level,
 canvas-rendered document minimap for ProseMirror editors. Derives geometry
 from the document model (not rendered DOM), keys visual classification off
 node groups, updates incrementally from transaction change ranges via stable
-reference-based block identity, and paints in a Web Worker through
-`OffscreenCanvas` with viewport virtualization, adaptive fidelity tiers, and
+reference-based block identity, and paints inline (main thread) with
+viewport virtualization, adaptive fidelity tiers, and
 a layered draw pipeline (text + selection now; diagnostics, annotations, and
 search as future consumer layers). No dependency on the Metanorma schema —
 the schema, classification, appearance, and placement are all
