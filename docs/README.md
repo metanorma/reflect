@@ -136,13 +136,17 @@ Consumers of the package:
 ### [`ProseMirrorMinimap.spec.md`](./ProseMirrorMinimap.spec.md) — Document Minimap
 
 Defines `@metanorma/prosemirror-minimap`, a schema-agnostic, block-level,
-canvas-rendered document minimap for ProseMirror editors. Derives geometry
-from the document model (not rendered DOM), keys visual classification off
-node groups, updates incrementally from transaction change ranges via stable
+canvas-rendered document minimap for ProseMirror editors. Derives an
+**editor-space height model** from the document model (not rendered DOM) —
+per-class estimates with measured DOM correction under a geometry-epoch
+regime — so the minimap is a uniform scale over the real editor layout.
+Updates incrementally from transaction change ranges via stable
 reference-based block identity, and paints inline (main thread) with
-viewport virtualization, adaptive fidelity tiers, and
-a layered draw pipeline (text + selection now; diagnostics, annotations, and
-search as future consumer layers). No dependency on the Metanorma schema —
+viewport virtualization, adaptive fidelity tiers with terminal degradation
+rungs, and a **position/id-anchored layer contract** with marker lanes and a
+geometric merge floor (text + selection now; diagnostics, annotations, and
+search as future consumer layers). Keyboard-operable overlay (`scrollbar`
+role). No dependency on the Metanorma schema —
 the schema, classification, appearance, and placement are all
 consumer-supplied policy.
 

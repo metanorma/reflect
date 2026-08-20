@@ -13,8 +13,9 @@ draggable viewport overlay. The consumer owns the *policy*: the
 ProseMirror schema, the node classification, the visual theme, and the DOM
 placement. The package has no dependency on
 [`schema.spec.md`](./schema.spec.md) — it walks any `prosemirror-model`
-document — and ships a default classifier keyed off node type groups, with an
-ancestor stack in the classifier contract — the seam a group-structured schema
+document — and ships a default classifier keyed off node shape (textblock /
+atom / container), with an ancestor stack in the classifier contract — the
+seam a structured schema
 (e.g. the Metanorma cohorts,
 [schema.spec.md](./schema.spec.md) §4) plugs into (§5.1, §5.3).
 
@@ -31,10 +32,18 @@ is chosen over line-level because:
 - ProseMirror's document model is a block tree, not a line array; there is no
   document-model notion of a wrapped line, so line geometry would have to come
   from DOM measurement, coupling the minimap to view layout.
-- Block count is stable under editor-width changes (line count is not), so the
-  minimap's geometry survives resizes without recomputation.
-- For large documents, block count is one to two orders of magnitude below
-  visual-line count, bounding the model's size and paint work.
+- Block count is one to two orders of magnitude below visual-line count,
+  bounding the model's size and paint work.
+- Heights are editor-space pixels (§4.4). The minimap is a fixed scale over
+  the *predicted editor layout*: `minimapY = scaleY × editorY`, so the
+  slider, markers, and click targets agree with the real editor (and its
+  native scrollbar) at every point, without per-region correction. The
+  price is a **geometry epoch** — doc identity plus the inputs that
+  determine layout (content width, font metrics; §4.6). A width or font
+  change invalidates estimates (O(n) re-estimation, time-sliced per
+  §7.3); a doc edit invalidates only the edited range. Row *count* is
+  stable under width changes; row *heights* are not — the model re-prices
+  heights, never re-derives rows.
 
 ### 1.2 The agnosticism contract
 
@@ -56,18 +65,46 @@ virtual minimap surface is drawn) and programmable — it can
 draw structural information (nesting indent, per-class color) that a scaled DOM
 clone cannot express. A DOM-clone minimap (`transform: scale()` over a cloned
 subtree) is pixel-faithful but pays O(document DOM) per clone and per sync,
-which is disqualifying at the multi-megabyte scale this package targets. The
-clone technique remains attractive for a *hover-to-magnify detail view* of a
+which is disqualifying at the multi-megabyte scale this package targets.
+The clone technique remains attractive for a *hover-to-magnify detail view* of a
 single block — bounded to one node's DOM, hence O(1) — and §10.2 reserves the
 event surface such a view needs.
+
+#### Prior art, and why this design sits where it does
+
+- **TipTap declined a minimap in 2021** and no ProseMirror/TipTap package has
+  appeared since; the niche the package fills is genuinely empty, so
+  greenfield was the only option.
+- **A production team running million-word novels over ProseMirror** built a
+  highlight minimap by walking highlight **DOM elements** on every update
+  ([forum thread 8096](https://discuss.prosemirror.net/t/how-to-handle-thousands-of-editor-instances-on-screen/8096)).
+  That is the cautionary tale for the exact choice this spec makes: a minimap
+  derived from the rendered DOM dies the day the editor virtualizes its
+  content, because the DOM it walks no longer exists. This package's model
+  is derived from the document model with measured DOM heights as *correction*
+  (§4.4), so it survives an editor that culls unrendered blocks — the
+  estimate still answers for blocks whose DOM is gone (§6.4).
+- **Why not inline decorations for search/diagnostics?** ProseMirror places
+  no cap on plugin-generated display changes, and the maintainers' guidance
+  is that plugins "take responsibility for the amount of display changes
+  they generate" ([forum thread
+  8834](https://discuss.prosemirror.net/t/responsivness-improvements-for-rendering-of-a-large-set-of-decorations/8834));
+  browsers degrade around a thousand *visible* inline decorations. At
+  multi-megabyte scale, search matches and validation findings must live in
+  a minimap layer (§8.4), not as thousands of editor inline decorations —
+  viewport-scope what the editor does show, mirror the full set into a layer.
 
 **Why document-model geometry.** Height and position estimates are computed
 from the node tree (`node.type`, depth, text length, attrs), not from rendered
 DOM. This makes the minimap correct before first layout, independent of node
 views, and incrementally updatable from transaction change ranges. The DOM is
-consulted only *advisorily* — opportunistic height calibration (§4.5) and
+consulted only *advisoryly* — opportunistic height calibration (§4.5) and
 precise scroll snapping (§6.4) — never as a synchronous dependency of the paint
-path.
+path. An editor-space height model strengthens, not weakens, this property:
+a measurement-driven model that had to read the DOM to answer "how tall is
+block 4,000?" would break under any future editor-side culling; an
+estimate-first model with measured correction (§4.4) answers for blocks whose
+DOM is gone and is corrected when the DOM returns.
 
 ### 1.4 Relationship to the host editor
 
@@ -179,8 +216,14 @@ textblock child is the row, and nesting is conveyed by indentation (§5.2).
 | `classId` | `string` | Visual class assigned by the classifier (§5.1). |
 | `depth` | `number` | Block-tree depth (drives indentation when the class opts in). |
 | `textLength` | `number` | `node.content.size` for textblocks; `0` otherwise. |
-| `heightRows` | `number` | Estimated height in rows (§4.4). |
+| `heightPx` | `number` | **Measured** editor-space height in px, when a sample exists (§4.5); `null` while unsampled. |
+| `estHeightPx` | `number` | **Estimated** editor-space height in px (§4.4). Authoritative when `heightPx` is `null`; a measured row prefers `heightPx`. |
 | `text` | `string \| null` | Cached plain text (`node.textContent`), populated lazily for visible rows (§6.3, §8.1). |
+
+The effective height of a row is `heightPx ?? estHeightPx`. All offsets
+(§6.1) and window math (§6.3) are computed over effective heights and live in
+**editor-space pixels**; the minimap is a uniform scale over editor space
+(§6.2). Rows have no minimap-native height unit.
 
 ### 4.3 Stable block identity
 
@@ -206,35 +249,65 @@ but identity itself needs nothing from the schema.
 
 ### 4.4 Height estimation strategies
 
-Height estimation is per visual class, not a single formula. The classifier
-assigns one of:
+Heights are **editor-space pixels** — estimates of the block's rendered height
+in the editor's own coordinate system. Estimation is per visual class, not a
+single formula. The classifier assigns one of:
 
-| Strategy | Rows computed as | Appropriate for |
+| Strategy | Height computed as | Appropriate for |
 |---|---|---|
-| `text` | `max(1, ceil(textLength / charsPerLine))` | Textblocks. `charsPerLine` is a theme parameter, calibrated from the editor's content width and font (§5.4). |
-| `fixed` | constant supplied per class | Blocks with a stable aspect (footnote markers are sub-row; dividers are one row). |
-| `estimate` | `f(node)` supplied per class | Blocks whose attrs predict size — e.g. a table's row count attr, a sourcecode block's line count. |
-| `calibrated` | per-class running median of DOM samples, seeded with a per-class default | Atom/complex blocks whose rendered height is unrelated to text length (figures, formulae, requirement blocks). |
+| `text` | `max(1, ceil(textLength / charsPerLine)) × lineHeight + spacing` — `charsPerLine` calibrated from the editor's content width and font (§5.4); `lineHeight` and `spacing` are theme parameters. | Textblocks. |
+| `fixed` | constant px supplied per class | Blocks with a stable aspect (footnote markers are sub-row; dividers are one row). |
+| `estimate` | `f(node) => px` supplied per class | Blocks whose attrs predict size — e.g. a table's row count × rowHeight, a sourcecode block's line count × lineHeight. |
+| `calibrated` | per-class running median of DOM samples (px), seeded with a per-class default | Atom/complex blocks whose rendered height is unrelated to text length (figures, formulae, requirement blocks). |
 
-Every strategy produces a whole number of rows ≥ 1 (a `calibrated` class whose
-samples are absent uses its default). Estimated heights never gate correctness
-of navigation: §6.4 defines how a click lands precisely despite estimate error.
+Every strategy produces a positive px value; a row never *paints* below the
+`rowHeight` floor (§5.4, §6.2) however small its estimated editor height. A
+`calibrated` class whose samples are absent uses its default. Images are
+estimated from their `width`/`height` attrs (aspect-preserving against the
+content width) — never decoded for the minimap. Estimated heights never gate
+correctness of navigation: §6.4 defines how a click lands precisely despite
+estimate error, and measured correction (§4.5) drives the estimate toward the
+real layout over time.
 
 ### 4.5 DOM calibration (advisory sampling)
 
-For `calibrated` classes, real rendered heights are sampled opportunistically:
+For `calibrated` classes — and opportunistically for any class whose sampled
+heights diverge from its estimate — real rendered heights are sampled:
 
 - Sampling happens only inside the already-scheduled repaint frame, after the
   render request has been issued, for at most `sampleBudget` blocks per
   frame (default 4).
 - A sample is taken via `view.nodeDOM(row.pos)` → `getBoundingClientRect()`
-  once per `row.key`; the per-class **running median** updates the class's
-  default for subsequent height computations. Sampling never triggers new
-  layout work in the scroll path (§10.1) and never blocks a paint: height
-  changes from calibration are applied on the next transaction or refresh
-  tick.
+  once per `row.key`; it populates the row's `heightPx` directly and updates
+  the per-class **running median** (used for class defaults and for seeding
+  new rows of that class). Sampling never triggers new layout work in the
+  scroll path (§10.1) and never blocks a paint: height changes from
+  calibration are applied on the next transaction or refresh tick.
+- **Unrendered blocks sample as null.** A row whose `nodeDOM(pos)` returns
+  `null` — a virtualized-away editor, a culled subtree — keeps its estimate
+  untouched; no correction is attempted or needed (§6.4).
 - The document model remains authoritative for structure; the DOM is sampled,
   never synchronously depended upon.
+
+### 4.6 Geometry epochs
+
+Editor-space estimates are functions of the editor's layout inputs, not the
+document alone. The model tags its derived geometry with a **geometry epoch**:
+the tuple `(doc, epochInputs)` where `epochInputs` = (content width, font
+metrics/size, line height, spacing constants). The rules:
+
+- A **transaction** invalidates only the edited range's rows (§7.2) — epoch
+  unchanged.
+- An **epoch change** (window resize, sidebar toggle, font load, consumer
+  zoom) invalidates every row's `estHeightPx` (measured `heightPx` values are
+  kept — a block whose rendered height was measured keeps that measurement
+  until a new sample says otherwise) and re-runs estimation, time-sliced
+  (§7.3). Measured rows surviving an epoch change are re-sampled lazily as
+  they re-enter the window.
+- Epoch changes are detected through the same refresh points as geometry
+  cache refresh (§7.4): the `ResizeObserver` on the scroll container and
+  content DOM, plus `document.fonts.ready` / `fontchange`-equivalent events
+  when the theme font changes.
 
 ---
 
@@ -262,38 +335,35 @@ the node's block-ancestor chain, outermost first (the document root excluded,
 the node itself excluded) — the context a group-keyed classification needs
 when the row node itself is groupless (§5.2, §5.3).
 
-### 5.2 Default classifier (group-keyed)
+### 5.2 Default classifier (shape-keyed)
 
-The default classifier derives visual classes from **node type groups** — the
-schema's own cohort mechanism — rather than from type names. Group membership
-is queried only through the public `NodeType.isInGroup(name)` API, evaluated
-against `groupOrder` — an ordered list of group names in `MinimapOptions`
-(default `[]`), first match wins:
+The default classifier derives visual classes from **node shape**, with no
+configuration surface:
 
 | Node shape | Row? | `classId` |
 |---|---|---|
-| Textblock (`node.isTextblock`) | yes | first `groupOrder` match, else `"text"` |
-| Atom or leaf block | yes | first `groupOrder` match, else the type's name |
+| Textblock (`node.isTextblock`) | yes | `"text"` |
+| Atom or leaf block | yes | the type's name |
 | Other block node | no (recurse) | — |
 | Inline node | skipped | — |
 
 A `classId` with no `theme.classes` entry renders with the `"text"` entry's
-color. Group-keyed classification is the growth seam: a schema that adds node
-types within existing groups inherits minimap treatment automatically; only a
-new *group* warrants a `groupOrder` or theme update.
-
-**What `groupOrder` does not do.** It keys rows by *their own* groups, so it
-only pays off when the row nodes themselves carry the group — an atom block in
-a cohort, or a textblock whose group differs from `"text"`. It cannot color a
-row by an *ancestor's* group: groupless row nodes (e.g. `section_title`,
-[schema.spec.md](./schema.spec.md) §4) never match any `groupOrder` entry.
-Ancestor-derived classification is what the classifier's `ancestors` argument
-is for (§5.1, §5.3); `groupOrder` alone cannot express it.
+color. The shape trichotomy covers every schema: textblocks and atom/leaf
+blocks are rows, other block nodes are transparent containers. Any
+schema-derived refinement — cohort coloring, per-type heights, indentation
+policy — is consumer classifier code over `node.type`, attrs, marks, depth,
+and `ancestors` (§5.3). The default deliberately ships **no knobs**: an
+earlier draft exposed an ordered node-group list (`groupOrder`) to let the
+default classify by schema groups, but the one host that exercised it
+(§5.3) keys off type names, attrs, and ancestors instead — the exact inputs
+a custom classifier branches on — so the option bought nothing and was cut.
+Group queries remain available *inside* consumer classifiers through the
+public `NodeType.isInGroup(name)` API.
 
 ### 5.3 Consumer example (structured-document schema)
 
 For the Metanorma host, the classifier the GUI supplies maps classes to the
-schema's groups and cohorts — section containers remain transparent (their
+schema's types and cohorts — section containers remain transparent (their
 `section_title` children are the rows, colored by the section's cohort via
 `ancestors`), and complex blocks get explicit strategies:
 
@@ -315,11 +385,11 @@ const metanormaClassifier: MinimapClassifier = {
     if (node.type.isInGroup("block")) {
       if (node.type.name === "sourcecode") return { classId: "code",
         // The code text is the node's text* content, not an attr (§6.1, schema.spec.md).
-        height: { kind: "estimate", rows: (n) => Math.max(2, n.textContent.split("\n").length) } };
-      if (node.type.name === "figure") return { classId: "figure", height: { kind: "calibrated", defaultRows: 4 } };
+        height: { kind: "estimate", px: (n) => Math.max(2, n.textContent.split("\n").length) * 20 } };
+      if (node.type.name === "figure") return { classId: "figure", height: { kind: "calibrated", defaultPx: 240 } };
       if (node.type.name === "table") return { classId: "table",
         // childCount counts head/body/foot sections — descend to rows for size
-        height: { kind: "estimate", rows: (n) => countDescendants(n, "table_row") + 1 } };
+        height: { kind: "estimate", px: (n) => (countDescendants(n, "table_row") + 1) * 32 } };
       return { classId: "text" };
     }
     if (node.isAtom) return { classId: node.type.name }; // default fallback (§5.2)
@@ -339,8 +409,15 @@ This example is illustrative; nothing in the package references these names.
 
 ```ts
 interface MinimapTheme {
-  rowHeight: number;          // px per row (default 3)
+  rowHeight: number;          // minimum row footprint in minimap px
+                              // (default 3) — a row never paints smaller than
+                              // this regardless of scale (§6.2); also the
+                              // tier/sampling floor
   charsPerLine: number;       // text-strategy calibration (default 80)
+  lineHeight: number;         // editor line height in px (default 24) — the
+                              // text height strategy's unit (§4.4)
+  spacing: number;            // per-block vertical spacing in px (default 0) —
+                              // added by the text strategy (§4.4)
   indentUnit: number;         // px per depth step (default 2)
   font?: string;              // tier-1 glyph font (default: theme mono token)
   classes: Record<string, { color: string; indent?: boolean }>;
@@ -359,9 +436,10 @@ renderer behind the same interface without changing any caller (§8.2). A host
 that keeps its palette in CSS custom properties (e.g. the `--mn-*` layer,
 [`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) §9.2) reads
 them once in TypeScript (`getComputedStyle`) and passes the results in
-`theme`; a React host re-reads on theme-change events the same way. The one
-exception is the viewport indicator overlay (§9.1) — a DOM element, styled by
-CSS like any other (§12).
+`theme`; a React host re-reads on theme-change events the same way — a theme
+change whose font metrics differ is also a geometry-epoch change (§4.6). The
+one exception is the viewport indicator overlay (§9.1) — a DOM element,
+styled by CSS like any other (§12).
 
 ---
 
@@ -369,57 +447,81 @@ CSS like any other (§12).
 
 ### 6.1 Prefix-sum offsets
 
-Row geometry is a prefix-sum over `heightRows`:
+Row geometry is a prefix-sum over effective heights (`heightPx ?? estHeightPx`,
+§4.2) — **in editor-space pixels**:
 
-- `offsets: Float32Array` of length `rows + 1`; `offsets[i]` is the top of row
-  `i` in minimap pixels; `total = offsets[rows]`.
+- `offsets: Float64Array` of length `rows + 1`; `offsets[i]` is the top of row
+  `i` in editor-space px; `total = offsets[rows]` is the model's predicted
+  document height.
 - Maintained incrementally: a diff that changes `k` rows re-sums only from the
-  first changed index (offsets after it shift by the cumulative delta — a
-  single subtraction pass, O(n) worst case but a tight loop over a
-  `Float32Array`, and typically a no-op beyond a shallow index).
+  first changed index; every offset after it shifts by the cumulative delta —
+  a single subtraction pass, O(n) worst case but a tight loop over a
+  `Float64Array` (~0.1 ms at 100k rows), so no tree structure is warranted.
+  Edits early in the document shift all later offsets — the pass is cheap;
+  the point of incremental maintenance is skipping re-*estimation* and
+  re-identity work, not the re-sum.
 - `rowAt(offset)` is a binary search over `offsets` — O(log n) (~17 steps at
   100k rows).
 
-### 6.2 Display modes
+### 6.2 Display modes and scale
 
-| Mode | Mapping | Use |
+The minimap is a **uniform scale over editor space**: every minimap x/y is
+`scale × editor-coordinate`. Because row heights are editor px, the minimap's
+proportions match the real editor — the viewport indicator, markers, and
+click targets are linearly accurate wherever they sit, agreeing with the
+editor's native scrollbar rather than approximating it.
+
+| Mode | `scale` | Use |
 |---|---|---|
-| `fit` | The whole document scales into the minimap's height: `scale = containerHeight / total`. | Small documents; classic "entire doc visible" behavior. |
-| `sliding` (default) | Fixed row height; the minimap is a virtual surface of height `total`, and the container shows a **window** into it that slides as the editor scrolls. | Large documents; preserves row legibility. |
+| `fit` | `containerHeight / total` — the whole document in view. | Small documents; classic "entire doc visible" behavior. |
+| `sliding` (default) | a consumer/theme zoom (`zoomPxPerEditorPx`, default `0.25`); the minimap is a virtual surface of height `scale × total`, and the container shows a **window** into it that slides as the editor scrolls. | Large documents; preserves row legibility. |
 
 Mode is a `MinimapOptions.display` value; `auto` (default) selects `fit` when
-`total ≤ containerHeight` and `sliding` otherwise.
+`zoomPxPerEditorPx × total ≤ containerHeight` and `sliding` otherwise. In
+`fit` mode the derived scale is clamped so no row paints below the theme's
+`rowHeight` floor (default 3 minimap px; §5.4) — and never below 1 device px
+— mirroring the production minimaps that survive unbounded documents by
+never rendering less than a pixel per row. In `sliding` mode the zoom is
+fixed and short rows simply paint at the floor.
 
 ### 6.3 Window mapping (scroll → row range)
 
-In `sliding` mode, with cached editor geometry (`scrollTop`, `scrollHeight`,
-`clientHeight` of the scroll container resolved in §7.1 — see §7.4 for when
-these are read):
+With cached editor geometry (`scrollTop`, `scrollHeight`, `clientHeight` of
+the scroll container resolved in §7.1 — see §7.4 for when these are read):
 
 ```ts
-scrollPct  = scrollTop / max(1, scrollHeight - clientHeight)   // NaN-safe → 0
-windowTop  = scrollPct * max(0, total - windowHeight)
-[first, last] = rows intersecting [windowTop, windowTop + windowHeight]   // binary search
+windowTop    = scrollTop                      // editor px — identical units
+windowBottom = scrollTop + clientHeight
+[first, last] = rows intersecting [windowTop, windowBottom]   // binary search
 ```
 
-Only rows `[first, last]` (plus a margin of ` overscanRows`, default 8) are
+No proportional normalization is needed: the model's coordinate system *is*
+the editor's (§6.1), so the visible editor range maps directly onto rows.
+`scrollHeight` still participates as a **calibration check** —
+`total` should track `scrollHeight`; a sustained divergence beyond
+`maxScrollDrift` (a `MinimapOptions` value, default 5%) re-calibrates class
+defaults (§4.5) so estimates do not systematically over- or under-predict.
+
+Only rows `[first, last]` (plus a margin of `overscanRows`, default 8) are
 sent text for and painted. This is the viewport virtualization borrowed from
 `@replit/codemirror-minimap`: paint cost is O(window), independent of document
 size. In `fit` mode `windowTop = 0` and the range is all rows.
 
 ### 6.4 Click/drag mapping (row → scroll)
 
-Minimap offsets are estimates; the editor's real layout is not. Two mapping
+Row offsets are estimates of the editor's real layout; measured correction
+(§4.5) and the editor-space model keep the error small, and two mapping
 strategies resolve a target row to an editor scroll position:
 
 | Strategy | Computation | Used for |
 |---|---|---|
-| `proportional` | `targetScrollTop = (rowCenterOffset / total) * (scrollHeight - clientHeight)` — pure arithmetic, no layout read. | Continuous drag; every pointermove. |
-| `precise` | Resolve the row's `pos` through `view.coordsAtPos(pos)` (or `view.nodeDOM`) and scroll the scroll container (§7.1) so that DOM rect lands at the equivalent container-relative offset. | Click commit and drag release — one layout-accurate snap per gesture. |
+| `proportional` | `targetScrollTop = rowCenterOffset` in editor px — a pure unit-preserving lookup; or, during drag, `rowCenter / total × (scrollHeight − clientHeight)` when the consumer's scroll container height is trusted over the model. | Continuous drag; every pointermove. |
+| `precise` | Resolve the row's `pos` through `view.coordsAtPos(pos)` (or `view.nodeDOM`) and scroll the scroll container (§7.1) so that DOM rect lands at the equivalent container-relative offset. **Null path:** when `nodeDOM(pos)` returns `null` (a virtualized/culled editor, §4.5), `precise` degrades to the `proportional` result — the estimate lands close, and a correction fires when the block re-renders. | Click commit and drag release — one layout-accurate snap per gesture. |
 
-The hybrid keeps the drag path free of forced layout while ending every gesture
-on the exact block. Precise snaps are user-initiated and budgeted one per
-gesture, so their layout cost is acceptable.
+The hybrid keeps the drag path free of forced layout while ending every
+gesture on the exact block when the DOM is available. Precise snaps are
+user-initiated and budgeted one per gesture, so their layout cost is
+acceptable.
 
 ### 6.5 Adaptive tiers
 
@@ -428,9 +530,22 @@ row count — and the paint work — stays bounded at any document size:
 
 | Tier | Condition (row count) | Row rendering |
 |---|---|---|
-| 1 — `text` | ≤ `tier1Rows` (default 5,000) | Real glyphs via `fillText` at the theme font, per-class color. |
+| 1 — `text` | ≤ `tier1Rows` (default 5,000) | Real glyphs blitted from a **pre-rasterized atlas** (one per theme font), per-class color. |
 | 2 — `blocks` | ≤ `tier2Rows` (default 50,000) | Filled rectangles: width by text length (clamped), color by class, indent by depth. |
-| 3 — `aggregate` | > `tier2Rows` | Tier-2 rendering over **aggregated** rows: runs of ≥ `aggregateMin` (default 4) consecutive rows with the same `classId` and depth merge into one row whose `heightRows` is the sum (capped at `aggregateMax`, default 16). |
+| 3 — `aggregate` | > `tier2Rows` | Tier-2 rendering over **aggregated** rows: runs of ≥ `aggregateMin` (default 4) consecutive rows with the same `classId` and depth merge into one row whose height is the summed px (capped at `aggregateMax`, default 16 × median row px). |
+
+**Why an atlas, not `fillText`.** Both production references converge on this:
+`@replit/codemirror-minimap` carries an unresolved in-source TODO — *"`fillText`
+takes up the majority of profiling time"* — and VS Code prebakes a 96-glyph
+atlas precisely to keep text shaping off the paint path. Tier 1 rasterizes the
+theme font's glyph set once (lazily, on first tier-1 paint), caches it per
+(font, scale), and blits — per-row cost returns to rect territory.
+
+**Marker survival under aggregation.** Aggregating a run must not swallow a
+row that carries layer spans (§8.4): the aggregator splits the run around any
+marked row. Landmarks survive aggregation structurally (a heading's class
+differs from its siblings'), markers survive by rule — a document can compress
+without hiding the one diagnostic the user is looking for.
 
 Aggregation collapses paragraph runs — the bulk of any prose document — so the
 effective row count stays below the tier-2 bound; structure-bearing rows
@@ -439,6 +554,20 @@ their runs are short. Tier selection is **hysteresis-guarded**: promotion
 happens at the threshold, demotion only at `0.9 ×` threshold, preventing tier
 flapping while editing near a boundary. A tier change re-publishes the full
 block payload (§8.1) but is rare (structural growth, not keystrokes).
+
+**Terminal rungs.** Beyond tier 3, fidelity stops and the affordances remain —
+the ladder production minimaps climb on pathological inputs (CodeGlance Pro
+documents its own: shrink px-per-line, skip syntax, *Empty Minimap*, hide):
+
+| Rung | Condition | Behavior |
+|---|---|---|
+| `marks-only` | Model-build slices (§7.3) cannot keep up with edits, or the document is image-dominated (row content carries no navigational signal) | The `text` layer is disabled; slider, layers (§8.4), and interaction continue — navigation and diagnostics survive without content paint. |
+| `hidden` | Row count > `hideRows` (a `MinimapOptions` value, **no default** — the consumer opts in) | The minimap renders nothing and releases its model; `createMinimap`'s plugin stays mounted so crossing back under the threshold restores it without remount. |
+
+Both rungs are automatic: `marks-only` engages when the time-sliced build
+misses two consecutive deadlines (§7.3); `hidden` is a policy threshold. The
+1-device-px row floor (§6.2) bounds `fit`-mode scale so paint cost stays
+constant even before aggregation engages.
 
 ---
 
@@ -476,9 +605,10 @@ Returns a plugin with two halves:
   re-resolution cases (the `ResizeObserver` fires when the resolved element
   changes size).
 
-`MinimapOptions` (all optional): `classifier`, `groupOrder` (§5.2), `theme`,
-`display`, `layers` (§8.4), `scrollContainer` (§7.1),
-`overscanRows`, `sampleBudget`, `sliceBudgetMs`, tier thresholds,
+`MinimapOptions` (all optional): `classifier` (§5.1), `theme` (§5.4),
+`display` (§6.2), `layers` (§8.4), `scrollContainer` (§7.1),
+`overscanRows`, `sampleBudget`, `sliceBudgetMs`, tier thresholds and
+`hideRows` (§6.5), `maxScrollDrift` (§6.3), `zoomPxPerEditorPx` (§6.2),
 `onBlockHover` (§10.2).
 
 ### 7.2 Incremental transaction diffing
@@ -497,6 +627,27 @@ On each transaction:
    update, not a re-walk.
 4. Heights, offsets (§6.1), and tier (§6.5) are recomputed from the changed
    indices outward; the renderer receives a sparse `blocks` update (§8.1).
+5. Layer producers (§8.4) map through the same diff: a layer whose spans
+   anchor to positions or node ids re-anchors through `tr.mapping` and
+   `rowAtPos(pos)` — it never re-walks the document.
+
+**Controller mapping surface.** The controller exposes the position↔row
+arithmetic layers need — this is the package's half of the layer contract:
+
+- `rowAtPos(pos: number): number | null` — the row containing a document
+  position, by binary search over row `pos` ranges (O(log n)); `null` when
+  the position falls between rows (the next row's start is the caller's
+  fallback).
+- `mapPos(pos: number, tr: Transaction): number | null` — `tr.mapping.map`
+  plus a deleted check, so producers can anchor to a position once and
+   follow the document without holding a controller-side mirror of it.
+
+Producers that prefer node ids (e.g. an async validation run reporting
+against ids generated at insertion time) call `rowAtNodeId(id: string):
+number | null`, which resolves the id to a live row through the row's `node`
+reference. Ids that no longer resolve (deleted nodes, mid-rewrite) return
+`null` and the producer's span is dropped until the next report — a stale
+report degrades by disappearing, never by misplacing.
 
 ### 7.3 Time-sliced recomputation
 
@@ -513,6 +664,11 @@ through a `requestAnimationFrame` loop with a per-frame budget
 - Completed slices publish progressively: the renderer paints whatever rows it
   holds and leaves the not-yet-built region as background. A `Building…`
   affordance is the consumer's choice (structural class hook, §12).
+- **Deadline misses escalate.** Two consecutive slices overrunning
+  `sliceBudgetMs` (measured, not assumed) engage the `marks-only` rung
+  (§6.5) — the model build itself is de-prioritized to keep interaction
+  responsive; the build continues in the background and the rung releases
+  when a full slice completes under budget.
 
 ### 7.4 Geometry cache refresh points
 
@@ -537,24 +693,25 @@ interface Renderer {
   resize(size: { width: number; height: number; dpr: number }): void;
   setConfig(theme: MinimapTheme, layers: LayerDeclaration[]): void;
   setBlocks(chunk: BlocksPayload): void;      // structural arrays, chunked
-  setViewport(windowTop: number, windowHeight: number): void;
-  setText(entries: Array<[row: number, text: string]>): void;
+  setScale(scale: number): void;              // editor-px → minimap-px (§6.2)
+  setWindow(firstRow: number, rowCount: number, texts: TextsPayload): void;
   setLayer(layerId: string, spans: LayerSpans): void;
-  requestText(from: number, to: number): void;
   render(): void;
   destroy(): void;
 }
 ```
 
 The interface methods speak only serializable data — typed arrays, strings,
-plain numbers — never a live ProseMirror `Node` or DOM reference. `InlineRenderer`
-reads the plain text lazily out of the row model (§4.2's cached `text`) when
-`requestText` fires, so no data source is lost by the absence of a message
-boundary. This discipline is what makes the rendering seam a seam: the payload
-shapes (`setBlocks` chunked at `chunkRows` rows, default 2,000; `setText`
-pushed for visible rows) are deliberately transfer-ready — a future
-worker-backed renderer slots behind this interface as a new module with no
-caller-visible change (§8.2).
+plain numbers — never a live ProseMirror `Node` or DOM reference. The window
+is **pushed, not pulled**: the controller knows the visible row range
+(§6.3) and hands the renderer the rows, their class/depth/height arrays, and
+their text (`texts` carries the plain strings for window rows; the renderer
+never requests). The earlier draft's `requestText`/`setText` pull protocol —
+designed for a message boundary the package no longer has (§8.2) — was
+simplified into this push for exactly that reason; the payload *shapes*
+(`setBlocks` chunked at `chunkRows` rows, default 2,000; `texts` covering
+window rows + overscan) remain deliberately transfer-ready, preserving the
+worker seam's data discipline without its protocol machinery.
 
 ### 8.2 Inline rendering only
 
@@ -599,8 +756,14 @@ order, and draw behavior without a canvas implementation) both live in
 
 ### 8.4 Layer registry and draw order
 
-Painting is layered on the single canvas — later layers draw over earlier
-ones. Layers are declared, ordered, and extensible:
+Painting is layered — later layers draw over earlier ones. Layers *may* paint
+on separate stacked canvases (an implementation allowance borrowed from
+atom-minimap's back/tokens/front three-canvas stack): the `Renderer`
+interface (§8.1) hides canvas count, and a layer whose update cadence differs
+from the content layer's (search spans per keystroke vs. text per edit)
+should not force a content repaint. `InlineRenderer` v1 uses one canvas;
+splitting is a licensed optimization, not a contract. Layers are declared,
+ordered, and extensible:
 
 ```ts
 interface LayerDeclaration {
@@ -626,16 +789,84 @@ reserves without implementing their sources:
 | Reviewer annotations | annotation store | marker strips beside rows |
 | Search matches | search plugin | matched-row highlights, current-match accent |
 
-A layer's data flows as `setLayer(id, spans)` where `LayerSpans` is an array of
-`{ row: number; from?: number; to?: number; tone?: string }` — row-indexed, so
-layer cost is O(spans), and spans are recomputed by the consumer's own state,
-not by the minimap. Selection spans are computed by the controller from
-`state.selection` mapped through the current row list.
+#### The layer data contract
 
-### 8.5 Resizing
+**Anchors, not row indices.** A layer's data flows as `setLayer(id, spans)`,
+but spans are declared in *anchor space*, never in row indices — a row index
+shifts under every edit above it, so an index-anchored span misplaces silently:
+
+```ts
+type LayerSpan =
+  | { kind: "pos"; from: number; to?: number }    // document positions
+  | { kind: "id"; id: string };                   // node id (schema-generated)
+interface LayerSpans {
+  anchor: "pos" | "id";
+  spans: LayerSpan[];
+  tone?: (anchor: LayerSpan) => string;           // tone per span, optional
+  lane?: number;                                  // 0 = inline tint (default);
+                                                  // 1+ = nth marker lane at the
+                                                  // minimap's right edge
+}
+```
+
+The **controller** resolves anchors to rows — `rowAtPos` / `rowAtNodeId`
+(§7.2) — and re-anchors through `tr.mapping` on every transaction. The
+producer's only job is to emit anchors in its own natural space; it never
+sees rows. This is the deliberate division drawn from production minimaps'
+overlay APIs (atom-minimap's service surface carried a dozen third-party
+overlay plugins; VS Code's decorations carry `MinimapPosition` +
+`overviewRuler` lanes): the extension contract is *typed anchors + lane
+placement*, and the mapping machinery belongs to the one component that has
+it.
+
+**Anchor kinds and their lifetimes.** `pos` anchors are for producers that
+live inside the transaction stream (a search plugin's `DecorationSet` maps
+through `DecorationSet.map` for free and re-anchors per transaction). `id`
+anchors are for async producers — a preflight validation run reports against
+node ids it captured when it started; edits during the run re-anchor the
+surviving ids, and ids that no longer resolve are dropped (§7.2) — a stale
+report degrades by disappearing, never by misplacing.
+
+**Rendering rules (the merge floor).** Layer paint cost is bounded by rule,
+not by count:
+
+- Marker-lane spans draw at a **minimum height of 6 device px** and any spans
+  of the same tone within that floor **merge into one rect** — the geometric
+  merge *is* the cap (this is VS Code's overview-ruler discipline: no
+  numeric decoration limit exists, because density collapses into runs).
+  Worst case per lane is `canvasHeight / 6` rects, regardless of whether the
+  document carries 50 findings or 50,000.
+- Lane assignment is producer policy: severity-distinct lanes (error /
+  warning / info) so a warning-dense clause cannot occlude a single error.
+- Inline-tint spans (lane 0) multiply with the row's class color at the
+  span's tone alpha; they are clamped to whole rows.
+- All spans are clipped to the visible window (§6.3); paint is O(visible
+  spans + merge), never O(spans).
+- Under tier-3 aggregation (§6.5), an aggregated run that contains any marked
+  row is split so the mark retains its own row.
+
+Selection spans are computed by the controller from `state.selection`
+anchored to positions — the built-in `selection` layer is simply the
+reference producer for the contract above.
+
+### 8.5 Resizing and DPR changes
 
 A `ResizeObserver` on the minimap container drives `resize` calls. The
-overlay (§9) is repositioned from cached geometry in the same tick.
+overlay (§9) is repositioned from cached geometry in the same tick. Canvas
+resize is itself a costly operation (atom-minimap documents this against its
+own history), so the discipline is:
+
+- **Coalesce**: one `resize` per frame, in the shared rAF batch (§10.1) —
+  RO callbacks never resize synchronously.
+- **Floor device pixels**: the backing store is
+  `floor(cssSize × dpr)`; a change that does not move the floored
+  device-pixel size is a no-op (sub-pixel container flutter never reallocs
+  the backing store).
+- **Detect DPR changes belt-and-suspenders**: a re-armed
+  `matchMedia('(resolution: …dppx)')` listener *plus* a `devicePixelRatio`
+  comparison inside the RO callback and on `window.resize` — WebKit does not
+  re-evaluate the `resolution` media feature on page zoom (WebKit bug
+  317839), so the MDN matchMedia pattern alone misses Safari zoom changes.
 
 ---
 
@@ -649,16 +880,26 @@ editor currently shows — is a **separate DOM element**, not canvas paint
 
 ```html
 <div class="mn-minimap">
-  <canvas class="mn-minimap-canvas"></canvas>
-  <div class="mn-minimap-viewport" aria-hidden="true"></div>
+  <canvas class="mn-minimap-canvas" aria-hidden="true"></canvas>
+  <div class="mn-minimap-viewport" role="scrollbar"
+       aria-orientation="vertical" aria-controls="<editor viewport id>"
+       aria-valuemin="0" aria-valuemax="100" aria-valuenow="…"
+       aria-label="Document position"></div>
 </div>
 ```
+
+The canvas is presentational (`aria-hidden`): the accessible content is the
+document itself. The overlay *is* the accessible surface — it carries the
+[`scrollbar`](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Roles/scrollbar_role)
+role and its required semantics (§9.3).
 
 It is updated exclusively through `transform: translateY(px)` and `height`
 (written only when the editor viewport size changes) — compositor-friendly,
 no layout, no repaint of the canvas beneath. Its vertical extent is the
-editor's `[scrollTop, scrollTop + clientHeight]` mapped into minimap
-coordinates (§6.3), clamped to the window.
+editor's `[scrollTop, scrollTop + clientHeight]` scaled into minimap
+coordinates (`scale × editor px`, §6.2 — a pure multiply, since the model is
+editor-space), clamped to the window. `aria-valuenow` tracks
+`scrollTop / max(1, scrollHeight − clientHeight)` (0–100).
 
 ### 9.2 Drag interaction
 
@@ -674,6 +915,25 @@ The overlay handles `pointerdown` → `setPointerCapture` → `pointermove` →
   where the consumer's layout would otherwise forward them to the editor
   surface).
 
+### 9.3 Keyboard operation
+
+The overlay is focusable (`tabindex="0"`) and implements the `scrollbar` role's
+keyboard contract, following the MDN `scrollbar` role reference:
+
+| Key | Action |
+|---|---|
+| `ArrowUp` / `ArrowDown` | Scroll by one row's worth of editor height (the `text` height strategy's `lineHeight`, §4.4). |
+| `PageUp` / `PageDown` / `Space` / `Shift+Space` | Scroll by one editor viewport height. |
+| `Home` / `End` | Jump to document start / end. |
+
+Keyboard scrolls use the `proportional` mapping (§6.4) — no layout reads —
+and end with one `precise` snap when the gesture is discrete (key-up for
+`Home`/`End`; arrow-repeat settles on the first quiet frame). All keyboard
+interaction honors `prefers-reduced-motion` in the one place it can apply:
+no animated/smooth scrolling is dispatched when the consumer requests
+reduced motion and the platform `scrollIntoView({ behavior })` default would
+animate.
+
 ---
 
 ## 10. Scroll and interaction discipline
@@ -684,7 +944,7 @@ The controller subscribes to the resolved scroll container's `'scroll'` event
 (passive; container resolution is §7.1's contract). Per event it reads
 **only `scrollTop`**, then schedules a single rAF that: computes the window
 (§6.3, from cached geometry), updates the overlay transform (§9.1), and
-issues one coalesced `setViewport`/`render` call on the renderer (§8.1). No
+issues one coalesced `setWindow`/`render` call on the renderer (§8.1). No
 `getBoundingClientRect`, no `offsetHeight`, no style writes that would dirty
 layout occur in this path. Multiple scroll events within a frame collapse to
 one repaint.
@@ -826,13 +1086,26 @@ extensions.
    `[f, l]`, draw calls exist only for `[f − overscan, l + overscan]`.
 7. **Layer order**: with layers `text (z=10)`, a consumer layer `(z=15)`,
    `selection (z=20)`, recorded draw order is ascending `z`.
-8. **Virtualized text push**: the renderer receives `setText` entries only
-   for rows inside the visible window plus overscan, and `requestText` ranges
-   are coalesced across consecutive calls within a frame. Asserted via
-   `RecordingRenderer`.
+8. **Window text push**: the renderer's `setWindow` receives `texts` only for
+   rows inside the visible window plus overscan, and consecutive window
+   updates within a frame coalesce to one. Asserted via `RecordingRenderer`.
 9. **Scroll mapping**: `proportional` maps window tops/ends to row ranges
    matching the binary-search reference; `precise` snap lands on the resolved
-   row (mocked `coordsAtPos`).
+   row (mocked `coordsAtPos`); `precise` with a `null` `nodeDOM` degrades to
+   the `proportional` result.
+10. **Layer anchoring**: a `pos`-anchored layer survives an edit above its
+    span (span re-anchors via `tr.mapping`, same tone, correct row); an
+    `id`-anchored span whose node is deleted disappears (never misplaces); a
+    marked row splits an aggregating run (§6.5/§8.4).
+11. **Merge floor**: marker-lane spans closer than the 6-device-px floor merge
+    into one rect per tone; worst-case rect count per lane ≤
+    `canvasHeight / 6`.
+12. **Epochs**: a content-width change re-estimates all `estHeightPx` (mocked
+    epoch inputs) while preserving measured `heightPx` values and every
+    `key`; a plain transaction preserves the epoch.
+13. **Terminal rungs**: two over-budget build slices engage `marks-only`
+    (no `text`-layer paint calls; `setLayer` calls continue); row count over
+    a consumer `hideRows` releases the model while the plugin stays mounted.
 
 ### 15.2 Performance budgets
 
@@ -842,10 +1115,12 @@ Measured on a synthetic ~5 MB document (~80,000 blocks) on commodity hardware:
 |---|---|
 | First paint (visible-region-first slicing) | ≤ 32 ms from mount |
 | Full model build (wall, sliced at 5 ms/frame) | ≤ 250 ms |
+| Epoch re-estimation (width change, 80k blocks, sliced) | ≤ 400 ms wall, ≤ 5 ms/frame |
 | Per-keystroke incremental update (single-block edit) | ≤ 1 ms main thread |
 | Scroll repaint (inline, incl. paint) | ≤ 1 ms per frame |
 | Main-thread work per scroll frame outside paint | ≤ 0.2 ms (window computation + overlay transform) |
 | Click/drag mapping | O(log n); zero layout reads during drag |
+| `total` vs `scrollHeight` drift after calibration settles | ≤ `maxScrollDrift` (default 5%) |
 | Block-model memory | ≤ 40 MB |
 
 Budgets are asserted in `test.mjs` where measurable headlessly (build, patch,
@@ -859,9 +1134,10 @@ manual check-list item for the consumer's e2e suite, not a package test.
 
 - **Hover-to-magnify DOM detail view** — the event surface (§10.2) is
   contractual; the view itself is a future consumer-side component.
-- **Diagnostics, annotations, and search layers** — the layer registry
-  supports them (§8.4); their data sources belong to the consumers that own
-  those features.
+- **Diagnostics, annotations, and search layers** — the layer contract
+  (anchors, lanes, merge floor; §8.4) and the controller's mapping surface
+  (§7.2) are the package's half; the data sources belong to the consumers
+  that own those features.
 - **Per-visual-line resolution** and intra-row glyph alignment — block-level
   rows are the contract; tier-1 text rendering is a legibility affordance,
   not a layout promise.
@@ -869,3 +1145,13 @@ manual check-list item for the consumer's e2e suite, not a package test.
 - **Inline editing or drag-to-reorder** on the minimap surface (structural
   drag remains a future layer/interaction on top of `onBlockHover`).
 - **RTL and horizontal overscroll indication** — vertical-only mapping.
+- **Serving as the editor's virtualization oracle.** The editor-space height
+  model (§4.4) is *shaped* so it could later predict scroll geometry for an
+  editor that culls unrendered blocks (the model answers for blocks whose
+  DOM is gone, §4.5/§6.4) — but correctness as an oracle (scrollbar
+  fidelity, divergence bail-outs) is a different burden than proportional
+  accuracy in a visualization, and no such consumer exists. Entry
+  condition, mirroring §8.2's reversal clause: when editor-side
+  virtualization enters scope, this model becomes its height oracle, and
+  the predicted-vs-actual budget above becomes a correctness gate rather
+  than a drift metric.
