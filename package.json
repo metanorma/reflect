@@ -26,7 +26,8 @@
     "pkg/prosemirror-editor",
     "pkg/editor-commands",
     "pkg/toolbar",
-    "pkg/relaton"
+    "pkg/relaton",
+    "pkg/prosemirror-minimap"
   ],
   "devDependencies": {
     "@types/node": "^22.5.5",

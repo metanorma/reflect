@@ -12,11 +12,13 @@
   "dependencies": {
     "@metanorma/editor-commands": "workspace:^",
     "@metanorma/prosemirror-editor": "workspace:^",
+    "@metanorma/prosemirror-minimap": "workspace:^",
     "@metanorma/relaton": "workspace:^",
     "@metanorma/toolbar": "workspace:^",
     "browser-fs-access": "^0.38.0",
     "prosemirror-commands": "^1.7.1",
     "prosemirror-keymap": "^1.2.2",
+    "prosemirror-model": "^1.25.8",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

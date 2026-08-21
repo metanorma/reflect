@@ -6,10 +6,13 @@ import {
 } from '@metanorma/prosemirror-editor';
 import type { EditorState, MetanormaDocument } from '@metanorma/prosemirror-editor';
 import { AdvancedMetanormaToolbar } from '@metanorma/toolbar';
+import { createMinimap } from '@metanorma/prosemirror-minimap';
+import type { MinimapClassifier, RowSpec } from '@metanorma/prosemirror-minimap';
 import type { BibliographicItem } from '@metanorma/relaton';
 import { mainTitle } from '@metanorma/relaton';
 import { keymap } from 'prosemirror-keymap';
 import { chainCommands } from 'prosemirror-commands';
+import type { Node } from 'prosemirror-model';
 import {
   newlineInCode,
   enterDefinitionList,
@@ -29,6 +32,77 @@ import {
 import { fileSave, fileOpen } from 'browser-fs-access';
 import classNames from './style.module.css';
 import { Sidebar } from './Sidebar.jsx';
+import { MinimapPane } from './MinimapPane.jsx';
+
+/**
+ * Metanorma minimap classifier (ProseMirrorMinimap.spec.md §5.3 — consumer
+ * refinement over the shape-keyed `defaultClassifier`):
+ *
+ * - `section_title` / `floating_title` → `heading` (indent by depth);
+ * - textblocks (`paragraph`, `dt`, `dd`) → `text`;
+ * - `sourcecode` → `code`; `table` → `table` (height estimated from row
+ *   count, no recursion); `figure` → `figure` (fixed height, no recursion);
+ *   `formula` → `formula` (fixed height, no recursion);
+ * - `bibdata` / `bibitem` / `footnote_entry` (atoms with DOM chrome) →
+ *   `text`;
+ * - everything else falls through to the default: containers transparent,
+ *   recursion on.
+ *
+ * The `theme` (which owns the `heading`/`figure`/… colors and adds
+ * `formula`) is deliberately NOT set here — the plugin-wins rule (§7.1)
+ * would lock it; `<MinimapPane>` owns it through the component `options`
+ * prop instead.
+ */
+const metanormaClassifier: MinimapClassifier = {
+  row(node): RowSpec | null {
+    switch (node.type.name) {
+      case 'section_title':
+      case 'floating_title':
+        return { classId: 'heading' };
+      case 'sourcecode':
+        return { classId: 'code' };
+      case 'table':
+        return {
+          classId: 'table',
+          height: { kind: 'estimate', px: () => 40 + rowCount(node) * 28 },
+        };
+      case 'figure':
+        return { classId: 'figure', height: { kind: 'fixed', px: 220 } };
+      case 'formula':
+        return { classId: 'formula', height: { kind: 'fixed', px: 64 } };
+      default:
+        // Atoms with node-view chrome render as a strip, not a textblock.
+        if (node.isTextblock || node.isAtom) {
+          return { classId: 'text' };
+        }
+        return null;
+    }
+  },
+  recurse(node) {
+    // Rows with per-node height strategies are opaque: the strategy already
+    // accounts for the whole subtree (table rows/figure body/formula stem).
+    if (
+      node.type.name === 'table' ||
+      node.type.name === 'figure' ||
+      node.type.name === 'formula'
+    ) {
+      return false;
+    }
+    return !node.isTextblock && !node.isLeaf;
+  },
+};
+
+/** Count a table's rows across its section layers (head/body/foot). */
+function rowCount(table: Node): number {
+  let n = 0;
+  table.forEach((section) => {
+    section.forEach((row) => {
+      void row;
+      n += 1;
+    });
+  });
+  return n;
+}
 
 /**
  * Enter-key dispatch chain (EditorCommands.spec.md §2.3), composed at the call
@@ -56,13 +130,17 @@ const editorPlugins = [
       splitBlockKeepMarks,
     ),
     'Shift-Enter': insertSoftBreak,
-    Backspace: chainCommands(
-      emptyTextblockBackspace,
-      joinBackward,
-      deleteSelection,
-    ),
-  }),
-];
+      Backspace: chainCommands(
+        emptyTextblockBackspace,
+        joinBackward,
+        deleteSelection,
+      ),
+    }),
+    // Minimap (ProseMirrorMinimap.spec.md §7.1): a view plugin — appended
+    // after the keymap so it observes every transaction on its way into
+    // state; renders via <MinimapPane> below.
+    createMinimap({ classifier: metanormaClassifier }),
+  ];
 
 
 export const App: React.FC<{ onDoneLoading: () => void }> =
@@ -75,6 +153,14 @@ function ({ onDoneLoading }) {
   );
 
   const [status, setStatus] = useState<string | null>(null);
+
+  // Increments on every document LOAD (`loadDocFromJson`): a fresh
+  // `EditorState` carries a fresh plugins array, so ProseMirror destroys and
+  // re-creates every plugin view — including the minimap controller the
+  // `<Minimap>` component holds. The epoch re-keys `MinimapPane`, remounting
+  // it so it re-attaches to the new controller (the view object itself is
+  // unchanged, so the `[view]` effect deps alone would never re-fire).
+  const [docEpoch, setDocEpoch] = useState(0);
 
   // Keep a ref to the latest editor state so handleSave can read it without
   // depending on editorState in its useCallback deps — this prevents the
@@ -99,13 +185,14 @@ function ({ onDoneLoading }) {
    */
   const loadDocFromJson = useCallback((doc: unknown): boolean => {
     // nodeFromJSON validates structure; a bad doc throws RangeError.
-    const newState = createInitialEditorState({
-      doc: doc as MetanormaDocument,
-      history: DEFAULT_HISTORY_OPTIONS,
-      plugins: editorPlugins,
-    });
-    setEditorState(newState);
-    return true;
+      const newState = createInitialEditorState({
+        doc: doc as MetanormaDocument,
+        history: DEFAULT_HISTORY_OPTIONS,
+        plugins: editorPlugins,
+      });
+      setEditorState(newState);
+      setDocEpoch((n) => n + 1);
+      return true;
   }, []);
 
   /**
@@ -197,10 +284,11 @@ function ({ onDoneLoading }) {
   return <div className={classNames.app}>
     <Sidebar onSave={handleSave} onLoad={handleLoad} docTitle={docTitle} />
     {status && <div className={classNames.status} role="alert">{status}</div>}
-    <MetanormaProseMirror
-        state={editorState}
-        onStateChange={setEditorState}>
-      <AdvancedMetanormaToolbar className="mn-toolbar mn-toolbar--vertical" />
-    </MetanormaProseMirror>
+      <MetanormaProseMirror
+          state={editorState}
+          onStateChange={setEditorState}>
+        <MinimapPane key={docEpoch} />
+        <AdvancedMetanormaToolbar className="mn-toolbar mn-toolbar--vertical" />
+      </MetanormaProseMirror>
   </div>;
 };

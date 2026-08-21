@@ -61,6 +61,17 @@ export {
 
 export type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
 
+/**
+ * Re-exported so consumer-side components rendered as editor children can
+ * capture the `EditorView` (e.g. a minimap pane) without declaring their own
+ * `@handlewithcare/react-prosemirror` dependency — under Yarn PnP a second
+ * direct dependency resolves to a *second virtual instance* of the library,
+ * whose React context (`EditorContext`) is a different object from the one
+ * the editor provides; `useContext` then returns null and the component
+ * crashes. Re-exporting keeps a single instance in every consumer bundle.
+ */
+export { useEditorEffect } from "@handlewithcare/react-prosemirror";
+
 /** Re-exported so hosts can type the `history` option without a direct dep. */
 export type { HistoryOptions } from "@metanorma/editor-commands";
 

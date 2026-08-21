@@ -287,6 +287,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metanorma/prosemirror-minimap@workspace:^, @metanorma/prosemirror-minimap@workspace:pkg/prosemirror-minimap":
+  version: 0.0.0-use.local
+  resolution: "@metanorma/prosemirror-minimap@workspace:pkg/prosemirror-minimap"
+  dependencies:
+    "@types/react": "npm:^19"
+    prosemirror-model: "npm:^1.25.8"
+    prosemirror-state: "npm:^1.4.4"
+    prosemirror-transform: "npm:^1.12.0"
+    prosemirror-view: "npm:1.42.0"
+    react: "npm:^19.2.7"
+    typescript: "npm:~6.0.3"
+  peerDependencies:
+    prosemirror-model: ^1.25.8
+    prosemirror-state: ^1.4.4
+    prosemirror-view: 1.42.0
+    react: ^19.2.7
+  peerDependenciesMeta:
+    react:
+      optional: true
+  languageName: unknown
+  linkType: soft
+
 "@metanorma/prosemirror-schema@workspace:^, @metanorma/prosemirror-schema@workspace:pkg/prosemirror-schema":
   version: 0.0.0-use.local
   resolution: "@metanorma/prosemirror-schema@workspace:pkg/prosemirror-schema"
@@ -459,6 +481,7 @@ __metadata:
   dependencies:
     "@metanorma/editor-commands": "workspace:^"
     "@metanorma/prosemirror-editor": "workspace:^"
+    "@metanorma/prosemirror-minimap": "workspace:^"
     "@metanorma/relaton": "workspace:^"
     "@metanorma/toolbar": "workspace:^"
     "@playwright/test": "npm:^1.49.0"
@@ -467,6 +490,7 @@ __metadata:
     browser-fs-access: "npm:^0.38.0"
     prosemirror-commands: "npm:^1.7.1"
     prosemirror-keymap: "npm:^1.2.2"
+    prosemirror-model: "npm:^1.25.8"
     react: "npm:^19.2.7"
     react-dom: "npm:^19.2.7"
     typescript: "npm:~6.0.3"

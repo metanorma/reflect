@@ -27,6 +27,10 @@ const RAW_RUNTIME_STATE =
       "reference": "workspace:pkg/prosemirror-editor"\
     },\
     {\
+      "name": "@metanorma/prosemirror-minimap",\
+      "reference": "workspace:pkg/prosemirror-minimap"\
+    },\
+    {\
       "name": "@metanorma/prosemirror-schema",\
       "reference": "workspace:pkg/prosemirror-schema"\
     },\
@@ -45,6 +49,7 @@ const RAW_RUNTIME_STATE =
   "fallbackExclusionList": [\
     ["@metanorma/editor-commands", ["workspace:pkg/editor-commands"]],\
     ["@metanorma/prosemirror-editor", ["workspace:pkg/prosemirror-editor"]],\
+    ["@metanorma/prosemirror-minimap", ["virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/prosemirror-minimap", "workspace:pkg/prosemirror-minimap"]],\
     ["@metanorma/prosemirror-schema", ["workspace:pkg/prosemirror-schema"]],\
     ["@metanorma/relaton", ["virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#workspace:pkg/relaton", "workspace:pkg/relaton"]],\
     ["@metanorma/toolbar", ["workspace:pkg/toolbar"]],\
@@ -183,6 +188,10 @@ const RAW_RUNTIME_STATE =
     [\
       "@metanorma/prosemirror-editor",\
       "workspace:pkg/prosemirror-editor"\
+    ],\
+    [\
+      "@metanorma/prosemirror-minimap",\
+      "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/prosemirror-minimap"\
     ],\
     [\
       "@metanorma/prosemirror-schema",\
@@ -843,6 +852,46 @@ const RAW_RUNTIME_STATE =
         "linkType": "SOFT"\
       }]\
     ]],\
+    ["@metanorma/prosemirror-minimap", [\
+      ["virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/prosemirror-minimap", {\
+        "packageLocation": "./.yarn/__virtual__/@metanorma-prosemirror-minimap-virtual-25db354171/1/pkg/prosemirror-minimap/",\
+        "packageDependencies": [\
+          ["@metanorma/prosemirror-minimap", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/prosemirror-minimap"],\
+          ["@types/prosemirror-model", null],\
+          ["@types/prosemirror-state", null],\
+          ["@types/prosemirror-view", null],\
+          ["@types/react", "npm:19.2.14"],\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-transform", "npm:1.12.0"],\
+          ["prosemirror-view", "npm:1.42.0"],\
+          ["react", "npm:19.2.7"],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+        ],\
+        "packagePeers": [\
+          "@types/prosemirror-model",\
+          "@types/prosemirror-state",\
+          "@types/prosemirror-view",\
+          "prosemirror-model",\
+          "react"\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["workspace:pkg/prosemirror-minimap", {\
+        "packageLocation": "./pkg/prosemirror-minimap/",\
+        "packageDependencies": [\
+          ["@metanorma/prosemirror-minimap", "workspace:pkg/prosemirror-minimap"],\
+          ["@types/react", "npm:19.2.14"],\
+          ["prosemirror-model", "npm:1.25.11"],\
+          ["prosemirror-state", "npm:1.4.4"],\
+          ["prosemirror-transform", "npm:1.12.0"],\
+          ["prosemirror-view", "npm:1.42.0"],\
+          ["react", "npm:19.2.7"],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+        ],\
+        "linkType": "SOFT"\
+      }]\
+    ]],\
     ["@metanorma/prosemirror-schema", [\
       ["workspace:pkg/prosemirror-schema", {\
         "packageLocation": "./pkg/prosemirror-schema/",\
@@ -1074,6 +1123,7 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
           ["@metanorma/prosemirror-editor", "workspace:pkg/prosemirror-editor"],\
+          ["@metanorma/prosemirror-minimap", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/prosemirror-minimap"],\
           ["@metanorma/relaton", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#workspace:pkg/relaton"],\
           ["@metanorma/toolbar", "workspace:pkg/toolbar"],\
           ["@playwright/test", "npm:1.62.1"],\
@@ -1083,6 +1133,7 @@ const RAW_RUNTIME_STATE =
           ["editor-gui", "workspace:pkg/editor-gui"],\
           ["prosemirror-commands", "npm:1.7.1"],\
           ["prosemirror-keymap", "npm:1.2.3"],\
+          ["prosemirror-model", "npm:1.25.11"],\
           ["react", "npm:19.2.7"],\
           ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\

@@ -1,0 +1,53 @@
+/*
+ * Structural styles and DOM-overlay tokens (§12).
+ *
+ * The package ships no positioning rules — no `position: fixed`, no flex
+ * membership, no margins. Where the minimap sits is entirely the consumer's
+ * layout. Canvas-painted appearance is deliberately absent from this
+ * stylesheet: every painted value flows only through `MinimapTheme` (§5.4);
+ * the custom properties below style only the DOM overlay (§9.1) and the
+ * building affordance, and carry fallbacks so a host need not define them.
+ */
+
+.mn-minimap {
+  position: relative;
+  overflow: hidden;
+}
+
+.mn-minimap-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mn-minimap-viewport {
+  position: absolute;
+  /* `top: 0` pins the strip to the container's top edge; `updateOverlay`
+     positions it exclusively via `transform: translateY()` (§9.1). Without
+     it, an absolutely-positioned element with `auto` top keeps its static
+     position — below the canvas — and the strip renders out of view. */
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: auto;
+  background: var(--mn-minimap-viewport-color, rgba(129, 139, 152, 0.25));
+  border: 1px solid var(--mn-minimap-viewport-border-color, rgba(129, 139, 152, 0.5));
+  border-radius: 2px;
+  box-sizing: border-box;
+  cursor: grab;
+}
+
+.mn-minimap-viewport:active {
+  cursor: grabbing;
+}
+
+.mn-minimap-viewport:focus-visible {
+  outline: 2px solid var(--mn-minimap-viewport-focus-color, #4a90d9);
+  outline-offset: -2px;
+}
+
+/* Building affordance hook (§7.3): progress display is consumer policy. */
+.mn-minimap-building {
+  color: var(--mn-minimap-building-color, #888);
+  font: 10px/1.4 monospace;
+}

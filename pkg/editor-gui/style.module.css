@@ -75,6 +75,36 @@
   overflow-y: auto;
 }
 
+/*
+ * Minimap pane (pkg/editor-gui/MinimapPane.tsx).
+ *
+ * Placement: a fixed-width column docked LEFT of the editor surface —
+ * i.e. between the 48px sidebar rail (`.app` row) and the `.ProseMirror`
+ * scroll container. `order: -1` reorders it ahead of the editor inside the
+ * `.mn-prosemirror` flex row (document order stays
+ * [ProseMirrorDoc, MinimapPane, toolbar] because ProseMirrorDoc renders
+ * first as the editor surface; order sorts only the flex placement).
+ *
+ * The pane must NOT scroll itself (the minimap owns scrolling semantics
+ * through its viewport overlay); it just sizes the minimap's container,
+ * which fills it (`.mn-minimap-canvas` is width/height 100%).
+ * `overflow: hidden` + `min-height: 0` keep it from growing past the flex
+ * row's definite height.
+ *
+ * Tokens (background/border) come from the editor token palette so the pane
+ * follows the editor's light/dark theming (the canvas background itself is
+ * theme-driven via MinimapPane's `options.theme`).
+ */
+.minimapPane {
+  order: -1;              /* left of the editor, inside .mn-prosemirror */
+  flex: 0 0 96px;         /* fixed width; full height via align-self */
+  align-self: stretch;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--mn-border);
+  background: var(--mn-surface-muted);
+}
+
 /* Reorient the toolbar vertically. Keeps `mn-toolbar` (base button/group
  * styles) and adds the `--vertical` modifier to flip both the group stack and
  * the buttons within each group. */
@@ -258,11 +288,13 @@
 }
 */
 
-/* Inline status line for Save/Load errors (rendered in App.tsx). */
+/* Inline status line for Save/Load errors (rendered in App.tsx). Left
+ * offset clears both the 48px sidebar rail and the 96px minimap pane
+ * (48 + 96 = 144, plus a 12px gutter). */
 .status {
   position: absolute;
   top: 4px;
-  left: 56px;
+  left: 156px;
   z-index: 20;
   padding: 4px 8px;
   background: #f0f0f0;
