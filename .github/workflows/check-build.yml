@@ -1,0 +1,34 @@
+name: Check build
+
+# PR-time gate so lockfile drift (yarn install --immutable failing with
+# YN0028) surfaces on the pull request instead of after merge, when the
+# deploy-gui workflow (push to main) would be the first to hit it.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-gui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable Yarn 4 via Corepack
+        # The runner ships Yarn Classic on PATH; Corepack activates the
+        # version pinned in the root packageManager field (yarn@4.17.0).
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build editor-gui
+        # Same build the Pages deploy runs; keeping it PR-visible means a
+        # bundling regression fails the PR, not the main-branch deploy.
+        run: yarn build-gui
