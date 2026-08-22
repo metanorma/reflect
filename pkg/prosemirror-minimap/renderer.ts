@@ -691,9 +691,20 @@ export class InlineRenderer extends RendererBackend {
     const chars = r.text ?? '';
     const glyphW = 3;
     const count = Math.min(chars.length, Math.floor((w * widthFrac) / glyphW));
+    // 1:1 device-px blits: `render` paints under the dpr transform, where a
+    // scaled drawImage resamples the baked cell by fractions of a device px
+    // (any fractional dpr, and ceil(4·dpr)/dpr is never integer either).
+    // Neutralize the transform for the row and land each glyph at integer
+    // device px. devY rounds ONCE per row — every glyph in the row shares
+    // it, so the row paints as one band that never straddles by 1 device px.
+    const devY = Math.round(r.y * this.dpr);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     for (let i = 0; i < count; i++) {
-      this.atlas.blit(ctx, chars[i] ?? '', x + i * glyphW, r.y, color);
+      const devX = Math.round((x + i * glyphW) * this.dpr);
+      this.atlas.blit(ctx, chars[i] ?? '', devX, devY, color);
     }
+    ctx.restore();
   }
 
   /**
@@ -787,6 +798,12 @@ class GlyphAtlas {
     private readonly dpr: number,
   ) {}
 
+  /**
+   * Blit one baked glyph 1:1 — `x`/`y` are DEVICE pixels, and the caller
+   * paints under a neutralized transform (`setTransform(1,0,0,1,0,0)`);
+   * the cell is baked at integer device px, so the blit is never
+   * resampled at any DPR.
+   */
   blit(
     ctx: CanvasRenderingContext2D,
     ch: string, x: number, y: number, color: string,
@@ -809,7 +826,7 @@ class GlyphAtlas {
       }
       this.glyphs.set(key, glyph);
     }
-    ctx.drawImage(glyph, x, y, glyph.width / this.dpr, glyph.height / this.dpr);
+    ctx.drawImage(glyph, x, y);
   }
 }
 

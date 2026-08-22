@@ -585,7 +585,11 @@ row count — and the paint work — stays bounded at any document size:
 takes up the majority of profiling time"* — and VS Code prebakes a 96-glyph
 atlas precisely to keep text shaping off the paint path. Tier 1 rasterizes the
 theme font's glyph set once (lazily, on first tier-1 paint), caches it per
-(font, scale), and blits — per-row cost returns to rect territory.
+(font, scale), and blits — per-row cost returns to rect territory. Blits
+bypass the CSS-px paint transform: per row, the renderer neutralizes it and
+lands each glyph 1:1 at integer device px (y rounded once per row, so the
+whole row shares one band; x per glyph) — a baked cell is never resampled,
+so glyphs stay crisp at any DPR, fractional included.
 
 **Marker survival under aggregation.** Aggregating a run must not swallow a
 row that carries layer spans (§8.4): the aggregator splits the run around any
@@ -816,8 +820,8 @@ No worker, no `OffscreenCanvas` transfer, no message protocol.
   a sub-millisecond paint only matters when per-row fidelity (per-token
   coloring, sub-row shaping) or continuous animation pushes a repaint past
   ~1 ms sustained on target hardware — and §16 disclaims per-visual-line
-  resolution and intra-row glyph alignment, treating tier 1 as a legibility
-  affordance, not a layout promise.
+  resolution, treating tier 1 as a legibility affordance, not a layout
+  promise.
 
 **Reversal condition.** Enable a worker-backed renderer when a *measured,
 sustained* minimap repaint exceeds ~1 ms on target hardware, or when a
@@ -1275,9 +1279,10 @@ a package test.
   (anchors, lanes, merge floor; §8.4) and the controller's mapping surface
   (§7.2) are the package's half; the data sources belong to the consumers
   that own those features.
-- **Per-visual-line resolution** and intra-row glyph alignment — block-level
-  rows are the contract; tier-1 text rendering is a legibility affordance,
-  not a layout promise.
+- **Per-visual-line resolution** — block-level rows are the contract; tier-1
+  text rendering is a legibility affordance, not a layout promise. Intra-row
+  glyph *placement* is aligned to integer device px (§6.5), but one block row
+  still paints as a single text run — no word wrapping, no intra-row shaping.
 - **Folding / collapsing** of document regions in the minimap.
 - **Inline editing or drag-to-reorder** on the minimap surface (structural
   drag remains a future layer/interaction on top of `onBlockHover`).
