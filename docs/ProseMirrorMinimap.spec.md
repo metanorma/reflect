@@ -450,9 +450,6 @@ interface MinimapTheme {
 - The atlas cell is a fixed 4×10 px with a 3 px advance; full-width CJK
   glyphs need ~1 em (9 px at the default font), so they clip and overlap —
   the reported illegibility.
-- Characters are indexed by UTF-16 code unit, so astral-plane characters
-  (emoji, CJK Extension B+) split into lone surrogates — tofu blits, and
-  the broken halves become poisoned atlas cache keys.
 - Per-character blitting performs no bidi reordering: RTL runs paint in
   logical order.
 
@@ -585,9 +582,11 @@ row count — and the paint work — stays bounded at any document size:
 takes up the majority of profiling time"* — and VS Code prebakes a 96-glyph
 atlas precisely to keep text shaping off the paint path. Tier 1 rasterizes the
 theme font's glyph set once (lazily, on first tier-1 paint), caches it per
-(font, scale), and blits — per-row cost returns to rect territory. Blits
-bypass the CSS-px paint transform: per row, the renderer neutralizes it and
-lands each glyph 1:1 at integer device px (y rounded once per row, so the
+(font, scale), and blits — per-row cost returns to rect territory. Iteration
+is by Unicode code point (`Array.from`), so an astral-plane character is one
+cell and one cache key, never two lone surrogates. Blits bypass the CSS-px
+paint transform: per row, the renderer neutralizes it and lands each glyph
+1:1 at integer device px (y rounded once per row, so the
 whole row shares one band; x per glyph) — a baked cell is never resampled,
 so glyphs stay crisp at any DPR, fractional included.
 

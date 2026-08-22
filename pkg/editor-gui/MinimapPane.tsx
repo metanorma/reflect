@@ -51,10 +51,9 @@ const EDITOR_VIEWPORT_ID = 'mn-editor-viewport';
  * Glyph semantics: only `heading` opts into per-character glyph blitting
  * (tier 1) — section/floating titles are the package's own recommended
  * use (short, LTR, Latin-only content; the glyph path's known defects —
- * CJK clipping, astral-plane surrogates, no bidi reordering — don't apply
- * there). Body text and the block classes stay on the default filled-
- * rectangle path: bars read better at paragraph scale and dodge the
- * glyph defects entirely.
+ * CJK clipping, no bidi reordering — don't apply there). Body text and the
+ * block classes stay on the default filled-rectangle path: bars read
+ * better at paragraph scale and dodge the glyph defects entirely.
  */
 const minimapOptions: MinimapOptions = {
   display: 'sliding',

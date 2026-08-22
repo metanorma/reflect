@@ -109,9 +109,7 @@ export interface ThemeClass {
    *
    * **Experimental.** The glyph path carries known defects (spec §5.4's
    * known limitations): the atlas cell is a fixed 4×10 px with a 3 px
-   * advance, so full-width CJK glyphs clip and overlap; indexing is by
-   * UTF-16 code unit, so astral-plane characters split into lone
-   * surrogates (tofu blits and poisoned atlas cache keys); per-character
+   * advance, so full-width CJK glyphs clip and overlap; per-character
    * blitting performs no bidi reordering, so RTL runs paint in logical
    * order. Enable per class (e.g. short, LTR, Latin-only content such as
    * section titles) only where those defects do not apply.

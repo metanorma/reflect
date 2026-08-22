@@ -500,6 +500,104 @@ test.describe('minimap', () => {
     expect(painted / span).toBeLessThan(0.9);
   });
 
+  test('astral-plane title characters paint one glyph cell per character', async ({ page }) => {
+    await openEditor(page);
+
+    // '𝕏 heading' (U+1D54F MATHEMATICAL DOUBLE-STRUCK X) is 9 CODE POINTS
+    // but 10 UTF-16 units. Iteration is by code point (renderer §6.5), so
+    // the row paints 9 cells — the astral character is one cell and one
+    // atlas cache key, never two lone-surrogate tofu blits.
+    const ok = await page.evaluate((json) => {
+      const w = window as { __mnLoadDoc?: (json: unknown) => boolean };
+      return w.__mnLoadDoc?.(json) ?? false;
+    }, {
+      type: 'doc',
+      attrs: { id: 'doc_astral' },
+      content: [
+        { type: 'bibdata', attrs: { item: null } },
+        {
+          type: 'sections',
+          attrs: { id: 'sections_astral' },
+          content: [{
+            type: 'clause',
+            attrs: { id: 'a1' },
+            content: [
+              {
+                type: 'section_title',
+                content: [{ type: 'text', text: '𝕏 heading' }],
+              },
+              {
+                type: 'paragraph',
+                content: [{
+                  type: 'text',
+                  text: 'Body text of the astral clause. '.repeat(4),
+                }],
+              },
+            ],
+          }],
+        },
+      ],
+    });
+    expect(ok).toBe(true);
+    // Same settle window as the ASCII glyph test above.
+    await page.waitForTimeout(1500);
+
+    // Same per-painted-pixel-row scan (see the ASCII test for why rows,
+    // not bands, are the unit).
+    const rows = await page.evaluate(() => {
+      const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+      const ctx = canvas.getContext('2d');
+      if (ctx === null) return [];
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const w = canvas.width;
+      const h = canvas.height;
+      const out: Array<{ y: number; n: number; left: number; right: number }> = [];
+      for (let y = 0; y < h; y++) {
+        let n = 0;
+        let left = w;
+        let right = -1;
+        for (let x = 0; x < w; x++) {
+          if (data[(y * w + x) * 4 + 3] > 0) {
+            n++;
+            if (left === w) left = x;
+            right = x;
+          }
+        }
+        if (n > 0) out.push({ y, n, left, right });
+      }
+      return out;
+    });
+    expect(rows.length).toBeGreaterThan(0);
+
+    // Isolate the title rows between the bibdata strip and the body bar.
+    // The bar is SOLID (n ≈ span); Firefox measures the paragraph taller
+    // than Chromium (12 px vs 6), so a fixed `lastY - 6` guard is not
+    // engine-stable — classify by solidity instead (the nested-indent
+    // test's `isBar` idiom).
+    const w = 96;
+    const stripRows = rows.filter((r) => r.n >= w - 1 && r.y < 60);
+    expect(stripRows.length).toBeGreaterThan(0);
+    const stripEnd = stripRows[stripRows.length - 1].y;
+    const isBar = (r: { n: number; left: number; right: number }): boolean =>
+      r.n >= (r.right - r.left + 1) * 0.95;
+    const titleRows = rows.filter((r) => r.y > stripEnd && !isBar(r));
+    expect(titleRows.length).toBeGreaterThanOrEqual(3);
+
+    // Every title row stays inside the character-advance span: 9 cells ×
+    // 3px + 4px indent ≈ 31px — far under the solid-bar width the row
+    // would paint (~91px) and under the pre-fix 10-cell span too, so the
+    // bound holds either way while still proving glyphs (not bars) paint.
+    for (const r of titleRows) {
+      expect(r.left).toBeGreaterThanOrEqual(3);
+      expect(r.right).toBeLessThanOrEqual(60);
+    }
+    // AGGREGATE sparseness, as in the ASCII test: glyph strokes leave
+    // gaps across rows; a solid bar scores 1.0.
+    const painted = titleRows.reduce((a, r) => a + r.n, 0);
+    const span = titleRows.reduce((a, r) => a + (r.right - r.left + 1), 0);
+    expect(painted / span).toBeLessThan(0.9);
+  });
+
   test('nested section bodies indent in lockstep with their titles', async ({ page }) => {
     await openEditor(page);
 

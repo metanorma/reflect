@@ -688,7 +688,10 @@ export class InlineRenderer extends RendererBackend {
         this.dpr,
       );
     }
-    const chars = r.text ?? '';
+    // Iterate by CODE POINT, not UTF-16 unit: an astral-plane character
+    // is one cell (and one well-formed `${ch}:${color}` atlas key), not
+    // two lone-surrogate tofu blits.
+    const chars = Array.from(r.text ?? '');
     const glyphW = 3;
     const count = Math.min(chars.length, Math.floor((w * widthFrac) / glyphW));
     // 1:1 device-px blits: `render` paints under the dpr transform, where a
