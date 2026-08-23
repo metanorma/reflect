@@ -51,6 +51,14 @@ export interface WalkContext {
   strategies: Map<string, HeightStrategy>;
   /** Per-class calibrated heights (§4.5). */
   calibrated: ReadonlyMap<string, number>;
+  /**
+   * Diff-only (§7.2): measured heights of rows dropped by this diff,
+   * keyed by node — a MOVE preserves node instances while position-based
+   * pairing drops and re-emits them, and the fresh rows re-enter with the
+   * real strides instead of formula estimates (the reflow-on-demotion
+   * bug). Undefined during a plain flatten.
+   */
+  inherit?: WeakMap<Node, number>;
 }
 
 /**
@@ -192,7 +200,14 @@ function makeRow(
   spec: RowSpec,
   depth: number,
   ctx: WalkContext,
+  inherit?: { heightPx: number } | null,
 ): BlockRow {
+  // Identity inheritance first (a moved node re-emits with its real
+  // stride), the explicit pairNode inheritance second (a one-for-one
+  // replaced node takes over its predecessor's row measurement — the
+  // typing case). Both mark the row un-measured so the sampler still
+  // owns it (see the sampledAtEpoch note below).
+  const inherited = inherit?.heightPx ?? ctx.inherit?.get(node) ?? null;
   return {
     key: keyOf(node),
     pos,
@@ -200,13 +215,20 @@ function makeRow(
     classId: spec.classId,
     depth,
     textLength: node.isTextblock ? node.content.size : 0,
-      heightPx: null,
+      heightPx: inherited,
       estHeightPx: estimateHeight(
         node, spec.classId, spec.height,
         ctx.strategies, ctx.theme, ctx.calibrated,
       ),
       strategy: spec.height ?? null,
-      sampledAtEpoch: 0,
+      // −1 = an INHERITED measurement (§7.2): taken over from a dropped
+      // row (moved or replaced node), not measured for THIS row instance.
+      // The sampler's skip guard (`sampledAtEpoch === epochSeq`) never
+      // matches it, so the value is re-armed for immediate re-sampling —
+      // a stale inheritance corrects within a frame, while the row's
+      // height never passes through the formula estimate that oscillates
+      // against the sampler (the reflow-on-demotion bug, §4.5).
+      sampledAtEpoch: inherited !== null ? -1 : 0,
       text: null,
   };
 }
@@ -250,6 +272,20 @@ interface DiffState {
   bounds: DiffBounds;
   /** Emitted count after the most recent fresh row. */
   lastFresh: number;
+  /**
+   * MEASUREMENT INHERITANCE (§7.2): measured heights of rows dropped by
+   * the diff, keyed by their NODE. A structural move (demote/promote —
+   * the clause becomes a child of another node) preserves every node
+   * instance (`===`) while changing the tree around them, so
+   * position-based pairing drops and re-emits the whole moved subtree.
+   * Recording each dropped row's measured height here lets the fresh
+   * rows for the SAME nodes re-enter with real strides instead of formula
+   * estimates (which omit inter-block margins and briefly collapse the
+   * model — a visible reflow of everything below the edit, and a rescale
+   * of the whole minimap while `total` recovers). Cleared implicitly with
+   * the diff: a WeakMap, so it never retains nodes.
+   */
+  inherit: WeakMap<Node, number>;
 }
 
 /**
@@ -270,7 +306,30 @@ export function* diffRows(
   if (oldDoc === newDoc) {
     return;
   }
-  const st: DiffState = { oldIdx: 0, emitted: 0, bounds, lastFresh: -1 };
+  // The inheritance ledger rides on the ctx so every emit site (makeRow)
+  // can consult it without a parameter change. PRE-SEEDED with every
+  // measured old row: the diff's drop order cannot be relied on — a
+  // cross-level move (demote) pairs the moved subtree against a NEW
+  // wrapper node, and the old rows can be abandoned mid-walk (unconsumed
+  // trailing content) AFTER the fresh rows were already emitted. A
+  // pre-seeded WeakMap makes the ledger order-independent: any fresh row
+  // for a surviving node instance finds the dropped row's measurement;
+  // entries for deleted nodes are simply never read (and the WeakMap
+  // holds nothing live).
+  const inherit = ctx.inherit ?? new WeakMap();
+  for (const r of oldRows) {
+    if (r.heightPx !== null) {
+      inherit.set(r.node, r.heightPx);
+    }
+  }
+  const st: DiffState = {
+    oldIdx: 0,
+    emitted: 0,
+    bounds,
+    lastFresh: -1,
+    inherit,
+  };
+  ctx.inherit = inherit;
   yield* pairChildren(
     oldRows, oldDoc, newDoc, -1, -1, 0, [], ctx, mapPos, st,
   );
@@ -465,10 +524,29 @@ function* pairNode(
     );
   } else {
     // New subtree is opaque (textblock/leaf): drop the old range whole.
+    // MEASUREMENT INHERITANCE (§7.2): when the dropped range is exactly
+    // this one row (the typing case — the node changed, the row didn't),
+    // the fresh row takes over its measured height. Keeps the model
+    // stable across keystrokes: the formula estimate (no inter-block
+    // margins) and the measured stride differ by the margin budget, and
+    // alternating between them per frame is the "everything below jumps
+    // on every keypress" bug. `sampledAtEpoch: -1` re-arms the sampler,
+    // so an inheritance the edit invalidated (line count changed) still
+    // corrects within a frame.
+    const inherit = oldRows[st.oldIdx];
+    const lone = inherit !== undefined && inherit.pos === oldPos
+      && (st.oldIdx + 1 >= oldRows.length
+        || (oldRows[st.oldIdx + 1] as BlockRow).pos
+          >= oldPos + oldChild.nodeSize);
     yield* skipRange(
       oldRows, st, oldPos, oldPos + oldChild.nodeSize,
     );
-    yield* emitFresh(newChild, newPos, depth, ancestors, ctx, st);
+    yield* emitFresh(
+      newChild, newPos, depth, ancestors, ctx, st,
+      lone && inherit !== undefined && inherit.heightPx !== null
+        ? { heightPx: inherit.heightPx }
+        : null,
+    );
   }
 }
 
@@ -484,6 +562,13 @@ function* skipRange(
     const r = oldRows[st.oldIdx] as BlockRow;
     if (r.pos < p || r.pos >= end) {
       break;
+    }
+    // Record the dropped measurement for identity-based inheritance (see
+    // DiffState.inherit): a MOVE drops the subtree's rows here and
+    // re-emits them fresh for the SAME nodes — the record lets the fresh
+    // rows re-enter with the real strides.
+    if (r.heightPx !== null) {
+      st.inherit.set(r.node, r.heightPx);
     }
     dropped = true;
     st.oldIdx++;
@@ -522,6 +607,7 @@ function* emitHeadFresh(
   ancestors: readonly Node[],
   ctx: WalkContext,
   st: DiffState,
+  inherit?: { heightPx: number } | null,
 ): Generator<BlockRow, void, void> {
   const spec = ctx.classifier.row(node, depth, ancestors);
   if (spec !== null) {
@@ -529,7 +615,7 @@ function* emitHeadFresh(
       ctx.strategies.set(spec.classId, spec.height);
     }
     markChange(st);
-    yield makeRow(node, pos, spec, depth, ctx);
+    yield makeRow(node, pos, spec, depth, ctx, inherit);
     st.emitted++;
     st.lastFresh = st.emitted;
   }
@@ -543,8 +629,9 @@ function* emitFresh(
   ancestors: readonly Node[],
   ctx: WalkContext,
   st: DiffState,
+  inherit?: { heightPx: number } | null,
 ): Generator<BlockRow, void, void> {
-  yield* emitHeadFresh(node, pos, depth, ancestors, ctx, st);
+  yield* emitHeadFresh(node, pos, depth, ancestors, ctx, st, inherit);
   if (recurses(ctx.classifier, node)) {
     yield* walkChildrenInto(
       node, pos, depth + 1, [...ancestors, node], ctx, st,

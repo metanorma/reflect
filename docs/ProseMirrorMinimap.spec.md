@@ -700,6 +700,28 @@ On each transaction:
 5. Layer producers (§8.4) map through the same diff: a layer whose spans
    anchor to positions or node ids re-anchors through `tr.mapping` and
    `rowAtPos(pos)` — it never re-walks the document.
+6. **Measurement inheritance.** A fresh row re-emitted for a node that
+   already carried a measured height re-enters WITH that measurement —
+   never through its formula estimate. Two paths cover the two shapes a
+   diff takes:
+   - A one-for-one replacement (typing: the node changed, the row didn't)
+     takes over the dropped row's `heightPx` positionally.
+   - A structural move (demote/promote: every node instance survives
+     `===` but position-based pairing drops and re-emits the subtree
+     under a new wrapper) inherits through a **node-identity ledger** —
+     the diff pre-seeds a WeakMap of every measured old row's
+     `node → heightPx`, and `makeRow` consults it at emit time. Pre-seeding
+     (not recording on drop) makes the ledger order-independent: a
+     cross-level move can emit the fresh rows before the old ones are
+     dropped, and the old rows can end the walk unconsumed ("deleted
+     trailing content") — both orders still inherit.
+   Inherited rows are marked un-measured (`sampledAtEpoch: -1`) so the
+   sampler re-arms them immediately: an inheritance the edit invalidated
+   (the block's line count changed) corrects within a frame, while the
+   model's `total` never dips by the margin budget — the transient
+   collapse that reflowed everything below a demote and rescaled the
+   whole minimap for several frames (formula estimates omit inter-block
+   margins; the sampler re-converges `sampleBudget` rows at a time).
 
 **Controller mapping surface.** The controller exposes the position↔row
 arithmetic layers need — this is the package's half of the layer contract:

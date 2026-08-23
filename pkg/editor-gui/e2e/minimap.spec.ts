@@ -181,10 +181,15 @@ test.describe('minimap', () => {
 
   test('viewport indicator reaches the document end (model-accuracy regression)', async ({ page }) => {
     await openEditor(page);
-    // 15 clauses ≈ 2,300 editor px: scrollable (720px viewport) but still
-    // FIT mode (0.25 × 2,300 ≈ 570 < 720 pane) — the mode where the thumb
-    // must traverse the full track (in sliding mode it pins to the window
-    // origin by design, §9.1).
+    // A decisively scrollable document (taller than the 720px viewport).
+    // Mode-agnostic assertion: the consumer currently forces
+    // `display: 'sliding'` (MinimapPane.tsx), where the surface (0.25 ×
+    // total) can be shorter than the pane and the thumb bottoms at the
+    // SURFACE's end — the painted content's end — not the pane's. The
+    // invariant under test is the original regression either way: the
+    // thumb must REACH the end of what is painted (pre-fix the model
+    // over-predicted by ~34% and the indicator undershot the painted
+    // content's tail by a third).
     const ok = await page.evaluate((json) => {
       const w = window as { __mnLoadDoc?: (json: unknown) => boolean };
       return w.__mnLoadDoc?.(json) ?? false;
@@ -192,25 +197,38 @@ test.describe('minimap', () => {
     expect(ok).toBe(true);
     await page.waitForTimeout(500);
 
-    // Scroll to the real bottom: the thumb's bottom edge must reach the
-    // minimap pane's bottom (within a small tolerance). The pre-fix model
-    // over-predicted the document height by ~34%, so the indicator
-    // undershot by a third of the pane.
     await page.evaluate(() => {
       const pm = document.querySelector('.ProseMirror') as HTMLElement;
       pm.scrollTop = pm.scrollHeight - pm.clientHeight;
     });
-    await page.waitForTimeout(300);
-
-    const geo = await page.evaluate(() => {
-      const pm = document.querySelector('.ProseMirror') as HTMLElement;
-      const pane = document.querySelector('.mn-minimap') as HTMLElement;
-      const thumb = document.querySelector('.mn-minimap-viewport') as HTMLElement;
-      const paneBottom = pane.getBoundingClientRect().bottom;
-      const thumbBottom = thumb.getBoundingClientRect().bottom;
-      return { paneBottom, thumbBottom, scrollTop: pm.scrollTop };
-    });
-    expect(geo.paneBottom - geo.thumbBottom).toBeLessThan(24);
+    // Wait for CONVERGENCE (the sampler drives rows toward real strides
+    // over a few frames), not a fixed sleep. Converged := the gap stops
+    // moving (two consecutive reads within 1px), bounded at 3s.
+    await expect(async () => {
+      let prev = -1;
+      for (let i = 0; i < 30; i++) {
+        await page.waitForTimeout(100);
+        const gap = await page.evaluate(() => {
+          const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+          const ctx = canvas.getContext('2d')!;
+          const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          const w = canvas.width;
+          const thumb = document.querySelector('.mn-minimap-viewport') as HTMLElement;
+          // The lowest painted pixel row = the painted content's end.
+          let lastInk = -1;
+          for (let y = canvas.height - 1; y >= 0 && lastInk < 0; y--) {
+            for (let x = 0; x < w; x++) {
+              if (data[(y * w + x) * 4 + 3] > 0) { lastInk = y; break; }
+            }
+          }
+          const canvasTop = canvas.getBoundingClientRect().top;
+          return thumb.getBoundingClientRect().bottom - (canvasTop + lastInk);
+        });
+        if (Math.abs(gap - prev) <= 1 && Math.abs(gap) < 24) return;
+        prev = gap;
+      }
+      expect(Math.abs(prev)).toBeLessThan(24);
+    }).toPass();
   });
 
   test('typing content after mount extends the drag range (stale-geometry regression)', async ({ page }) => {
@@ -754,5 +772,217 @@ test.describe('minimap', () => {
     for (const r of textRows) {
       expect(r.left).toBeGreaterThanOrEqual(stepD2 - 1);
     }
+  });
+
+  test('typing in a paragraph does not shift the content below (keystroke-stability regression)', async ({ page }) => {
+    await openEditor(page);
+
+    // The report: on almost every keypress the minimap content BELOW the
+    // caret jumped. Mechanism: the typed-into paragraph's row is replaced
+    // one-for-one; pre-fix its height re-entered as the formula estimate
+    // (no inter-block margins), then the sampler re-measured it a frame
+    // later — a ±margin-budget oscillation per keystroke. The fix carries
+    // the predecessor's measured height into the replacement row.
+    const docJson = {
+      type: 'doc',
+      attrs: { id: 'doc_type' },
+      content: [
+        { type: 'bibdata', attrs: { item: null } },
+        {
+          type: 'sections',
+          attrs: { id: 'sections_type' },
+          content: [
+            {
+              type: 'clause',
+              attrs: { id: 'c1' },
+              content: [
+                { type: 'section_title', content: [{ type: 'text', text: 'Clause one' }] },
+                { type: 'paragraph', content: [{ type: 'text', text: 'First body.' }] },
+              ],
+            },
+            {
+              type: 'clause',
+              attrs: { id: 'c2' },
+              content: [
+                { type: 'section_title', content: [{ type: 'text', text: 'Clause two' }] },
+                { type: 'paragraph', content: [{ type: 'text', text: 'Second body.' }] },
+                { type: 'paragraph', content: [{ type: 'text', text: 'Third body.' }] },
+                { type: 'paragraph', content: [{ type: 'text', text: 'Fourth body.' }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const ok = await page.evaluate((json) => {
+      const w = window as { __mnLoadDoc?: (json: unknown) => boolean };
+      return w.__mnLoadDoc?.(json) ?? false;
+    }, docJson);
+    expect(ok).toBe(true);
+    // Let the model build and stride sampling converge on real layout.
+    await page.waitForTimeout(1200);
+
+    // Caret into clause one's paragraph (row 2 of 5 — rows below it are
+    // the measurement target).
+    const p = page.locator('.appwrapper .mn-prosemirror .ProseMirror p').nth(0);
+    await p.click();
+
+    // Baseline: the y-extent of the LAST painted band (clause two's tail)
+    // plus the total painted span. Sampled between keystrokes.
+    const measure = () => page.evaluate(() => {
+      const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+      const ctx = canvas.getContext('2d')!;
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const w = canvas.width;
+      let first = -1;
+      let last = -1;
+      for (let y = 0; y < canvas.height; y++) {
+        let ink = false;
+        for (let x = 0; x < w; x++) {
+          if (data[(y * w + x) * 4 + 3] > 0) { ink = true; break; }
+        }
+        if (ink) {
+          if (first < 0) first = y;
+          last = y;
+        }
+      }
+      return { first, last };
+    });
+
+    const before = await measure();
+    // Type 8 characters, one per frame-ish, sampling after each.
+    const samples: Array<{ first: number; last: number }> = [];
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press('x');
+      await page.waitForTimeout(120);
+      samples.push(await measure());
+    }
+
+    // Nothing below the caret may move: the painted tail's position is
+    // stable across every keystroke (a one-line paragraph's stride does
+    // not change as characters are added). Pre-fix each keystroke showed
+    // a ±margin jump on the frame the estimate landed before the
+    // re-measure.
+    for (const [i, s] of samples.entries()) {
+      expect(s.last, `tail position after keystroke ${i + 1}`).toBe(before.last);
+    }
+  });
+
+  test('demoting from a long clause does not reflow the minimap (move-inheritance regression)', async ({ page }) => {
+    await openEditor(page);
+
+    // The report: cursor in the LAST clause (28 paragraphs), click Demote
+    // → the clause MOVES under the previous sibling. The minimap's diff
+    // drops the moved subtree's rows and re-emits them fresh — pre-fix
+    // with formula estimates (no margins), collapsing `total` for several
+    // frames: everything below reflowed and the minimap rescaled while
+    // the sampler re-converged. Identity inheritance keeps the moved
+    // rows' measurements.
+    const mkClause = (title: string, body: string, extraParas = 0) => ({
+      type: 'clause',
+      attrs: { id: `c_${title}`, number: null, data: {} },
+      content: [
+        { type: 'section_title', attrs: { data: {} }, content: [{ type: 'text', text: title }] },
+        { type: 'paragraph', attrs: { data: {} }, content: [{ type: 'text', text: body }] },
+        ...Array.from({ length: extraParas }, () => ({ type: 'paragraph', attrs: { data: {} } })),
+      ],
+    });
+    const docJson = {
+      type: 'doc',
+      attrs: { data: {} },
+      content: [
+        { type: 'bibdata', attrs: { item: null, data: {} } },
+        {
+          type: 'sections',
+          attrs: { id: null, number: null, data: {} },
+          content: [
+            mkClause('fff', 'adf'),
+            mkClause('test', 'test'),
+            mkClause('sadf', 'testtestasdfsdfasdf'),
+            mkClause('kllk', 'asgf', 27),
+            { type: 'floating_title', attrs: { id: 'ft1', depth: 1, data: {} }, content: [{ type: 'text', text: 'eask' }] },
+          ],
+        },
+      ],
+    };
+    const ok = await page.evaluate((json) => {
+      const w = window as { __mnLoadDoc?: (json: unknown) => boolean };
+      return w.__mnLoadDoc?.(json) ?? false;
+    }, docJson);
+    expect(ok).toBe(true);
+    // Converge: build + stride sampling.
+    await page.waitForTimeout(1200);
+
+    // Caret into the long clause's "asgf" paragraph (its first body para).
+    const paras = page.locator('.appwrapper .mn-prosemirror .ProseMirror p');
+    // Clause 4's body starts after clauses 1-3 (2 paras each = 6).
+    await paras.nth(6).click();
+
+    // Baseline: the painted content's vertical extent (first/last ink).
+    const measure = () => page.evaluate(() => {
+      const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+      const ctx = canvas.getContext('2d')!;
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const w = canvas.width;
+      let first = -1;
+      let last = -1;
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < w; x++) {
+          if (data[(y * w + x) * 4 + 3] > 0) {
+            if (first < 0) first = y;
+            last = y;
+            break;
+          }
+        }
+      }
+      return { first, last };
+    });
+    const before = await measure();
+
+    // Demote while sampling EVERY FRAME from before the click to settle:
+    // the formula-estimate collapse (pre-fix) is a 1-2 frame transient —
+    // the moved clause's ~29 rows re-enter ~16px short each ≈ a third of
+    // the painted extent — that a poll-after-300ms misses once the
+    // sampler recovers. rAF sampling catches it at its worst.
+    await page.evaluate(() => {
+      const w = window as unknown as { __mnFrames?: number[] };
+      w.__mnFrames = [];
+      const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+      const tick = () => {
+        const ctx = canvas.getContext('2d')!;
+        if (ctx !== null) {
+          const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          const cw = canvas.width;
+          let last = -1;
+          for (let y = canvas.height - 1; y >= 0 && last < 0; y--) {
+            for (let x = 0; x < cw; x++) {
+              if (data[(y * cw + x) * 4 + 3] > 0) { last = y; break; }
+            }
+          }
+          (w.__mnFrames as number[]).push(last);
+        }
+        if ((w.__mnFrames as number[]).length < 90) {
+          requestAnimationFrame(tick);
+        }
+      };
+      requestAnimationFrame(tick);
+    });
+    await page.getByRole('button', { name: 'Demote', exact: true }).click();
+    // 90 frames ≈ 1.5s: covers the click, the diff, and the sampler's
+    // convergence tail.
+    await page.waitForTimeout(1700);
+
+    const frames = await page.evaluate(
+      () => (window as unknown as { __mnFrames?: number[] }).__mnFrames ?? [],
+    );
+    expect(frames.length).toBeGreaterThan(30);
+    // The content grew (accommodation subclause title) — never COLLAPSED:
+    // the minimum across all frames stays within one row of the baseline.
+    const minLast = Math.min(...frames.filter((f) => f >= 0));
+    expect(minLast, `min painted tail across ${frames.length} frames`)
+      .toBeGreaterThanOrEqual(before.last - 4);
+    // And it settles above the baseline (the added title).
+    const settled = frames.slice(-10).filter((f) => f >= 0);
+    expect(Math.max(...settled)).toBeGreaterThan(before.last);
   });
 });

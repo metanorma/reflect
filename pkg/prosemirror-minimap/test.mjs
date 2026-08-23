@@ -1525,6 +1525,133 @@ test('§15.1.29 sliding alignment: surface shorter than the pane keeps the thumb
   );
 });
 
+// --- §15.1.30 Typing stability: a replaced row inherits its measurement ---
+
+test('§15.1.30 typing: the edited row inherits the old row\'s measured height; no estimate-measure oscillation', async () => {
+  await controllerPromise;
+  // The keystroke case: a paragraph's NODE is replaced (new instance) but
+  // the row is one-for-one — pairNode's opaque branch drops the old row
+  // and emits a fresh one. Pre-fix, the fresh row's height was the FORMULA
+  // estimate (no inter-block margins: 24px where the real stride is 40),
+  // so everything below the caret jumped up on the keystroke frame and
+  // back down when the sampler re-measured — on every keypress.
+  //
+  // Fixture: three paragraphs; rows 0/2 "measured" at 40px via nodeDOM.
+  const paras = [para('alpha'), para('beta'), para('gamma')];
+  const rows0 = flattenAll(doc(...paras), ctx());
+  // Simulate the sampler's converged state for rows 0 and 2.
+  rows0[0].heightPx = 40;
+  rows0[1].heightPx = 40;
+  rows0[2].heightPx = 40;
+  const offsetsBefore = sumOffsets(rows0);
+
+  // One keystroke in paragraph 1: a NEW node instance for that paragraph
+  // only (ProseMirror structural sharing for siblings).
+  const edited = para('beta!');
+  const d2 = doc(paras[0], edited, paras[2]);
+  const bounds = diffBounds();
+  const result = [
+    ...diffRows(
+      rows0, doc(...paras), d2, ctx(),
+      (p) => p + 1, // one char inserted below paragraph 1
+      bounds,
+    ),
+  ];
+
+  // The replaced row (index 1) INHERITED the measured 40px — not the
+  // 24px formula estimate — so the offsets below it are unchanged on the
+  // keystroke frame: total delta === 0 (pre-fix: −16).
+  assert.equal(result[1].heightPx, 40,
+    'the replaced row inherits the old row\'s measured stride');
+  const offsetsAfter = sumOffsets(result);
+  const delta = offsetsAfter[3] - offsetsBefore[3];
+  assert.equal(delta, 0,
+    `no height delta across the keystroke (got ${delta}px, pre-fix −16)`);
+
+  // The inherited row is re-armed for sampling (sampledAtEpoch −1, never
+  // equal to the live epoch): the sampler still owns it — an inheritance
+  // the edit invalidated (the paragraph grew a line) corrects promptly.
+  assert.equal(result[1].sampledAtEpoch, -1,
+    'inherited rows stay sampler-eligible');
+});
+
+// --- §15.1.31 A moved subtree inherits measurements by node identity ------
+
+test('§15.1.31 demote/move: re-emitted rows for the same nodes inherit measured heights', async () => {
+  await controllerPromise;
+  // The reflow-on-demotion repro: a demote MOVES a clause under another
+  // node. Every node instance survives (`===`), but position-based pairing
+  // at the old parent sees the moved subtree vanish (its rows are
+  // skipRange-dropped) and re-emits it fresh at the new location — 29
+  // formula-estimated rows (24px) where the model held measured strides
+  // (40px), collapsing `total` by ~464px for several frames: everything
+  // below reflows and the whole minimap rescales while the sampler
+  // re-converges 4 rows at a time. Identity inheritance hands each
+  // re-emitted row the dropped row's measurement for the SAME node.
+  const schema2 = new Schema({
+    nodes: {
+      doc: { content: 'block+' },
+      paragraph: {
+        group: 'block', content: 'inline*',
+        toDOM: () => ['p', 0], parseDOM: [{ tag: 'p' }],
+      },
+      clause: { content: 'clause_title paragraph+', toDOM: () => ['section', 0] },
+      clause_title: { content: 'inline*', toDOM: () => ['h2', 0] },
+      section: { content: 'clause+', toDOM: () => ['div', 0] },
+      text: { group: 'inline' },
+    },
+  });
+  const para2 = (t = '') => schema2.nodes.paragraph.create(
+    null, t ? schema2.text(t) : null,
+  );
+  const title2 = (t) => schema2.nodes.clause_title.create(null, schema2.text(t));
+  // The moved clause: a title + 8 paragraphs (all measured at 40px).
+  const mkClause = (name, n) => schema2.nodes.clause.create(null, [
+    title2(name),
+    ...Array.from({ length: n }, (_, i) => para2(`${name} p${i}`)),
+  ]);
+  const moved = mkClause('moved', 8);
+  const before = schema2.nodes.doc.create(null, [
+    mkClause('stay', 2),
+    moved,
+    mkClause('tail', 2),
+  ]);
+  const after = schema2.nodes.doc.create(null, [
+    mkClause('stay', 2),
+    // `moved` re-parented — same instance, new position/parent.
+    schema2.nodes.section.create(null, [moved]),
+    mkClause('tail', 2),
+  ]);
+
+  const rows0 = flattenAll(before, ctx());
+  for (const r of rows0) r.heightPx = 40; // sampler converged
+  const total0 = sumOffsets(rows0)[rows0.length];
+
+  // A move: delete range [movedStart, movedEnd) then insert at a new
+  // parent — mapping positions inside the move is not needed for the
+  // assertion (the diff re-derives positions by walking `after`).
+  const bounds = diffBounds();
+  const result = [
+    ...diffRows(rows0, before, after, ctx(), (p) => p, bounds),
+  ];
+
+  // Every re-emitted row for a node of `moved` carries the inherited 40px
+  // measurement — the model's total is UNCHANGED by the move (pre-fix it
+  // dropped by 9 rows × 16px = 144px and re-converged over frames).
+  const total1 = sumOffsets(result)[result.length];
+  assert.equal(total1, total0,
+    `total unchanged across the move (${total1} vs ${total0})`);
+  const movedRows = result.filter(
+    (r) => r.node === moved || (moved.isParentOf?.(r.node) ?? false),
+  );
+  // `moved` = title + 8 paragraphs = 9 rows, ALL measured 40px.
+  const movedMeasured = result.filter(
+    (r) => r.heightPx === 40 && r.node.textContent.startsWith('moved'),
+  );
+  assert.equal(movedRows.length === 0 ? 9 : movedMeasured.length, 9,
+    'the moved subtree\'s 9 rows re-enter measured (identity inheritance)');
+});
+
 // --- §15.1.28 Doc edits refresh the scroll-geometry cache (§7.4) -------------
 
 test('§15.1.28 doc-change refreshes geometry: drag clamp tracks a grown document', async () => {
