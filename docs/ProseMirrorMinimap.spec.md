@@ -216,6 +216,7 @@ textblock child is the row, and nesting is conveyed by indentation (§5.2).
 | `classId` | `string` | Visual class assigned by the classifier (§5.1). |
 | `depth` | `number` | Block-tree depth (drives indentation when the class opts in). |
 | `textLength` | `number` | `node.content.size` for textblocks; `0` otherwise. |
+| `textBlock` | `boolean` | Whether the row's node is a textblock (`node.isTextblock`, or the classifier's `RowSpec.textBlock` override, §5.1). Shape-derived at walk time; the paint-side discriminator for zero-length rows (§6.5): an empty textblock's zero length is a state that can fill, a non-textblock's is permanent. |
 | `heightPx` | `number` | **Measured** editor-space height in px, when a sample exists (§4.5); `null` while unsampled. |
 | `estHeightPx` | `number` | **Estimated** editor-space height in px (§4.4). Authoritative when `heightPx` is `null`; a measured row prefers `heightPx`. |
 | `strategy` | `HeightStrategy \| null` | The row-level strategy the classifier assigned (§5.1 `RowSpec.height`), `null` for the class-level one. Retained so epoch re-estimation (§4.6) reproduces the row's own estimate — the mechanism behind §15.1.16's "row's own retained strategy". |
@@ -338,6 +339,11 @@ interface MinimapClassifier {
 interface RowSpec {
   classId: string;          // key into theme.classes and height strategies
   height?: HeightStrategy;  // overrides the class-level strategy for this node
+  textBlock?: boolean;      // overrides the shape-derived textblock bit
+                            // (BlockRow.textBlock, §4.2) — e.g. an atom the
+                            // classifier wants treated as an empty-state
+                            // placeholder, or a textblock that should read as
+                            // a structural block. Default: node.isTextblock.
 }
 ```
 
@@ -447,13 +453,27 @@ interface MinimapTheme {
 **`glyphs: true` is experimental.** The glyph path carries known defects
 (the rectangle default exists to route around them):
 
-- The atlas cell is a fixed 4×10 px with a 3 px advance; full-width CJK
-  glyphs need ~1 em (9 px at the default font), so they clip and overlap —
-  the reported illegibility.
+- The atlas cell is 4×10 px at the BASE zoom (`zoomPxPerEditorPx`
+  0.25), scaled linearly with the effective paint scale (quantized to
+  20% buckets, re-baked per bucket) so glyph cells track their row
+  slots as the zoom varies — a scale-blind cell towered over ~2px slots
+  at low zooms. At very low zooms (bucket 0.2) strokes are sub-pixel:
+  legible LTR-Latin titles need ≳0.15 zoom.
+- The advance is 3 px × bucket; full-width CJK glyphs need ~1 em, so
+  they clip and overlap — the reported illegibility.
 - Per-character blitting performs no bidi reordering: RTL runs paint in
   logical order.
 
-Enable it per class only where those defects do not apply (short, LTR,
+**Glyph width is the fill rule:** a glyph row paints its characters left to
+right across its full available width (its indent-relative span) and
+truncates only what genuinely overflows. The bar path's proportional
+`widthFrac` (§6.5) is deliberately NOT applied to glyphs — a glyph row is
+its text, not a length-encoded bar, and the proportional budget trimmed
+exactly the rows glyphs are for (a 15-char heading painted ≈31% of the
+pane instead of its 15 characters). Line-length remains encoded where it
+belongs: the bar path.
+
+Enable `glyphs` per class only where its defects do not apply (short, LTR,
 Latin-only content — e.g. section titles). The knob is also
 downgrade-only: it never upgrades a tier-2/3 row to glyphs (§6.5).
 
@@ -574,8 +594,8 @@ row count — and the paint work — stays bounded at any document size:
 | Tier | Condition (row count) | Row rendering |
 |---|---|---|
 | 1 — `text` | ≤ `tier1Rows` (default 5,000) | Per-class: atlas glyphs for classes with `glyphs: true` (**experimental**, §5.4) — real glyphs blitted from a **pre-rasterized atlas** (one per theme font), per-class color; **filled bars** (the tier-2 rectangle shape, minus a proportional inter-row gap — 15% of the slot, so consecutive rows read as separate lines at any scale instead of merging into one solid block) for every other class, which is the default. The tier-1 fidelity *budget* is unchanged — only the default paint shape flips. |
-| 2 — `blocks` | ≤ `tier2Rows` (default 50,000) | Filled rectangles: width by text length (clamped), color by class, indent by depth. |
-| 3 — `aggregate` | > `tier2Rows` | Tier-2 rendering over **aggregated** rows: runs of ≥ `aggregateMin` (default 4) consecutive rows with the same `classId` and depth merge into one row whose height is the summed px (capped at `aggregateMax`, default 16 × median row px). |
+| 2 — `blocks` | ≤ `tier2Rows` (default 50,000) | Filled rectangles: width by text length (clamped); a zero-length row paints the flat zero-length block — or, when the row's `textBlock` bit is set (§4.2, shape-derived), the minimal text bar below a one-word row (an empty textblock's zero length is a state that can fill; an atom's or structure's is permanent, and its block is the landmark); color by class, indent by depth. |
+| 3 — `aggregate` | > `tier2Rows` | Tier-2 rendering over **aggregated** rows: runs of ≥ `aggregateMin` (default 4) consecutive rows with the same `classId` and depth merge into one row whose height is the summed px (capped at `aggregateMax`, default 16 × median row px) and whose width signal is the **mean text length of the run's members** — the width formula reads as density: dense runs paint wide, sparse runs narrow, all-empty textblock runs fall into the minimal-bar branch (the run carries its first member's `textBlock` bit, like its `classId`/`depth`). The mean is taken over the run's FULL extent (the class/depth/unmarked match continues past the paint window), so a sliding window cannot pulse a bar's width by changing which members are visible. |
 
 **Why an atlas, not `fillText`.** Both production references converge on this:
 `@replit/codemirror-minimap` carries an unresolved in-source TODO — *"`fillText`
@@ -809,8 +829,10 @@ coordinates.
 The interface methods speak only serializable data — typed arrays, strings,
 plain numbers — never a live ProseMirror `Node` or DOM reference. The window
 is **pushed, not pulled**: the controller knows the visible row range
-(§6.3) and hands the renderer the rows, their class/depth/height arrays, and
-their text (`texts` carries the plain strings for window rows; the renderer
+(§6.3) and hands the renderer the rows, their class/depth/height arrays
+(plus the per-row `textBlock` bits — the shape-derived discriminator that
+keeps the textblock/atom distinction alive across this boundary, §4.2),
+and their text (`texts` carries the plain strings for window rows; the renderer
 never requests). The earlier draft's `requestText`/`setText` pull protocol —
 designed for a message boundary the package no longer has (§8.2) — was
 simplified into this push for exactly that reason; the payload *shapes*
@@ -1264,7 +1286,17 @@ extensions.
     `estHeightPx` from the row's own retained strategy, keeps measured
     `heightPx` values and every `key`; a plain transaction preserves the
     epoch.
-17. **Performance (headless-measurable)**: at ~10k blocks, a single-block
+17. **Bar-width regimes** (`rowWidthFraction`, §4.2/§6.5): for a
+    textblock row, empty (0.08) < one-word (~0.20) < long (1.0) is
+    monotone; a zero-length NON-textblock row keeps the flat zero-length
+    block (0.35), and every non-empty row is proportional regardless of
+    kind — no theme knob involved; the discriminator is the shape-derived
+    `textBlock` bit. Tier-3 aggregates carry the mean text length of
+    their run's members: a dense run paints wide, an all-empty textblock
+    run paints the minimal bar, a non-textblock run keeps the solid
+    block, and the mean is stable across windows that cover different
+    portions of the same run.
+18. **Performance (headless-measurable)**: at ~10k blocks, a single-block
     incremental update stays within budget and `rowAtPos` lookups remain
     logarithmic (thousands of lookups well under frame budget).
 

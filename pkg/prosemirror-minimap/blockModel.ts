@@ -215,6 +215,10 @@ function makeRow(
     classId: spec.classId,
     depth,
     textLength: node.isTextblock ? node.content.size : 0,
+    // Shape-derived (§4.2): the walk still has the node here, so the
+    // textblock distinction — dropped by classId for aliased atoms — is
+    // retained as data and survives the serializable boundary (§8.1).
+    textBlock: spec.textBlock ?? node.isTextblock,
       heightPx: inherited,
       estHeightPx: estimateHeight(
         node, spec.classId, spec.height,

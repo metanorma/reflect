@@ -75,6 +75,13 @@ export interface RowSpec {
   classId: string;
   /** Overrides the class-level strategy for this node. */
   height?: HeightStrategy;
+  /**
+   * Overrides the shape-derived `BlockRow.textBlock` (`node.isTextblock`)
+   * for this node — e.g. an atom the classifier wants treated as an
+   * empty-state placeholder (short bar), or a textblock that should read
+   * as a structural block. Default: the node's own `isTextblock`.
+   */
+  textBlock?: boolean;
 }
 
 /**
@@ -188,6 +195,17 @@ export interface BlockRow {
   depth: number;
   /** `node.content.size` for textblocks; 0 otherwise. */
   textLength: number;
+  /**
+   * Whether this row is a TEXTBLOCK (`node.isTextblock`, or the
+   * classifier's `RowSpec.textBlock` override). Paint-side discriminator
+   * for the zero-length case (§5.4/§6.5): an empty textblock's zero
+   * length is a state that can fill — it paints the minimal bar — while
+   * a non-textblock row's zero length is permanent, and the solid
+   * zero-length block is the landmark. Shape-derived at walk time, so
+   * the distinction survives the serializable renderer boundary (§8.1)
+   * without consumer configuration.
+   */
+  textBlock: boolean;
   /** Measured editor-space height in px; null while unsampled (§4.5). */
   heightPx: number | null;
   /** Estimated editor-space height in px (§4.4). */
@@ -222,6 +240,8 @@ export interface BlocksPayload {
   classIds: string[];
   depths: Int16Array;
   textLengths: Float64Array;
+  /** Per-row textblock bits (`BlockRow.textBlock`, §4.2). */
+  textBlocks: Uint8Array;
   /** Effective editor-space heights. */
   heightPx: Float64Array;
 }

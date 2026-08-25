@@ -36,7 +36,12 @@ import {
   reSum,
 } from './compiled/geometry.js';
 import { selectTier, aggregate, medianRowPx } from './compiled/tiers.js';
-import { RecordingRenderer, planPaint, paintsGlyphs } from './compiled/renderer.js';
+import {
+  RecordingRenderer,
+  planPaint,
+  paintsGlyphs,
+  rowWidthFraction,
+} from './compiled/renderer.js';
 import { mergeLayers, resolveSpans, selectionSpans } from './compiled/layers.js';
 import {
   proportionalScrollTop,
@@ -404,7 +409,8 @@ test('§15.1.5 tiers: thresholds, same-class/depth aggregation, hysteresis', () 
   // Hysteresis across a threshold-crossing edit pair (up at t, not down at 0.9t).
   const rowAt = (n) => Array.from({ length: n }, (_, i) => ({
     key: i, pos: i + 1, node: null, classId: 'text',
-    depth: 0, textLength: 10, heightPx: 10, estHeightPx: 10, text: null,
+    depth: 0, textLength: 10, textBlock: true,
+    heightPx: 10, estHeightPx: 10, text: null,
   }));
   const offsetsFor = (rows) => sumOffsets(rows);
   const agg = (rows, marked = new Set()) => aggregate(rows, offsetsFor(rows), {
@@ -468,6 +474,7 @@ test('§15.1.6 virtualization: draw calls only within [f − overscan, l + overs
     classIds: rows.map((x) => x.classId),
     depths: new Int16Array(rows.map((x) => x.depth)),
     textLengths: new Float64Array(rows.map((x) => x.textLength)),
+    textBlocks: Uint8Array.from(rows.map((x) => (x.textBlock ? 1 : 0))),
     heightPx: new Float64Array(rows.map((x) => x.heightPx)),
   });
   r.setGeometry(offsets, rows.map((x) => x.text));
@@ -514,6 +521,7 @@ test('§15.1.7 layers: ascending z across text/consumer/selection', () => {
     classIds: rows.map((x) => x.classId),
     depths: new Int16Array(n),
     textLengths: new Float64Array(rows.map((x) => x.textLength)),
+    textBlocks: Uint8Array.from(rows.map((x) => (x.textBlock ? 1 : 0))),
     heightPx: new Float64Array(rows.map((x) => x.heightPx)),
   });
   r.setGeometry(offsets, rows.map((x) => x.text));
@@ -565,6 +573,7 @@ test('§15.1.8 window texts: only window + overscan rows; consecutive pushes coa
     classIds: rows.map((x) => x.classId),
     depths: new Int16Array(n),
     textLengths: new Float64Array(rows.map((x) => x.textLength)),
+    textBlocks: Uint8Array.from(rows.map((x) => (x.textBlock ? 1 : 0))),
     heightPx: new Float64Array(rows.map((x) => x.heightPx)),
   });
   r.setGeometry(offsets, new Array(n).fill(null));
@@ -717,14 +726,16 @@ test('§15.1.10 anchoring: pos spans re-anchor through mapping; id spans disappe
   const n = 24;
   const rows3 = Array.from({ length: n }, (_, i) => ({
     key: i, pos: 2 + i * 2, node: null, classId: 'text',
-    depth: 0, textLength: 5, heightPx: 10, estHeightPx: 10, text: null,
+    depth: 0, textLength: 5, textBlock: true,
+    heightPx: 10, estHeightPx: 10, text: null,
   }));
   const offs3 = sumOffsets(rows3);
   const plan = planPaint(
     {
       classIds: rows3.map((r) => r.classId),
       depths: new Int16Array(n),
-      textLengths: new Float64Array(n),
+      textLengths: Float64Array.from(rows3.map((r) => r.textLength)),
+      textBlocks: Uint8Array.from(rows3.map((r) => (r.textBlock ? 1 : 0))),
       heightPx: new Float64Array(n).fill(10),
       offsets: offs3,
       texts: new Array(n).fill(null),
@@ -747,6 +758,126 @@ test('§15.1.10 anchoring: pos spans re-anchor through mapping; id spans disappe
   );
   // The aggregated runs: rows 0–9, marked 10 alone, 11–23.
   assert.deepEqual(plan.rows.map((r) => r.row), [0, 10, 11]);
+  // Aggregate mean density (§6.5): the merged run's width signal is the
+  // MEAN text length of its members, so the width formula reads as
+  // density — dense runs wide, empty runs into the class's shortEmpty
+  // branch. Rows 0–9 all carry textLength 5 → mean 5.
+  assert.equal(plan.rows[0].textLength, 5);
+  assert.equal(plan.rows[2].textLength, 5);
+});
+
+// --- §15.1.32 Bar width regimes: textBlock bit + tier-3 mean density ---------
+
+test('§15.1.32 rowWidthFraction: empty TEXTBLOCK rows paint below a one-word row; non-textblocks keep the block', () => {
+  const f = (textLength, textBlock) => rowWidthFraction(
+    { textLength, textBlock }, defaultTheme,
+  );
+  // The ordering the feature exists for: empty < one-word < long, for
+  // textblock rows — no theme flag anywhere; the bit is shape-derived
+  // (§4.2) and carried through the payload (§8.1).
+  const empty = f(0, true);
+  const oneWord = f(5, true);
+  const long = f(80, true);
+  assert.ok(empty < oneWord, `empty ${empty} must be < one-word ${oneWord}`);
+  assert.ok(oneWord < long, `one-word ${oneWord} must be < long ${long}`);
+  assert.equal(empty, 0.08);
+  // A non-textblock row (atom/structure): empty keeps the flat
+  // zero-length block — the landmark.
+  assert.equal(f(0, false), 0.35);
+  // Non-empty rows are proportional for BOTH kinds.
+  assert.equal(f(80, false), 1);
+  assert.equal(f(80, true), 1);
+});
+
+test('§15.1.32 tier-3 aggregates: mean density width, window-stable, all-empty runs short', () => {
+  // 16 rows in two DEPTH-distinct runs (the aggregator splits on
+  // classId+depth): the first 8 (depth 0) are dense textblocks (80
+  // chars); the last 8 (depth 1) are EMPTY textblocks. No marks.
+  const n = 16;
+  const rows = Array.from({ length: n }, (_, i) => ({
+    key: i, pos: 2 + i * 2, node: null, classId: 'text',
+    depth: i < 8 ? 0 : 1, textLength: i < 8 ? 80 : 0, textBlock: true,
+    heightPx: 10, estHeightPx: 10, text: null,
+  }));
+  const model = {
+    classIds: rows.map((r) => r.classId),
+    depths: Int16Array.from(rows.map((r) => r.depth)),
+    textLengths: Float64Array.from(rows.map((r) => r.textLength)),
+    textBlocks: Uint8Array.from(rows.map((r) => (r.textBlock ? 1 : 0))),
+    heightPx: new Float64Array(n).fill(10),
+    offsets: sumOffsets(rows),
+    texts: new Array(n).fill(null),
+  };
+  const paint = (first, last) => planPaint(model, {
+    scale: 0.25,
+    originY: 0,
+    windowFirst: first,
+    windowLast: last,
+    theme: defaultTheme,
+    aggregate: true,
+    aggregateMin: 4,
+    aggregateMax: 16,
+    medianPx: 10,
+    isMarked: () => false,
+    spans: new Map(),
+    canvasHeight: 600,
+    dpr: 1,
+  });
+  const plan = paint(0, n - 1);
+  // Two aggregates: the dense run (mean 80 → full width), the empty
+  // textblock run (mean 0 → the minimal bar, below a one-word row).
+  assert.deepEqual(plan.rows.map((r) => r.row), [0, 8]);
+  assert.equal(plan.rows[0].textLength, 80);
+  assert.equal(plan.rows[1].textLength, 0);
+  assert.equal(plan.rows[1].textBlock, true);
+  const wDense = rowWidthFraction(plan.rows[0], defaultTheme);
+  const wEmpty = rowWidthFraction(plan.rows[1], defaultTheme);
+  assert.ok(wEmpty < wDense, `empty aggregate ${wEmpty} < dense ${wDense}`);
+  assert.ok(wEmpty < rowWidthFraction(
+    { textLength: 5, textBlock: true }, defaultTheme,
+  ), 'empty aggregate is below a one-word row');
+
+  // Window stability: the same run viewed through a narrower window
+  // yields the SAME mean — the aggregate stands for the whole run, so
+  // sliding the window must not pulse its width. Window rows 0–5 covers
+  // 6 of the dense run's 8 members; the mean still counts all 8.
+  const narrow = paint(0, 5);
+  assert.equal(narrow.rows[0].textLength, 80);
+
+  // Non-textblock runs keep the zero-length block: 8 'figure' rows, all
+  // textLength 0 and textBlock false — the mean is 0 and the bit paints
+  // the solid 0.35 block.
+  const atomRows = rows.map((r) => ({ ...r, classId: 'figure' }));
+  const atomPlan = planPaint({
+    classIds: atomRows.map((r) => r.classId),
+    depths: new Int16Array(n),
+    textLengths: Float64Array.from(atomRows.map(() => 0)),
+    textBlocks: new Uint8Array(n), // all zero: non-textblock
+    heightPx: new Float64Array(n).fill(10),
+    offsets: sumOffsets(atomRows),
+    texts: new Array(n).fill(null),
+  }, {
+    scale: 0.25,
+    originY: 0,
+    windowFirst: 0,
+    windowLast: n - 1,
+    theme: defaultTheme,
+    aggregate: true,
+    aggregateMin: 4,
+    aggregateMax: 16,
+    medianPx: 10,
+    isMarked: () => false,
+    spans: new Map(),
+    canvasHeight: 600,
+    dpr: 1,
+  });
+  assert.equal(atomPlan.rows[0].classId, 'figure');
+  assert.equal(atomPlan.rows[0].textLength, 0);
+  assert.equal(atomPlan.rows[0].textBlock, false);
+  assert.equal(
+    rowWidthFraction(atomPlan.rows[0], defaultTheme),
+    0.35,
+  );
 });
 
 
@@ -770,6 +901,7 @@ test('§15.1.11 merge floor: same-tone rects closer than 6 device px merge; per-
       classIds: rows.map((r) => r.classId),
       depths: new Int16Array(n),
       textLengths: new Float64Array(n),
+      textBlocks: new Uint8Array(n),
       heightPx: new Float64Array(n).fill(1),
       offsets,
       texts: new Array(n).fill(null),
@@ -811,6 +943,7 @@ test('§15.1.11 merge floor: same-tone rects closer than 6 device px merge; per-
       classIds: rows.slice(0, 3).map((r) => r.classId),
       depths: new Int16Array(3),
       textLengths: new Float64Array(3),
+      textBlocks: new Uint8Array(3),
       heightPx: new Float64Array(3).fill(1),
       offsets: offsets.subarray(0, 4),
       texts: new Array(3).fill(null),
@@ -912,6 +1045,7 @@ test('§15.1.13 marks-only and hidden rungs', () => {
     classIds: rows.map((x) => x.classId),
     depths: new Int16Array(n),
     textLengths: new Float64Array(rows.map((x) => x.textLength)),
+    textBlocks: Uint8Array.from(rows.map((x) => (x.textBlock ? 1 : 0))),
     heightPx: new Float64Array(rows.map((x) => x.heightPx)),
   });
   r.setGeometry(offsets, rows.map((x) => x.text));
@@ -1650,6 +1784,60 @@ test('§15.1.31 demote/move: re-emitted rows for the same nodes inherit measured
   );
   assert.equal(movedRows.length === 0 ? 9 : movedMeasured.length, 9,
     'the moved subtree\'s 9 rows re-enter measured (identity inheritance)');
+});
+
+// --- §15.1.32 reconfigure applies tuning options (zoom et al) -----------------
+
+test('§15.1.32 reconfigure: zoomPxPerEditorPx (and tuning keys) take effect', async () => {
+  await controllerPromise;
+  // Regression: reconfigure handled only theme/display/layers/classifier/
+  // onBlockHover/hideRows/marksOnly — every OTHER MinimapOptions key
+  // (zoomPxPerEditorPx, overscanRows, sampleBudget, sliceBudgetMs,
+  // maxScrollDrift, tier thresholds, aggregate bounds) was silently
+  // dropped, violating §11's "every key the plugin's own options did not
+  // set takes the component's value". The visible symptom: setting
+  // zoomPxPerEditorPx on the component changed nothing in sliding mode.
+  const n = 600;
+  const paras = Array.from({ length: n }, (_, i) => para(`p${i}`));
+  const h = makeControllerHarness(
+    { doc: doc(...paras), selection: { from: 1, to: 1 } },
+  );
+  for (let i = 0; i < 8 && h.controller.getRows().length < n; i++) {
+    h.controller.flush();
+  }
+  // Constructor default: zoom 0.25 → thumb = clientHeight × scale =
+  // 800 × 0.25 = 200px (sliding; the recorder's scale call carries no
+  // value, so observe through the thumb's height write instead).
+  const thumbH = () => parseFloat(lastOverlayStyles.height) || 0;
+  assert.ok(Math.abs(thumbH() - 200) < 1, `default zoom applies (${thumbH()})`);
+
+  // Component-side zoom (not plugin-owned): reconfigure must apply it —
+  // 0.06 → thumb = 800 × 0.06 = 48px.
+  h.controller.reconfigure({ zoomPxPerEditorPx: 0.06 });
+  h.controller.flush();
+  assert.ok(Math.abs(thumbH() - 48) < 1,
+    `zoomPxPerEditorPx reconfigures the scale (${thumbH()})`);
+
+  // And back — the seam is not one-shot.
+  h.controller.reconfigure({ zoomPxPerEditorPx: 0.25 });
+  h.controller.flush();
+  assert.ok(Math.abs(thumbH() - 200) < 1, `zoom restores (${thumbH()})`);
+
+  // The plugin-owned guard: a key the PLUGIN set is never overridden by
+  // the component (§11 plugin-wins).
+  const h2 = makeControllerHarness(
+    { doc: doc(...paras), selection: { from: 1, to: 1 } },
+    { zoomPxPerEditorPx: 0.4 },
+  );
+  for (let i = 0; i < 8 && h2.controller.getRows().length < n; i++) {
+    h2.controller.flush();
+  }
+  // 0.4 → surface 5,760 > pane 600 → sliding → thumb = 320px.
+  assert.ok(Math.abs(thumbH() - 320) < 1, `plugin-owned zoom held (${thumbH()})`);
+  h2.controller.reconfigure({ zoomPxPerEditorPx: 0.06 });
+  h2.controller.flush();
+  assert.ok(Math.abs(thumbH() - 320) < 1,
+    `plugin-owned zoom wins over the component (${thumbH()})`);
 });
 
 // --- §15.1.28 Doc edits refresh the scroll-geometry cache (§7.4) -------------

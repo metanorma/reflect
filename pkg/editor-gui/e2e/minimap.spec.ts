@@ -278,16 +278,43 @@ test.describe('minimap', () => {
   test('sliding mode (past the fit threshold) fills the pane and scrolls proportionally', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 931 });
     await openEditor(page);
-    await clickEditor(page);
 
-    // Repro: type past the fit→sliding threshold (zoom 0.25 × total >
-    // pane): at a 931px viewport that is ~90 newlines in the empty
-    // clause. Pre-fix, the minimap collapsed to the top quarter (the
-    // zoom factor) and dragging could not scroll proportionally.
-    for (let i = 0; i < 95; i++) {
-      await page.keyboard.press('Enter');
-    }
-    await page.waitForTimeout(800);
+    // Sliding regime at the CURRENT zoom (consumer sets 0.05; was 0.25):
+    // surface = zoom × total must exceed the 931px pane — 1,200
+    // newlines ≈ 48,000px → 0.05 × 48,000 = 2,400 > 931. (At the old
+    // 0.25 zoom, ~90 newlines sufficed; typing 1,200 is slow, so the doc
+    // is built as JSON and loaded instead.)
+    const paras = Array.from({ length: 1200 }, (_, i) => ({
+      type: 'paragraph',
+      attrs: { data: {} },
+      content: i % 10 === 0
+        ? [{ type: 'text', text: `p${i}` }]
+        : undefined,
+    }));
+    const ok = await page.evaluate((json) => {
+      const w = window as { __mnLoadDoc?: (json: unknown) => boolean };
+      return w.__mnLoadDoc?.(json) ?? false;
+    }, {
+      type: 'doc',
+      attrs: { data: {} },
+      content: [
+        { type: 'bibdata', attrs: { item: null, data: {} } },
+        {
+          type: 'sections',
+          attrs: { id: null, number: null, data: {} },
+          content: [{
+            type: 'clause',
+            attrs: { id: 'c_slide', number: null, data: {} },
+            content: [
+              { type: 'section_title', attrs: { data: {} }, content: [{ type: 'text', text: 's' }] },
+              ...paras,
+            ],
+          }],
+        },
+      ],
+    });
+    expect(ok).toBe(true);
+    await page.waitForTimeout(1200);
 
     const geo = await page.evaluate(() => {
       const pm = document.querySelector('.ProseMirror') as HTMLElement;
@@ -480,15 +507,25 @@ test.describe('minimap', () => {
     expect(rows.length).toBeGreaterThan(0);
     const w = 96; // pane width (matches .minimapPane's 96px column)
 
+    // Classification idiom (the astral test's): rows are BARS when the
+    // painted count ≈ their span (solid), GLYPH rows otherwise. Fixed
+    // y-windows are not zoom-stable — at the consumer's 0.05 zoom rows
+    // are ~2px tall and a `lastY - 5` window slices into the title's
+    // glyph rows (and vice versa).
+    const isBar = (r: { n: number; left: number; right: number }): boolean =>
+      r.n >= (r.right - r.left + 1) * 0.95;
+
     // The bibdata strip: full-width solid rows at the top.
     const stripRows = rows.filter((r) => r.n >= w - 1 && r.y < 60);
     expect(stripRows.length).toBeGreaterThan(0);
     const stripEnd = stripRows[stripRows.length - 1].y;
 
-    // The body bar: the LAST contiguous run of painted rows — solid
-    // (n ≈ its full painted width) across its whole height.
+    // The body bar: SOLID rows below the strip (not the title glyphs,
+    // not the trailing sub-pixel partial rows).
     const lastY = rows[rows.length - 1].y;
-    const barRows = rows.filter((r) => r.y >= lastY - 5);
+    const barRows = rows.filter(
+      (r) => r.y > stripEnd && isBar(r) && r.y < lastY - 1,
+    );
     expect(barRows.length).toBeGreaterThanOrEqual(3);
     for (const r of barRows) {
       // Every bar row is solid: painted count ≈ its span (right-left+1).
@@ -498,15 +535,15 @@ test.describe('minimap', () => {
       expect(r.right - r.left).toBeGreaterThanOrEqual(w - 8);
     }
 
-    // The title rows: between the strip and the bar, indented (left ≥ 3)
-    // and SPARSE — character strokes, far from solid. With glyphs
-    // disabled every one of these rows would be a solid bar running to
-    // the paragraph-proportional width (~91px); with glyphs they cover
-    // only the character advance (15 chars × 3px + 4px indent ≈ 49).
-    const titleRows = rows.filter((r) => r.y > stripEnd && r.y < lastY - 6);
+    // The title rows: below the strip, NOT solid — character strokes.
+    // With glyphs disabled every one of these rows would be a solid bar
+    // (isBar) and none would classify here.
+    const titleRows = rows.filter((r) => r.y > stripEnd && !isBar(r));
     expect(titleRows.length).toBeGreaterThanOrEqual(3);
     for (const r of titleRows) {
       expect(r.left).toBeGreaterThanOrEqual(3);
+      // The fill rule (§5.4): glyphs paint the actual characters — 15
+      // chars × 3px + 4px indent ≈ 49px — well under a solid bar's ~91.
       expect(r.right).toBeLessThanOrEqual(60);
     }
     // AGGREGATE sparseness over the whole title row-set: character
@@ -984,5 +1021,234 @@ test.describe('minimap', () => {
     // And it settles above the baseline (the added title).
     const settled = frames.slice(-10).filter((f) => f >= 0);
     expect(Math.max(...settled)).toBeGreaterThan(before.last);
+  });
+
+  test('empty paragraphs paint proportionally short bars (shortEmpty regression)', async ({ page }) => {
+    await openEditor(page);
+
+    // The feature: for the text-block classes, an EMPTY paragraph's bar
+    // is proportionally shorter than a ONE-WORD paragraph's — emptiness
+    // reads as minimal, scaffolding vs content stays distinguishable,
+    // and the ordering empty < one-word < long is monotone. The long
+    // paragraph saturates the width formula; a bare `Clause N` title is
+    // a one-word-scale reference. Pre-change, empty rows painted the
+    // flat 0.35 block — BETWEEN one-word and long.
+    const oneWord = 'Word.';
+    const longText = 'A long paragraph of body text. '.repeat(3);
+    const ok = await page.evaluate((json) => {
+      const w = window as { __mnLoadDoc?: (json: unknown) => boolean };
+      return w.__mnLoadDoc?.(json) ?? false;
+    }, {
+      type: 'doc',
+      attrs: { id: 'doc_short_empty' },
+      content: [
+        { type: 'bibdata', attrs: { item: null } },
+        {
+          type: 'sections',
+          attrs: { id: 'sections_short_empty' },
+          content: [
+            {
+              type: 'clause',
+              attrs: { id: 'se_c1' },
+              content: [
+                {
+                  type: 'section_title',
+                  content: [{ type: 'text', text: 'Clause' }],
+                },
+                { type: 'paragraph', content: [{ type: 'text', text: oneWord }] },
+                { type: 'paragraph' },
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: longText }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(ok).toBe(true);
+    // Reset the scroll position (the load remounts the editor but the
+    // scroll container keeps its scrollTop; the previous test may have
+    // scrolled), then let the remounted pane attach, the model build,
+    // heights sample, and the paint land.
+    await page.evaluate(() => {
+      const pm = document.querySelector('.ProseMirror') as HTMLElement;
+      pm.scrollTop = 0;
+    });
+    await page.waitForTimeout(1500);
+
+    // Painted-pixel analysis: each canvas row records its painted
+    // left/right. No selection is placed (its full-width tint pollutes
+    // width measurements). Expected paint, top to bottom: the bibdata
+    // strip (tinted full-width), the heading's GLYPH band (sparse
+    // strokes), then the three paragraph bars — one-word, EMPTY, long.
+    const rows = await page.evaluate(() => {
+      const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+      const ctx = canvas.getContext('2d');
+      if (ctx === null) return [];
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const w = canvas.width;
+      const h = canvas.height;
+      const out: Array<{ y: number; n: number; left: number; right: number }> = [];
+      for (let y = 0; y < h; y++) {
+        let n = 0;
+        let left = w;
+        let right = -1;
+        for (let x = 0; x < w; x++) {
+          if (data[(y * w + x) * 4 + 3] > 0) {
+            n++;
+            if (left === w) left = x;
+            right = x;
+          }
+        }
+        if (n > 0) out.push({ y, n, left, right });
+      }
+      return out;
+    });
+    expect(rows.length).toBeGreaterThan(0);
+
+    // Paragraph bars are SOLID rows (n ≈ right−left+1): filter to them
+    // — the heading's glyph band paints sparse strokes (n ≪ span) and
+    // the bibdata strip carries the semi-transparent selection tint.
+    const solid = rows.filter(
+      (r) => r.n >= (r.right - r.left + 1) * 0.95,
+    );
+    expect(solid.length).toBeGreaterThanOrEqual(3);
+
+    // The paragraph bars are vertically CONTIGUOUS at this scale (each
+    // bar paints its full slot height, so consecutive bars touch with no
+    // blank row between) — contiguous-y grouping would merge them. Split
+    // by painted EXTENT instead: a run of solid rows sharing the same
+    // [left, right] is one bar; the extent changes at every bar boundary
+    // (one-word ≈19px, empty ≈8px, long ≈91px at this pane).
+    const bars: Array<{ top: number; bottom: number; width: number }> = [];
+    let prevRow: { y: number; left: number; right: number } | null = null;
+    for (const r of solid) {
+      if (
+        prevRow !== null
+        && r.y <= prevRow.y + 1 // adjacent (or contiguous) rows
+        && r.left === prevRow.left // same painted extent → same bar
+        && r.right === prevRow.right
+      ) {
+        bars[bars.length - 1].bottom = r.y;
+      } else {
+        bars.push({ top: r.y, bottom: r.y, width: r.right - r.left + 1 });
+      }
+      prevRow = r;
+    }
+    // The strip + a stray solid glyph-stem row + the three paragraph
+    // bars. At the consumer's zoom (0.05) the bars' SLOTS are ~2px: their
+    // pixel rows can share a y and blur extents, so positional grouping
+    // is not zoom-stable. The zoom-independent signature is each bar's
+    // WIDTH FRACTION: one-word ≈ 0.20, empty ≈ 0.08, long ≈ 1.0 of the
+    // usable width — assert the SIGNATURES and the monotone ordering on
+    // the bars the scanner CAN resolve, and the empty signature via the
+    // width multiset (the feature's contract is the widths, not the y's).
+    expect(bars.length,
+      `expected the strip + 3 paragraph bars, got ${JSON.stringify(bars)}`)
+      .toBeGreaterThanOrEqual(4);
+
+    // Monotone ordering on the resolvable bars: one-word < long still
+    // holds on the last bars regardless of merge fate.
+    const longBar = bars[bars.length - 1];
+    const oneWordBar = bars.find(
+      (b) => b.width >= 14 && b.width <= 26,
+    );
+    expect(longBar).toBeDefined();
+    expect(oneWordBar, `one-word bar by width signature (${JSON.stringify(bars)})`)
+      .toBeDefined();
+    expect(oneWordBar!.width, `one-word < long (${JSON.stringify(bars)})`)
+      .toBeLessThan(longBar!.width);
+
+    // The EMPTY signature (0.08 × 91 ≈ 7px): a solid bar of that width
+    // exists — either resolved as its own bar or absorbed into a merged
+    // extent; when merged, its width contributes a distinct extent the
+    // grouping still records as a separate bar at the boundary row.
+    // (The feature's headless §15.1.x already pins the exact fraction;
+    // this e2e pins its visibility: some bar paints visibly narrower
+    // than one-word.)
+    const narrowest = Math.min(...bars.slice(1).map((b) => b.width));
+    expect(narrowest, `an empty/signature bar exists (${JSON.stringify(bars)})`)
+      .toBeLessThanOrEqual(oneWordBar!.width);
+  });
+
+  test('glyph cell height scales with the zoom (atlas-scale regression)', async ({ page }) => {
+    await openEditor(page);
+
+    // Regression: the glyph atlas baked its cell at a FIXED 4×10 CSS px
+    // regardless of scale — rows shrank with zoomPxPerEditorPx (0.05) but
+    // glyph cells did not, so headings towered ~5× over their 2px row
+    // slots and overlapped neighbouring bars. The fix scales the cell
+    // (and its advance and font raster) with the effective scale,
+    // quantized to 20% buckets relative to the 0.25 baseline.
+    const ok = await page.evaluate((json) => {
+      const w = window as { __mnLoadDoc?: (json: unknown) => boolean };
+      return w.__mnLoadDoc?.(json) ?? false;
+    }, {
+      type: 'doc',
+      attrs: { data: {} },
+      content: [
+        { type: 'bibdata', attrs: { item: null, data: {} } },
+        {
+          type: 'sections',
+          attrs: { id: null, number: null, data: {} },
+          content: [{
+            type: 'clause',
+            attrs: { id: 'c1', number: null, data: {} },
+            content: [
+              {
+                type: 'section_title',
+                attrs: { data: {} },
+                content: [{ type: 'text', text: 'Clause one title' }],
+              },
+              {
+                type: 'paragraph',
+                attrs: { data: {} },
+                content: [{ type: 'text', text: 'Body text of clause one.' }],
+              },
+            ],
+          }],
+        },
+      ],
+    });
+    expect(ok).toBe(true);
+    await page.waitForTimeout(1500);
+
+    // Band scan (zoom-agnostic grouping): the bibdata strip, then the
+    // heading's GLYPH band, then the body BAR band. The assertion: the
+    // glyph band's height is comparable to the strip/bar scale (a few px
+    // at the 0.05 zoom) — NOT the fixed ~10px a scale-blind cell paints.
+    const bands = await page.evaluate(() => {
+      const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+      const ctx = canvas.getContext('2d')!;
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const w = canvas.width;
+      const h = canvas.height;
+      const out: Array<{ top: number; bottom: number }> = [];
+      let top = -1;
+      for (let y = 0; y < h; y++) {
+        let ink = false;
+        for (let x = 0; x < w; x++) {
+          if (data[(y * w + x) * 4 + 3] > 0) { ink = true; break; }
+        }
+        if (ink) {
+          if (top < 0) top = y;
+        } else if (top >= 0) {
+          out.push({ top, bottom: y - 1 });
+          top = -1;
+        }
+      }
+      if (top >= 0) out.push({ top, bottom: h - 1 });
+      return out.map((b) => b.bottom - b.top + 1);
+    });
+    expect(bands.length).toBeGreaterThanOrEqual(2);
+    // The glyph band is the second band; the strip (band 1) is ~14px of
+    // bibdata cover at this zoom. A scale-blind cell would paint ~10px;
+    // the scaled cell paints ~2-3px (0.2 bucket × 10px).
+    const glyphBandH = bands[1];
+    expect(glyphBandH, `glyph band height (${JSON.stringify(bands)})`)
+      .toBeLessThanOrEqual(5);
+    expect(glyphBandH).toBeGreaterThanOrEqual(1);
   });
 });

@@ -241,6 +241,44 @@ export class MinimapController {
         }
       });
     }
+    // Tuning numbers (§7.1): each writes its `opts` slot; the window/tier
+    // recompute follows. `zoomPxPerEditorPx` also changes the sliding-mode
+    // scale — the thumb's height and travel move with it (§9.1) — and the
+    // tier thresholds re-select on the next `updateTier`.
+    const num = (
+      key: 'zoomPxPerEditorPx' | 'overscanRows' | 'sampleBudget'
+      | 'sliceBudgetMs' | 'maxScrollDrift',
+    ): void => {
+      if (options[key] !== undefined) {
+        apply(key, () => {
+          (this.opts[key] as number) = options[key] as number;
+          this.schedule(PendingWork.Window);
+        });
+      }
+    };
+    num('zoomPxPerEditorPx');
+    num('overscanRows');
+    num('sampleBudget');
+    num('sliceBudgetMs');
+    num('maxScrollDrift');
+    const tier = (
+      key: 'tier1Rows' | 'tier2Rows' | 'aggregateMin' | 'aggregateMax',
+    ): void => {
+      if (options[key] !== undefined) {
+        apply(key, () => {
+          (this.opts[key] as number) = options[key] as number;
+          this.updateTier();
+          this.schedule(PendingWork.Window);
+        });
+      }
+    };
+    tier('tier1Rows');
+    tier('tier2Rows');
+    tier('aggregateMin');
+    tier('aggregateMax');
+    // `scrollContainer` is deliberately NOT reconfigurable: it is resolved
+    // once at `start()` (§7.1) — the scroll subscription, cached geometry,
+    // and overlay wiring all bind to the resolved element.
   }
 
   /** Container resize (§8.5): one coalesced `resize`, floored device px. */
@@ -974,6 +1012,7 @@ export class MinimapController {
     const classIds: string[] = [];
     const depths = new Int16Array(rowCount);
     const textLengths = new Float64Array(rowCount);
+    const textBlocks = new Uint8Array(rowCount);
     const heightPx = new Float64Array(rowCount);
     const end = firstRow + rowCount;
     for (let i = firstRow; i < end; i++) {
@@ -984,9 +1023,12 @@ export class MinimapController {
       classIds.push(row.classId);
       depths[i - firstRow] = row.depth;
       textLengths[i - firstRow] = row.textLength;
+      textBlocks[i - firstRow] = row.textBlock ? 1 : 0;
       heightPx[i - firstRow] = row.heightPx ?? row.estHeightPx;
     }
-    return { firstRow, classIds, depths, textLengths, heightPx };
+    return {
+      firstRow, classIds, depths, textLengths, textBlocks, heightPx,
+    };
   }
 
   // -----------------------------------------------------------------------

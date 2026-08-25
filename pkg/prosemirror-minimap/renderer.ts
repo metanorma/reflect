@@ -78,6 +78,7 @@ interface PaintModel {
   classIds: (string | undefined)[];
   depths: Int16Array;
   textLengths: Float64Array;
+  textBlocks: Uint8Array;
   heightPx: Float64Array;
   offsets: Float64Array;
   /** Text cache; entries may be null (filled per window, §6.3). */
@@ -113,6 +114,11 @@ interface PlannedRow {
   classId: string;
   depth: number;
   textLength: number;
+  /**
+   * The run's textblock bit (`BlockRow.textBlock`, §4.2) — the
+   * zero-length discriminator on the paint side (§5.4/§6.5).
+   */
+  textBlock: boolean;
   text: string | null;
   /** Source row index (hover/commit lookups, §9.2). */
   row: number;
@@ -209,6 +215,7 @@ function planPlainRows(
       classId: cid,
       depth: model.depths[i] ?? 0,
       textLength: model.textLengths[i] ?? 0,
+      textBlock: (model.textBlocks[i] ?? 0) === 1,
       text: model.texts[i] ?? null,
       row: i,
     });
@@ -253,7 +260,17 @@ function planAggregatedRows(
         h: Math.max(floor, capped * opts.scale),
         classId: cid,
         depth: model.depths[i] ?? 0,
-        textLength: 0,
+        // MEAN density (§6.5), not 0: the width formula is calibrated
+        // per row, so the mean reads as the run's average fullness —
+        // dense runs wide, sparse runs narrow, all-empty textblock runs
+        // fall into the minimal-bar branch. The mean (not the sum) is
+        // taken over the run's FULL extent, which extends past
+        // `windowLast` (see below), so the bar's width is a property of
+        // the run — it cannot pulse as the window slides over members.
+        // `textBlock` is the FIRST member's bit, like `classId`/`depth`
+        // (run identity); it is only consulted when the mean is 0.
+        textLength: meanRunTextLength(model, opts, i, j),
+        textBlock: (model.textBlocks[i] ?? 0) === 1,
         text: null,
         row: i,
       });
@@ -265,6 +282,7 @@ function planAggregatedRows(
           classId: model.classIds[k] ?? 'text',
           depth: model.depths[k] ?? 0,
           textLength: model.textLengths[k] ?? 0,
+          textBlock: (model.textBlocks[k] ?? 0) === 1,
           text: model.texts[k] ?? null,
           row: k,
         });
@@ -281,6 +299,41 @@ function rowSpanHeight(span: RowSpan, model: PaintModel): number {
     return endOff - start;
   }
   return model.heightPx[span.last] ?? 0;
+}
+
+/**
+ * Mean text length of an aggregating run (§6.5), over the run's FULL
+ * extent — not just the windowed `[i, j)` slice. The run match in
+ * `planAggregatedRows` is bounded by the paint window; the aggregate
+ * stands for the whole run, so a window edge must not change its width.
+ * Continues the same class/depth/unmarked predicate past `windowLast`
+ * (array reads only — nothing past the edge is painted), stopping at an
+ * `undefined` mirror slot (unbuilt model) or the array's end.
+ */
+function meanRunTextLength(
+  model: PaintModel,
+  opts: PaintOptions,
+  i: number,
+  j: number,
+): number {
+  let sum = 0;
+  for (let k = i; k < j; k++) {
+    sum += model.textLengths[k] ?? 0;
+  }
+  let count = j - i;
+  let k = j;
+  while (
+    k < model.classIds.length
+    && model.classIds[k] !== undefined
+    && model.classIds[k] === model.classIds[i]
+    && (model.depths[k] ?? 0) === (model.depths[i] ?? 0)
+    && !opts.isMarked(k)
+  ) {
+    sum += model.textLengths[k] ?? 0;
+    count++;
+    k++;
+  }
+  return count > 0 ? sum / count : 0;
 }
 
 /** Merge same-tone marker rects whose gap is under the merge floor (§8.4). */
@@ -360,6 +413,18 @@ function ensureLen16(
   return out;
 }
 
+/** Return a `Uint8Array` of `len` carrying `src`'s prefix. */
+function ensureLen8(
+  src: Uint8Array<ArrayBuffer>, len: number,
+): Uint8Array<ArrayBuffer> {
+  if (src.length >= len) {
+    return src;
+  }
+  const out = new Uint8Array(len);
+  out.set(src);
+  return out;
+}
+
 /** The renderer-side model state shared by both backends. */
 abstract class RendererBackend implements TieredRenderer {
   protected width = 0;
@@ -384,6 +449,7 @@ abstract class RendererBackend implements TieredRenderer {
   protected classIds: (string | undefined)[] = [];
   protected depths = new Int16Array(0);
   protected textLengths = new Float64Array(0);
+  protected textBlocks = new Uint8Array(0);
   protected heightPx = new Float64Array(0);
   protected modelRows = 0;
 
@@ -422,6 +488,7 @@ abstract class RendererBackend implements TieredRenderer {
       this.classIds.length = end;
       this.depths = ensureLen16(this.depths, end);
       this.textLengths = ensureLen(this.textLengths, end);
+      this.textBlocks = ensureLen8(this.textBlocks, end);
       this.heightPx = ensureLen(this.heightPx, end);
     }
     for (let i = 0; i < chunk.classIds.length; i++) {
@@ -429,6 +496,7 @@ abstract class RendererBackend implements TieredRenderer {
       this.classIds[at] = chunk.classIds[i];
       this.depths[at] = chunk.depths[i] ?? 0;
       this.textLengths[at] = chunk.textLengths[i] ?? 0;
+      this.textBlocks[at] = chunk.textBlocks[i] ?? 0;
       this.heightPx[at] = chunk.heightPx[i] ?? 0;
     }
     this.modelRows = Math.max(this.modelRows, end);
@@ -470,6 +538,7 @@ abstract class RendererBackend implements TieredRenderer {
     this.classIds = [];
     this.depths = new Int16Array(0);
     this.textLengths = new Float64Array(0);
+    this.textBlocks = new Uint8Array(0);
     this.heightPx = new Float64Array(0);
     this.offsets = new Float64Array(1);
     this.texts = [];
@@ -549,6 +618,7 @@ abstract class RendererBackend implements TieredRenderer {
       classIds: this.classIds,
       depths: this.depths,
       textLengths: this.textLengths,
+      textBlocks: this.textBlocks,
       heightPx: this.heightPx,
       offsets: this.offsets,
       texts: this.texts,
@@ -576,6 +646,13 @@ export class InlineRenderer extends RendererBackend {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
   private atlas: GlyphAtlas | null = null;
+  /**
+   * The scale bucket the current atlas was baked at (§6.5): glyph cells
+   * scale with the effective paint scale, quantized to buckets so the
+   * atlas does not re-bake on every fit-scale drift (sampling nudges the
+   * scale by fractions of a px). `null` = no atlas yet.
+   */
+  private atlasScale: number | null = null;
   /** Last paint duration (ms) — renderer cost telemetry (§15.2). */
   lastPaintMs = 0;
 
@@ -590,12 +667,14 @@ export class InlineRenderer extends RendererBackend {
       this.canvas.width = this.width;
       this.canvas.height = this.height;
       this.atlas = null; // re-bake at the new scale
+      this.atlasScale = null;
     }
   }
 
   override setConfig(theme: MinimapTheme, layers: LayerDeclaration[]): void {
     super.setConfig(theme, layers);
     this.atlas = null;
+    this.atlasScale = null;
   }
 
   override render(): void {
@@ -658,7 +737,7 @@ export class InlineRenderer extends RendererBackend {
     const usable = Math.max(1, w - x - 1);
     const widthFrac = rowWidthFraction(r, this.theme);
     if (paintsGlyphs(this.tier, cls.glyphs, r.text)) {
-      this.paintGlyphs(ctx, r, x, usable, widthFrac, cls.color);
+      this.paintGlyphs(ctx, r, x, usable, cls.color);
       return;
     }
     ctx.fillStyle = cls.color;
@@ -679,21 +758,36 @@ export class InlineRenderer extends RendererBackend {
     r: PlannedRow,
     x: number,
     w: number,
-    widthFrac: number,
     color: string,
   ): void {
-    if (this.atlas === null) {
+    // The atlas is baked per SCALE BUCKET (§6.5): glyph cells track their
+    // row slots (stride × scale), so the zoom (§6.2) sizes glyphs like it
+    // sizes bars. `k` is the cell multiplier relative to the base 4×10
+    // cell's zoom — 1.0 at zoom 0.25, 0.2 at the 0.05 zoom. Bucketing to
+    // 20% steps keeps the atlas from re-baking on fit-scale drift.
+    const k = clamp01(this.scale / GLYPH_BASE_SCALE);
+    const bucket = Math.max(0.2, Math.round(k * 5) / 5);
+    if (this.atlas === null || this.atlasScale !== bucket) {
       this.atlas = new GlyphAtlas(
         this.theme.font ?? '9px monospace',
         this.dpr,
+        bucket,
       );
+      this.atlasScale = bucket;
     }
     // Iterate by CODE POINT, not UTF-16 unit: an astral-plane character
     // is one cell (and one well-formed `${ch}:${color}` atlas key), not
     // two lone-surrogate tofu blits.
     const chars = Array.from(r.text ?? '');
-    const glyphW = 3;
-    const count = Math.min(chars.length, Math.floor((w * widthFrac) / glyphW));
+    // Glyphs FILL the available width (the row's indent-relative span):
+    // the row paints its characters left to right and truncates only
+    // what genuinely overflows. The proportional `widthFrac` budget is
+    // the BAR path's line-length encoding (§6.5) — reusing it here
+    // trimmed exactly the rows glyphs are for (a 15-char heading paints
+    // ≈ its bar's 31% width, not its own 15 glyphs), so the fill rule is
+    // the intuitive one: what you see is the text, up to the pane.
+    const glyphW = 3 * bucket;
+    const count = Math.min(chars.length, Math.floor(w / glyphW));
     // 1:1 device-px blits: `render` paints under the dpr transform, where a
     // scaled drawImage resamples the baked cell by fractions of a device px
     // (any fractional dpr, and ceil(4·dpr)/dpr is never integer either).
@@ -756,6 +850,13 @@ export class InlineRenderer extends RendererBackend {
 const ROW_GAP_FRACTION = 0.15;
 
 /**
+ * The zoom the base 4×10 glyph cell was tuned for (§6.5): the cell scales
+ * linearly with `scale / GLYPH_BASE_SCALE`, so glyphs track their row
+ * slots as `zoomPxPerEditorPx` (§6.2) varies.
+ */
+const GLYPH_BASE_SCALE = 0.25;
+
+/**
  * The glyph-vs-rectangle gate (§5.4, §6.5) — one place, headlessly
  * testable. A row paints tier-1 atlas glyphs only when ALL hold: the
  * renderer is at tier 1, the class opted in with `glyphs: true` (default
@@ -774,12 +875,38 @@ export function paintsGlyphs(
     && text !== undefined && text !== '';
 }
 
-/** Row-bar width fraction: text length clamped against `charsPerLine`. */
-function rowWidthFraction(r: PlannedRow, theme: MinimapTheme): number {
-  return r.textLength > 0
-    ? clamp01(0.15 + 0.85 * (r.textLength / Math.max(1, theme.charsPerLine)))
-    : 0.35;
+/**
+ * Row-bar width fraction. Three regimes (§6.5):
+ *
+ * - Non-empty text signal → proportional to text length (clamped), for
+ *   every row. A tier-3 aggregate carries the MEAN text length of its
+ *   run's members, so the same formula reads as density.
+ * - Empty text signal, TEXTBLOCK → the minimal text bar (§5.4): an empty
+ *   textblock is a one-line placeholder, proportionally SHORTER than a
+ *   one-word row. Derived from the row's `textBlock` bit (§4.2) —
+ *   shape data retained by the walk, not consumer configuration.
+ * - Empty text signal, non-textblock → the flat zero-length block: atoms
+ *   and structure (figures, tables) whose zero length is permanent, not
+ *   a state — the block is the landmark.
+ */
+export function rowWidthFraction(
+  r: PlannedRow,
+  theme: MinimapTheme,
+): number {
+  if (r.textLength > 0) {
+    return clamp01(
+      0.15 + 0.85 * (r.textLength / Math.max(1, theme.charsPerLine)),
+    );
+  }
+  return r.textBlock ? EMPTY_TEXT_FRACTION : 0.35;
 }
+
+/**
+ * The minimal-bar width (§5.4): fraction of the usable width an empty
+ * textblock paints — below a one-word row (`0.15` of the length
+ * formula's base), with margin so the ordering reads at a glance.
+ */
+const EMPTY_TEXT_FRACTION = 0.08;
 
 function clamp01(v: number): number {
   return v < 0
@@ -792,6 +919,13 @@ function clamp01(v: number): number {
 /**
  * Glyph atlas (§6.5): the theme font's glyph set pre-rasterized once per
  * (font, scale, color) so tier-1 per-row cost returns to rect territory.
+ *
+ * The cell scales with `k` — the effective paint scale relative to the
+ * baseline zoom (`GLYPH_BASE_SCALE`) the 4×10 cell was tuned for: a glyph
+ * row's cell tracks its row SLOT (stride × scale), so
+ * `zoomPxPerEditorPx` (§6.2) sizes glyphs like it sizes bars. The font is
+ * rasterized under a `dpr × k` transform (the font string itself stays
+ * the consumer's), cells land at integer device px, and blits stay 1:1.
  */
 class GlyphAtlas {
   private readonly glyphs = new Map<string, HTMLCanvasElement>();
@@ -799,6 +933,7 @@ class GlyphAtlas {
   constructor(
     private readonly font: string,
     private readonly dpr: number,
+    private readonly k: number,
   ) {}
 
   /**
@@ -815,13 +950,18 @@ class GlyphAtlas {
     let glyph = this.glyphs.get(key);
     if (glyph === undefined) {
       glyph = document.createElement('canvas');
-      const gw = 4;
-      const gh = 10;
+      const gw = 4 * this.k;
+      const gh = 10 * this.k;
       glyph.width = Math.max(1, Math.ceil(gw * this.dpr));
       glyph.height = Math.max(1, Math.ceil(gh * this.dpr));
       const gctx = glyph.getContext('2d');
       if (gctx !== null) {
-        gctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+        // Rasterize the theme font AT the scaled cell size: the transform
+        // scales the rasterization, so `9px monospace` becomes a 9k-px
+        // face without rewriting the consumer's font string.
+        gctx.setTransform(
+          this.dpr * this.k, 0, 0, this.dpr * this.k, 0, 0,
+        );
         gctx.font = this.font;
         gctx.fillStyle = color;
         gctx.textBaseline = 'top';
