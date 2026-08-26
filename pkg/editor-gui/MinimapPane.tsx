@@ -61,7 +61,7 @@ const minimapOptions: MinimapOptions = {
     background: 'transparent',
     classes: {
       text: { color: '#8888a0', indent: true },
-      heading: { color: '#c8c8dc', indent: true, glyphs: true },
+      heading: { color: '#c8c8dc', indent: true },
       figure: { color: '#b08ad0', indent: true },
       table: { color: '#80a8c8', indent: true },
       code: { color: '#70b070', indent: true },
