@@ -112,12 +112,21 @@ test.describe('minimap', () => {
 
     // Drag the viewport strip toward the bottom of the pane (the overlay
     // owns drag-to-scroll; the canvas area below the strip has no
-    // track-click affordance).
+    // track-click affordance). The drag end is pane-RELATIVE (40px above
+    // the pane's bottom edge — clear of the thumb, which sits at the top
+    // on a freshly loaded doc), not an absolute y, so it survives pane
+    // height/position changes.
     const box = await overlay.boundingBox();
     expect(box).not.toBeNull();
+    const paneBox = await page.locator('.mn-minimap').boundingBox();
+    expect(paneBox).not.toBeNull();
     await page.mouse.move(box!.x + box!.width / 2, box!.y + 10);
     await page.mouse.down();
-    await page.mouse.move(box!.x + box!.width / 2, 680, { steps: 8 });
+    await page.mouse.move(
+      box!.x + box!.width / 2,
+      paneBox!.y + paneBox!.height - 40,
+      { steps: 8 },
+    );
     await page.mouse.up();
 
     const scrollTopAfter = await page.evaluate(
@@ -259,14 +268,20 @@ test.describe('minimap', () => {
 
     // Drag the thumb to the pane's bottom edge; the editor must reach
     // (within a few px of) the real maxScroll — not stall at the pre-typing
-    // extent.
+    // extent. Drag end is pane-relative (20px above the bottom).
     const overlay = page.locator('.mn-minimap-viewport');
     const box = await overlay.boundingBox();
     expect(box).not.toBeNull();
+    const paneBox = await page.locator('.mn-minimap').boundingBox();
+    expect(paneBox).not.toBeNull();
     const x = box!.x + box!.width / 2;
     await page.mouse.move(x, box!.y + box!.height / 2);
     await page.mouse.down();
-    await page.mouse.move(x, 700, { steps: 8 });
+    await page.mouse.move(
+      x,
+      paneBox!.y + paneBox!.height - 20,
+      { steps: 8 },
+    );
     await page.mouse.up();
     await page.waitForTimeout(300);
     const after = await page.evaluate(
@@ -479,12 +494,15 @@ test.describe('minimap', () => {
     // filled rectangle. Bands alone are NOT a safe unit here: the title's
     // glyph rows can sit flush against the bibdata strip and merge into
     // one band — so the scan is per painted pixel ROW: each row records
-    // its painted count, left, and right. No selection is placed (its
-    // full-width tint pollutes).
-    const rows = await page.evaluate(() => {
+    // its painted count, left, and right. The scan also returns the
+    // canvas's backing-store size (`w`/`h`, DEVICE px — at the headless
+    // dpr of 1 these equal CSS px; don't "fix" a dpr≠1 future by
+    // rescaling here, the painted x-positions below are device px too).
+    // No selection is placed (its full-width tint pollutes).
+    const scan = await page.evaluate(() => {
       const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
       const ctx = canvas.getContext('2d');
-      if (ctx === null) return [];
+      if (ctx === null) return { w: 0, h: 0, rows: [] as Array<{ y: number; n: number; left: number; right: number }> };
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
       const w = canvas.width;
       const h = canvas.height;
@@ -502,10 +520,14 @@ test.describe('minimap', () => {
         }
         if (n > 0) out.push({ y, n, left, right });
       }
-      return out;
+      return { w, h, rows: out };
     });
+    const { w, rows } = scan;
     expect(rows.length).toBeGreaterThan(0);
-    const w = 96; // pane width (matches .minimapPane's 96px column)
+    // Sanity floor: a collapsed/failed pane (canvas ~1px) would make the
+    // width assertions below pass VACUOUSLY — fail loudly instead.
+    expect(w).toBeGreaterThanOrEqual(40);
+    expect(rows.length).toBeGreaterThan(0);
 
     // Classification idiom (the astral test's): rows are BARS when the
     // painted count ≈ their span (solid), GLYPH rows otherwise. Fixed
@@ -530,7 +552,7 @@ test.describe('minimap', () => {
     for (const r of barRows) {
       // Every bar row is solid: painted count ≈ its span (right-left+1).
       expect(r.n).toBeGreaterThanOrEqual((r.right - r.left + 1) * 0.95);
-      // …and the bar runs nearly the full pane width (the paragraph is
+      // …and the bar runs nearly the full canvas width (the paragraph is
       // long): widthFrac ≈ 1 at 78 chars / 80 charsPerLine.
       expect(r.right - r.left).toBeGreaterThanOrEqual(w - 8);
     }
@@ -597,12 +619,13 @@ test.describe('minimap', () => {
     // Same settle window as the ASCII glyph test above.
     await page.waitForTimeout(1500);
 
-    // Same per-painted-pixel-row scan (see the ASCII test for why rows,
-    // not bands, are the unit).
-    const rows = await page.evaluate(() => {
+    // Same per-painted-pixel-row scan as the ASCII glyph test (see there
+    // for why rows, not bands, are the unit); returns the canvas's
+    // backing-store size alongside the rows.
+    const scan = await page.evaluate(() => {
       const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
       const ctx = canvas.getContext('2d');
-      if (ctx === null) return [];
+      if (ctx === null) return { w: 0, rows: [] as Array<{ y: number; n: number; left: number; right: number }> };
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
       const w = canvas.width;
       const h = canvas.height;
@@ -620,16 +643,18 @@ test.describe('minimap', () => {
         }
         if (n > 0) out.push({ y, n, left, right });
       }
-      return out;
+      return { w, rows: out };
     });
+    const { w, rows } = scan;
     expect(rows.length).toBeGreaterThan(0);
+    // Vacuous-pass guard (collapsed pane), as in the ASCII test.
+    expect(w).toBeGreaterThanOrEqual(40);
 
     // Isolate the title rows between the bibdata strip and the body bar.
     // The bar is SOLID (n ≈ span); Firefox measures the paragraph taller
     // than Chromium (12 px vs 6), so a fixed `lastY - 6` guard is not
     // engine-stable — classify by solidity instead (the nested-indent
     // test's `isBar` idiom).
-    const w = 96;
     const stripRows = rows.filter((r) => r.n >= w - 1 && r.y < 60);
     expect(stripRows.length).toBeGreaterThan(0);
     const stripEnd = stripRows[stripRows.length - 1].y;
@@ -742,13 +767,14 @@ test.describe('minimap', () => {
     // Measure per painted pixel ROW (leftmost painted x), NOT per band:
     // on Firefox the paragraph bars paint taller and the title glyph
     // rows abut them flush, so vertically-merged bands differ per
-    // engine — row-level lefts are the engine-stable unit. Headless dpr
-    // is 1, so canvas pixels ≈ CSS pixels (2px per depth step at the
-    // default indentUnit).
-    const rows = await page.evaluate(() => {
+    // engine — row-level lefts are the engine-stable unit. The canvas's
+    // backing-store width comes back with the rows (device px; headless
+    // dpr 1, so ≈ CSS px). Headless dpr is 1, so canvas pixels ≈ CSS
+    // pixels (2px per depth step at the default indentUnit).
+    const scan = await page.evaluate(() => {
       const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
       const ctx = canvas.getContext('2d');
-      if (ctx === null) return [];
+      if (ctx === null) return { w: 0, rows: [] as Array<{ y: number; n: number; left: number; right: number }> };
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
       const w = canvas.width;
       const out: Array<{ y: number; n: number; left: number; right: number }> = [];
@@ -765,12 +791,16 @@ test.describe('minimap', () => {
         }
         if (n > 0) out.push({ y, n, left, right });
       }
-      return out;
+      return { w, rows: out };
     });
+    const { w, rows } = scan;
+    expect(rows.length).toBeGreaterThan(0);
+    // Vacuous-pass guard (collapsed pane), as in the glyph tests.
+    expect(w).toBeGreaterThanOrEqual(40);
 
     // The bibdata strip: full-width solid rows at the top — everything
     // below it is the six text rows (titles + paragraphs).
-    const stripRows = rows.filter((r) => r.n >= 95 && r.y < 60);
+    const stripRows = rows.filter((r) => r.n >= w - 1 && r.y < 60);
     expect(stripRows.length).toBeGreaterThan(0);
     const stripEnd = stripRows[stripRows.length - 1].y;
     const textRows = rows.filter((r) => r.y > stripEnd);
