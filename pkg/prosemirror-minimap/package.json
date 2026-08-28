@@ -10,7 +10,11 @@
   },
   "scripts": {
     "compile": "tsc --outdir compiled",
-    "test": "yarn node --test test.mjs"
+    "test": "yarn node --test test.mjs",
+    "e2e": "playwright test --config=e2e/playwright.config.ts",
+    "e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
+    "e2e:install": "playwright install chromium",
+    "e2e:install-deps": "playwright install-deps chromium"
   },
   "peerDependencies": {
     "prosemirror-model": "^1.25.8",
@@ -24,12 +28,17 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "prosemirror-commands": "^1.7.1",
+    "prosemirror-keymap": "^1.2.2",
     "prosemirror-model": "^1.25.8",
     "prosemirror-state": "^1.4.4",
     "prosemirror-transform": "^1.12.0",
     "prosemirror-view": "1.42.0",
     "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "typescript": "~6.0.3"
   }
 }

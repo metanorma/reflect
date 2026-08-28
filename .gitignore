@@ -6,7 +6,10 @@
 !/pkg/*/compiled/README.rst
 
 # Playwright test output (failure artifacts, .last-run.json)
-/pkg/editor-gui/test-results
+/pkg/*/test-results
+
+# Harness page build output (pkg/prosemirror-minimap/harness/dist/)
+/pkg/*/harness/dist/*
 
 /package.mjs
 #/build-*.mjs

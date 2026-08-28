@@ -857,15 +857,20 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./.yarn/__virtual__/@metanorma-prosemirror-minimap-virtual-25db354171/1/pkg/prosemirror-minimap/",\
         "packageDependencies": [\
           ["@metanorma/prosemirror-minimap", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/prosemirror-minimap"],\
+          ["@playwright/test", "npm:1.62.1"],\
           ["@types/prosemirror-model", null],\
           ["@types/prosemirror-state", null],\
           ["@types/prosemirror-view", null],\
           ["@types/react", "npm:19.2.14"],\
+          ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
+          ["prosemirror-commands", "npm:1.7.1"],\
+          ["prosemirror-keymap", "npm:1.2.3"],\
           ["prosemirror-model", "npm:1.25.11"],\
           ["prosemirror-state", "npm:1.4.4"],\
           ["prosemirror-transform", "npm:1.12.0"],\
           ["prosemirror-view", "npm:1.42.0"],\
           ["react", "npm:19.2.7"],\
+          ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
         ],\
         "packagePeers": [\
@@ -881,12 +886,17 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./pkg/prosemirror-minimap/",\
         "packageDependencies": [\
           ["@metanorma/prosemirror-minimap", "workspace:pkg/prosemirror-minimap"],\
+          ["@playwright/test", "npm:1.62.1"],\
           ["@types/react", "npm:19.2.14"],\
+          ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
+          ["prosemirror-commands", "npm:1.7.1"],\
+          ["prosemirror-keymap", "npm:1.2.3"],\
           ["prosemirror-model", "npm:1.25.11"],\
           ["prosemirror-state", "npm:1.4.4"],\
           ["prosemirror-transform", "npm:1.12.0"],\
           ["prosemirror-view", "npm:1.42.0"],\
           ["react", "npm:19.2.7"],\
+          ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
         ],\
         "linkType": "SOFT"\

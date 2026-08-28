@@ -1,0 +1,72 @@
+/**
+ * Harness styles (§15.3). The minimap's own `.mn-minimap*` classes come
+ * from the package's `minimap.css` (bundled by the build); this file only
+ * styles the page chrome (layout shell, scroll shapes).
+ *
+ * The pane is deliberately fixed (96×600) so pixel assertions (bar widths,
+ * band heights) are deterministic: the harness owns the geometry, no
+ * consumer CSS can shift it.
+ */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+#mn-harness-root {
+  height: 100vh;
+}
+
+.mn-harness-app {
+  display: flex;
+  gap: 12px;
+  height: 100vh;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+/* The editor host fills the remaining flex width (a bare flex item is
+ * shrink-to-fit — without this the editor collapses to zero width and
+ * the scroll container geometry degenerates). */
+.mn-harness-editor {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* `editor-scrolls`: the ProseMirror editable itself is the scroll
+ * container (the editor-gui shape — §15.3 `scrollShape` variants). */
+.mn-harness-editor.mn-harness-editor-scrolls .ProseMirror {
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* `wrapper-scrolls(-explicit)`: an outer div scrolls; the editable
+ * grows to content height inside it. */
+.mn-harness-scrollwrapper {
+  overflow-y: auto;
+  height: 100%;
+}
+
+.mn-harness-editor:not(.mn-harness-editor-scrolls) .ProseMirror {
+  height: auto;
+}
+
+.mn-harness-pane {
+  width: 96px;
+  height: 600px;
+  flex: 0 0 auto;
+}
+
+/* Editor content readability (not under test, but the text strategy
+ * calibrates against rendered line-height). */
+.mn-harness-app p {
+  margin: 0 0 0.5em;
+  line-height: 1.4;
+}
+
+.mn-harness-app h1,
+.mn-harness-app h2,
+.mn-harness-app h3 {
+  margin: 0.4em 0 0.3em;
+  line-height: 1.3;
+}

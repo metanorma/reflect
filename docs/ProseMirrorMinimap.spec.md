@@ -141,6 +141,8 @@ TypeScript source at `pkg/prosemirror-minimap/`:
 | `react.tsx` | The `Minimap` React component (§11). |
 | `minimap.css` | Structural styles and DOM-overlay tokens (§12). |
 | `test.mjs` | Headless `node:test` suite (§15). |
+| `harness/` | Browser e2e harness page + its build/serve scripts (§15.3). Not part of the package exports — dev-only. |
+| `e2e/` | Package-owned browser e2e suite + Playwright config (§15.3). |
 
 ---
 
@@ -1321,6 +1323,56 @@ patch, mapping, memory — §15.1.17) and verified in the browser via renderer
 cost telemetry (recorded per repaint by `InlineRenderer`); the browser
 verification is a manual check-list item for the consumer's e2e suite, not
 a package test.
+
+### 15.3 Browser e2e (harness)
+
+The package owns its browser tests: `pkg/prosemirror-minimap/e2e/` runs
+Playwright against a dev-only harness page (`pkg/prosemirror-minimap/harness/`)
+— a plain `EditorView` on a synthetic schema plus `<Minimap>` in a fixed
+96×600 pane. No `@handlewithcare/*`, no Metanorma packages: the harness's
+runtime surface is exactly the package's own peers, so package contracts
+are tested without consumer wiring (and stop breaking on consumer restyles
+or schema refactors — the failure mode that motivated the suite).
+
+| Piece | Path | Notes |
+|---|---|---|
+| Harness page | `harness/page.tsx` | Mount API below; `harness/schema.ts` declares the synthetic schema (doc / paragraph / heading / quote / code_block) browser-side, cross-referenced with `test.mjs` §15.1.1's fixtures. |
+| Build/serve | `build-minimap-demo.mjs` (repo root), `harness/serve.mjs` | Same PnP-resolver bundling as the consumer GUI build; serves `harness/dist/` on :3334. |
+| Suite | `e2e/minimap.spec.ts` + `e2e/harness.spec.ts` | `e2e/fixtures.ts` holds the mount plumbing and the shared canvas-ink/geometry probes (`paintedRows`, `inkBands`, `scrollGeom`, `thumbGeom`). |
+
+**Mount API** (page-global, plain JS objects — everything a test passes
+must be structured-cloneable):
+
+- `window.__mnMount({ doc, options, scrollShape })` — unmount any previous
+  instance, then create a view + pane from the given JSON doc and
+  `MinimapOptions`. Options flow verbatim, so each test pins its own
+  zoom/display/theme. `classifier` is passed as a NAME resolved by the page
+  (functions cannot cross `page.evaluate`).
+- `window.__mnUnmount()` — teardown.
+- `window.__mnLoadDoc(json)` — remount with a new doc under the same
+  config (exercises the teardown/attach path; the in-place state-swap
+  path is consumer wiring).
+- `window.__mnReady(): Promise<void>` — resolves after the first paint.
+
+**Scroll shapes** — `scrollShape` selects among three DOM skeletons,
+pinning the §7.1 scroll-container contract: `editor-scrolls` (the
+`.ProseMirror` element scrolls — the editor-gui shape), `wrapper-scrolls`
+(an outer wrapper scrolls; the default walk-up must find it), and
+`wrapper-scrolls-explicit` (same DOM, but the page injects an
+`options.scrollContainer` resolver).
+
+**Chromium-only, deliberately.** The suite's assertions are pixel/paint
+analysis (canvas ink extents, band shapes) and drag geometry — per-engine
+non-portable (Firefox rasterizes text differently at these scales).
+Cross-engine coverage of the minimap's interaction surface stays in the
+consumer suite (`pkg/editor-gui`), which runs chromium + firefox and
+retains placement, the state-swap regression, and one integration smoke
+test; the consumer no longer tests package contracts.
+
+**Running:** `yarn workspace @metanorma/prosemirror-minimap e2e`
+(`e2e:install` / `e2e:install-deps` provision chromium and its OS
+libraries first). The webServer builds the harness and serves it
+automatically.
 
 ---
 
