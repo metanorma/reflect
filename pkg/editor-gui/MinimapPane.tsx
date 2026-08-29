@@ -56,7 +56,7 @@ const EDITOR_VIEWPORT_ID = 'mn-editor-viewport';
  * better at paragraph scale and dodge the glyph defects entirely.
  */
 const minimapOptions: MinimapOptions = {
-  display: 'sliding',
+  zoomPxPerEditorPx: 0.18,
   theme: {
     background: 'transparent',
     classes: {
