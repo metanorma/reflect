@@ -19,11 +19,11 @@ All raw content is reachable as
 
 | Repository | Commit | Role |
 |---|---|---|
-| metanorma/metanorma-standoc | `601c3761` | AsciiDoc→Semantic-XML converter; runtime `validate/` grammars |
-| metanorma/standoc-models | `4bad3672` | Human-authored grammar sources (`grammars/`) |
-| metanorma/basicdoc-models | `d2a94b1a` | Base grammar (`basicdoc.rnc`); submodule of standoc-models |
-| metanorma/metanorma | `08ea913c` | Pipeline orchestrator (compile driver) |
-| metanorma/isodoc | `8d8f3524` | Semantic→Presentation-XML transform and renderers |
+| metanorma/metanorma-standoc | `38a50557` | AsciiDoc→Semantic-XML converter; runtime `validate/` grammars |
+| metanorma/standoc-models | `7d5d737c` | Human-authored grammar sources (`grammars/`) |
+| metanorma/basicdoc-models | `3b408b71` | Base grammar (`basicdoc.rnc`); submodule of standoc-models |
+| metanorma/metanorma | `a62ca5a8` | Pipeline orchestrator (compile driver) |
+| metanorma/isodoc | `92b3d2b0` | Semantic→Presentation-XML transform and renderers |
 
 **Naming note (three senses of "isodoc").** Upstream commit `4bad36724d`
 (2026-08-17, "grammars: rename isodoc.\* sources to standoc.\* (retire the
@@ -32,20 +32,33 @@ misnomer)") renamed the grammar sources in `metanorma/standoc-models`:
 `standoc-presentation.rnc`, and companions. It did **not** rename: (a) the
 `metanorma/isodoc` **gem** (the Presentation-XML renderer — "Isodoc" properly
 names that gem); (b) the **vendored runtime filename** `validate/
-isodoc-compile.rng` in metanorma-standoc, deliberately retained because gem
-code loads that path; (c) `isostandard.rnc`, the actual ISO-flavour grammar.
-When this ledger or the corpus says **Standoc**, it means the shared grammar
-layer (`grammars/standoc.rnc`); **isodoc** references below the rename are the
-gem or the vendored runtime path. The rename commit is content-neutral for the
-semantic grammar (one comment word); the drift recorded in §4 came from the
-intervening re-sync `8bb23fd5631e`.
+isodoc-compile.rng` in metanorma-standoc (gem code loads that path —
+`validate/schema.rb` `schema_file`); (c) `isostandard.rnc`, the actual
+ISO-flavour grammar. When this ledger or the corpus says **Standoc**, it
+means the shared grammar layer (`grammars/standoc.rnc`); **isodoc** references
+below the rename are the gem or the vendored runtime path. The rename commit is
+content-neutral for the semantic grammar (one comment word); the drift recorded
+in §4 came from the intervening re-sync `8bb23fd5631e`.
 
-**Re-verification.** Facts below were verified 2026-08-16 at these commits,
-except two marked *(2026-08-11)*, which predate the pinning; §3/§4 were
-re-verified **2026-08-18** at `standoc-models@4bad3672` (post-rename;
-diff against the 2026-08-16 pin recorded in §4). Re-verify on the next
-metanorma-standoc release; drift then surfaces as a diff against a known
-commit.
+**Vendoring note.** The rename is now propagating through the vendoring
+layer. standoc-models' `grammars/copy.sh` (at the 2026-08-22 merged PR #46,
+"Cutover complete: grammar re-sync, standoc.\* rename, .lml source
+migration") vendors under `standoc.*` destination names; at the pinned
+metanorma-standoc commit the shipped files are still the legacy
+`isodoc.rng`/`isodoc-compile.rng` (a self-consistent chain:
+`isodoc-compile.rng` → `isodoc.rng` → `reqt.rng` + `basicdoc.rng`).
+Expect the gem's `validate/` filenames — and the `schema_file` path — to
+flip to `standoc.*` on the next vendoring pass; the models-side rename is
+done, the gem-side flip is pending.
+
+**Re-verification.** Facts below were verified 2026-08-16 at the then-pins,
+re-verified 2026-08-18, and re-verified **2026-09-25** at the §1 pins
+(trigger: metanorma-standoc main advanced past its release-trigger pin).
+Grammar sources: `standoc.rnc` and `standoc-presentation.rnc` are
+**byte-identical** to the 2026-08-18 verification — §3 stands as verified.
+All drift is in `basicdoc.rnc` (submodule `50fe9e85` → `3b408b71`, PR #46);
+recorded in §4. Re-verify on the next metanorma-standoc release; drift then
+surfaces as a diff against a known commit.
 
 ## 2. Pipeline and artifacts
 
@@ -67,16 +80,23 @@ AsciiDoc ──(standoc makexml1 + cleanup)──► Semantic XML
   `makexml1` → `cleanup` → validate) and validated there: content checks
   (`validate/validate.rb` — xref integrity, empty-block, MathML via Plurimath)
   plus RelaxNG via Jing against `validate/isodoc-compile.rng`
-  (`validate/schema.rb` `schema_file`), gated on `@novalid`.
+  (`validate/schema.rb` `schema_file`), gated on `@novalid`. Since the
+  2026-09-25 re-verification the gem's lib paths are flat — `lib/metanorma/
+  converter/base.rb` etc. (a 2026-09 restructure flattened the old
+  `lib/metanorma/standoc/…` prefix; the `validate/` runtime paths are
+  unchanged).
 - Presentation XML is produced by isodoc's `PresentationXMLConvert`, reached
   through the metanorma driver (`compile/compile.rb` `generate_presentation_xml`
   → `compile/render.rb` `process_ext(:presentation)` → `@processor.output`).
-- **Presentation XML is not RelaxNG-validated at runtime.** At the pinned
-  isodoc commit neither `PresentationXMLConvert` nor its base `Convert` class
-  defines any `validate` method; the only runtime RNG pass is the Semantic one
-  above. The single runtime grammar, `isodoc-compile.rng`, is therefore the
-  Semantic-XML grammar even though its compiled model also admits
-  presentation-only constructs (§3).
+- **Presentation XML is not RelaxNG-validated at runtime.** isodoc's
+  `PresentationXMLConvert` gained a `validate` method
+  (`presentation_function/ids.rb` `id_validate`) by the 2026-09-25
+  re-verification — but it performs ID/IDREF bookkeeping (adding
+  missing presxml ids to `fmt-*` targets, repeat-id checks, contenthash
+  cleanup), not grammar validation; no RelaxNG pass exists on the
+  presentation path. The single runtime RNG grammar remains
+  `isodoc-compile.rng`, the Semantic-XML grammar, even though its compiled
+  model also admits presentation-only constructs (§3).
 
 ## 3. Semantic vs Presentation — the layering test
 
@@ -149,9 +169,10 @@ From `basicdoc-models → grammars/basicdoc.rnc` and `standoc.rnc`:
 | `formula` | `RequiredId`; body = **required** `stem` child, then `dl?`, `note*` — not an empty atom |
 | `stem` | **required** `type` = `MathML`\|`AsciiMath`\|`LaTeX` (basicdoc) plus **required** `block` boolean (standoc combine) and `number-format?`; content = `text?`, `mathml?`, `asciimath?`, `latexmath?` child elements. Used both inline (in the `TextElement` choice) and as formula's math content |
 
-**Drift since the 2026-08-16 pin** (introduced by the re-sync
-`8bb23fd5631e`, 2026-08-17, shortly before the rename; verified 2026-08-18 at
-`4bad3672`):
+**Drift since the 2026-08-16 pin** (all in `basicdoc.rnc`; the standoc-models
+submodule moved twice — `d2a94b1a` → `50fe9e85` at the `8bb23fd5` re-sync
+(2026-08-17), `50fe9e85` → `3b408b71` at PR #46 (2026-08-22). Re-verified
+2026-09-25 against the full `d2a94b1a` → `3b408b71` diff):
 
 - `OlAttributes.@type` widened from the closed five-value enum
   (`roman`\|`alphabet`\|`arabic`\|`roman_upper`\|`alphabet_upper`) to admit
@@ -160,16 +181,40 @@ From `basicdoc-models → grammars/basicdoc.rnc` and `standoc.rnc`:
   metanorma-ietf). The five named literals survive but are no longer exclusive.
 - `ExampleBody` is no longer redefined wholesale by standoc; the caption
   (`tname?`), cardinality, and trailing `note*` moved back to the base layer
-  (`basicdoc.rnc`: `ExampleBody = tname?, ExampleBodyContent+, note*`) and
-  standoc overrides only the content-alternative hook `ExampleBodyContent`
-  (`formula | ul | ol | dl | quote | sourcecode |
-  paragraph-with-footnote | figure`) so higher layers' `|=` extensions attach
-  to the governing definition (metanorma-model-iso#160). **Semantic content
-  set is unchanged** for the editor's purposes.
-- Everything in the table above and §3 is otherwise byte-identical
+  and standoc overrides only the content-alternative hook `ExampleBodyContent`
+  so higher layers' `|=` extensions attach to the governing definition
+  (metanorma-model-iso#160). **Semantic content set is unchanged** for the
+  editor's purposes.
+- `TdBody` table cells: inline branch admits `fn` alongside `TextElement`, and
+  the block branch, `paragraph-with-footnote+` at the 2026-08-16 pin (briefly
+  `(paragraph-with-footnote | note)+`), is now `BasicBlock+`
+  (metanorma-model-iso#154/#157 — AsciiDoc `a|` cells, Pandoc). The 2026-08-18
+  pass missed this change (it read the submodule at the ledger's stale pin);
+  recorded correctly here since 2026-09-25.
+- `index`/`index-xref`: `index-secondary` and `index-tertiary` are now
+  **optional** (required at the 2026-08-16 pin). Also missed by the 2026-08-18
+  pass; recorded since 2026-09-25.
+- **Attribute register family (new, PR #46 window)**: `reg-attribute`
+  (element `attribute`, `@key` + `@scheme?` + text or `value*` children) is
+  admitted as a leading child across essentially every body model
+  (`ParagraphBody`, `NoteBody`, `FormulaBody`, `QuoteBody`, `SourceBody`,
+  `TableBody`, `FigureBody`, `UlBody`/`OlBody`/`DlBody`, `LiBody`, `dd`,
+  `ExampleBody`, `TdBody`, and basicdoc's generic `section`/`document`
+  containers — not the standoc `Clause-Section`); a sibling `variable-ref`
+  inline element (`@name`, inline
+  content — model home for `{attr}` / template variables) joins `TextElement`,
+  `PureTextElement`, and `NestedTextElement`; `amend/newcontent` additionally
+  admits `document*`.
+- **Block-content relaxations (PR #46 window)**: `quote` body, `admonition`
+  body, `li` items, and `dd` definitions widened from
+  `paragraph-with-footnote`-only shapes to `BasicBlock` content (`li` and `dd`
+  now allow zero or more blocks — a bare empty item is valid);
+  `thead`/`tfoot` widened from a single `tr` to `tr+`;
+  `review/@reviewer` is now optional. All widenings.
+- Everything else in the table above and §3 is otherwise unchanged
   (`sections`, `clause`/`Clause-Section`, annex structure, `preface`,
-  `bibliography`, `references`, `floating-title`, `section-title`, `table`,
-  `TdBody`, all `BasicBlock` extensions, `start`).
+  `bibliography`, `references`, `floating-title`, `section-title`, `table`
+  container shape, all `BasicBlock` extensions, `start`).
 
 `stem`'s display mode is the `block` boolean — not the `type` enum, which
 selects the encoding. The encoding lives in child elements selected by `type`;
