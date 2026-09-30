@@ -805,8 +805,11 @@ export class InlineRenderer extends RendererBackend {
   }
 
   /**
-   * Inline tint (§8.4): multiplies with the row's class color at the
-   * span's tone alpha — the tinted rows keep their class hue underneath.
+   * Inline tint (§8.4): multiplies with the row's class color — the tinted
+   * rows keep their class hue underneath. The tone string carries its own
+   * alpha channel (`rgba()`/8-digit hex for translucency, anything else
+   * paints opaque); the renderer applies no alpha of its own, so consumer
+   * tones paint at their own strength.
    */
   private paintInlineTint(
     ctx: CanvasRenderingContext2D,
@@ -819,7 +822,6 @@ export class InlineRenderer extends RendererBackend {
     const h = rowSpanHeight(span, model) * this.scale;
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = this.theme.selection.alpha;
     ctx.fillStyle = span.color;
     ctx.fillRect(0, y0, w, Math.max(1, h));
     ctx.restore();

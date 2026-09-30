@@ -111,3 +111,33 @@ export function resolveSpans(
   }
   return out;
 }
+
+/**
+ * Compose an alpha into a hex color, yielding an `rgba()` string (§8.4):
+ * the tone string a lane-0 inline tint paints at is the span's own color,
+ * alpha channel included — the renderer applies no alpha of its own.
+ *
+ * Hex-only (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbbaa`-shaped 4/8-digit
+ * forms): the supplied `alpha` REPLACES any alpha the hex carried, clamped
+ * to [0, 1]. Any other input — a named color, an already-`rgba()`/`hsla()`
+ * functional form, `transparent` — is returned unchanged: the canvas
+ * interprets it natively, so such a tone keeps its own alpha. A non-finite
+ * `alpha` is treated the same way (pass-through, not a crash).
+ */
+export function withAlpha(color: string, alpha: number): string {
+  if (!Number.isFinite(alpha)) {
+    return color;
+  }
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i
+    .exec(color.trim());
+  if (hex === null) {
+    return color;
+  }
+  const digits = hex[1] ?? '';
+  const short = digits.length === 3 || digits.length === 4;
+  const channels = short
+    ? [...digits.slice(0, 3)].map((c) => parseInt(c + c, 16))
+    : digits.slice(0, 6).match(/.{2}/g)!.map((c) => parseInt(c, 16));
+  const a = Math.min(1, Math.max(0, alpha));
+  return `rgba(${channels.join(', ')}, ${a})`;
+}

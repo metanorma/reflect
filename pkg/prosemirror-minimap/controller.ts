@@ -38,6 +38,7 @@ import {
   mergeLayers,
   resolveSpans,
   selectionSpans,
+  withAlpha,
 } from './layers.js';
 import type { TieredRenderer } from './renderer.js';
 import { selectTier, medianRowPx, type Tier } from './tiers.js';
@@ -1385,7 +1386,13 @@ export class MinimapController {
       selectionSpans(sel.from, sel.to),
       (p) => this.rowAtPos(p),
       (id) => this.rowAtNodeId(id),
-      this.theme.selection.color,
+      // The tone composes `theme.selection.alpha` INTO the color string
+      // here (§8.4): the renderer paints every lane-0 tint at its tone
+      // string's own alpha and applies no alpha of its own.
+      withAlpha(
+        this.theme.selection.color,
+        this.theme.selection.alpha,
+      ),
     );
     r.setLayer('selection', spans);
     if (!this.pending.has(PendingWork.Window)) {

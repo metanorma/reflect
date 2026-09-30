@@ -448,6 +448,10 @@ interface MinimapTheme {
                               // experimental (see below)
   }>;
   selection: { color: string; alpha: number };
+                              // the inline-tint tone: a hex `color`
+                              // is composed with `alpha`,
+                              // a non-hex color passes through
+                              // with its own alpha so `alpha` is inert
   background: string;
 }
 ```
@@ -967,8 +971,14 @@ not by count:
   document carries 50 findings or 50,000.
 - Lane assignment is producer policy: severity-distinct lanes (error /
   warning / info) so a warning-dense clause cannot occlude a single error.
-- Inline-tint spans (lane 0) multiply with the row's class color at the
-  span's tone alpha; they are clamped to whole rows.
+- Inline-tint spans (lane 0) multiply with the row's class color — the
+  tinted rows keep their class hue underneath. The tint paints at its tone
+  string's own alpha channel: an `rgba()`/`hsla()` tone paints at that
+  alpha, a color with no alpha component paints opaque, and the renderer
+  applies no alpha of its own. The built-in `selection` layer composes
+  `theme.selection.color` + `theme.selection.alpha` into one tone string
+  at the controller seam (the two are one input, not a paint-time pair);
+  spans are clamped to whole rows.
 - All spans are clipped to the visible window (§6.3); paint is O(visible
   spans + merge), never O(spans).
 - Under tier-3 aggregation (§6.5), an aggregated run that contains any marked
@@ -1301,6 +1311,11 @@ extensions.
 18. **Performance (headless-measurable)**: at ~10k blocks, a single-block
     incremental update stays within budget and `rowAtPos` lookups remain
     logarithmic (thousands of lookups well under frame budget).
+19. **Inline-tint tone alpha** (§8.4): the built-in selection layer's
+    recorded tint carries `theme.selection.color` and `alpha` composed
+    into one `rgba()` tone string; a consumer layer's lane-0 tone paints
+    verbatim (an `rgba()` tone at its own alpha, a tone-less span at the
+    default marker color, opaque).
 
 ### 15.2 Performance budgets
 

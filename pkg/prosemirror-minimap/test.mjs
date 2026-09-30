@@ -42,7 +42,12 @@ import {
   paintsGlyphs,
   rowWidthFraction,
 } from './compiled/renderer.js';
-import { mergeLayers, resolveSpans, selectionSpans } from './compiled/layers.js';
+import {
+  mergeLayers,
+  resolveSpans,
+  selectionSpans,
+  withAlpha,
+} from './compiled/layers.js';
 import {
   proportionalScrollTop,
   preciseScrollTop,
@@ -553,6 +558,26 @@ test('§15.1.7 layers: ascending z across text/consumer/selection', () => {
   assert.ok(r.calls.indexOf(diag) < r.calls.indexOf(sel));
   // All rows (text layer, z=10) paint before any span.
   assert.ok(firstRow !== -1 && firstSpan !== -1 && firstRow < firstSpan);
+});
+
+
+// --- §8.4 Inline-tint tone alpha (withAlpha) -----------------------------------
+
+test('§8.4 withAlpha: composes hex + alpha; passes everything else through', () => {
+  // The default theme's selection composes to exactly this string.
+  assert.equal(withAlpha('#77aaff', 0.3), 'rgba(119, 170, 255, 0.3)');
+  // 3-digit expansion; 4-digit's own alpha is REPLACED, not kept.
+  assert.equal(withAlpha('#7af', 0.5), 'rgba(119, 170, 255, 0.5)');
+  assert.equal(withAlpha('#7aff', 0.5), 'rgba(119, 170, 255, 0.5)');
+  // 8-digit: channel digits win, the hex alpha is discarded.
+  assert.equal(withAlpha('#77aaffcc', 0.5), 'rgba(119, 170, 255, 0.5)');
+  // Clamp outside [0, 1].
+  assert.equal(withAlpha('#77aaff', 2), 'rgba(119, 170, 255, 1)');
+  assert.equal(withAlpha('#77aaff', -1), 'rgba(119, 170, 255, 0)');
+  // Non-hex and non-finite alpha: pass-through (canvas reads the string).
+  assert.equal(withAlpha('rgba(255, 0, 0, 0.12)', 0.3), 'rgba(255, 0, 0, 0.12)');
+  assert.equal(withAlpha('red', 0.3), 'red');
+  assert.equal(withAlpha('#77aaff', Number.NaN), '#77aaff');
 });
 
 
@@ -1496,6 +1521,68 @@ test('§15.1.22 layers: pos spans follow an insert; id spans drop when deleted; 
   assert.equal(
     h.controller.mapPos(10, strict), 10,
     'the cut point itself survives (assoc equality)',
+  );
+});
+
+
+// --- §15.1.24 Inline-tint tone alpha (§8.4 lane 0) -----------------------------
+
+test('§15.1.24 selection tint: theme alpha is composed into the tone string at the controller seam', async () => {
+  await controllerPromise;
+  const d = doc(para('one'), para('two'), para('three'));
+  // A selection spanning rows: from the start of 'one' into 'three'.
+  const h = makeControllerHarness({
+    doc: d,
+    selection: { from: 1, to: d.content.size - 1 },
+  });
+  h.controller.flush();
+  // The recorded inline tint carries the composed rgba string — the
+  // renderer paints it verbatim with no alpha of its own (§8.4).
+  const inlineCalls = () => h.renderer.calls.filter((c) => c.kind === 'inline');
+  const sel = inlineCalls().find((c) => c.color !== undefined);
+  assert.ok(sel !== undefined, 'an inline tint was painted');
+  assert.equal(
+    sel.color,
+    `rgba(119, 170, 255, ${defaultTheme.selection.alpha})`,
+    'theme.selection.color + alpha composed into the tone',
+  );
+});
+
+test('§15.1.24 consumer tints: a lane-0 tone paints verbatim at its own alpha', async () => {
+  await controllerPromise;
+  const d = doc(para('one'), para('two'));
+  const h = makeControllerHarness(
+    { doc: d, selection: { from: 1, to: 1 } },
+  );
+  h.controller.flush();
+  const twoPos = h.controller.getRows()[1].pos;
+  // An rgba() tone: passes through verbatim (NOT forced to any theme
+  // alpha — the regression this guards against).
+  h.controller.setLayer('diag', {
+    anchor: 'pos',
+    spans: [{ kind: 'pos', from: twoPos, to: twoPos + 2 }],
+    lane: 0,
+    tone: () => 'rgba(255, 0, 0, 0.12)',
+  });
+  // A tone-less lane-0 layer: the DEFAULT_MARKER_COLOR fallback, opaque.
+  h.controller.setLayer('plain', {
+    anchor: 'pos',
+    spans: [{ kind: 'pos', from: twoPos, to: twoPos + 2 }],
+    lane: 0,
+  });
+  h.controller.flush();
+  const colors = h.renderer.calls
+    .filter((c) => c.kind === 'inline')
+    .map((c) => c.color);
+  assert.ok(
+    colors.includes('rgba(255, 0, 0, 0.12)'),
+    `the consumer rgba tone paints verbatim (got ${JSON.stringify(colors)})`,
+  );
+  assert.ok(
+    colors.includes('#d29922'),
+    `a tone-less lane-0 span paints the default marker color (got ${
+      JSON.stringify(colors)
+    })`,
   );
 });
 
