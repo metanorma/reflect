@@ -741,14 +741,15 @@ export class InlineRenderer extends RendererBackend {
       return;
     }
     ctx.fillStyle = cls.color;
-    // A rectangle paints a BAR of its slot minus a proportional gap: at
-    // slot-scale ≈ 1 (sliding mode) the gap is ~1px — adjacent lines that
-    // read as continuous text; at large fit scales the gap grows with the
-    // slot so consecutive rows stay visually separated (the glyph path's
-    // small-cell-in-a-big-slot look) instead of merging into one solid
-    // block. Tall single rows (figures, tables) keep their block shape —
-    // the gap is proportional, not a height cap.
-    const gap = Math.max(1, Math.floor(r.h * ROW_GAP_FRACTION));
+    // A rectangle paints a BAR of its slot minus an inter-row gap. The
+    // gap's carrier is ONE LINE SLOT (§6.5): at sliding zooms a line slot
+    // is a few minimap px, so the 1px floor reads as continuous text; at
+    // large fit scales the line slot grows and consecutive rows stay
+    // visually separated instead of merging into one solid block. The
+    // carrier being a line — never the row's own slot — is what keeps a
+    // tall single row (a figure, a table) painting its block shape
+    // end-to-end: 15% of one line is 1–3px no matter how tall the row.
+    const gap = barGapPx(r.h, this.scale, this.theme.lineHeight);
     const barH = Math.max(1, r.h - gap);
     ctx.fillRect(x, r.y, Math.max(1, usable * widthFrac), barH);
   }
@@ -846,8 +847,9 @@ export class InlineRenderer extends RendererBackend {
 }
 
 /**
- * Fraction of a row's slot height left as a gap between painted bars
- * (§6.5 rectangle rendering): `1 − ROW_GAP_FRACTION` of the slot paints.
+ * Fraction of a LINE slot left as the gap between painted bars (§6.5
+ * rectangle rendering): a bar paints its slot minus `barGapPx` — see
+ * `barGapPx` for why the carrier is a line, not the row's own slot.
  */
 const ROW_GAP_FRACTION = 0.15;
 
@@ -909,6 +911,37 @@ export function rowWidthFraction(
  * formula's base), with margin so the ordering reads at a glance.
  */
 const EMPTY_TEXT_FRACTION = 0.08;
+
+/**
+ * The gap in minimap px left between a row's painted bar and the next
+ * row's (§6.5 rectangle rendering) — one place, headlessly testable.
+ *
+ * The gap's carrier is ONE LINE SLOT (`lineHeight × scale`), not the
+ * row's own slot height: the separator exists to keep line-sized rows
+ * reading as separate lines, and the thing whose scale it must track is
+ * a line at the current paint scale. That gives:
+ *
+ * - Sliding zooms (line slot of a few px): the 1px floor — adjacent
+ *   lines read as continuous text.
+ * - Large fit scales (line slot of tens of px): the gap grows with the
+ *   line slot, so consecutive rows stay visually separated instead of
+ *   merging into one solid block.
+ * - A row taller than one line (multi-line paragraphs, figures,
+ *   tables): the gap stays at 15% of ONE line — capped at `slotH − 1`
+ *   so a bar always paints at least 1px — and the row keeps its block
+ *   shape end-to-end. (The pre-fix rule scaled with the row's own slot,
+ *   so a table spanning several panes lost 15% of its whole height to a
+ *   phantom separator and visibly ended screens early.)
+ */
+export function barGapPx(
+  slotH: number,
+  scale: number,
+  lineHeight: number,
+): number {
+  const lineSlot = Math.max(1, lineHeight * scale);
+  const gap = Math.floor(lineSlot * ROW_GAP_FRACTION);
+  return Math.max(1, Math.min(gap, Math.max(0, slotH - 1)));
+}
 
 function clamp01(v: number): number {
   return v < 0

@@ -341,6 +341,15 @@ export function* diffRows(
   if (st.oldIdx < oldRows.length) {
     bounds.structural = true;
   }
+  // Net row-count change (§7.2 step 4): a pure insertion emits rows
+  // without dropping any old one (pairChildren's middle-pairing insert
+  // branches), so no emit site flags it — yet every trailing row index
+  // shifts and the renderer's absolute-index mirror goes stale at those
+  // indices. Derived from the emitted-vs-consumed totals here, the flag
+  // needs no per-site maintenance and covers any future emit path.
+  if (st.emitted !== oldRows.length) {
+    bounds.structural = true;
+  }
   if (bounds.structural) {
     bounds.lastChanged = st.emitted;
   } else if (bounds.lastChanged < 0 && bounds.firstChanged >= 0) {

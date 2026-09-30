@@ -70,3 +70,15 @@ html, body {
   margin: 0.4em 0 0.3em;
   line-height: 1.3;
 }
+
+/* A block `image` gets a fixed on-screen height so the tall-row
+ * regression (e2e/minimap.spec.ts) has a real scrollable extent under
+ * it. The minimap row's height comes from the `tall` classifier's fixed
+ * 6000px strategy; the on-screen height just needs to make the doc
+ * actually scroll. */
+.mn-harness-app img {
+  display: block;
+  width: 40px;
+  height: 6000px;
+  background: #d0d0d8;
+}

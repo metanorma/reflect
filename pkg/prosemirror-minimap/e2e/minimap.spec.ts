@@ -658,4 +658,73 @@ test.describe('minimap (package e2e)', () => {
     expect(glyphBandH, JSON.stringify(bands)).toBeLessThanOrEqual(5);
     expect(glyphBandH).toBeGreaterThanOrEqual(1);
   });
+
+  test('a row taller than the pane keeps its block to the document end (tall-row gap regression)', async ({ page }) => {
+    // Regression (91855-class documents): the inter-bar gap was
+    // proportional to the ROW'S OWN slot, so a table spanning several
+    // panes lost 15% of its whole height to a phantom separator — its
+    // block visibly ended screens before the document end while the
+    // editor itself scrolled all the way. The fix anchors the gap to a
+    // ONE-LINE slot. Shape: an opaque 6000-editor-px `image` row at zoom
+    // 0.25 → a 1500px slot in the 600px pane (2.5 panes), with the tall
+    // row LAST (the long-table position — nothing paints below it).
+    await page.goto('/');
+    await mount(page, {
+      doc: docWith(
+        para('intro'),
+        { type: 'image', attrs: {} },
+      ),
+      options: {
+        ...TRANSPARENT_THEME,
+        classifier: 'tall',
+        theme: {
+          ...TRANSPARENT_THEME.theme,
+          classes: {
+            text: { color: '#8888a0', indent: true },
+            block: { color: '#b08ad0', indent: true },
+          },
+        },
+      },
+    });
+    await page.waitForTimeout(1500);
+
+    /** Last y with the BLOCK class's color (#b08ad0 → 176,138,208). */
+    const lastBlockInk = () => page.evaluate(() => {
+      const canvas = document.querySelector(
+        '.mn-minimap canvas',
+      ) as HTMLCanvasElement;
+      const ctx = canvas.getContext('2d')!;
+      const data = ctx.getImageData(
+        0, 0, canvas.width, canvas.height,
+      ).data;
+      const w = canvas.width;
+      let last = -1;
+      for (let y = canvas.height - 1; y >= 0 && last < 0; y--) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+          if (a > 10 && Math.abs(r - 176) < 30
+            && Math.abs(g - 138) < 30 && Math.abs(b - 208) < 30) {
+            last = y;
+            break;
+          }
+        }
+      }
+      return { last, h: canvas.height };
+    });
+
+    for (const frac of [0.6, 1]) {
+      await page.evaluate((f) => {
+        const pm = document.querySelector('.ProseMirror') as HTMLElement;
+        pm.scrollTop = f * (pm.scrollHeight - pm.clientHeight);
+      }, frac);
+      await page.waitForTimeout(300);
+      // The block row's ink must reach the pane bottom (within 3px).
+      // Pre-fix at frac=1 it ended ~225px early (floor(1500 × 0.15));
+      // post-fix the gap is 1px (barGapPx's line-slot carrier).
+      const { last, h } = await lastBlockInk();
+      expect(h - 1 - last, `frac ${frac}: block ink ${last} of ${h}`)
+        .toBeLessThanOrEqual(3);
+    }
+  });
 });

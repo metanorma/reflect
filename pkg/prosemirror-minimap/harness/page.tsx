@@ -62,6 +62,22 @@ const CLASSIFIERS: Record<string, MinimapClassifier> = {
       return null;
     },
   },
+  /** Tall-opaque-row shape (the long-table regression fixture): `image`
+   * atoms → a fixed 6000-editor-px `block` — one row whose slot spans
+   * several panes — other textblocks → `text`. The harness `<img>` has no
+   * intrinsic height, so `measureRowStride` returns 0 and the fixed
+   * estimate persists. */
+  tall: {
+    row: (node) => {
+      if (node.type.name === 'image') {
+        return { classId: 'block', height: { kind: 'fixed', px: 6000 } };
+      }
+      if (node.isTextblock) return { classId: 'text' };
+      return null;
+    },
+    recurse: (node) => node.type.name !== 'image'
+      && !node.isTextblock && !node.isLeaf,
+  },
 };
 
 export type ScrollShape =

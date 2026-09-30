@@ -599,7 +599,7 @@ row count — and the paint work — stays bounded at any document size:
 
 | Tier | Condition (row count) | Row rendering |
 |---|---|---|
-| 1 — `text` | ≤ `tier1Rows` (default 5,000) | Per-class: atlas glyphs for classes with `glyphs: true` (**experimental**, §5.4) — real glyphs blitted from a **pre-rasterized atlas** (one per theme font), per-class color; **filled bars** (the tier-2 rectangle shape, minus a proportional inter-row gap — 15% of the slot, so consecutive rows read as separate lines at any scale instead of merging into one solid block) for every other class, which is the default. The tier-1 fidelity *budget* is unchanged — only the default paint shape flips. |
+| 1 — `text` | ≤ `tier1Rows` (default 5,000) | Per-class: atlas glyphs for classes with `glyphs: true` (**experimental**, §5.4) — real glyphs blitted from a **pre-rasterized atlas** (one per theme font), per-class color; **filled bars** (the tier-2 rectangle shape, minus an inter-row gap — `barGapPx`: 15% of a ONE-LINE slot at the current paint scale, floored at 1px, capped at slot − 1; consecutive rows read as separate lines at any scale without merging into one solid block, while a row taller than one line keeps its block shape end-to-end) for every other class, which is the default. The tier-1 fidelity *budget* is unchanged — only the default paint shape flips. |
 | 2 — `blocks` | ≤ `tier2Rows` (default 50,000) | Filled rectangles: width by text length (clamped); a zero-length row paints the flat zero-length block — or, when the row's `textBlock` bit is set (§4.2, shape-derived), the minimal text bar below a one-word row (an empty textblock's zero length is a state that can fill; an atom's or structure's is permanent, and its block is the landmark); color by class, indent by depth. |
 | 3 — `aggregate` | > `tier2Rows` | Tier-2 rendering over **aggregated** rows: runs of ≥ `aggregateMin` (default 4) consecutive rows with the same `classId` and depth merge into one row whose height is the summed px (capped at `aggregateMax`, default 16 × median row px) and whose width signal is the **mean text length of the run's members** — the width formula reads as density: dense runs paint wide, sparse runs narrow, all-empty textblock runs fall into the minimal-bar branch (the run carries its first member's `textBlock` bit, like its `classId`/`depth`). The mean is taken over the run's FULL extent (the class/depth/unmarked match continues past the paint window), so a sliding window cannot pulse a bar's width by changing which members are visible. |
 
@@ -723,6 +723,21 @@ On each transaction:
    shift) extends the push to the end, a pure replacement stops after the
    last changed row. The diff reports `[firstChanged, lastChanged)` plus a
    `structural` flag; the re-sum starts at `firstChanged`.
+
+   #### Why `structural` is derived, not per-site
+
+   The flag is decided once, in the `diffRows` epilogue, from two totals:
+   any old row left unconsumed (deleted trailing content), or a net
+   row-count change (`emitted !== oldRows.length`). Per-emit-site flagging
+   cannot work: a **pure insertion** (a new sibling paragraph, section,
+   floating title, bibitem) emits rows through the pairing walk's insert
+   branches WITHOUT dropping any old row, so no drop site fires — yet
+   every trailing row index shifts and the renderer's absolute-index
+   mirror (§8.1) would keep stale values at those indices. The totals
+   check catches every such path, including ones added later, at the cost
+   of one comparison; the only behavior it conservatively over-flags is a
+   pure append at the end, whose push-to-end covers rows that did not
+   shift (harmless over-push).
 5. Layer producers (§8.4) map through the same diff: a layer whose spans
    anchor to positions or node ids re-anchors through `tr.mapping` and
    `rowAtPos(pos)` — it never re-walks the document.
@@ -1289,7 +1304,10 @@ extensions.
 14. **Controller integration**: a doc-changing transaction reaches the
     renderer as a chunk-granular sparse push over the changed rows (full
     push at attach, changed-chunk push after the edit); carried rows keep
-    their keys and re-position through `tr.mapping`.
+    their keys and re-position through `tr.mapping`. A pure insertion
+    (rows emitted, none dropped) is `structural` — the push extends to
+    the end of the row list and the renderer's absolute-index mirror
+    matches the model exactly (a stale shifted mirror is the failure).
 15. **Transaction capture**: the plugin's state slot holds the real
     `Transaction` that produced the state (`apply`-visible), never a
     factory `state.tr` read; selection-only transactions surface with
@@ -1316,6 +1334,14 @@ extensions.
     into one `rgba()` tone string; a consumer layer's lane-0 tone paints
     verbatim (an `rgba()` tone at its own alpha, a tone-less span at the
     default marker color, opaque).
+20. **Bar-gap regimes** (`barGapPx`, §6.5): the inter-bar gap is 15% of a
+    ONE-LINE slot (`lineHeight × scale`), never of the row's own slot —
+    floored at 1px (sliding zooms) and capped at slot − 1. At large fit
+    scales the gap grows with the line slot (line rows stay separated);
+    a row taller than one line paints ≥ its slot minus 15%-of-one-line
+    (the tall-row regression: pre-fix, a table spanning several panes
+    lost 15% of its whole slot and visibly ended before the document
+    end); a degenerate 1px slot still paints 1px.
 
 ### 15.2 Performance budgets
 

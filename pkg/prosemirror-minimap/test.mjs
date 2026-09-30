@@ -41,6 +41,7 @@ import {
   planPaint,
   paintsGlyphs,
   rowWidthFraction,
+  barGapPx,
 } from './compiled/renderer.js';
 import {
   mergeLayers,
@@ -906,6 +907,50 @@ test('§15.1.32 tier-3 aggregates: mean density width, window-stable, all-empty 
 });
 
 
+// --- §15.1.33 Bar gap regimes: the line-slot carrier ---------------------------------------
+
+test('§15.1.33 barGapPx: the gap is 15% of a LINE slot, never of the row slot', () => {
+  // The gap's carrier is one line at the current paint scale
+  // (`lineHeight × scale`), floored at 1px, capped at `slotH − 1`.
+  const LINE = defaultTheme.lineHeight; // 24
+
+  // (a) Sliding zooms: a line slot is a few px → the 1px floor. The
+  // regression this guards: a table spanning several panes (slot 4731
+  // minimap px at the consumer's 0.18 zoom) previously lost
+  // floor(4731 × 0.15) = 709 px — a full pane of phantom separator —
+  // and its block visibly ended screens before the document end.
+  assert.equal(barGapPx(4731, 0.18, LINE), 1);
+  assert.equal(barGapPx(1500, 0.25, LINE), 1);
+  assert.equal(barGapPx(6, 0.25, LINE), 1);
+
+  // (b) Large fit scales: the line slot grows and the separator with
+  // it — line-sized rows stay visually separated instead of merging
+  // into one solid block. 60px line slot → 9px gap.
+  assert.equal(barGapPx(60, 2.5, LINE), 9);
+  assert.equal(barGapPx(48, 2.0, LINE), 7);
+
+  // (c) The regression signature: a bar paints ≥ 99% of a tall slot.
+  // (The pre-fix rule painted 85% of ANY slot — proportional to the
+  // slot itself.)
+  for (const scale of [0.18, 0.25, 2.5]) {
+    for (const slotH of [10, 100, 4731, 60000]) {
+      const gap = barGapPx(slotH, scale, LINE);
+      const barH = slotH - gap;
+      assert.ok(
+        barH >= slotH - Math.max(1, LINE * scale * 0.15),
+        `slot ${slotH} @ ${scale}: bar ${barH} keeps ≥85%-of-one-line`,
+      );
+      assert.ok(gap >= 1, 'floor: a bar always separates from the next');
+    }
+  }
+
+  // (d) Degenerate slots: a 1px slot still paints 1px (the cap allows
+  // 0 but the 1px floor of barH guarantees ink).
+  assert.equal(barGapPx(1, 0.25, LINE), 1);
+  assert.equal(barGapPx(2, 2.5, LINE), 1);
+});
+
+
 // --- §15.1.11 Merge floor -----------------------------------------------------------------
 
 test('§15.1.11 merge floor: same-tone rects closer than 6 device px merge; per-lane cap', () => {
@@ -1250,6 +1295,57 @@ test('§15.1.14 controller: a doc edit reaches the renderer as a sparse push', a
   // `nodeDOM(pos)` resolves — an off-by-one here resolves DOM inside the
   // node: text nodes / null): p(0) p(5) p(17) in this doc.
   assert.deepEqual(rows.map((r) => r.pos), [0, 5, 17]);
+});
+
+
+test('§15.1.14 controller: a pure insertion is structural — the push extends to the end', async () => {
+  await controllerPromise;
+  // A pure insertion (rows emitted, none dropped) must flag `structural`
+  // (§7.2 step 4): every trailing row index shifts, so the sparse push
+  // extends to the end and the renderer's absolute-index mirror stays
+  // aligned. The flag is DERIVED from the net row-count change in the
+  // diffRows epilogue — the insert branches never drop an old row, so no
+  // per-emit-site flag could catch them.
+  const c0 = para('a');
+  const d1 = doc(c0, para('b'), schema.nodes.image.create({}), para('d'));
+  const inserted = para('NEW');
+  const d2 = doc(c0, inserted, d1.child(1), d1.child(2), d1.child(3));
+  // Insert one paragraph after child 0 (nodeSize 3: "a" text size 1):
+  // StepMap [3, 0, 7] — old positions ≥ 3 shift by +7.
+  const tr = {
+    docChanged: true,
+    doc: d2,
+    mapping: new Mapping([new StepMap([3, 0, 7])]),
+  };
+  const h = makeControllerHarness({ doc: d1, selection: { from: 1, to: 1 } });
+  h.controller.update({ doc: d2, selection: { from: 1, to: 1 } }, tr);
+  h.controller.flush();
+  // The model: the inserted paragraph is a text row at index 1; the
+  // trailing image and paragraph shifted +1.
+  const rows = h.controller.getRows();
+  assert.equal(rows.length, 5);
+  assert.deepEqual(
+    rows.map((r) => r.classId),
+    ['text', 'text', 'text', 'image', 'text'],
+  );
+  // The edit push extended to the END of the row list: one push whose
+  // coverage reaches rows.length (chunkRows 2000 > 5, so one chunk).
+  const blocks = h.renderer.calls.filter((c) => c.kind === 'blocks');
+  const edit = blocks[blocks.length - 1];
+  assert.notDeepEqual([edit.firstRow, edit.rowCount], [1, 1],
+    'the push is not the old [firstChanged, lastChanged) pair');
+  assert.equal(
+    edit.firstRow + edit.rowCount,
+    5,
+    'the push extends to the end of the row list',
+  );
+  assert.ok(edit.firstRow >= 1, 'the push starts at the change');
+  // The absolute-index mirror matches the model — WITHOUT the structural
+  // flag it kept the stale [text,text,image,text] shape shifted by one.
+  assert.deepEqual(
+    [...h.renderer.mirrorClassIds],
+    ['text', 'text', 'text', 'image', 'text'],
+  );
 });
 
 
