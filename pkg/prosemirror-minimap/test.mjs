@@ -561,6 +561,127 @@ test('§15.1.7 layers: ascending z across text/consumer/selection', () => {
   assert.ok(firstRow !== -1 && firstSpan !== -1 && firstRow < firstSpan);
 });
 
+test('§8.4/§15.1.7 layers: background layer (z < rowZ) paints below the rows', () => {
+  // The fast-path guard: a consumer layer below the `text` z opts the
+  // renderer into the merged z-sorted paint list, so rows draw AFTER the
+  // background tint — not before it (the pre-fix bug).
+  const decls = mergeLayers([{ id: 'bg', z: 5, kind: 'background' }]);
+  const n = 30;
+  const rows = Array.from({ length: n }, (_, i) => ({
+    key: i, pos: 2 + i * 2, node: null, classId: 'text',
+    depth: 0, textLength: 5, heightPx: 20, estHeightPx: 20, text: 'x',
+  }));
+  const offsets = sumOffsets(rows);
+  const r = new RecordingRenderer();
+  r.init({ width: 100, height: 600, dpr: 1 });
+  r.setConfig(defaultTheme, decls);
+  r.setBlocks({
+    firstRow: 0,
+    classIds: rows.map((x) => x.classId),
+    depths: new Int16Array(n),
+    textLengths: new Float64Array(rows.map((x) => x.textLength)),
+    textBlocks: Uint8Array.from(rows.map((x) => (x.textBlock ? 1 : 0))),
+    heightPx: new Float64Array(rows.map((x) => x.heightPx)),
+  });
+  r.setGeometry(offsets, rows.map((x) => x.text));
+  r.setWindow(0, n, { firstRow: 0, texts: rows.map((x) => x.text) });
+  // bg: lane 0 tint over rows 2–4; selection: lane 0 tint rows 10–12.
+  // Distinct colors so the inline calls are individually identifiable.
+  r.setLayer('bg', [
+    { first: 2, last: 4, color: '#22cc44', lane: 0 },
+  ]);
+  r.setLayer('selection', [
+    { first: 10, last: 12, color: '#77aaff', lane: 0 },
+  ]);
+  r.render();
+  const paint = r.calls.filter((c) =>
+    ['row', 'inline', 'marker'].includes(c.kind));
+  const firstRow = paint.findIndex((c) => c.kind === 'row');
+  const bg = paint.find((c) => c.kind === 'inline' && c.color === '#22cc44');
+  const sel = paint.find((c) => c.kind === 'inline' && c.color === '#77aaff');
+  assert.ok(bg !== undefined && sel !== undefined);
+  // bg (z=5) BEFORE every row; rows before selection (z=20).
+  assert.ok(r.calls.indexOf(bg) < firstRow);
+  assert.ok(firstRow < r.calls.indexOf(sel));
+});
+
+test('§8.4/§15.1.7 layers: replacing `text` moves rows to its z', () => {
+  // A same-id consumer declaration replaces the built-in (mergeLayers):
+  // rows adopt z=30 and paint ABOVE the selection (z=20).
+  const decls = mergeLayers([
+    { id: 'text', z: 30, kind: 'content' },
+    { id: 'sel-copy', z: 20, kind: 'overlay' },
+  ]);
+  assert.equal(decls.find((l) => l.id === 'text')?.z, 30);
+  const n = 20;
+  const rows = Array.from({ length: n }, (_, i) => ({
+    key: i, pos: 2 + i * 2, node: null, classId: 'text',
+    depth: 0, textLength: 5, heightPx: 20, estHeightPx: 20, text: 'x',
+  }));
+  const offsets = sumOffsets(rows);
+  const r = new RecordingRenderer();
+  r.init({ width: 100, height: 400, dpr: 1 });
+  r.setConfig(defaultTheme, decls);
+  r.setBlocks({
+    firstRow: 0,
+    classIds: rows.map((x) => x.classId),
+    depths: new Int16Array(n),
+    textLengths: new Float64Array(rows.map((x) => x.textLength)),
+    textBlocks: Uint8Array.from(rows.map((x) => (x.textBlock ? 1 : 0))),
+    heightPx: new Float64Array(rows.map((x) => x.heightPx)),
+  });
+  r.setGeometry(offsets, rows.map((x) => x.text));
+  r.setWindow(0, n, { firstRow: 0, texts: rows.map((x) => x.text) });
+  r.setLayer('sel-copy', [
+    { first: 4, last: 6, color: '#77aaff', lane: 0 },
+  ]);
+  r.render();
+  const paint = r.calls.filter((c) =>
+    ['row', 'inline', 'marker'].includes(c.kind));
+  const firstRow = paint.findIndex((c) => c.kind === 'row');
+  const sel = paint.find((c) => c.kind === 'inline');
+  assert.ok(sel !== undefined);
+  // sel-copy (z=20) BELOW the rows (text z=30).
+  assert.ok(r.calls.indexOf(sel) < firstRow);
+});
+
+test('§8.4/§15.1.7 layers: no low-z layer keeps the row block first', () => {
+  // Fast path regression guard: with only at-or-above-rowZ layers, rows
+  // still paint as one block before any span, exactly as §15.1.7 asserts.
+  const decls = mergeLayers([{ id: 'diag', z: 10, kind: 'overlay' }]);
+  const n = 10;
+  const rows = Array.from({ length: n }, (_, i) => ({
+    key: i, pos: 2 + i * 2, node: null, classId: 'text',
+    depth: 0, textLength: 5, heightPx: 20, estHeightPx: 20, text: 'x',
+  }));
+  const offsets = sumOffsets(rows);
+  const r = new RecordingRenderer();
+  r.init({ width: 100, height: 200, dpr: 1 });
+  r.setConfig(defaultTheme, decls);
+  r.setBlocks({
+    firstRow: 0,
+    classIds: rows.map((x) => x.classId),
+    depths: new Int16Array(n),
+    textLengths: new Float64Array(rows.map((x) => x.textLength)),
+    textBlocks: Uint8Array.from(rows.map((x) => (x.textBlock ? 1 : 0))),
+    heightPx: new Float64Array(rows.map((x) => x.heightPx)),
+  });
+  r.setGeometry(offsets, rows.map((x) => x.text));
+  r.setWindow(0, n, { firstRow: 0, texts: rows.map((x) => x.text) });
+  r.setLayer('diag', [
+    { first: 1, last: 3, color: '#d29922', lane: 0 },
+  ]);
+  r.render();
+  const paint = r.calls.filter((c) =>
+    ['row', 'inline', 'marker'].includes(c.kind));
+  // All rows before the equal-z inline tint — the fast path is taken and
+  // rows do not enter the decorated list (stable order, rows first).
+  const lastRow = paint.map((c) => c.kind).lastIndexOf('row');
+  const firstSpan = paint.findIndex((c) => c.kind !== 'row');
+  assert.ok(lastRow !== -1 && firstSpan !== -1);
+  assert.ok(lastRow < firstSpan);
+});
+
 
 // --- §8.4 Inline-tint tone alpha (withAlpha) -----------------------------------
 

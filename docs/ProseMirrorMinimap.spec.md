@@ -939,6 +939,17 @@ Built-in layers ship with the package:
 | `text` | 10 | content | Rows: tier-1 glyphs or tier-2/3 rectangles, per-class color, indent by depth. |
 | `selection` | 20 | overlay | Rows (or partial rows, tier 1) intersecting the editor selection. |
 
+**Row draw order.** Row paint belongs to the `text` layer: it draws at the
+merged `text` declaration's z (default 10), so a consumer that replaces
+`text` by id moves the rows with it — including above `selection`, which is
+the documented consequence of same-id replacement (§8.4), not a special
+case. When no layer draws below that z, the renderer keeps the
+allocation-free row loop that paints the row block before all spans; a
+declared layer below it opts into the merged z-sorted paint list, where
+rows interleave with tints and markers at their z (equal-z spans keep rows
+first). `kind` is descriptive metadata for consumers and editors — it
+never affects ordering.
+
 Consumer-declared layers extend the same mechanism — the pathway the package
 reserves without implementing their sources:
 
@@ -1353,6 +1364,10 @@ extensions.
     (the tall-row regression: pre-fix, a table spanning several panes
     lost 15% of its whole slot and visibly ended before the document
     end); a degenerate 1px slot still paints 1px.
+21. **Row draw order vs. layers** (§8.4): a consumer layer with z below
+    the merged `text` z records BEFORE every row call; a same-id
+    replacement of `text` records the rows after a z=20 span; with no
+    low-z layer, the row block still precedes all span calls (fast path).
 
 ### 15.2 Performance budgets
 
@@ -1365,6 +1380,7 @@ Measured on a synthetic ~5 MB document (~80,000 blocks) on commodity hardware:
 | Epoch re-estimation (width change, 80k blocks, sliced) | ≤ 400 ms wall, ≤ 5 ms/frame |
 | Per-keystroke incremental update (single-block edit) | ≤ 1 ms main thread |
 | Scroll repaint (inline, incl. paint) | ≤ 1 ms per frame |
+| Slow-path row paint (low-z layer declared, fit mode, 50k rows) | ≤ 1 extra ms per frame vs. fast path |
 | Main-thread work per scroll frame outside paint | ≤ 0.2 ms (window computation + overlay transform) |
 | Click/drag mapping | O(log n); zero layout reads during drag |
 | `total` vs `scrollHeight` drift after calibration settles | ≤ `maxScrollDrift` (default 5%) |

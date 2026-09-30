@@ -432,6 +432,17 @@ abstract class RendererBackend implements TieredRenderer {
   protected dpr = 1;
   protected theme: MinimapTheme = defaultTheme;
   protected layers: LayerDeclaration[] = [];
+  /**
+   * The z row paint draws at: the merged `text` layer's z (§8.4) — a
+   * consumer that replaces `text` by id moves rows with it. Default 10.
+   */
+  protected rowZ = 10;
+  /**
+   * Fast-path flag (§8.4): true when any layer draws below `rowZ`. Only
+   * then do rows join the z-sorted paint list; otherwise the
+   * allocation-free row loop paints first, as before.
+   */
+  protected hasBelowRowLayer = false;
   protected blocks: BlocksPayload | null = null;
   protected scale = 1;
   protected windowOrigin = 0;
@@ -479,6 +490,11 @@ abstract class RendererBackend implements TieredRenderer {
   setConfig(theme: MinimapTheme, layers: LayerDeclaration[]): void {
     this.theme = theme;
     this.layers = [...layers];
+    // Row draw order (§8.4): rows belong to the `text` layer's z. The
+    // declarations arrive pre-merged (mergeLayers), so a same-id consumer
+    // declaration of `text` is authoritative here.
+    this.rowZ = layers.find((l) => l.id === 'text')?.z ?? 10;
+    this.hasBelowRowLayer = layers.some((l) => l.z < this.rowZ);
   }
 
   setBlocks(chunk: BlocksPayload): void {
@@ -696,16 +712,30 @@ export class InlineRenderer extends RendererBackend {
     if (!this.marksOnly) {
       ctx.fillStyle = this.theme.background;
       ctx.fillRect(0, 0, w, h);
-      // The `text` layer: rows paint unless marks-only (§6.5).
-      for (const r of plan.rows) {
-        this.paintRow(ctx, r, w);
+      // The `text` layer: rows paint unless marks-only (§6.5). Fast path
+      // when nothing draws below rowZ (§8.4) — allocation-free row loop,
+      // unchanged from before the background-layer support.
+      if (!this.hasBelowRowLayer) {
+        for (const r of plan.rows) {
+          this.paintRow(ctx, r, w);
+        }
       }
     }
     // Layer paint in ascending z (§8.4): inline tints and markers sort by
-    // their layer's z; both draw after the content layer they overlay.
+    // their layer's z; rows draw at the `text` layer's z (rowZ).
     const decorated: Array<
       { z: number; paint: () => void }
     > = [];
+    if (this.hasBelowRowLayer && !this.marksOnly) {
+      // Slow path: a consumer layer draws below the rows — rows join the
+      // z-sorted list (stable sort keeps them ahead of equal-z spans).
+      for (const r of plan.rows) {
+        decorated.push({
+          z: this.rowZ,
+          paint: () => this.paintRow(ctx, r, w),
+        });
+      }
+    }
     for (const tint of plan.inline) {
       decorated.push({
         z: tint.z,
@@ -1143,7 +1173,9 @@ export class RecordingRenderer extends RendererBackend {
       return;
     }
     const plan = planPaint(model, opts);
-    if (!this.marksOnly) {
+    if (!this.marksOnly && !this.hasBelowRowLayer) {
+      // Fast path (§8.4): nothing draws below rowZ — row block first, as
+      // before the background-layer support.
       for (const r of plan.rows) {
         this.calls.push({
           kind: 'row',
@@ -1158,8 +1190,27 @@ export class RecordingRenderer extends RendererBackend {
       }
     }
     // Spans in ascending z (§15.1.7): inline tints and markers are
-    // interleaved by their layer's z, both after the row block.
+    // interleaved by their layer's z; in the slow path rows join the same
+    // sorted list at rowZ (their `order` tiebreak keeps them ahead of
+    // equal-z spans, mirroring InlineRenderer's stable sort).
     const decorated: Array<{ z: number; call: DrawCall }> = [];
+    if (this.hasBelowRowLayer && !this.marksOnly) {
+      for (const r of plan.rows) {
+        decorated.push({
+          z: this.rowZ,
+          call: {
+            kind: 'row',
+            order: this.next(),
+            row: r.row,
+            y: r.y,
+            h: r.h,
+            classId: r.classId,
+            depth: r.depth,
+            text: r.text,
+          },
+        });
+      }
+    }
     for (const tint of plan.inline) {
       decorated.push({
         z: tint.z,
