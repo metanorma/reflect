@@ -803,15 +803,17 @@ export class MinimapController {
     this.build = {
       gen: flatten(doc, this.walkContext()),
       emitted: 0,
+      acc: 0,
     };
     this.pendingDiffTr = null;
     this.modelDoc = doc;
     this.rows = [];
     this.texts = [];
-    // Reset derived geometry too: the sliced build's visible-region-first
-    // loop seeds its accumulator from `this.total` — a stale value would
-    // make the first slice stop almost immediately (the window is already
-    // "covered" by the previous model's total).
+    // Reset derived geometry too: the build's first slice stops once its
+    // accumulated row height covers the visible window — a stale `total`
+    // is not consulted (the accumulator lives on `this.build`), but the
+    // offsets themselves must not carry the previous model's shape into
+    // the partial publish.
     this.offsets = new Float64Array(1);
     this.total = 0;
     this.schedule(PendingWork.Build);
@@ -824,14 +826,18 @@ export class MinimapController {
     }
     const t0 = performance.now();
     const sliceStart = b.emitted;
-    // First slice runs to the visible window's end (visible-region-first,
-    // §7.3/§15.2); later slices are row-budgeted.
+    // EVERY slice is row-capped (§7.3): no slice may run unbounded, so a
+    // deep mount never blows the frame budget on slice 1. The first slice
+    // additionally stops once its accumulated row height covers the
+    // visible window (accumulator, not a re-scan — the old per-row
+    // `rowAccumHeight` re-sum made the first slice O(n²)).
     const firstSlice = b.emitted === 0;
     const windowBottom
       = this.geom.scrollTop + this.geom.clientHeight;
     const rows = this.rows.slice(0, b.emitted); // carry the built prefix
+    let acc = b.acc;
     let n = 0;
-    for (; n < BUILD_ROWS_PER_TICK || firstSlice; n++) {
+    for (; n < BUILD_ROWS_PER_TICK; n++) {
       const next = b.gen.next();
       if (next.done) {
         this.finishBuild(rows);
@@ -839,10 +845,12 @@ export class MinimapController {
       }
       const row = next.value;
       rows.push(row);
-      if (firstSlice && this.rowAccumHeight(rows) >= windowBottom) {
+      acc += row.heightPx ?? row.estHeightPx;
+      if (firstSlice && acc >= windowBottom) {
         break;
       }
     }
+    b.acc = acc;
     this.rows = rows;
     b.emitted = rows.length;
     // Progressive publish (§7.3): paint whatever rows the renderer holds;
@@ -860,23 +868,15 @@ export class MinimapController {
       structural: false,
     });
     this.updateTier();
-    // Paint in the same frame as the publish: the visible window is
-    // available after the first slice, so first paint does not wait for
-    // the full build (§15.2 first-paint budget).
+    // Paint in the same frame as the publish: a near-top mount's window is
+    // covered by the capped first slice; a DEEP mount's window fills
+    // progressively over ⌈windowRows / BUILD_ROWS_PER_TICK⌉ slices (each
+    // within budget) instead of one unbounded frame (§7.3/§15.2).
     if (this.renderer !== null && !this.hidden) {
       this.pushWindow();
       this.renderer.render();
     }
     this.noteSliceTiming(performance.now() - t0);
-  }
-
-  /** Effective-height total of `rows` (the first-slice coverage check). */
-  private rowAccumHeight(rows: readonly BlockRow[]): number {
-    let acc = 0;
-    for (const row of rows) {
-      acc += row.heightPx ?? row.estHeightPx;
-    }
-    return acc;
   }
 
   private finishBuild(rows: BlockRow[]): void {
@@ -1636,6 +1636,8 @@ const BUILD_ROWS_PER_TICK = 2_000;
 interface BuildSlice {
   gen: Generator<BlockRow, void, void>;
   emitted: number;
+  /** Running effective-height total of the emitted rows (§7.3). */
+  acc: number;
 }
 
 /** `document.fonts` (typed structurally; the DOM lib may lag). */

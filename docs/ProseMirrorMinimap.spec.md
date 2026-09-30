@@ -790,10 +790,21 @@ through a `requestAnimationFrame` loop with a per-frame budget
 (`sliceBudgetMs`, default 5):
 
 - Each slice flattens/diffs at most `N` blocks (N chosen to fit the budget;
-  measured per frame), then yields. `requestIdleCallback` is not used: it is
-  absent in Safari and can starve under sustained main-thread load.
-- Slices process the **visible range first**, then expand outward from it, so
-  the user's viewport renders immediately and the rest fills in top-to-bottom.
+  measured per frame), then yields — no slice is ever exempt from the cap.
+  `requestIdleCallback` is not used: it is absent in Safari and can starve
+  under sustained main-thread load.
+- Slices build the document **prefix top-to-bottom**, so the not-yet-built
+  region is always a single tail. The first slice additionally stops early,
+  once its accumulated row height (a running total, not a per-row re-scan)
+  covers the visible window: a mount at the document's top renders the
+  viewport in the first slice. A mount **deep** in a large document cannot
+  do that in one frame — its window fills progressively over
+  ⌈windowRows / N⌉ budget-capped slices; until the prefix reaches the
+  scroll position, `windowRange` clamps the window to the built prefix
+  (the thumb stays scrollbar-fraction-accurate throughout, §9.1). This
+  bounded-fill trade is deliberate: an unbounded first slice (the earlier
+  contract) blocked for O(document) on a deep mount — seconds on large
+  documents — with a coverage re-scan that made it quadratic.
 - Completed slices publish progressively: the renderer paints whatever rows it
   holds and leaves the not-yet-built region as background. A `Building…`
   affordance is the consumer's choice (structural class hook, §12).

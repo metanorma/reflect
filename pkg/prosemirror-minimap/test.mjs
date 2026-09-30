@@ -1169,7 +1169,7 @@ test('§15.1.13 marks-only and hidden rungs', () => {
 //   containerRect — the container's client rect (§6.4, §10.2)
 function makeControllerHarness(state, opts = {}, harnessOpts = {}) {
   const container = {
-    scrollTop: 0,
+    scrollTop: harnessOpts.scrollTop ?? 0,
     scrollHeight: harnessOpts.scrollHeight ?? 4000,
     clientHeight: harnessOpts.clientHeight ?? 800,
     clientWidth: 600,
@@ -2310,10 +2310,11 @@ test('§15.1.26 epochs: measured heights re-sample after an epoch change', async
 
 test('§15.1.19 build slices publish progressively: rows paint before the build completes', async () => {
   await controllerPromise;
-  // 300 paragraphs > BUILD_ROWS_PER_TICK (2000)? No — but > the first
-  // slice's budget is impossible headlessly (first slice runs to the
-  // window bottom or 2000 rows). Use a doc big enough to need 2 slices:
-  // 3000 paragraphs forces slice 1 (2000-row tick) then slice 2.
+  // 300 paragraphs > BUILD_ROWS_PER_TICK (2000)? No — every slice is
+  // capped at 2,000 rows; only the FIRST slice can stop earlier, once its
+  // accumulated row height covers the window (34 rows at scrollTop 0).
+  // Use a doc big enough to need 2 slices: 3000 paragraphs forces slice 1
+  // (2000-row cap) then slice 2.
   const n = 3_000;
   const paras = Array.from({ length: n }, (_, i) => para(`p${i}`));
   const h = makeControllerHarness(
@@ -2385,6 +2386,55 @@ test('§15.1.19 rebuild: the first slice covers the visible window, not one row'
   assert.ok(
     slice1 >= 800 / 24 - 1,
     `first rebuild slice emitted ${slice1} rows (need ≈${800 / 24} to fill the window)`,
+  );
+});
+
+test('§15.1.19 deep mount: every slice is capped, the window fills progressively', async () => {
+  await controllerPromise;
+  // The unbounded-first-slice bug: mounting while scrolled deep made slice
+  // 1 run to the window bottom (O(n) rows in one frame, with an O(n²)
+  // coverage re-scan) — seconds on a large doc. Now EVERY slice is capped
+  // at BUILD_ROWS_PER_TICK (2,000); a deep mount's window fills
+  // progressively over ⌈windowRows / 2,000⌉ slices instead (§7.3).
+  // 40,000 paragraphs ≈ 24px each ≈ 960,000px — the harness mounts at
+  // scrollTop 771,200 with clientHeight 800 (window bottom ≈ row 39,950).
+  const n = 40_000;
+  const paras = Array.from({ length: n }, (_, i) => para(`p${i}`));
+  const h = makeControllerHarness(
+    { doc: doc(...paras), selection: { from: 1, to: 1 } },
+    {},
+    { scrollTop: 771_200, scrollHeight: 960_000, clientHeight: 800 },
+  );
+
+  // Slice 1 hit the cap exactly — not the window bottom (~39,950 rows).
+  assert.equal(
+    h.controller.getRows().length,
+    2_000,
+    `slice 1 is capped (emitted ${h.controller.getRows().length})`,
+  );
+  assert.ok(
+    h.controller.getRows().length < n,
+    'build still open after the capped first slice',
+  );
+
+  // Progressive coverage: slice k emits 2,000 rows each — the build
+  // advances monotonically without ever exceeding the cap.
+  const before = h.controller.getRows().length;
+  h.controller.flush();
+  const step = h.controller.getRows().length - before;
+  assert.equal(step, 2_000, `slice 2 emits one cap's worth (${step})`);
+
+  // The window's accumulator carries across slices: once the built prefix
+  // passes the window bottom, the build keeps going (the stop-check is
+  // first-slice-only) and completes the full model.
+  for (let i = 0; i < 40 && h.controller.getRows().length < n; i++) {
+    h.controller.flush();
+  }
+  assert.equal(h.controller.getRows().length, n, 'build completes');
+  assert.equal(
+    h.renderer.mirrorClassIds.length,
+    n,
+    'the full model covers every row index',
   );
 });
 
