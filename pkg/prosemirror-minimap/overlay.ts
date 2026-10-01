@@ -82,51 +82,37 @@ export interface OverlayHandlers {
  * `yToEditorOffset` converts a minimap-surface y (px) to the editor-space
  * offset under it — the inverse of the controller's scale (the controller
  * also holds the sliding-window origin, §6.2, so it owns this closure).
- * `container` is the minimap container: hover y is CONTAINER-relative
- * (surface = origin + containerY), and the container — unlike the moving
- * overlay strip — is stationary during hover, so its client top is
- * cached once per pointerenter and reused for every move (§10.2 O(log n)
- * with zero layout reads on the move path).
+ *
+ * The drag/hover coordinate frame is the overlay's PARENT — the minimap
+ * container (`.mn-minimap`, §9.1), the element that owns the track the
+ * thumb slides in. It is stationary during hover (unlike the moving
+ * overlay strip), so its client top is cached once per pointerenter and
+ * reused for every move (§10.2 O(log n) with zero layout reads on the
+ * move path). Never the editor's scroll container (§7.1): that element
+ * owns scroll geometry, not the pane's screen position.
  */
 export function attachOverlay(
   overlay: HTMLElement,
   handlers: OverlayHandlers,
   yToEditorOffset: (minimapY: number) => number,
   lineHeight: number,
-  container?: {
-    getBoundingClientRect(): { top: number };
-  } | null,
 ): () => void {
   let drag: DragState | null = null;
-  /** Cached container client top for the hover path (per pointer entry). */
+  /** Cached pane client top for the hover path (per pointer entry). */
   let hoverTop: number | null = null;
   /**
    * The drag coordinate frame: the minimap container that owns the track
-   * the thumb slides in. The `container` parameter is the HOVER frame
-   * (which may be a different element, §10.2); when it is not also a
-   * height host, fall back to the overlay's parent — the minimap
-   * container itself (`.mn-minimap`, §9.1).
+   * the thumb slides in — the overlay's parent. Falls back to the overlay
+   * itself only in a detached DOM (parentElement null).
    */
-  const dragContainer: {
+  const dragFrame: {
     getBoundingClientRect(): { top: number; height: number };
-  } = (() => {
-    const c = container as {
-      getBoundingClientRect(): { top: number; height?: number };
-    } | null | undefined;
-    if (c !== null && c !== undefined) {
-      const probe = c.getBoundingClientRect();
-      if (typeof probe.height === 'number') {
-        return c as { getBoundingClientRect(): { top: number; height: number } };
-      }
-    }
-    const parent = overlay.parentElement as {
-      getBoundingClientRect(): { top: number; height: number };
-    } | null;
-    return parent ?? overlay;
-  })();
+  } = (overlay.parentElement as {
+    getBoundingClientRect(): { top: number; height: number };
+  } | null) ?? overlay;
 
   const onPointerEnter = () => {
-    hoverTop = container?.getBoundingClientRect().top ?? null;
+    hoverTop = dragFrame.getBoundingClientRect().top;
   };
 
   const onPointerDown = (e: PointerEvent) => {
@@ -136,7 +122,7 @@ export function attachOverlay(
     e.stopPropagation();
     // One layout read pair per gesture (pointerdown); moves read nothing.
     const rect = overlay.getBoundingClientRect();
-    const cRect = dragContainer.getBoundingClientRect();
+    const cRect = dragFrame.getBoundingClientRect();
     const startY = e.clientY - rect.top;
     drag = {
       pointerId: e.pointerId,
@@ -154,8 +140,8 @@ export function attachOverlay(
   const onPointerMove = (e: PointerEvent) => {
       if (drag === null) {
         if (hoverTop === null) {
-          // No pointerenter (or no container): read once and cache.
-          hoverTop = container?.getBoundingClientRect().top ?? 0;
+          // No pointerenter yet: read once and cache.
+          hoverTop = dragFrame.getBoundingClientRect().top;
         }
         const y = e.clientY - hoverTop;
         handlers.onHover(y, e.clientY);

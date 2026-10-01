@@ -542,7 +542,6 @@ export class MinimapController {
       },
       (y) => this.minimapYToEditorOffset(y),
       lineHeight,
-      this.container,
     );
   }
 

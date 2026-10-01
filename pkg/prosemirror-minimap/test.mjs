@@ -1287,7 +1287,8 @@ test('§15.1.13 marks-only and hidden rungs', () => {
 // `harnessOpts` may override the view/container stubs (headless seams):
 //   nodeDOM(pos) — DOM-rect sources for §4.5 calibration tests
 //   coordsAtPos(pos) — §6.4 precise-snap sources
-//   containerRect — the container's client rect (§6.4, §10.2)
+//   containerRect — the SCROLLER's client rect (§6.4 content origin)
+//   paneRect — the minimap pane's client rect (§9.2/§10.2 drag/hover frame)
 function makeControllerHarness(state, opts = {}, harnessOpts = {}) {
   const container = {
     scrollTop: harnessOpts.scrollTop ?? 0,
@@ -1314,7 +1315,7 @@ function makeControllerHarness(state, opts = {}, harnessOpts = {}) {
     ...opts,
   });
   const renderer = new RecordingRenderer();
-  const overlay = fakeOverlay();
+  const overlay = fakeOverlay(harnessOpts.paneRect);
   controller.start();
   controller.attachRenderer(renderer, overlay, {
     width: 100, height: 600, dpr: 1,
@@ -1326,10 +1327,23 @@ function makeControllerHarness(state, opts = {}, harnessOpts = {}) {
 /** The most recent overlay style writes (refreshed per fakeOverlay). */
 let lastOverlayStyles = { transform: '', height: '' };
 
-/** Minimal overlay element stub (no DOM in headless tests). */
-function fakeOverlay() {
+/** The most recent fake pane rect (refreshed per fakeOverlay). */
+let lastPaneRect = { top: 0, left: 0, height: 600 };
+
+/** Minimal overlay element stub (no DOM in headless tests).
+ * `paneRectOverride` configures the fake PANE parent's client rect —
+ * the drag/hover coordinate frame (§9.2/§10.2). */
+function fakeOverlay(paneRectOverride) {
   const listeners = new Map();
   lastOverlayStyles = { transform: '', height: '' };
+  lastPaneRect = paneRectOverride ?? { top: 0, left: 0, height: 600 };
+  // The fake pane (`.mn-minimap`): the overlay's parent, with its own
+  // rect — DISTINCT from the overlay's own (thumb) rect and from the
+  // scroller's rect, so tests that move either cannot silently alias
+  // the drag frame.
+  const pane = {
+    getBoundingClientRect: () => ({ ...lastPaneRect }),
+  };
   const self = {
     get style() {
       return new Proxy({}, {
@@ -1358,9 +1372,9 @@ function fakeOverlay() {
       height: parseFloat(lastOverlayStyles.height) || 600,
     }),
     get parentElement() {
-      // The drag coordinate frame falls back to the parent (the minimap
-      // container, §9.2) — itself: same rect, self-referential is fine.
-      return self;
+      // The drag/hover frame resolves to the pane parent (§9.2), never
+      // the overlay itself.
+      return pane;
     },
     _listeners: listeners,
   };
@@ -2324,7 +2338,10 @@ test('§15.1.24 hover: y is container-relative, not viewport-relative', async ()
     { doc: d, selection: { from: 1, to: 1 } },
     { onBlockHover: (info) => hovers.push(info) },
     {
-      containerRect: { top: 100, left: 0, height: 600 },
+      // The PANE sits at client top 100 (§9.2/§10.2 frame); the scroller
+      // keeps its default rect (top 0) — the pre-fix code read the
+      // SCROLLER's top, so the two frames diverge in this fixture.
+      paneRect: { top: 100, left: 0, height: 600 },
       // The doc's real extent (12 × 24): the harness default 4000 would
       // engage the extent-aware fit scale (§6.2) and shift the geometry
       // this test's arithmetic depends on.
@@ -2343,8 +2360,8 @@ test('§15.1.24 hover: y is container-relative, not viewport-relative', async ()
   enter({ pointerId: 1 });
   move({ pointerId: 1, clientY: 150 });
   assert.equal(hovers.length, 1, 'one hover event fired');
-  // Container-y 50, fit scale 600/288 = 2.083: editorY 24 → row 1. The
-  // buggy viewport-relative read (y 150 → editorY 72) resolves row 3.
+  // Pane-y 50, fit scale 600/288 = 2.083: editorY 24 → row 1. The
+  // pre-fix scroller-relative read (y 150 → editorY 72) resolves row 3.
   assert.equal(hovers[0].row, 1,
     `hover resolved row ${hovers[0].row}; container-relative read gives 1`);
 
