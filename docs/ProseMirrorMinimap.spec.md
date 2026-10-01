@@ -1254,7 +1254,7 @@ docks the toolbar and sidebar today.
 | `Minimap` | React component | §11 |
 | `MinimapOptions`, `MinimapClassifier`, `RowSpec`, `HeightStrategy`, `MinimapTheme`, `LayerDeclaration`, `LayerSpans`, `BlockRow`, `DisplayMode`, `Renderer`, `MinimapView`, `MinimapTr`, `EpochInputs`, `BlockHoverInfo` | types | §5, §6, §8, §7 |
 | `defaultClassifier`, `defaultTheme` | constants | §5.2, §5.4 |
-| `flatten`, `flattenAll`, `countRows`, `diffRows`, `rowAt` | pure functions (testing/introspection) | §4.1, §6.1, §7.2 |
+| `flatten`, `flattenAll`, `countRows`, `diffRows`, `diffBounds`, `rowAt` | pure functions (testing/introspection) | §4.1, §6.1, §7.2 |
 | `InlineRenderer`, `RecordingRenderer`, `planPaint` | classes/function (test surface) | §8.3 |
 | `@metanorma/prosemirror-minimap/core` | subpath export (React-free) | §3.1 |
 

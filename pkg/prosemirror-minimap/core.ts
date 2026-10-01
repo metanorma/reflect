@@ -11,6 +11,7 @@ export {
   defaultClassifier,
   flatten,
   flattenAll,
+  countRows,
   diffRows,
   diffBounds,
 } from './blockModel.js';
