@@ -844,11 +844,37 @@ interface Renderer {
   setScale(scale: number): void;              // editor-px → minimap-px (§6.2)
   setWindowOrigin(originY: number): void;     // sliding-window origin (§6.2)
   setWindow(firstRow: number, rowCount: number, texts: TextsPayload): void;
-  setLayer(layerId: string, spans: LayerSpans): void;
+  setLayer(layerId: string, spans: RowSpan[]): void;
+                                              // controller-resolved row
+                                              // spans (§8.4) — the producer's
+                                              // anchor-space LayerSpans flow
+                                              // to the controller, §7.2
   render(): void;
   destroy(): void;
 }
+
+interface TieredRenderer extends Renderer {
+  setTier(tier: 1 | 2 | 3, opts?: {
+    aggregateMin?: number;                    // tier-3 run planning (§6.5)
+    aggregateMax?: number;
+    medianPx?: number;                        // the cap unit, tiers.ts
+    marksOnly?: boolean;                      // the marks-only rung (§6.5)
+  }): void;
+  setGeometry(offsets: Float64Array, texts: (string | null)[]): void;
+                                              // prefix-sum offsets (§6.1) +
+                                              // the row-text cache (§6.3)
+  setHidden(hidden: boolean): void;           // the hidden rung (§6.5)
+  clearModel(): void;                         // drop the absolute-index
+                                              // mirror — a full push starts
+                                              // clean (this section)
+}
 ```
+
+The controller drives both shipped backends (`InlineRenderer`,
+`RecordingRenderer`) through `TieredRenderer`; both implement the plain
+`Renderer` contract, so a renderer unaware of tier state stays usable as
+one. Every payload across the interface stays serializable — typed arrays,
+strings, plain numbers — preserving the worker seam's data discipline.
 
 Chunk addressing: a `BlocksPayload` is addressed by **absolute row index**
 (`firstRow` + relative arrays); the renderer stores the merged absolute
@@ -961,8 +987,9 @@ reserves without implementing their sources:
 
 #### The layer data contract
 
-**Anchors, not row indices.** A layer's data flows as `setLayer(id, spans)`,
-but spans are declared in *anchor space*, never in row indices — a row index
+**Anchors, not row indices.** A layer's data flows to the controller's
+producer-facing `MinimapController.setLayer(id, spans)`, and spans arrive in
+*anchor space*, never in row indices — a row index
 shifts under every edit above it, so an index-anchored span misplaces silently:
 
 ```ts
@@ -1260,10 +1287,10 @@ docks the toolbar and sidebar today.
 | `createMinimap` | function | §7.1 |
 | `getMinimapController` | function (`(view) => MinimapController \| null`) | §7.1 |
 | `Minimap` | React component | §11 |
-| `MinimapOptions`, `MinimapClassifier`, `RowSpec`, `HeightStrategy`, `MinimapTheme`, `LayerDeclaration`, `LayerSpans`, `BlockRow`, `DisplayMode`, `Renderer`, `MinimapView`, `MinimapTr`, `EpochInputs`, `BlockHoverInfo` | types | §5, §6, §8, §7 |
+| `MinimapOptions`, `MinimapClassifier`, `RowSpec`, `HeightStrategy`, `MinimapTheme`, `LayerDeclaration`, `LayerSpans`, `RowSpan`, `BlockRow`, `DisplayMode`, `Renderer`, `TieredRenderer`, `MinimapView`, `MinimapTr`, `EpochInputs`, `BlockHoverInfo` | types | §5, §6, §8, §7 |
 | `defaultClassifier`, `defaultTheme` | constants | §5.2, §5.4 |
 | `flatten`, `flattenAll`, `countRows`, `diffRows`, `diffBounds`, `rowAt` | pure functions (testing/introspection) | §4.1, §6.1, §7.2 |
-| `InlineRenderer`, `RecordingRenderer`, `planPaint` | classes/function (test surface) | §8.3 |
+| `InlineRenderer`, `RecordingRenderer`, `planPaint`, `DrawCall` | classes/function/type (test surface) | §8.3 |
 | `@metanorma/prosemirror-minimap/core` | subpath export (React-free) | §3.1 |
 
 The `MinimapController` type is exported for typing

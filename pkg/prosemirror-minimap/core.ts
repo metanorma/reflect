@@ -24,6 +24,9 @@ export { textHeight, CalibrationStore } from './heights.js';
 export { rowAt } from './geometry.js';
 export { InlineRenderer, RecordingRenderer, planPaint } from './renderer.js';
 export type { Renderer, DrawCall, TieredRenderer } from './renderer.js';
+// `RowSpan` is referenced by the public `Renderer.setLayer` signature —
+// a consumer implementing a custom renderer needs it (§8.1/§8.4).
+export type { RowSpan } from './layers.js';
 export { defaultTheme } from './types.js';
 export type {
   BlockHoverInfo,
