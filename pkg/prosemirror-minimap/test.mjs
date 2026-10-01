@@ -1215,10 +1215,24 @@ test('§15.1.12 epochs: width change re-estimates; plain transaction preserves t
   const offsets = sumOffsets(rows);
   assert.equal(offsets[1], 42); // measured wins over estimate
 
-  // CalibrationStore: seeded default, median after samples (§4.5).
+  // CalibrationStore: default via the strategy fallback, median after
+  // samples (§4.5). The pre-sample default needs no seeding step — the
+  // store reports nothing and `estimateHeight` falls back to the
+  // strategy's own `defaultPx`.
   const cal = new CalibrationStore();
-  assert.equal(cal.seed('figure', 240), 240);
-  assert.equal(cal.get('figure'), 240);
+  assert.equal(cal.get('figure'), undefined);
+  assert.equal(
+    estimateHeight(
+      schema.nodes.image.create({}),
+      'figure',
+      { kind: 'calibrated', defaultPx: 240 },
+      new Map(),
+      defaultTheme,
+      cal,
+    ),
+    240,
+    'the fallback IS the pre-sample default',
+  );
   cal.record('figure', 100);
   cal.record('figure', 200);
   cal.record('figure', 300);

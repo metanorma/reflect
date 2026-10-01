@@ -90,26 +90,18 @@ function fallbackHeight(node: Node, theme: MinimapTheme): number {
  * Running-median calibration store (§4.5). Implements
  * `ReadonlyMap<string, number>` so it can be passed to estimation directly.
  *
- * Per visual class: the running median of DOM samples, seeded with the
- * class default. Windowed (last 32 samples) so the median tracks layout
- * changes; the resolved value is what `calibrated` classes estimate with
- * and what seeding new rows of the class uses.
+ * Per visual class: the running median of DOM samples, windowed (last 32
+ * samples) so the median tracks layout changes. The resolved value is
+ * what `calibrated` classes estimate with once samples exist. The
+ * PRE-SAMPLE default is not a store concern: `strategyPx`'s
+ * `calibrated.get(classId) ?? strategy.defaultPx` fallback makes the
+ * strategy's own `defaultPx` the single source of the §4.4 class default
+ * (a `calibrated` class never estimates undefined — it starts at its
+ * default and switches to the median at the first sample).
  */
 export class CalibrationStore implements ReadonlyMap<string, number> {
   private readonly samples = new Map<string, number[]>();
   private readonly medians = new Map<string, number>();
-
-  /**
-   * Seed a class with its default (its `calibrated.defaultPx`). Idempotent —
-   * the first seed wins. Returns the class's resolved height.
-   */
-  seed(classId: string, defaultPx: number): number {
-    if (!this.medians.has(classId)) {
-      this.samples.set(classId, []);
-      this.medians.set(classId, defaultPx);
-    }
-    return this.medians.get(classId) ?? defaultPx;
-  }
 
   /** Record one DOM sample (px) for a class. */
   record(classId: string, px: number): void {
@@ -135,7 +127,7 @@ export class CalibrationStore implements ReadonlyMap<string, number> {
     return this.medians.get(classId);
   }
 
-  /** Drop every sample but keep the seeded medians (epoch change, §4.6). */
+  /** Drop every sample but keep the resolved medians (epoch change, §4.6). */
   resetSamples(): void {
     for (const [classId, median] of this.medians) {
       this.samples.set(classId, [median]);
