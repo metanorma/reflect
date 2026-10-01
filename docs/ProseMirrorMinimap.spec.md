@@ -585,7 +585,7 @@ strategies resolve a target row to an editor scroll position:
 | Strategy | Computation | Used for |
 |---|---|---|
 | `proportional` | For the drag: the scrollbar fraction — `scrollTop = (thumbTop / (pane − thumbHeight)) × maxScroll` over the real scroll geometry (§9.2; the inverse of the thumb placement, §9.1). For row-keyed lookups: `targetScrollTop = rowCenterOffset` in editor px, a unit-preserving lookup. | Continuous drag (every pointermove) and keyboard scrolls; row-keyed when the caller holds an editor-space offset. |
-| `precise` | Resolve the row's `pos` through `view.coordsAtPos(pos)` (or `view.nodeDOM`) to its real content-space top `realTop`, re-based into the model's origin frame by the measured top of row 0 (`contentOrigin` — a padded scroll container places row 0 `k` px below scrollTop 0, and `realTop` carries that constant while the model's origin is 0); scroll to `(realTop − contentOrigin) − (rowTopModel − proportionalResult)` — i.e. keep the viewport-relative offset the `proportional` result gave the row, but realize it with the row's REAL top. With an accurate model the result equals the `proportional` result exactly; with model error `e` at the row the result differs by exactly `e`. **Null path:** when `nodeDOM(pos)` returns `null` (a virtualized/culled editor, §4.5), `precise` degrades to the `proportional` result — the estimate lands close, and a correction fires when the block re-renders. | Keyboard settle (§9.3) — one layout-accurate snap per gesture; NOT drag release (§9.2). |
+| `precise` | Resolve the row's `pos` through `view.coordsAtPos(pos)` (or `view.nodeDOM`) to its real content-space top `realTop`, re-based into the model's origin frame by the measured top of row 0 (`contentOrigin` — a padded scroll container places row 0 `k` px below scrollTop 0, and `realTop` carries that constant while the model's origin is 0); scroll to `(realTop − contentOrigin) − (rowTopModel − proportionalResult)` — i.e. keep the viewport-relative offset the `proportional` result gave the row, but realize it with the row's REAL top. With an accurate model the result equals the `proportional` result exactly; with model error `e` at the row the result differs by exactly `e`. **Null path:** when `nodeDOM(pos)` returns `null` (a virtualized/culled editor, §4.5), `precise` degrades to the `proportional` result — the estimate lands close, and a correction fires when the block re-renders. | Arrow/paging settle (§9.3) — one layout-accurate snap per gesture. |
 
 The hybrid keeps the drag path free of forced layout: drags run purely
 `proportional` from pointerdown through release (release is continuity,
@@ -1129,13 +1129,21 @@ keyboard contract, following the MDN `scrollbar` role reference:
 | `Home` / `End` | Jump to document start / end. |
 
 Keyboard scrolls use the `proportional` mapping (§6.4) — no layout reads —
-and end with one `precise` snap when the gesture is discrete (key-up for
-`Home`/`End`; arrow-repeat settles on the first quiet frame — a short
-debounce after the last arrow key). All keyboard
-interaction honors `prefers-reduced-motion` in the one place it can apply:
-no animated/smooth scrolling is dispatched when the consumer requests
-reduced motion and the platform `scrollIntoView({ behavior })` default would
-animate.
+with one distinction between the relative and the absolute keys:
+
+- **Relative keys** (arrows, paging) end with one `precise` snap when the
+  gesture settles — arrow-repeat settles on the first quiet frame (a short
+  debounce after the last arrow key). They land at rows, so they receive
+  the snap's model-error correction (§6.4).
+- **Absolute keys** (`Home`/`End`) jump to the REAL container extremes —
+  `scrollTop` 0 and `scrollHeight − clientHeight` of the resolved scroll
+  container (§7.1). The extremes are exact in real geometry, so the jump
+  trusts the container directly.
+
+All keyboard interaction honors `prefers-reduced-motion` in the one place it
+can apply: no animated/smooth scrolling is dispatched when the consumer
+requests reduced motion and the platform `scrollIntoView({ behavior })`
+default would animate.
 
 ---
 
