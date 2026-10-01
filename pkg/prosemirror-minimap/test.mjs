@@ -601,8 +601,8 @@ test('§8.4/§15.1.7 layers: background layer (z < rowZ) paints below the rows',
   const sel = paint.find((c) => c.kind === 'inline' && c.color === '#77aaff');
   assert.ok(bg !== undefined && sel !== undefined);
   // bg (z=5) BEFORE every row; rows before selection (z=20).
-  assert.ok(r.calls.indexOf(bg) < firstRow);
-  assert.ok(firstRow < r.calls.indexOf(sel));
+  assert.ok(paint.indexOf(bg) < firstRow);
+  assert.ok(firstRow < paint.indexOf(sel));
 });
 
 test('§8.4/§15.1.7 layers: replacing `text` moves rows to its z', () => {
@@ -642,7 +642,7 @@ test('§8.4/§15.1.7 layers: replacing `text` moves rows to its z', () => {
   const sel = paint.find((c) => c.kind === 'inline');
   assert.ok(sel !== undefined);
   // sel-copy (z=20) BELOW the rows (text z=30).
-  assert.ok(r.calls.indexOf(sel) < firstRow);
+  assert.ok(paint.indexOf(sel) < firstRow);
 });
 
 test('§8.4/§15.1.7 layers: no low-z layer keeps the row block first', () => {
