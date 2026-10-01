@@ -133,8 +133,8 @@ TypeScript source at `pkg/prosemirror-minimap/`:
 | `identity.ts` | Stable block identity via `WeakMap<Node, number>` (§4.3). |
 | `heights.ts` | Height strategies and the calibration store (§4.4, §4.5). |
 | `geometry.ts` | Prefix-sum offsets, window mapping, row lookup (§6.1–§6.4). |
-| `tiers.ts` | Tier selection, hysteresis, aggregation (§6.5). |
-| `renderer.ts` | The `Renderer` interface, `InlineRenderer`, `RecordingRenderer` (test double) (§8.1, §8.3). |
+| `tiers.ts` | Tier selection, hysteresis, aggregate-height cap inputs (`medianRowPx`) (§6.5). |
+| `renderer.ts` | The `Renderer` interface, `InlineRenderer`, `RecordingRenderer` (test double), and tier-3 run planning over the mirror arrays (`planPaint`'s aggregated-rows pass, §6.5) (§8.1, §8.3). |
 | `layers.ts` | Built-in layers: `text`, `selection`; span types (§8.4). |
 | `overlay.ts` | Viewport indicator overlay element and drag handling (§9). |
 | `scroll.ts` | Scroll-mapping strategies: `proportional`, `precise` (§6.4, §10.1). |

@@ -35,7 +35,7 @@ import {
   resolveScale,
   reSum,
 } from './compiled/geometry.js';
-import { selectTier, aggregate, medianRowPx } from './compiled/tiers.js';
+import { selectTier, medianRowPx } from './compiled/tiers.js';
 import {
   RecordingRenderer,
   planPaint,
@@ -413,49 +413,76 @@ test('§15.1.5 tiers: thresholds, same-class/depth aggregation, hysteresis', () 
   assert.equal(selectTier(950, 3, t), 3); // 950 > 900: stays 3
   assert.equal(selectTier(899, 3, t), 2); // below 0.9×1000: demotes
   // Hysteresis across a threshold-crossing edit pair (up at t, not down at 0.9t).
-  const rowAt = (n) => Array.from({ length: n }, (_, i) => ({
-    key: i, pos: i + 1, node: null, classId: 'text',
+  // Tier-3 run planning is asserted through the SHIPPING planner
+  // (`planPaint`'s aggregated-rows pass, §6.5) — tiers.ts supplies only
+  // selection/hysteresis and the `medianRowPx` cap input.
+  const mkRow = (over = {}) => ({
+    key: 0, pos: 0, node: null, classId: 'text',
     depth: 0, textLength: 10, textBlock: true,
-    heightPx: 10, estHeightPx: 10, text: null,
-  }));
-  const offsetsFor = (rows) => sumOffsets(rows);
-  const agg = (rows, marked = new Set()) => aggregate(rows, offsetsFor(rows), {
-    aggregateMin: 4,
-    aggregateMax: 16,
-    medianPx: medianRowPx(rows),
-    isMarked: (r) => marked.has(r.key),
+    heightPx: 10, estHeightPx: 10, text: null, ...over,
   });
-  // 8 same-class/depth rows → one aggregate of count 8.
-  const run = rowAt(8);
-  assert.deepEqual(agg(run).map((a) => a.count), [8]);
+  const tier3Plan = (rows, { marked = new Set(), aggregateMax = 16, medianPx } = {}) => {
+    const n = rows.length;
+    return planPaint(
+      {
+        classIds: rows.map((r) => r.classId),
+        depths: Int16Array.from(rows.map((r) => r.depth)),
+        textLengths: Float64Array.from(rows.map((r) => r.textLength)),
+        textBlocks: Uint8Array.from(rows.map((r) => (r.textBlock ? 1 : 0))),
+        heightPx: Float64Array.from(rows.map((r) => r.heightPx)),
+        offsets: sumOffsets(rows),
+        texts: new Array(n).fill(null),
+      },
+      {
+        scale: 0.25,
+        originY: 0,
+        windowFirst: 0,
+        windowLast: n - 1,
+        theme: defaultTheme,
+        aggregate: true,
+        aggregateMin: 4,
+        aggregateMax,
+        medianPx: medianPx ?? medianRowPx(rows),
+        isMarked: (row) => marked.has(row),
+        spans: new Map(),
+        canvasHeight: 600,
+        dpr: 1,
+      },
+    ).rows;
+  };
+  // 8 same-class/depth rows → ONE painted aggregate standing at the run
+  // start (`.row`), its height the summed px × scale (8 × 10 × 0.25).
+  const run = Array.from({ length: 8 }, (_, i) => mkRow({ key: i }));
+  const runPlan = tier3Plan(run);
+  assert.deepEqual(runPlan.map((r) => r.row), [0]);
+  assert.ok(Math.abs(runPlan[0].h - 8 * 10 * 0.25) < 1e-9);
   // Mixed classes never merge.
-  const mixed = rowAt(8).map((r, i) => ({
+  const mixed = run.map((r, i) => ({
     ...r, classId: i % 2 === 0 ? 'text' : 'heading',
   }));
-  assert.deepEqual(agg(mixed).map((a) => a.count), [1, 1, 1, 1, 1, 1, 1, 1]);
+  assert.deepEqual(tier3Plan(mixed).map((r) => r.row), [0, 1, 2, 3, 4, 5, 6, 7]);
   // Different depths never merge.
-  const depths = rowAt(8).map((r, i) => ({ ...r, depth: i % 2 }));
-  assert.deepEqual(agg(depths).map((a) => a.count), [1, 1, 1, 1, 1, 1, 1, 1]);
+  const depths = run.map((r, i) => ({ ...r, depth: i % 2 }));
+  assert.deepEqual(tier3Plan(depths).map((r) => r.row), [0, 1, 2, 3, 4, 5, 6, 7]);
   // A marked row splits an aggregating run (§6.5 marker survival). The
   // run before the mark (4 rows) merges; the mark keeps its own row; the
   // tail run (3 < aggregateMin) stays unmerged.
-  const markedMid = rowAt(8);
-  const marked = agg(markedMid, new Set([4]));
-  assert.deepEqual(marked.map((a) => a.count), [4, 1, 1, 1, 1]);
+  const markedPlan = tier3Plan(run, { marked: new Set([4]) });
+  assert.deepEqual(markedPlan.map((r) => r.row), [0, 4, 5, 6, 7]);
   // A run shorter than aggregateMin never merges — even a run of 3.
-  const short = rowAt(3);
-  assert.deepEqual(agg(short).map((a) => a.count), [1, 1, 1]);
+  const short = Array.from({ length: 3 }, (_, i) => mkRow({ key: i }));
+  assert.deepEqual(tier3Plan(short).map((r) => r.row), [0, 1, 2]);
   // Two adjacent runs of 4, separated by class: both merge, none cross.
-  const twoRuns = rowAt(8).map((r, i) => ({
+  const twoRuns = run.map((r, i) => ({
     ...r, classId: i < 4 ? 'text' : 'heading',
   }));
-  assert.deepEqual(agg(twoRuns).map((a) => a.count), [4, 4]);
-  // Cap: aggregateMax × median px.
-  const tall = rowAt(8).map((r) => ({ ...r, heightPx: 100 }));
-  const capped = aggregate(tall, offsetsFor(tall), {
-    aggregateMin: 4, aggregateMax: 2, medianPx: 100, isMarked: () => false,
-  });
-  assert.equal(capped[0].heightPx, 200); // 2 × 100 median
+  assert.deepEqual(tier3Plan(twoRuns).map((r) => r.row), [0, 4]);
+  // Cap: aggregateMax × median px (§6.5). 8 × 100px rows under
+  // aggregateMax 2 → the aggregate paints at 2 × 100 × scale, not 800.
+  const tall = run.map((r) => ({ ...r, heightPx: 100 }));
+  const capped = tier3Plan(tall, { aggregateMax: 2, medianPx: 100 });
+  assert.equal(capped.length, 1);
+  assert.ok(Math.abs(capped[0].h - 2 * 100 * 0.25) < 1e-9);
   // Row-count thresholds select tiers via selectTier (already asserted).
 });
 
