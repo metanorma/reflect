@@ -1422,7 +1422,7 @@ Measured on a synthetic ~5 MB document (~80,000 blocks) on commodity hardware:
 | Block-model memory | ≤ 40 MB |
 
 Budgets are asserted in `test.mjs` where measurable headlessly (build,
-patch, mapping, memory — §15.1.17) and verified in the browser via renderer
+patch, mapping, memory — §15.1.18) and verified in the browser via renderer
 cost telemetry (recorded per repaint by `InlineRenderer`); the browser
 verification is a manual check-list item for the consumer's e2e suite, not
 a package test.

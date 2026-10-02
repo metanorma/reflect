@@ -378,9 +378,9 @@ test('§15.1.4 prefix sums: non-decreasing, offsets[0] === 0, rowAt consistent w
 });
 
 
-// --- §15.1.5 Tiers -----------------------------------------------------------------
+// --- §5.4/§6.5 Glyphs gate · §15.1.5 Tiers -----------------------------------------------------------------
 
-test('§15.1.5 glyphs gate: predicate matrix (tier × class opt-in × text)', () => {
+test('§5.4/§6.5 glyphs gate: predicate matrix (tier × class opt-in × text)', () => {
   // The glyph-vs-rectangle decision (§5.4/§6.5): glyphs require ALL of
   // tier 1, an explicit per-class `glyphs: true` (default false — the
   // opt-in), and non-empty text. Every other combination paints a
@@ -528,7 +528,7 @@ test('§15.1.6 virtualization: draw calls only within [f − overscan, l + overs
 });
 
 
-// --- §15.1.7 Layer order ----------------------------------------------------------
+// --- §15.1.7 Layer order · §8.4/§15.1.21 Row draw order ----------------------------------------------------------
 
 test('§15.1.7 layers: ascending z across text/consumer/selection', () => {
   const decls = mergeLayers([{ id: 'diagnostics', z: 15, kind: 'overlay' }]);
@@ -588,7 +588,7 @@ test('§15.1.7 layers: ascending z across text/consumer/selection', () => {
   assert.ok(firstRow !== -1 && firstSpan !== -1 && firstRow < firstSpan);
 });
 
-test('§8.4/§15.1.7 layers: background layer (z < rowZ) paints below the rows', () => {
+test('§8.4/§15.1.21 layers: background layer (z < rowZ) paints below the rows', () => {
   // The fast-path guard: a consumer layer below the `text` z opts the
   // renderer into the merged z-sorted paint list, so rows draw AFTER the
   // background tint — not before it (the pre-fix bug).
@@ -632,7 +632,7 @@ test('§8.4/§15.1.7 layers: background layer (z < rowZ) paints below the rows',
   assert.ok(firstRow < paint.indexOf(sel));
 });
 
-test('§8.4/§15.1.7 layers: replacing `text` moves rows to its z', () => {
+test('§8.4/§15.1.21 layers: replacing `text` moves rows to its z', () => {
   // A same-id consumer declaration replaces the built-in (mergeLayers):
   // rows adopt z=30 and paint ABOVE the selection (z=20).
   const decls = mergeLayers([
@@ -672,7 +672,7 @@ test('§8.4/§15.1.7 layers: replacing `text` moves rows to its z', () => {
   assert.ok(paint.indexOf(sel) < firstRow);
 });
 
-test('§8.4/§15.1.7 layers: no low-z layer keeps the row block first', () => {
+test('§8.4/§15.1.21 layers: no low-z layer keeps the row block first', () => {
   // Fast path regression guard: with only at-or-above-rowZ layers, rows
   // still paint as one block before any span, exactly as §15.1.7 asserts.
   const decls = mergeLayers([{ id: 'diag', z: 10, kind: 'overlay' }]);
@@ -940,9 +940,9 @@ test('§15.1.10 anchoring: pos spans re-anchor through mapping; id spans disappe
   assert.equal(plan.rows[2].textLength, 5);
 });
 
-// --- §15.1.32 Bar width regimes: textBlock bit + tier-3 mean density ---------
+// --- §15.1.17 Bar width regimes: textBlock bit + tier-3 mean density ---------
 
-test('§15.1.32 rowWidthFraction: empty TEXTBLOCK rows paint below a one-word row; non-textblocks keep the block', () => {
+test('§15.1.17 rowWidthFraction: empty TEXTBLOCK rows paint below a one-word row; non-textblocks keep the block', () => {
   const f = (textLength, textBlock) => rowWidthFraction(
     { textLength, textBlock }, defaultTheme,
   );
@@ -963,7 +963,7 @@ test('§15.1.32 rowWidthFraction: empty TEXTBLOCK rows paint below a one-word ro
   assert.equal(f(80, true), 1);
 });
 
-test('§15.1.32 tier-3 aggregates: mean density width, window-stable, all-empty runs short', () => {
+test('§15.1.17 tier-3 aggregates: mean density width, window-stable, all-empty runs short', () => {
   // 16 rows in two DEPTH-distinct runs (the aggregator splits on
   // classId+depth): the first 8 (depth 0) are dense textblocks (80
   // chars); the last 8 (depth 1) are EMPTY textblocks. No marks.
@@ -1055,9 +1055,9 @@ test('§15.1.32 tier-3 aggregates: mean density width, window-stable, all-empty 
 });
 
 
-// --- §15.1.33 Bar gap regimes: the line-slot carrier ---------------------------------------
+// --- §15.1.20 Bar gap regimes: the line-slot carrier ---------------------------------------
 
-test('§15.1.33 barGapPx: the gap is 15% of a LINE slot, never of the row slot', () => {
+test('§15.1.20 barGapPx: the gap is 15% of a LINE slot, never of the row slot', () => {
   // The gap's carrier is one line at the current paint scale
   // (`lineHeight × scale`), floored at 1px, capped at `slotH − 1`.
   const LINE = defaultTheme.lineHeight; // 24
@@ -1605,9 +1605,9 @@ test('§15.1.16 epochs: width change re-estimates all estHeightPx, keeps heightP
 });
 
 
-// --- §15.1.17 Hidden rung via the controller (§6.5) --------------------------
+// --- §6.5 Hidden rung via the controller --------------------------
 
-test('§15.1.17 hidden rung: hideRows releases the model; crossing back rebuilds', async () => {
+test('§6.5 hidden rung: hideRows releases the model; crossing back rebuilds', async () => {
   await controllerPromise;
   const d = doc(para('a'), para('b'));
   const h = makeControllerHarness(
@@ -1650,9 +1650,9 @@ test('§15.1.17 hidden rung: hideRows releases the model; crossing back rebuilds
 });
 
 
-// --- §15.1.21 Tier-1 text survives an edit (§6.3/§8.1 window text push) ------
+// --- §8.1 Tier-1 text survives an edit ------
 
-test('§15.1.21 texts: an edit does not drop window texts (tier-1 glyphs survive)', async () => {
+test('§8.1 texts: an edit does not drop window texts (tier-1 glyphs survive)', async () => {
   await controllerPromise;
   const d1 = doc(para('one'), para('two'), para('three'));
   const h = makeControllerHarness(
@@ -1701,9 +1701,9 @@ test('§15.1.21 texts: an edit does not drop window texts (tier-1 glyphs survive
   );
 });
 
-// --- §15.1.22 Consumer layers re-anchor across transactions (§7.2, §8.4) ------
+// --- §7.2 Consumer layers re-anchor across transactions ------
 
-test('§15.1.22 layers: pos spans follow an insert; id spans drop when deleted; mapPos detects deletion', async () => {
+test('§7.2 layers: pos spans follow an insert; id spans drop when deleted; mapPos detects deletion', async () => {
   await controllerPromise;
   const img = schema.nodes.image.create({ src: 'a.png', id: 'img-1' });
   const d1 = doc(para('one'), para('two'), img, para('four'));
@@ -1797,9 +1797,9 @@ test('§15.1.22 layers: pos spans follow an insert; id spans drop when deleted; 
 });
 
 
-// --- §15.1.24 Inline-tint tone alpha (§8.4 lane 0) -----------------------------
+// --- §15.1.19 Inline-tint tone alpha (§8.4 lane 0) -----------------------------
 
-test('§15.1.24 selection tint: theme alpha is composed into the tone string at the controller seam', async () => {
+test('§15.1.19 selection tint: theme alpha is composed into the tone string at the controller seam', async () => {
   await controllerPromise;
   const d = doc(para('one'), para('two'), para('three'));
   // A selection spanning rows: from the start of 'one' into 'three'.
@@ -1820,7 +1820,7 @@ test('§15.1.24 selection tint: theme alpha is composed into the tone string at 
   );
 });
 
-test('§15.1.24 consumer tints: a lane-0 tone paints verbatim at its own alpha', async () => {
+test('§15.1.19 consumer tints: a lane-0 tone paints verbatim at its own alpha', async () => {
   await controllerPromise;
   const d = doc(para('one'), para('two'));
   const h = makeControllerHarness(
@@ -1858,9 +1858,9 @@ test('§15.1.24 consumer tints: a lane-0 tone paints verbatim at its own alpha',
   );
 });
 
-// --- §15.1.23 The thumb is a scrollbar slider over the pane (§9.1) ------------
+// --- §9.1 The thumb is a scrollbar slider over the pane ------------
 
-test('§15.1.23 overlay: thumb fraction follows scroll in both modes', async () => {
+test('§9.1 overlay: thumb fraction follows scroll in both modes', async () => {
   await controllerPromise;
   // 600 paras × 24px ≈ 14,400 editor px; × 0.25 zoom = 3,600 minimap px —
   // well past the 600px container, so `auto` selects sliding (§6.2).
@@ -1939,9 +1939,9 @@ test('§15.1.23 overlay: thumb fraction follows scroll in both modes', async () 
   );
 });
 
-// --- §15.1.29 Forced sliding with surface ≤ pane: thumb aligns with content ---
+// --- §9.1 Forced sliding with surface ≤ pane: thumb aligns with content ---
 
-test('§15.1.29 sliding alignment: surface shorter than the pane keeps the thumb on its content', async () => {
+test('§9.1 sliding alignment: surface shorter than the pane keeps the thumb on its content', async () => {
   await controllerPromise;
   // The reported repro: `display: 'sliding'` forced on a document whose
   // surface (zoom × total) is SHORTER than the pane — the contents paint
@@ -2018,9 +2018,9 @@ test('§15.1.29 sliding alignment: surface shorter than the pane keeps the thumb
   );
 });
 
-// --- §15.1.30 Typing stability: a replaced row inherits its measurement ---
+// --- §7.2 Typing stability: a replaced row inherits its measurement ---
 
-test('§15.1.30 typing: the edited row inherits the old row\'s measured height; no estimate-measure oscillation', async () => {
+test('§7.2 typing: the edited row inherits the old row\'s measured height; no estimate-measure oscillation', async () => {
   await controllerPromise;
   // The keystroke case: a paragraph's NODE is replaced (new instance) but
   // the row is one-for-one — pairNode's opaque branch drops the old row
@@ -2068,9 +2068,9 @@ test('§15.1.30 typing: the edited row inherits the old row\'s measured height; 
     'inherited rows stay sampler-eligible');
 });
 
-// --- §15.1.31 A moved subtree inherits measurements by node identity ------
+// --- §7.2 A moved subtree inherits measurements by node identity ------
 
-test('§15.1.31 demote/move: re-emitted rows for the same nodes inherit measured heights', async () => {
+test('§7.2 demote/move: re-emitted rows for the same nodes inherit measured heights', async () => {
   await controllerPromise;
   // The reflow-on-demotion repro: a demote MOVES a clause under another
   // node. Every node instance survives (`===`), but position-based pairing
@@ -2145,9 +2145,9 @@ test('§15.1.31 demote/move: re-emitted rows for the same nodes inherit measured
     'the moved subtree\'s 9 rows re-enter measured (identity inheritance)');
 });
 
-// --- §15.1.32 reconfigure applies tuning options (zoom et al) -----------------
+// --- §11 reconfigure applies tuning options (zoom et al) -----------------
 
-test('§15.1.32 reconfigure: zoomPxPerEditorPx (and tuning keys) take effect', async () => {
+test('§11 reconfigure: zoomPxPerEditorPx (and tuning keys) take effect', async () => {
   await controllerPromise;
   // Regression: reconfigure handled only theme/display/layers/classifier/
   // onBlockHover/hideRows/marksOnly — every OTHER MinimapOptions key
@@ -2199,9 +2199,9 @@ test('§15.1.32 reconfigure: zoomPxPerEditorPx (and tuning keys) take effect', a
     `plugin-owned zoom wins over the component (${thumbH()})`);
 });
 
-// --- §15.1.28 Doc edits refresh the scroll-geometry cache (§7.4) -------------
+// --- §7.4 Doc edits refresh the scroll-geometry cache -------------
 
-test('§15.1.28 doc-change refreshes geometry: drag clamp tracks a grown document', async () => {
+test('§7.4 doc-change refreshes geometry: drag clamp tracks a grown document', async () => {
   await controllerPromise;
   // Mirror the reported repro: content typed/pasted after mount grows the
   // container's scrollHeight while its BOX (clientHeight) is unchanged —
@@ -2298,9 +2298,9 @@ test('§15.1.28 doc-change refreshes geometry: drag clamp tracks a grown documen
   );
 });
 
-// --- §15.1.27 Drag release is continuous with the last move (§9.2) -----------
+// --- §9.2 Drag release is continuous with the last move -----------
 
-test('§15.1.27 release continuity: commit applies the last move, no snap', async () => {
+test('§9.2 release continuity: commit applies the last move, no snap', async () => {
   await controllerPromise;
   // A 200-row doc: 4,800 editor px; fit scale 600/4800 = 0.125.
   const n = 200;
@@ -2364,9 +2364,9 @@ test('§15.1.27 release continuity: commit applies the last move, no snap', asyn
   );
 });
 
-// --- §15.1.24 Hover computes the row under the pointer (§10.2) ------------------
+// --- §10.2 Hover computes the row under the pointer ------------------
 
-test('§15.1.24 hover: y is container-relative, not viewport-relative', async () => {
+test('§10.2 hover: y is container-relative, not viewport-relative', async () => {
   await controllerPromise;
   // Tall rows so the row under container-y 50 differs from the row under
   // viewport-y 150: with containerRect.top = 100, clientY 150 is
@@ -2415,9 +2415,9 @@ test('§15.1.24 hover: y is container-relative, not viewport-relative', async ()
   assert.equal(hovers[1].row, 2);
 });
 
-// --- §15.1.25 Resize coalesces into the frame batch (§8.5) ----------------------
+// --- §8.5 Resize coalesces into the frame batch ----------------------
 
-test('§15.1.25 resize: RO callbacks never resize synchronously; one per frame', async () => {
+test('§8.5 resize: RO callbacks never resize synchronously; one per frame', async () => {
   await controllerPromise;
   const d = doc(para('one'), para('two'));
   const h = makeControllerHarness({ doc: d, selection: { from: 1, to: 1 } });
@@ -2441,9 +2441,9 @@ test('§15.1.25 resize: RO callbacks never resize synchronously; one per frame',
   assert.equal(applied[0].height, 720, 'latest height wins');
 });
 
-// --- §15.1.26 Measured rows re-sample after an epoch change (§4.5/§4.6) ---------
+// --- §4.6 Measured rows re-sample after an epoch change ---------
 
-test('§15.1.26 epochs: measured heights re-sample after an epoch change', async () => {
+test('§4.6 epochs: measured heights re-sample after an epoch change', async () => {
   await controllerPromise;
   const d = doc(para('x'.repeat(300)), para('y'), para('z'));
   // A nodeDOM stub whose rect height changes after the first sample:
@@ -2485,9 +2485,9 @@ test('§15.1.26 epochs: measured heights re-sample after an epoch change', async
   }
 });
 
-// --- §15.1.19 Progressive build publish (§7.3) --------------------------------
+// --- §7.3 Progressive build publish --------------------------------
 
-test('§15.1.19 build slices publish progressively: rows paint before the build completes', async () => {
+test('§7.3 build slices publish progressively: rows paint before the build completes', async () => {
   await controllerPromise;
   // 300 paragraphs > BUILD_ROWS_PER_TICK (2000)? No — every slice is
   // capped at 2,000 rows; only the FIRST slice can stop earlier, once its
@@ -2535,7 +2535,7 @@ test('§15.1.19 build slices publish progressively: rows paint before the build 
   );
 });
 
-test('§15.1.19 rebuild: the first slice covers the visible window, not one row', async () => {
+test('§7.3 rebuild: the first slice covers the visible window, not one row', async () => {
   await controllerPromise;
   // The stale-total bug: a rebuild (classifier reconfigure) seeded the
   // visible-region-first loop with the PREVIOUS model's total, so the
@@ -2568,7 +2568,7 @@ test('§15.1.19 rebuild: the first slice covers the visible window, not one row'
   );
 });
 
-test('§15.1.19 deep mount: every slice is capped, the window fills progressively', async () => {
+test('§7.3 deep mount: every slice is capped, the window fills progressively', async () => {
   await controllerPromise;
   // The unbounded-first-slice bug: mounting while scrolled deep made slice
   // 1 run to the window bottom (O(n) rows in one frame, with an O(n²)
@@ -2617,9 +2617,9 @@ test('§15.1.19 deep mount: every slice is capped, the window fills progressivel
   );
 });
 
-// --- §15.1.20 Performance budgets (§15.2, headless-measurable) ---------------
+// --- §15.1.18 Performance budgets (§15.2, headless-measurable) ---------------
 
-test('§15.1.20 performance: build, patch, mapping stay within budgets', async () => {
+test('§15.1.18 performance: build, patch, mapping stay within budgets', async () => {
   await controllerPromise;
   // ~10k blocks: build, single-block patch, and rowAt stay comfortably
   // inside the §15.2 budgets scaled to this document size.
