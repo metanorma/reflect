@@ -7,6 +7,337 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-09-30 — minimap: rows join the §8.4 z-sorted draw order (background layers)
+
+`@metanorma/prosemirror-minimap` fix, `docs/ProseMirrorMinimap.spec.md`
+§8.4/§15.1.21; **Commits: *(pending)***.
+
+- **Symptom** — a consumer layer declared below the `text` layer
+  (e.g. `{id:'bg', z:5, kind:'background'}` — the natural background
+  use) still painted AFTER the rows, so an opaque tint occluded the
+  document instead of sitting under it. Both renderers painted the
+  whole row block first, then z-sorted only the spans, violating
+  §8.4's "later layers draw over earlier ones".
+- **Cause** — `InlineRenderer.render` and `RecordingRenderer.render`
+  had no representation of the row block's z: rows were structurally
+  "first", not "at the text layer's z".
+- **Fix** — rows draw at the merged `text` declaration's z
+  (`RendererBackend.rowZ`, computed in `setConfig` from the
+  pre-merged declarations; default 10). When no layer draws below
+  `rowZ` (the common case), the renderers keep the allocation-free
+  row loop — zero cost on the §15.2 repaint path. When a low-z layer
+  exists, rows join the same z-sorted paint list as tints/markers
+  (`hasBelowRowLayer`), so everything paints in ascending z in both
+  backends. A same-id replacement of `text` moves the rows to the
+  consumer's z (§8.4 same-id-replacement contract); `kind` stays
+  descriptive metadata, never an ordering input.
+- **Cost gate** — the slow path allocates one list entry per painted
+  row; in fit mode on a tier-1/2 doc this is bounded by the new
+  §15.2 row "≤ 1 extra ms per frame vs. fast path" budget and is
+  opt-in (only consumers who declared a low-z layer pay it).
+- Regression coverage: `§8.4/§15.1.7` additions in test.mjs —
+  background-below-rows, replaced-`text`-z ordering, and the
+  fast-path guard (no low-z layer → row block still first).
+
+---
+
+## 2026-09-30 — minimap: tall-row bar gap anchored to a line slot (long-table fix)
+
+`@metanorma/prosemirror-minimap` fix, `docs/ProseMirrorMinimap.spec.md`
+§6.5/§15.1.20; **Commits: *(pending)***.
+
+- **Symptom** — on a document with a table spanning several viewports
+  (the 91855 sample: a 257-row table, 26 282 px — 94% of the document),
+  dragging the minimap scrolled the editor correctly to the end, but the
+  block representing the table visibly ended ~3–4 screens early: at max
+  scroll, its paint stopped ~709 px (a full pane) above the pane bottom.
+- **Cause** — `InlineRenderer.paintRow` carved an inter-row gap of
+  15% **of the row's own slot height**. The gap exists to keep
+  line-sized rows reading as separate lines; sizing it from the row's
+  whole slot was harmless when slot ≈ line, but a single opaque row
+  spanning several panes (the classifier makes a table one row) lost
+  15% of its entire height to a phantom separator — at the consumer
+  zoom, `floor(4731 × 0.15) = 709` minimap px, i.e. ~5½ viewports of
+  editor space. The block model, offsets, and scroll mapping were all
+  exact; only the paint was short.
+- **Fix** — the gap's carrier is now a ONE-LINE slot: `barGapPx(slotH,
+  scale, lineHeight)` (a pure exported helper beside
+  `rowWidthFraction`/`paintsGlyphs`) = 15% of `lineHeight × scale`,
+  floored at 1 px and capped at `slotH − 1`. Sliding zooms keep the 1 px
+  separator; large fit scales still grow it so line rows don't merge;
+  a row taller than one line keeps its block shape end-to-end.
+  Regression coverage: headless `§15.1.33 barGapPx` regimes (test.mjs)
+  and a package e2e pixel test (`tall` harness classifier: a 6000 px
+  opaque row, tall row last — asserts the block's ink reaches the pane
+  bottom at 60% and 100% scroll; verified to fail 225 px short
+  pre-fix).
+
+---
+
+## 2026-09-25 — Upstream ledger re-pin: rename merged to main (#46); basicdoc drift recorded
+
+The isodoc→standoc grammar-source rename is now **merged to main** upstream:
+`metanorma/standoc-models` PR #46 ("Cutover complete: grammar re-sync,
+standoc.\* rename, .lml source migration") merged 2026-08-22 (the hold
+observed on 2026-08-20 was lifted). `docs/metanorma-model.md` §1 re-pinned:
+standoc-models `4bad3672` → `7d5d737c`, basicdoc-models `d2a94b1a` →
+`3b408b71`, metanorma-standoc `601c3761` → `38a50557` (lib restructured to
+flat `lib/metanorma/…`), metanorma `08ea913c` → `a62ca5a8`, isodoc
+`8d8f3524` → `92b3d2b0`.
+
+- **Grammar verification**: `standoc.rnc` and `standoc-presentation.rnc` are
+  **byte-identical** between `4bad3672` and main HEAD — §3's layering test and
+  element facts stand as verified. All drift is in `basicdoc.rnc` (submodule
+  `50fe9e85` → `3b408b71` in the #46 window), recorded as the new §4 drift
+  block: a new attribute-register family (`reg-attribute`/`value`/
+  `variable-ref`) admitted as a leading child across body models, pervasive
+  `BasicBlock` content-model relaxations (quote/admonition bodies, `li`, `dd`,
+  `TdBody` block branch, `ExampleBodyContent`), `thead`/`tfoot` → `tr+`,
+  `amend/newcontent` admits `document*`, `review/@reviewer` optional. All
+  widenings — no previously-valid document becomes invalid.
+- **Correction to the 2026-08-18 verification**: that pass read the basicdoc
+  submodule at the ledger's stale pin (`d2a94b1a`) instead of the in-effect
+  `50fe9e85`, missing `TdBody`'s fn/note admission and the now-optional
+  `index-secondary`/`index-tertiary` (both window-1, 2026-08-17). Both are now
+  recorded; the "otherwise byte-identical" claim of that pass is retracted.
+- **§2 amendments**: gem lib paths now flat (`lib/metanorma/converter/…`, was
+  `lib/metanorma/standoc/converter/…`); isodoc's `PresentationXMLConvert`
+  gained a `validate` method — ID/IDREF bookkeeping (`id_validate`), **not**
+  RelaxNG, so "Presentation XML is not RNG-validated at runtime" stands.
+- **Vendoring state** (ledger §1 vendoring note): models-side `copy.sh` now
+  writes `standoc.*` destinations; the gem still ships
+  `isodoc.rng`/`isodoc-compile.rng` and `schema_file` still returns the legacy
+  name (self-consistent chain). Expect the gem flip on the next vendoring
+  pass. **Commits: *(pending)***.
+
+---
+
+## 2026-08-26 — minimap: package-owned browser e2e (harness)
+
+`@metanorma/prosemirror-minimap` now owns its browser tests
+(`docs/ProseMirrorMinimap.spec.md` §15.3); **Commits: *(pending)***.
+
+- **Harness** — `pkg/prosemirror-minimap/harness/`: a dev-only page that
+  mounts a plain `EditorView` on a synthetic schema plus `<Minimap>` in a
+  fixed 96×600 pane, with a page-global mount API (`__mnMount` /
+  `__mnUnmount` / `__mnLoadDoc` / `__mnReady`) and three scroll-shape
+  skeletons pinning the §7.1 scroll-container contract. Deliberately NOT
+  the consumer stack — no `@handlewithcare/*`, no Metanorma packages; the
+  harness's runtime surface is exactly the package's own peers. Built and
+  served by `build-minimap-demo.mjs` (repo root) + `harness/serve.mjs`
+  (:3334), same PnP-resolver bundling as the GUI build.
+- **13 tests migrated from the consumer** — the package-contract suite
+  (`e2e/minimap.spec.ts`) now lives in the package and pins its own
+  configuration per test (zoom, display mode, theme, classifier-by-name)
+  instead of reading consumer wiring: drag-scroll, precise-commit,
+  model-accuracy, stale-geometry, sliding mode, glyphs-vs-bars, astral
+  glyphs, indent lockstep, keystroke stability, shortEmpty bar fractions
+  (tightened to exact 0.08/0.20/1.0 fractions at pinned zoom),
+  atlas-scale — plus a new `scrollContainer`-variants test the consumer
+  could never express. Chromium-only (pixel/paint assertions are
+  per-engine non-portable); the harness fix notes from the migration are
+  recorded in the spec.
+- **Consumer slimmed to consumer-owned coverage** —
+  `pkg/editor-gui/e2e/minimap.spec.ts` keeps placement, the state-swap
+  (docEpoch re-key) regression, and one integration smoke test; the ~12
+  package-contract tests were deleted. The package contracts no longer
+  break on consumer restyles or Metanorma schema refactors.
+- **Verification** — package e2e 13/13 (chromium, three consecutive
+  runs); headless 35/35; consumer minimap spec 3/3 on chromium + firefox;
+  full editor-gui chromium suite 54/54; `check-specs` clean.
+
+---
+
+## 2026-08-24 — minimap: proportional empty bars + tier-3 aggregate density
+
+Two renderer-width changes in `@metanorma/prosemirror-minimap`
+(`docs/ProseMirrorMinimap.spec.md` §4.2, §5.1, §6.5, §8.1, §15.1.17);
+**Commits: *(pending)***.
+
+- **Shape-derived `textBlock` bit — proportional emptiness, no
+  configuration** — a zero-length row paints the minimal bar (0.08 of
+  usable width) when the row is a TEXTBLOCK, the flat zero-length block
+  (0.35) otherwise. Zero length is ambiguous at paint time, but the
+  distinction is classification knowledge, knowable at walk time
+  (`node.isTextblock`): an empty textblock's zero length is a *state*
+  that can fill — emptiness reads as short, and the ordering empty <
+  one-word < long becomes monotone (previously empty jumped *above*
+  one-word to 0.35) — while an atom's or structure's (figure/table)
+  zero length is *permanent*, and the solid block is the landmark. The
+  walk retains the bit on `BlockRow` (§4.2, with a `RowSpec.textBlock`
+  classifier override, §5.1) and carries it across the serializable
+  renderer boundary as a `BlocksPayload.textBlocks` byte array (§8.1) —
+  so the distinction survives without any theme/consumer flag. (An
+  earlier same-day iteration expressed this as a `ThemeClass.shortEmpty`
+  theme knob; it was replaced by the bit before release: the knob
+  re-stated walk-time knowledge in consumer config, could leak through
+  theme fallback inheritance, and mis-rendered atoms aliased into a
+  text-ish class.)
+- **Tier-3 aggregates carry mean density** — an aggregated run's width
+  signal is the *mean* text length of its members (not a hardcoded 0):
+  dense paragraph runs paint wide, sparse runs narrow, all-empty
+  textblock runs paint the minimal bar (the run carries its first
+  member's `textBlock` bit, like its `classId`/`depth`). The mean is
+  computed over the run's FULL extent (the run match continues past the
+  paint window, with an unbuilt-slot guard), so sliding the window
+  cannot pulse a bar's width by changing which members are visible.
+  Together with the bit this fixes the inversion where aggregates
+  impersonated empty textblocks (class `text` + zero length) while
+  representing the document's bulk — a naive short-empty rule would
+  have hairlined huge documents.
+- **Verification** — headless §15.1.32 (width regimes; aggregate mean,
+  window-stability, non-textblock block; the marked-split test now also
+  asserts the mean — its fixture previously passed an all-zero
+  `textLengths` array, fixed to carry the rows' real lengths) and a
+  canvas-pixel e2e regression (empty 8px < one-word 19px < long 91px at
+  the 96px pane; analysis: solid-row filter → painted-extent segmentation,
+  since bars are vertically contiguous at scale).
+
+---
+
+## 2026-08-21 — editor-gui integrates the minimap (left-docked pane)
+
+First consumer integration of `@metanorma/prosemirror-minimap`
+(`docs/ProseMirrorMinimap.spec.md` §11) in `pkg/editor-gui`;
+**Commits: *(pending)***.
+
+- **Plugin + classifier** — `editorPlugins` (App.tsx) appends
+  `createMinimap({ classifier: metanormaClassifier })`; the classifier maps
+  `section_title`/`floating_title`→heading, `sourcecode`→code,
+  `table`→estimated-height table, `figure`/`formula`→fixed-height rows, and
+  textblocks/atoms→text, with table/figure/formula opaque to recursion
+  (§5.3 consumer refinement). The `theme` is deliberately component-owned
+  (plugin-wins rule, §7.1) in `MinimapPane.tsx`, which adds the `formula`
+  class.
+- **`MinimapPane`** (new consumer component) — captures the `EditorView`
+  via `useEditorEffect` into local state (§11's prescribed capture path) and
+  renders `<Minimap>` in a fixed 96px pane docked left of the editor —
+  immediately right of the 48px sidebar rail — via `order: -1` in the
+  `.mn-prosemirror` flex row. `aria-controls` targets `#mn-editor-viewport`
+  (the `.ProseMirror` scroll container).
+- **`useEditorEffect` re-export** — `@metanorma/prosemirror-editor` now
+  re-exports the hook: under Yarn PnP, a *second* direct
+  `@handlewithcare/react-prosemirror` dependency resolves to a second
+  virtual instance whose React `EditorContext` differs from the one the
+  editor provides, crashing child components ("Cannot destructure property
+  'view' of null"). Re-exporting keeps one instance in every consumer
+  bundle.
+- **Package fixes surfaced by the integration** (in
+  `pkg/prosemirror-minimap`): `react.tsx` never attached `containerRef` to
+  its container div, so the mount effect bailed silently and the renderer
+  never attached (no paint, no ResizeObserver); `.mn-minimap-viewport` had
+  no `top: 0`, leaving the absolutely-positioned strip below the canvas.
+- **Document-load remount** — `loadDocFromJson` builds a fresh
+  `EditorState` (new plugins array), so ProseMirror destroys and recreates
+  every plugin view; the registry-keyed minimap controller is replaced while
+  `<Minimap>`'s `[view]` deps stay satisfied. `App.tsx` now bumps a
+  `docEpoch` counter on load and re-keys `MinimapPane` so it re-attaches to
+  the new controller.
+- **Tests** — new `pkg/editor-gui/e2e/minimap.spec.ts` (placement
+  bounding-box ordering, canvas/overlay presence, drag-to-scroll on a tall
+  document, typing-after-load regression); full suite 55/55 on both
+  chromium and firefox.
+- **Deferred** — dark-mode canvas theming (a `prefers-color-scheme`
+  listener feeding `reconfigure({theme})` through the component-owned
+  `options` prop); scrollbar-track click (jump-to-position on the canvas
+  area below the viewport strip — the package's overlay only handles
+  drag/keyboard on itself).
+- **Lockstep indentation** — section bodies now indent in lockstep with
+  their section titles: every row-rendered theme class (`text`, `heading`,
+  `figure`, `table`, `code`, `formula`) in `MinimapPane`'s theme carries
+  `indent: true`, so a section's body blocks share their title's left edge
+  (title and body are same-depth siblings in the block tree — the clause
+  container is transparent to the walk; nested containers' content sits one
+  depth step deeper by tree structure, and the depth-0 `bibdata` strip
+  stays flush). Covered by a canvas-pixel e2e assertion
+  (distinct-indent-step counts in `minimap.spec.ts`).
+- **Title glyphs** — the `heading` class opts into tier-1 per-character
+  glyph blitting (`ThemeClass.glyphs`, default off): section and floating
+  titles paint as readable character strokes, while body text and block
+  classes keep the filled-rectangle path (better at paragraph scale, and
+  dodges the glyph path's known CJK/astral/bidi defects). Covered by a
+  painted-pixel-density e2e assertion.
+
+## 2026-08-20 — prosemirror-minimap remediation: live-path repairs, sliced builds, spec alignment
+
+The minimap audit (same day) found the pure-model core conformant but the
+live integration path broken in four places and several §7 mechanisms
+unimplemented. This entry records the remediation of
+`pkg/prosemirror-minimap` against `docs/ProseMirrorMinimap.spec.md`;
+**Commits: *(pending)***.
+
+- **Transaction capture (§7.2)** — the plugin's `update` had compared
+  `state.tr !== prevState.tr`, but `EditorState.tr` is a factory getter
+  (every read constructs a fresh empty `Transaction`), so the incremental
+  diff was unreachable and every edit took a full synchronous rebuild.
+  `createMinimap()` now carries a state-slot plugin (`apply` records the
+  incoming transaction) whose capture the view-plugin half reads once per
+  update.
+- **Renderer push discipline (§8.1)** — rebuilds never re-sent the model
+  (edits were invisible); `setBlocks` payloads were stored relative but
+  indexed absolutely (any `firstRow ≠ 0` push mis-addressed). The renderer
+  now keeps an absolute-indexed mirror, and pushes are chunk-granular
+  (full at build completion; sparse over changed chunks after an edit,
+  extended to end on structural shifts).
+- **Sliding-window origin (§6.2)** — paint coordinates were virtual-surface
+  with no window translate (rows past the first screen painted off-canvas).
+  `setWindowOrigin` now carries the origin and the paint path subtracts it.
+- **Keyboard contract (§9.3)** — the PageUp/PageDown/Home/End handler had
+  boolean arguments shifted one key over (PageDown jumped to document
+  start; Home to end; End no-op'd; Shift+Space scrolled down). Fixed, with
+  arrow-repeat settling through a short debounce.
+- **Mechanisms landed**: time-sliced builds with visible-first ordering and
+  progressive publish (§7.3); marks-only rung release on under-budget
+  slices plus a forced `marksOnly` option (§6.5); §7.4 refresh points
+  (scroll-container/content RO, `document.fonts.ready`, `visibilitychange`)
+  with the epoch source corrected to editor width; `maxScrollDrift`
+  correction; calibration-sample propagation to offsets and pushes;
+  layer z-order paint, window clipping, and multiply-mode inline tints
+  (§8.4); `minimapblockhover` DOM event; drag-gesture rect caching;
+  component-`options` reconfigure (plugin wins); `aria-controls`;
+  per-row height strategies surviving epochs; positive-px estimation floor.
+- **Tests** grew 13 → 18: the vacuous §15.1.7 assertion replaced; controller
+  and plugin integration (§15.1.14–15), epoch mechanism (§15.1.16), hidden
+  rung transitions (§15.1.17), headless performance budgets (§15.1.18).
+  A pre-existing diff bug surfaced and was fixed: a wrap of an identical
+  child into a new container emitted the child twice (fresh + carried).
+- **Spec** updates: transaction-capture note (§7.1), sparse-push bounds
+  (§7.2), `setWindowOrigin` + chunk addressing (§8.1), rung lifecycle
+  (§6.5), drift correction semantics (§6.3), `marksOnly` option, token
+  fallbacks over `:root` (§12), `editorViewportId` (§11), export table and
+  acceptance-criteria list (§13, §15.1), dev-dep table (§3).
+
+## 2026-08-19 — minimap: every build slice budget-capped; first-slice coverage accumulator (deep-mount jank fix)
+
+`@metanorma/prosemirror-minimap` fix, `docs/ProseMirrorMinimap.spec.md`
+§7.3; **Commits: *(pending)***.
+
+- **Symptom** — mounting the minimap while scrolled deep into a large
+  document (window bottom ≈ row 39,950 of 40,000) blocked the first frame
+  for ~1.3 s, with ~798 M loop iterations inside one build slice; §7.3's
+  `sliceBudgetMs` (5 ms) and §15.2's first-paint budget (≤32 ms) were
+  both blown by two orders of magnitude. The deadline-escalation ladder
+  (two consecutive misses → marks-only) never engaged: it was exactly one
+  blown slice.
+- **Cause** — `runBuildSlice`'s loop condition carried an
+  `|| firstSlice` exemption from the `BUILD_ROWS_PER_TICK` cap, and the
+  only early exit was a window-coverage check that re-summed every
+  emitted row per emitted row (`rowAccumHeight`) — O(n²), and O(n) frame
+  duration even without the re-scan.
+- **Fix** — (a) the coverage check now reads a running accumulator carried
+  on the build state (add each row's effective height at the emit site);
+  (b) the `firstSlice` exemption is gone — every slice is capped at 2,000
+  rows, and only the first slice may stop earlier, at window coverage.
+  A near-top mount still fills the viewport in one cheap slice (~34
+  rows); a deep mount fills progressively over ⌈windowRows / 2,000⌉
+  budget-capped frames (~20 at 40 k rows), with `windowRange` clamping
+  the window to the built prefix until the scroll position is reached
+  (the thumb remains scrollbar-fraction-accurate). §7.3's earlier
+  "visible range first, then expand outward" wording described an
+  unimplemented seek; the spec now states the prefix build it ships.
+  Regression coverage: §15.1.19 deep-mount test (slice 1 emits exactly
+  the cap on a 40 k-row doc mounted at scrollTop 771,200).
+
 ## 2026-08-18 — Upstream isodoc→standoc grammar rename; terminology refresh + ledger re-pin
 
 Upstream renamed the grammar sources in `metanorma/standoc-models` (commit
