@@ -5,7 +5,9 @@
   "packageManager": "yarn@4.17.0",
   "main": "index.ts",
   "scripts": {
-    "compile": "tsc --outdir compiled"
+    "compile": "tsc --outdir compiled",
+    "pretest": "yarn compile",
+    "test": "yarn node --import ./test-register.mjs --test test.mjs"
   },
   "dependencies": {
     "@metanorma/prosemirror-schema": "workspace:^",

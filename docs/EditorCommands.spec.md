@@ -2287,3 +2287,26 @@ and the ancestor helpers `nearestSectionAncestor`, `findNearestSectionOfType`,
 `canWrapInClause`, `parentAccepts` are also exported; they are specified in
 [AdvancedMetanormaToolbar/sections.md](./AdvancedMetanormaToolbar/sections.md)
 §5.
+
+### 5.10 Test matrix
+
+The headless command suite at `pkg/editor-commands/test.mjs`
+(`yarn workspace @metanorma/editor-commands test`; Node's built-in
+`node:test`, no framework dependency) covers this section's semantics
+end-to-end at the command layer:
+
+- **§5.2 body cohort** — `insertSection` sibling placement (empty- and
+  content-bearing bodies; the empty-placeholder regression).
+- **§5.5 accommodation** — atomic strict-XOR wrap (`wrapInClause`,
+  `demoteClause` into content-bearing siblings) and the all-empty-run
+  replacement (no phantom headingless subclause).
+- **§5.7 nesting commands** — `demoteClause` refusals, `promoteClause`
+  round-trip.
+- **insertSectionAbove / exitSectionTitle** — placement (top level, nested
+  subclause runs, bibliography `references`), guard refusals, and chain
+  fall-through.
+
+Browser-level flows (toolbar wiring, caret placement, popover interaction)
+live in `pkg/editor-gui/e2e`. The suite exercises commands only — internal
+helpers (`ensureSubclauseCapacity`, `ensureContainer`) stay module-private and
+are tested through their callers.
