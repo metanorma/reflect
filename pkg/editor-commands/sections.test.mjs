@@ -1,6 +1,7 @@
 /**
  * Headless tests for @metanorma/editor-commands — section commands
- * (docs/EditorCommands.spec.md §5).
+ * (docs/EditorCommands.spec.md §5). One domain per *.test.mjs file; this one
+ * pairs with dl.test.mjs (definition lists). Shared helpers: test-helpers.mjs.
  *
  * Run: yarn workspace @metanorma/editor-commands test
  *
@@ -28,8 +29,9 @@ import {
   insertSectionAbove,
   exitSectionTitle,
 } from "./compiled/index.js";
+import { kids, ids, run } from "./test-helpers.mjs";
 
-// --- fixtures & helpers ----------------------------------------------------
+// --- fixtures ---------------------------------------------------------------
 
 /** doc > [bibdata, sections(…)] — the minimal valid body document. */
 const mkDoc = (sectionsChildren) => metanormaSchema.nodeFromJSON({
@@ -39,15 +41,6 @@ const mkDoc = (sectionsChildren) => metanormaSchema.nodeFromJSON({
     { type: 'sections', content: sectionsChildren },
   ],
 });
-
-/** Children of a PM node as an array (Fragment has no Symbol.iterator). */
-const kids = (n) => Array.from({ length: n.childCount }, (_, i) => n.child(i));
-
-/** All `id` attrs in a subtree, in document order. */
-const ids = (n, acc = []) => {
-  for (const c of kids(n)) { if (c.attrs?.id != null) acc.push(c.attrs.id); ids(c, acc); }
-  return acc;
-};
 
 /** First position of the first paragraph whose text matches `needle`. */
 const paraPos = (doc, needle) => {
@@ -67,13 +60,6 @@ const titlePos = (doc, needle) => {
     return true;
   });
   return p;
-};
-
-/** Run a command against `state`, applying its transaction; returns state. */
-const run = (state, cmd, ...args) => {
-  let next = state;
-  const ok = cmd(state, ...args, (tr) => { next = state.apply(tr); });
-  return { ok, state: next };
 };
 
 // --- insertSection: sibling semantics (§5.2) -------------------------------

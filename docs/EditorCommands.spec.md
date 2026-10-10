@@ -2290,10 +2290,13 @@ and the ancestor helpers `nearestSectionAncestor`, `findNearestSectionOfType`,
 
 ### 5.10 Test matrix
 
-The headless command suite at `pkg/editor-commands/test.mjs`
-(`yarn workspace @metanorma/editor-commands test`; Node's built-in
-`node:test`, no framework dependency) covers this section's semantics
-end-to-end at the command layer:
+The headless command suites live in `pkg/editor-commands/*.test.mjs` (one
+domain per file, run together via `yarn workspace @metanorma/editor-commands
+test`; Node's built-in `node:test`, no framework dependency; shared helpers
+in `test-helpers.mjs`) and cover this spec's semantics end-to-end at the
+command layer:
+
+**`sections.test.mjs`:**
 
 - **§5.2 body cohort** — `insertSection` sibling placement (empty- and
   content-bearing bodies; the empty-placeholder regression).
@@ -2307,6 +2310,6 @@ end-to-end at the command layer:
   fall-through.
 
 Browser-level flows (toolbar wiring, caret placement, popover interaction)
-live in `pkg/editor-gui/e2e`. The suite exercises commands only — internal
+live in `pkg/editor-gui/e2e`. The suites exercise commands only — internal
 helpers (`ensureSubclauseCapacity`, `ensureContainer`) stay module-private and
 are tested through their callers.
