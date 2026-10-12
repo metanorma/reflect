@@ -286,13 +286,8 @@ Requirements:
 3. `opts.plugins` are appended **after** `reactKeys()` so consumer plugins cannot
    accidentally displace it.
 4. **Base plugins.** `createInitialEditorState` installs, in order:
-   `reactKeys()`, `gapCursor()` (prosemirror-gapcursor), and
-   `placeholderClickPlugin()` (below). Consumer plugins come after all three.
-5. **Gap-cursor text guard.** While the selection is a `GapCursor`, block text
-   input and keypress (`handleTextInput` / `handleKeyPress` returning `true`) —
-   gap positions have no textblock context, and the default `findWrapping`
-   behaviour would insert an unwanted `section > paragraph`. Users create
-   content at a gap via a command (e.g. the Section popover).
+   `reactKeys()` and `placeholderClickPlugin()` (below). Consumer plugins
+   come after both.
 
 **`placeholderClickPlugin`** (`plugins/placeholderClick.ts`) normalizes caret
 placement for clicks on the styled placeholder of an empty textblock (§9.4).
