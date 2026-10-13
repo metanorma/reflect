@@ -1,0 +1,1572 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metanorma editor — floating panel groups (dockview v7 live)</title>
+
+<!-- Real dockview stylesheet (theme vars + structural rules) -->
+<link rel="stylesheet" href="https://unpkg.com/dockview-core@7.0.4/dist/styles/dockview.css">
+
+<style>
+  /* ============================================================
+     Live mock — dockview v7.0.4 floating windows.
+     Main grid = Document only, full viewport. Every panel group is a
+     FLOATING WINDOW whose nested gridview (v7 SerializedFloatingGroup.grid)
+     hosts a vertical stack of groups: shared width = window; moves as one
+     window. All of that is native v7 — where the FlexLayout mock needed
+     ~800 lines of custom drag code, dockview v7 ships nested-gridview
+     floats with pointer DnD into/out of them.
+     SIZING MODEL (absolute per-tabset heights): each tabset OWNS its
+     height (pinned via min==max constraints); the window's height is just
+     the sum of its tabsets plus chrome (titlebar + borders + sashes) —
+     never adjusted directly, never redistributed. Sashes resize the
+     tabset ABOVE; the window's bottom edge resizes the LAST tabset; a
+     group keeps its height when moved between windows. Heights persist
+     in localStorage and survive reload.
+     Custom bits kept from the FlexLayout mock: window titles in the float
+     titlebar, panel auto-wrap on empty space, layout persistence.
+     NOTE: no viewport-edge snapping for tabset groups — with a group
+     already flush to an edge, snapping another into the same band stacks
+     them into an overlap (free-form float placement instead).
+     ============================================================ */
+  :root{
+    --ink:#1c2733; --muted:#66707d; --faint:#9aa3ad;
+    --chrome:#eef1f4; --line:#d7dde3; --line-soft:#e6ebef;
+    --accent:#2f6fdb; --accent-ink:#1d4fa8; --accent-bg:#e8f0fe;
+    --err:#c4392f; --warn-ink:#8a6100; --warn-bg:#fff3d6; --warn-line:#e3c565;
+    --derive-ink:#7c8692;
+    --rail-w:128px;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    --doc:"Helvetica Neue",Arial,"Liberation Sans",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{background:var(--chrome);font-family:var(--sans);color:var(--ink);overflow:hidden}
+  #boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+        color:#cfd6dd;font:13px var(--sans);background:#22262c;z-index:99;
+        white-space:pre-line;text-align:center}
+  /* full-bleed editor surface (no mock browser-window chrome: the fake
+     titlebar/lights/rounded frame/backdrop were removed — the editor's own
+     toolbar + statusbar remain the app chrome) */
+  .window{width:100vw;height:100vh;max-width:100%;
+          background:var(--chrome);
+          display:flex;flex-direction:column;
+          position:relative}
+  .toolbar{display:flex;align-items:center;gap:4px;padding:7px 12px;background:#fff;
+           border-bottom:1px solid var(--line);font-size:12px}
+  .tb-btn{border:1px solid transparent;background:transparent;border-radius:6px;
+          padding:4px 8px;color:var(--ink);font-size:12px;cursor:pointer}
+  .tb-btn:hover{background:var(--chrome)}
+  .tb-btn.on{background:var(--accent-bg);color:var(--accent-ink);border-color:#c4d7f7}
+  .tb-sep{width:1px;height:18px;background:var(--line);margin:0 6px}
+  .tb-spacer{flex:1}
+  .layoutArea{flex:1;min-height:0;position:relative;background:#e3e7eb}
+  .statusbar{display:flex;align-items:center;gap:16px;padding:6px 14px;background:#fff;
+             border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+  .statusbar .dot{width:7px;height:7px;border-radius:50%;background:var(--warn-line);
+                  display:inline-block;margin-right:5px;vertical-align:-.5px}
+  .statusbar .grow{flex:1}
+  .statusbar .live{font-family:var(--mono);font-size:10px;color:var(--accent-ink)}
+
+  /* ============ dockview theme overrides (InDesign-ish float panels) ============ */
+  .layoutArea .dockview-theme-light{
+    --dv-group-view-background-color:#fff;
+    --dv-tabs-and-actions-container-background-color:#eef1f5;
+    --dv-tabs-and-actions-container-height:30px;
+    --dv-tabs-and-actions-container-font-size:11.5px;
+    --dv-separator-border:#ccd3da;
+    --dv-activegroup-visiblepanel-tab-background-color:#fff;
+    --dv-inactivegroup-visiblepanel-tab-background-color:#f4f6f8;
+    --dv-activegroup-visiblepanel-tab-color:#1c2733;
+    --dv-inactivegroup-visiblepanel-tab-color:#66707d;
+    --dv-activegroup-hiddenpanel-tab-color:#8b95a0;
+    --dv-inactivegroup-hiddenpanel-tab-color:#9aa3ad;
+    --dv-drag-over-background-color:rgba(47,111,219,.10);
+    --dv-drag-over-border-color:#7ea6ea;
+    --dv-icon-hover-background-color:rgba(47,111,219,.10);
+    --dv-floating-box-shadow:0 14px 40px rgba(15,25,40,.30),0 2px 8px rgba(15,25,40,.18);
+    --dv-floating-border:1px solid #c6cdd4;
+    --dv-floating-titlebar-height:24px;
+    --dv-floating-titlebar-background-color:linear-gradient(#f8fafc,#e8edf2);
+    --dv-floating-titlebar-border-bottom:1px solid #d6dce2;
+    --dv-border-radius:8px;
+  }
+  /* the floating window itself (overflow must stay visible: the 4px resize
+     handles protrude 2px beyond the box and would be clipped/unhittable) */
+  .layoutArea .dv-resize-container.dv-resize-container-with-titlebar{
+    border-radius:8px;
+  }
+  /* dedicated float move-handle: drag = move window — move-ONLY (T6: the
+     titlebar's redock drag source is disabled; see suppressTitlebarGroupDrag).
+     Dragging against an edge magnetizes the window flush (LIVE MAGNET in
+     transformFloatingGroupDrag) — it never docks into the grid. */
+  .layoutArea .dv-floating-titlebar{
+    background-image:linear-gradient(#f8fafc,#e8edf2);
+    background-color:#e8edf2;
+    display:flex;align-items:center;justify-content:center;cursor:grab;
+    overflow:hidden;
+  }
+  .layoutArea .dv-floating-titlebar:active{cursor:grabbing}
+  /* drag-affordance grip: a centered ridged bar (no text — titles and hints
+     live in the tabset tab strips below; the bar only signals "grab here") */
+  .mn-drag-grip{
+    flex:0 0 auto;width:44px;height:12px;border-radius:6px;
+    background:repeating-linear-gradient(90deg,
+      #b7c0c9 0 3px, transparent 3px 7px);
+    opacity:.8;user-select:none;pointer-events:none;
+  }
+  .layoutArea .dv-floating-titlebar:hover .mn-drag-grip,
+  .layoutArea .dv-floating-titlebar:active .mn-drag-grip{opacity:1;background:repeating-linear-gradient(90deg,
+    #8a99a8 0 3px, transparent 3px 7px)}
+  /* tab strip + tabs + sashes */
+  .layoutArea .dv-tabs-and-actions-container{border-bottom:1px solid var(--line-soft)}
+  .layoutArea .dv-tab{border-radius:5px 5px 0 0}
+  .layoutArea .dv-sash{background:#ccd3da}
+  .layoutArea .dv-sash.dv-enabled:hover,.layoutArea .dv-sash.dv-enabled.dv-active-sash{background:var(--accent)}
+  /* Per-tabset-height takeover (see "absolute per-tabset heights" below):
+     the pin model (min==max on every member) makes dockview's stock
+     sash-enablement logic mark float-window sashes dv-disabled — with an
+     all-pinned splitview no view can give or take space, so stock disables
+     the sash and the cursor falls back to default. OUR takeover drag
+     resizes them regardless (pin + window reposition), so restore the
+     resize affordance for sashes inside float windows: always show the
+     ns-resize cursor and the hover accent. */
+  .layoutArea .dv-resize-container .dv-split-view-container > .dv-sash-container > .dv-sash{cursor:ns-resize;background:#ccd3da}
+  .layoutArea .dv-resize-container .dv-split-view-container > .dv-sash-container > .dv-sash:hover,
+  .layoutArea .dv-resize-container .dv-split-view-container > .dv-sash-container > .dv-sash.dv-active-sash{background:var(--accent)}
+
+  /* edge-snap indicator retired (snapping removed) — kept: none */
+
+  /* drop-zone suppression while an unwrap/wrap-claimed drag hovers the doc
+     grid: every zone there means "undock into a new window", so the stock
+     center/left/right/tab-strip indicators are inert. Hide ALL zone overlays
+     in the layout area, then re-show the ones inside FLOAT windows (real
+     stacking/merge targets — their gridviews are nested in
+     .dv-resize-container; the main grid's are not). */
+  .layoutArea.mn-unwrap-hover .dv-drop-target-selection,
+  .layoutArea.mn-unwrap-hover .dv-drop-target-dropzone,
+  .layoutArea.mn-unwrap-hover .dv-drop-target-anchor,
+  .layoutArea.mn-unwrap-hover .dv-drop-target-container{display:none !important}
+  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-selection,
+  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-dropzone,
+  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-anchor,
+  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-container{display:block !important}
+
+  /* ---- panel content ---- */
+  .panelwrap{height:100%;overflow:auto;background:#fff;font-size:12px;padding:10px 12px}
+  .panelwrap.docwrap{overflow:auto;background:#e3e7eb;padding:16px 12px 56px}
+  .osearch{display:block;width:100%;border:1px solid var(--line);border-radius:6px;
+           padding:4px 8px;font-size:11.5px;color:var(--faint);margin-bottom:10px}
+  .o-node{display:block;padding:3px 8px;border-radius:6px;color:var(--ink);cursor:pointer}
+  .o-node.sub{padding-left:22px;color:var(--muted)}
+  .o-node:hover{background:var(--chrome)}
+  .o-node.sel{background:var(--accent-bg);color:var(--accent-ink);font-weight:600}
+  .o-node .otag{font-size:10px;color:var(--faint);font-family:var(--mono);margin-left:4px}
+  .o-node.floating{color:var(--derive-ink);font-style:italic}
+  .bib-row{display:flex;gap:8px;align-items:baseline;padding:5px 0;
+           border-top:1px dashed var(--line-soft);cursor:pointer}
+  .bib-row:first-of-type{border-top:none}
+  .bib-row .docid{font:11px var(--mono);color:var(--ink);flex:0 0 118px}
+  .bib-row .bt{font-size:11px;color:var(--muted);flex:1;min-width:0;
+               white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bib-row:hover{background:#f6f9fc}
+  .pfoot{font:10px var(--mono);color:var(--faint);margin-top:7px;
+         border-top:1px solid var(--line-soft);padding-top:6px}
+  .pfilter{display:block;width:100%;border:1px solid var(--line);border-radius:6px;
+           padding:5px 9px;font-size:11.5px;color:var(--ink);background:#fff;margin-bottom:7px}
+  .pfilter::placeholder{color:var(--faint)}
+  .iss{display:flex;gap:8px;align-items:baseline;padding:5px 0;font-size:11.5px}
+  .iss .sev{flex:0 0 8px;width:8px;height:8px;border-radius:50%;margin-top:2px}
+  .sev.err{background:var(--err)} .sev.warn{background:var(--warn-line)}
+  .iss .txt{flex:1;line-height:1.35}
+  .iss .txt b{font-weight:600}
+  .iss .jump{color:var(--accent-ink);cursor:pointer;font-size:11px;white-space:nowrap}
+  .mono10{font-family:var(--mono);font-size:10px}
+  .node-pill{font:700 10.5px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;
+             color:var(--accent-ink);background:var(--accent-bg);border:1px solid #c4d7f7;
+             border-radius:5px;padding:4px 8px;display:inline-block}
+  .anchor-ref{font:11.5px var(--mono);color:var(--muted);margin-left:6px}
+  .field{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;align-items:start;
+         padding:4px 0}
+  .field>label{font-size:11px;color:var(--muted);padding-top:4px}
+  .ctl input[type=text],.ctl .selbox{width:100%;border:1px solid var(--line);border-radius:6px;
+       padding:4.5px 8px;font-size:12px;background:#fff;color:var(--ink)}
+  .ctl .selbox{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+  .ctl .selbox::after{content:"▾";color:var(--faint);font-size:10px}
+  .ctl input[readonly]{background:#f4f6f8;color:var(--muted);font-family:var(--mono);font-size:11px}
+  .fnote{font-size:10px;color:var(--faint);margin-top:3px;line-height:1.4}
+  .kv{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;padding:3px 0;font-size:11.5px}
+  .kv .k{color:var(--muted)}
+  .kv .v{color:var(--ink)}
+  .hatched{background:repeating-linear-gradient(-45deg,#fafbfc,#fafbfc 6px,#f4f6f8 6px,#f4f6f8 12px);
+           height:100%}
+  .derived-note{font-size:10px;color:var(--faint);font-style:italic;margin-top:7px;line-height:1.45}
+  .prow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .pick{display:inline-flex;gap:6px;align-items:center;font-size:11.5px;
+        border:1px solid #c4d7f7;background:var(--accent-bg);color:var(--accent-ink);
+        border-radius:6px;padding:3.5px 8px;cursor:pointer}
+  .linklike{font-size:11px;color:var(--accent-ink);cursor:pointer}
+  .blink-list{list-style:none;margin:4px 0 0;padding:0}
+  .blink-list li{display:flex;gap:7px;align-items:baseline;font-size:11.5px;
+                 padding:3.5px 0;border-top:1px dashed var(--line-soft)}
+  .blink-list li:first-child{border-top:none}
+  .blink-list .jump{margin-left:auto;color:var(--accent-ink);cursor:pointer;font-size:11px}
+  .blink-list .src{color:var(--faint);font-family:var(--mono);font-size:10px}
+  .ftoggles{display:flex;gap:5px;margin:0 0 7px}
+  .ft{font-size:10.5px;border:1px solid var(--line);border-radius:10px;padding:2.5px 8px;
+      color:var(--faint);background:#fff;cursor:pointer}
+  .ft.on{color:var(--accent-ink);background:var(--accent-bg);border-color:#c4d7f7}
+  .ovrow{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px}
+  .ovrow .lbl{flex:1}
+  .ovrow .lock{font-size:10px;color:var(--faint)}
+  .tg{font:600 10px/1 var(--sans);border-radius:10px;padding:3px 9px;border:1px solid}
+  .tg.on{color:#175c37;background:#e2f3e9;border-color:#b7e0c6}
+  .tg.off{color:var(--faint);background:#f1f3f5;border-color:var(--line)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-top:6px}
+  .seg span{font-size:11px;padding:4px 10px;color:var(--muted);background:#fff}
+  .seg span.on{background:var(--accent-bg);color:var(--accent-ink);font-weight:600}
+
+  /* ---- document page (same language as earlier mocks) ---- */
+  .page{width:848px;margin:0 auto;background:#fff;border:1px solid #d0d6dc;
+        box-shadow:0 3px 14px rgba(20,30,40,.10);padding:38px 44px 64px 26px;
+        font-family:var(--doc);color:#111922;font-size:13.5px;line-height:1.55}
+  .row{display:grid;grid-template-columns:var(--rail-w) minmax(0,1fr);column-gap:20px}
+  .row+.row{margin-top:2px}
+  .rail{position:relative;text-align:right;padding-right:6px;padding-top:.18em}
+  .cell{min-width:0}
+  .mk{display:inline-flex;align-items:center;gap:5px;font:10.5px/1 var(--mono);
+      color:var(--muted);background:#f4f7fa;border:1px solid var(--line-soft);
+      border-radius:20px;padding:3px 8px;cursor:default}
+  .mk b{font-weight:600;color:#4a5560}
+  .mk.hot{border-color:#b9d0f5;background:var(--accent-bg);color:var(--accent-ink)}
+  .mk.hot b{color:var(--accent-ink)}
+  .mk.dot{background:transparent;border-color:transparent;padding:3px 2px;color:var(--faint)}
+  .mk.dot::before{content:"";width:7px;height:7px;border-radius:50%;
+                  border:1.5px solid var(--faint);display:inline-block}
+  .mk.dot.weak::before{border-color:#cfd5da}
+  .mk.selmark{border-color:var(--accent);box-shadow:0 0 0 2px rgba(47,111,219,.15)}
+  .mk-region{font:10.5px/1.25 var(--mono);color:var(--faint);padding-right:6px;cursor:pointer}
+  .badge{display:inline-flex;align-items:center;gap:4px;font:600 10px/1 var(--sans);
+         letter-spacing:.02em;border-radius:4px;padding:2.5px 6px;vertical-align:1px;
+         border:1px solid;cursor:default;white-space:nowrap}
+  .b-shall{color:var(--accent-ink);background:var(--accent-bg);border-color:#c4d7f7}
+  .b-should{color:var(--warn-ink);background:var(--warn-bg);border-color:var(--warn-line)}
+  .b-meta{color:var(--muted);background:#f3f6f8;border-color:var(--line)}
+  .b-warn{color:var(--warn-ink);background:var(--warn-bg);border-color:var(--warn-line);cursor:pointer}
+  .chip-d{display:inline-flex;align-items:center;font:italic 10px/1 var(--sans);
+          color:var(--derive-ink);background:repeating-linear-gradient(45deg,#f6f7f8,#f6f7f8 4px,#eef1f3 4px,#eef1f3 8px);
+          border:1px dashed var(--line);border-radius:4px;padding:2.5px 6px;vertical-align:1px;white-space:nowrap}
+  .ptr{display:inline-flex;align-items:center;gap:3px;font:11.5px var(--sans);
+       color:var(--accent-ink);border-bottom:1px dotted #9db8e4;cursor:pointer;white-space:nowrap}
+  .ptr .arr{font-size:10px}
+  .xref{border-bottom:1px dotted #9db8e4;cursor:pointer}
+  .eref{border-bottom:1px dotted #9db8e4;cursor:pointer;font-style:italic}
+  .broken{color:var(--err);text-decoration:underline wavy var(--err) 1.2px;
+          text-underline-offset:3px;cursor:pointer}
+  .doc-title{font-size:17px;font-weight:700;line-height:1.3;margin:2px 0 2px}
+  .doc-id{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+  h.cl{font-size:14.5px;font-weight:700;margin:20px 0 6px}
+  h.scl{font-size:13.5px;font-weight:700;margin:15px 0 5px}
+  p.body{margin:0 0 9px;text-align:justify}
+  sup.fn{color:var(--accent-ink);cursor:pointer;font-size:10px}
+  .footnote{font-size:11px;color:var(--muted);margin:2px 0 6px}
+  .footnote .fnline{display:inline-block;width:26px;height:1px;background:var(--line);
+                    vertical-align:4px;margin-right:6px}
+  .term-word{font-weight:700}
+  .tsrc{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .req{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;
+       padding:10px 14px 11px;margin:6px 0 10px;background:#fdfefe}
+  .req.rec{border-left-color:var(--warn-line)}
+  .req.selq{outline:2px solid var(--accent);outline-offset:2px;
+            box-shadow:0 0 0 6px rgba(47,111,219,.08)}
+  .req-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .req-kind{font:700 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .req-id{font:11px var(--mono);color:var(--accent-ink);background:var(--accent-bg);
+          border-radius:4px;padding:2px 6px}
+  .req-meta-row{font-size:11.5px;color:var(--muted);margin-top:7px;display:flex;
+                gap:6px;align-items:baseline;flex-wrap:wrap}
+  .req-meta-row .k{font-weight:600;color:#4a5560}
+  .req p{margin:0}
+  .figure{margin:10px 0 12px}
+  .figbox{border:1px solid var(--line);border-radius:6px;height:150px;
+          background:linear-gradient(160deg,#dfe7ee 0%,#cfdbe6 55%,#c2d2e0 100%);
+          display:flex;align-items:center;justify-content:center;color:#8195a6;
+          font-size:12px;letter-spacing:.04em}
+  .figure.small .figbox{height:86px}
+  .figcap{font-size:12px;color:#333c46;margin-top:6px;text-align:center}
+  .figcap b{font-weight:700}
+  .formula{margin:10px 0 12px;text-align:center;font-family:"STIX Two Math",Georgia,serif;
+           font-size:15px;font-style:italic}
+  .figtools{display:flex;gap:6px;justify-content:center;margin-top:6px;flex-wrap:wrap}
+  table.mn{border-collapse:collapse;margin:8px 0 4px;font-size:12.5px;width:100%}
+  table.mn th,table.mn td{border:1px solid #c9d1d8;padding:4.5px 9px;text-align:left}
+  table.mn th{background:#eef2f5;font-weight:600}
+  .tblcap{font-size:12px;color:#333c46;margin:6px 0 2px;text-align:center}
+  .note{border-left:3px solid #b8c4cf;background:#f6f8fa;font-size:12px;
+        padding:7px 11px;margin:8px 0;border-radius:0 6px 6px 0}
+  .bibdata-strip{display:flex;align-items:center;gap:14px;border:1px solid #c8d9ee;
+                 border-left:4px solid var(--accent);background:linear-gradient(90deg,#f2f7fd,#fbfdff);
+                 border-radius:8px;padding:10px 14px;margin-bottom:10px;cursor:pointer}
+  .bibdata-strip .tag{font:600 9.5px/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;
+                      color:var(--accent-ink);background:#fff;border:1px solid #c4d7f7;
+                      border-radius:4px;padding:3px 6px}
+  .bibdata-strip .id{font:700 13px var(--doc)}
+  .bibdata-strip .sub{font-size:11px;color:var(--muted)}
+  .bibdata-strip .grow{flex:1}
+  .tds-row{display:flex;align-items:center;gap:7px;margin:0 0 16px;font-size:11px;color:var(--muted)}
+  .tds-row .tag{font:600 9.5px/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;
+                color:var(--muted);background:#fff;border:1px solid var(--line);
+                border-radius:4px;padding:3px 6px}
+  .bib-item{display:flex;gap:10px;align-items:baseline;margin:0 0 8px;cursor:pointer}
+  .bib-item .n{font-family:var(--mono);font-size:11.5px;color:var(--muted);flex:0 0 26px}
+  .bib-item .t{flex:1;font-size:12.5px}
+  .bib-item .t em{font-style:italic}
+  .bib-side{display:flex;gap:5px;flex:0 0 auto}
+  h.floating{font-size:13.5px;font-weight:700;font-style:italic;color:#2c3641;margin:18px 0 5px}
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.2.8",
+    "react/jsx-runtime": "https://esm.sh/react@19.2.8/jsx-runtime",
+    "react-dom": "https://esm.sh/react-dom@19.2.8",
+    "react-dom/client": "https://esm.sh/react-dom@19.2.8/client",
+    "dockview-core": "https://esm.sh/dockview-core@7.0.4?external=react,react-dom",
+    "dockview": "https://esm.sh/dockview@7.0.4?external=react,react-dom",
+    "dockview-react": "https://esm.sh/dockview-react@7.0.4?external=react,react-dom"
+  }
+}
+</script>
+</head>
+<body>
+<div id="boot">Loading React + dockview v7 from CDN (esm.sh / unpkg)…
+(this one-off needs network access)</div>
+<div id="root"></div>
+
+<script type="module">
+const boot = document.getElementById('boot');
+try {
+  const React = (await import('react')).default;
+  const { useEffect, useRef, useState, createElement: h } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const dv = await import('dockview-react');
+  const { DockviewReact, DockviewDefaultTab, themeLight } = dv;
+
+  /* ============ panel content (same markup as the FlexLayout mock) ============ */
+  const PANELS = {
+    outline: `
+      <input class="osearch" placeholder="Find in outline…">
+      <span class="o-node">◱ Document <span class="otag">bibdata</span></span>
+      <span class="o-node">1&nbsp;&nbsp;Scope</span>
+      <span class="o-node">2&nbsp;&nbsp;Normative references</span>
+      <span class="o-node">3&nbsp;&nbsp;Terms and definitions</span>
+      <span class="o-node">5&nbsp;&nbsp;Requirements</span>
+      <span class="o-node sub">5.1&nbsp;&nbsp;General</span>
+      <span class="o-node sub sel">5.2&nbsp;&nbsp;Determination</span>
+      <span class="o-node sub">5.3&nbsp;&nbsp;Calculation</span>
+      <span class="o-node">6&nbsp;&nbsp;Expression of results</span>
+      <span class="o-node">7&nbsp;&nbsp;Test report</span>
+      <span class="o-node floating">Experimental notes <span class="otag">floating</span></span>
+      <span class="o-node">Bibliography</span>`,
+    bibliography: `
+      <input class="pfilter" placeholder="Filter — docid · title · contributor">
+      <div class="bib-row"><span class="docid">ISO 80000-1:2022</span><span class="bt">Quantities and units — General</span><span class="chip-d">cited ×2</span></div>
+      <div class="bib-row"><span class="docid">ISO 11348-1:2007</span><span class="bt">Water quality — Luminescence…</span><span class="chip-d">cited ×3</span></div>
+      <div class="bib-row"><span class="docid">ISO 1087-1:2000</span><span class="bt">Terminology work — Vocabulary</span><span class="chip-d">non-ref.</span></div>
+      <div class="bib-row"><span class="docid">ISO 80000-1:2022*</span><span class="bt">draft revision</span><span class="badge b-warn">dup ↗</span></div>
+      <div class="pfoot">index over bibdata · termdocsource · bibitem · origins</div>`,
+    validation: `
+      <div class="iss"><span class="sev err"></span><span class="txt"><b>Unresolved xref</b> — “Clause 9” · target <span class="mono10">clause-9</span> not found</span><span class="jump">fix ▸</span></div>
+      <div class="iss"><span class="sev warn"></span><span class="txt"><b>Duplicate docid</b> — ISO 80000-1:2022 in [1] and [4]</span><span class="jump">merge ▸</span></div>
+      <div class="iss"><span class="sev warn"></span><span class="txt"><b>Missing mimetype</b> — Figure 2 (<span class="mono10">fig-torch</span>)</span><span class="jump">set ▸</span></div>
+      <div class="pfoot">re-checked on every transaction</div>`,
+    review: `
+      <div class="iss"><span class="sev warn"></span><span class="txt"><b>Committee comment</b> — 5.2: confirm acid volume for high-alloy grades <span class="mono10">(A. Ricci · Tue)</span></span></div>
+      <div class="iss"><span class="sev warn"></span><span class="txt"><b>Suggestion</b> — 7: add precision row to Table 2 <span class="mono10">(M. Okafor · Mon)</span></span></div>
+      <div class="pfoot">2 open · resolved hidden</div>`,
+    pinned: `
+      <div style="margin-bottom:6px"><span class="node-pill">figure</span><span class="anchor-ref">@ fig-ion-beam</span></div>
+      <ul class="blink-list">
+        <li><span class="src">5.1</span> xref <span class="jump">go ↸</span></li>
+        <li><span class="src">6.2</span> xref <span class="jump">go ↸</span></li>
+        <li><span class="src">bib[2]</span> eref · ISO 11348-1 <span class="jump">go ↸</span></li>
+      </ul>
+      <div class="fnote">stays on this figure while selection roams — drag the window titlebar to move it, or drag the tab onto another group</div>`,
+    identity: `
+      <div style="margin-bottom:7px"><span class="node-pill">requirement</span><span class="anchor-ref">@ req-5-2-1</span></div>
+      <div class="field"><label>anchor</label>
+        <div class="ctl"><input type="text" value="req-5-2-1">
+        <div class="fnote">3 references rewrite on rename (xref, eref, inherit)</div></div></div>
+      <div class="field"><label>id · generated</label>
+        <div class="ctl"><input type="text" readonly value="7f3a91c4…e21">
+        <div class="fnote">content-hash — pipeline-owned, never edit</div></div></div>
+      <div class="field"><label>backlinks</label>
+        <div class="ctl"><ul class="blink-list">
+          <li><span class="src">5.1</span> xref “R-5.2-1” <span class="jump">go ↸</span></li>
+          <li><span class="src">7 NOTE</span> xref <span class="jump">go ↸</span></li>
+          <li><span class="src">bib[1]</span> eref · ISO 24817-1 <span class="jump">go ↸</span></li>
+        </ul></div></div>
+      <div class="field"><label>inherit</label>
+        <div class="ctl"><div class="prow">
+          <span class="pick">ISO 24817-1:2016 · Req 5.2-1 ↗</span><span class="linklike">Pick…</span>
+        </div></div></div>`,
+    attributes: `
+      <div class="ftoggles"><span class="ft">Modified only</span><span class="ft">Non-default</span></div>
+      <div class="field"><label>obligation</label>
+        <div class="ctl"><div class="selbox">requirement — “shall”</div></div></div>
+      <div class="field"><label>classification</label>
+        <div class="ctl"><div class="prow">
+          <span class="pick">safety · test · verification (3)</span><span class="linklike">Edit…</span>
+        </div><div class="fnote">same edit state as the badge on the block</div></div></div>
+      <div class="field"><label>label</label>
+        <div class="ctl"><input type="text" value="R-5.2-1"></div></div>
+      <div class="field"><label>unnumbered</label>
+        <div class="ctl"><input type="checkbox" style="accent-color:var(--accent)"> off — inherits auto-numbering</div></div>`,
+    structure: `
+      <div class="kv"><span class="k">parent</span><span class="v" style="color:var(--accent-ink)">Document ▸ 5 Requirements ▸ 5.2 Determination</span></div>
+      <div class="kv"><span class="k">cohort</span><span class="v">section_body · sibling 2 of 3</span></div>
+      <div class="kv"><span class="k">content</span><span class="v">statement+, prov*</span></div>
+      <div class="fnote">tabsets in this window share one width; each has its own height — sashes and the window’s bottom edge resize one tabset at a time</div>`,
+    derived: `
+      <div class="hatched" style="padding:9px 10px;border-radius:6px">
+        <div class="kv"><span class="k">label (computed)</span><span class="v" style="color:var(--derive-ink);font-style:italic">Req 5.2.1 — from §5 numbering chain</span></div>
+        <div class="kv"><span class="k">renders as</span><span class="v" style="color:var(--derive-ink);font-style:italic">“shall” statement</span></div>
+        <div class="kv"><span class="k">citeas on export</span><span class="v" style="color:var(--derive-ink);font-style:italic">ISO 24817-1</span></div>
+        <div class="derived-note">Computed by the presentation pipeline — edit the semantic panels; derived values change on export.</div>
+      </div>`,
+    overlays: `
+      <div class="ovrow"><span class="lbl">Anchors &amp; references</span><span class="tg on">ON</span></div>
+      <div class="ovrow"><span class="lbl">Inbound counts</span><span class="tg on">ON</span></div>
+      <div class="ovrow"><span class="lbl">Obligations</span><span class="tg on">ON</span></div>
+      <div class="ovrow"><span class="lbl">Numbering overrides</span><span class="tg on">ON</span></div>
+      <div class="ovrow"><span class="lbl">Metadata anomalies</span><span class="tg on">ON</span></div>
+      <div class="ovrow"><span class="lbl">Integrity errors</span><span class="tg on">ON</span></div>
+      <div class="ovrow"><span class="lbl">Review marks</span><span class="tg off">OFF</span></div>
+      <div class="fnote">gutter density:</div>
+      <div class="seg"><span>Full</span><span class="on">Compact</span><span>Aggregated</span></div>
+      <div class="fnote">hold ⌥ to reveal all momentarily · auto-compacts above ~24 marks/viewport</div>`,
+    document: `
+      <div class="page">
+        <div class="row"><div class="rail"></div><div class="cell">
+          <div class="bibdata-strip">
+            <span class="tag">bibdata</span>
+            <div>
+              <div class="id">ISO/CD 24817-1</div>
+              <div class="sub">Aerospace alloys — Determination of Mg and Zn by FAAS · stage CD · 2026-03 · click to edit metadata</div>
+            </div>
+            <div class="grow"></div>
+            <span class="ptr">Edit metadata <span class="arr">▸</span></span>
+          </div>
+        </div></div>
+        <div class="row"><div class="rail"></div><div class="cell">
+          <div class="tds-row">
+            <span class="tag">termdocsource</span> terminology sources:
+            <span class="ptr">ISO 1087-1 <span class="arr">↗</span></span>
+            <span class="ptr">ISO 5127 <span class="arr">↗</span></span>
+          </div>
+        </div></div>
+        <div class="row"><div class="rail"></div><div class="cell">
+          <div class="doc-title">Determination of magnesium and zinc in aerospace alloys — Flame atomic absorption spectrometric method</div>
+          <div class="doc-id">ISO/CD 24817-1:2026(E)</div>
+        </div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">1&nbsp;&nbsp;Scope</h2></div></div>
+        <div class="row"><div class="rail"></div><div class="cell">
+          <p class="body">This document specifies a flame atomic absorption spectrometric method
+          for the determination of the mass fractions of magnesium and zinc in the aerospace
+          alloys listed in <span class="xref">Table 2</span>. Quantities and units are expressed
+          in accordance with <span class="eref">ISO 80000-1</span>. The method is applicable to
+          mass fractions from 0,005&nbsp;% to 1,5&nbsp;%. Calibration
+          shall follow the procedure given in <span class="broken">Clause 9</span>.</p>
+          <p class="footnote"><span class="fnline"></span>1&nbsp; Formerly designated “series AA alloys”.</p>
+        </div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">2&nbsp;&nbsp;Normative references</h2></div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><p class="body">There are no normative references in this document.</p></div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">3&nbsp;&nbsp;Terms and definitions</h2></div></div>
+        <div class="row"><div class="rail"><span class="mk dot">term-alloy</span></div><div class="cell">
+          <p class="body"><b>3.1</b>&nbsp; <span class="term-word">aerospace alloy</span></p>
+          <p class="body">metallic material, alloyed for use in load-bearing aerospace structures</p>
+          <p class="tsrc">[SOURCE: ISO 11348-1:2007, 3.2, modified — “aircraft” replaced by “aerospace”]
+            &nbsp;<span class="ptr">→ bibitem [2] <span class="arr">↗</span></span></p>
+        </div></div>
+        <div class="row"><div class="rail"><span class="mk"><b>#sec-5</b>·2</span></div>
+          <div class="cell"><h2 class="cl">5&nbsp;&nbsp;Requirements</h2></div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h3 class="scl">5.1&nbsp;&nbsp;General</h3></div></div>
+        <div class="row"><div class="rail"></div><div class="cell">
+          <p class="body">The determination shall be carried out on the test portion prepared
+          in accordance with <span class="xref">6.2</span>, using the nebulizer geometry shown
+          in <span class="xref">Figure 1</span>. Results shall be reported as specified
+          in <span class="xref">Table 2</span>.</p>
+        </div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h3 class="scl">5.2&nbsp;&nbsp;Determination</h3></div></div>
+        <div class="row"><div class="rail"><span class="mk hot selmark"><b>#req-5-2-1</b>·2</span></div>
+          <div class="cell"><div class="req selq">
+            <div class="req-head">
+              <span class="req-kind">Requirement</span>
+              <span class="req-id">R-5.2-1</span>
+              <span class="badge b-shall">shall · obligation: requirement</span>
+              <span class="badge b-meta">classification · 3 ▸</span>
+            </div>
+            <p>The test portion shall be dissolved in 20&nbsp;ml of hydrochloric acid
+            (1+1) and 2&nbsp;ml of hydrogen peroxide, then diluted to 100,0&nbsp;ml.</p>
+            <div class="req-meta-row">
+              <span class="k">Inherits:</span>
+              <span class="ptr">ISO 24817-1:2016 · Req 5.2-1 <span class="arr">↗</span></span>
+              <span class="chip-d">citeas on export: “ISO 24817-1”</span>
+            </div>
+          </div></div></div>
+        <div class="row"><div class="rail"><span class="mk dot">#req-5-2-2</span></div>
+          <div class="cell"><div class="req rec">
+            <div class="req-head">
+              <span class="req-kind">Recommendation</span>
+              <span class="req-id">R-5.2-2</span>
+              <span class="badge b-should">should · obligation: recommendation</span>
+            </div>
+            <p>A reagent blank should be carried through the complete procedure with each batch.</p>
+          </div></div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">6&nbsp;&nbsp;Expression of results</h2></div></div>
+        <div class="row"><div class="rail"><span class="mk"><b>#eq-1</b>·2</span></div>
+          <div class="cell">
+            <div class="formula">w = (ρ₁ − ρ₀) · V / (m · f)</div>
+            <div class="figtools"><span class="badge b-meta">stem · asciimath</span><span class="badge b-meta">block</span></div>
+          </div></div>
+        <div class="row"><div class="rail"><span class="mk hot"><b>#fig-ion-beam</b>·3</span></div>
+          <div class="cell"><div class="figure">
+            <div class="figbox">image · ion-beam-geometry.svg</div>
+            <div class="figcap"><b>Figure 1</b> — Nebulizer flow geometry</div>
+          </div></div></div>
+        <div class="row"><div class="rail"><span class="mk dot weak">fig-torch</span></div>
+          <div class="cell"><div class="figure small">
+            <div class="figbox">image · torch-detail.png</div>
+            <div class="figcap"><b>Figure 2</b> — Torch detail</div>
+            <div class="figtools"><span class="badge b-warn">⚠ mimetype missing — see Validation ▸</span></div>
+          </div></div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">7&nbsp;&nbsp;Test report</h2></div></div>
+        <div class="row"><div class="rail"><span class="mk"><b>#tbl-2</b>·1</span></div>
+          <div class="cell">
+            <div class="tblcap"><b>Table 2</b> — Measured mass fractions</div>
+            <table class="mn">
+              <tr><th>Element</th><th>Mass fraction&nbsp;%</th><th>Wavelength&nbsp;nm</th></tr>
+              <tr><td>Mg</td><td>0,45</td><td>285,2</td></tr>
+              <tr><td>Zn</td><td>1,12</td><td>213,9</td></tr>
+            </table>
+          </div></div>
+        <div class="row"><div class="rail"></div><div class="cell">
+          <div class="note"><b>NOTE</b>&nbsp; The result is reported to four significant digits.</div>
+        </div></div>
+        <div class="row"><div class="rail"><span class="mk dot weak">notes</span></div>
+          <div class="cell">
+            <h3 class="floating">Experimental notes</h3>
+            <p class="body"><span class="badge b-meta">floating title · depth 2 · unnumbered</span></p>
+            <p class="body">Working notes retained for the committee; excluded from numbering.</p>
+          </div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">Bibliography</h2></div></div>
+        <div class="row">
+          <div class="rail"><div class="mk-region">▸ 14 anchors<br>collapsed (density)</div></div>
+          <div class="cell">
+            <div class="bib-item"><span class="n">[1]</span>
+              <span class="t">ISO 80000-1:2022, <em>Quantities and units — Part 1: General</em>. Geneva: ISO.</span>
+              <span class="bib-side"><span class="chip-d">cited ×2</span></span></div>
+            <div class="bib-item"><span class="n">[2]</span>
+              <span class="t">ISO 11348-1:2007, <em>Water quality — Luminescence… Part 1</em>. Geneva: ISO.</span>
+              <span class="bib-side"><span class="chip-d">cited ×3</span></span></div>
+            <div class="bib-item"><span class="n">[3]</span>
+              <span class="t">ISO 1087-1:2000, <em>Terminology work — Vocabulary — Part 1</em>. Geneva: ISO.</span>
+              <span class="bib-side"><span class="chip-d">non-referenced</span></span></div>
+            <div class="bib-item"><span class="n">[4]</span>
+              <span class="t">ISO 80000-1:2022 (draft revision), <em>Quantities and units</em>.</span>
+              <span class="bib-side"><span class="badge b-warn">duplicate docid ↗ [1]</span></span></div>
+          </div>
+        </div>
+      </div>`,
+  };
+
+  /* ============ serialized layout (dockview v7 shapes) ============
+     grid.root: main grid = Document only (branch > leaf).
+     floatingGroups[]: each panel group is a floating window with a NESTED
+     grid (v7 SerializedFloatingGroup.grid). Root branch orientation
+     VERTICAL => the window's groups stack top-to-bottom sharing its width;
+     leaf `size` = height in px (for a VERTICAL branch, size is the height
+     dimension). `views` reference panel ids in `panels`.
+     ================================================================ */
+  const P = (id, component) => ({ id, contentComponent: component, title: TITLES[id] });
+  const TITLES = {
+    doc: '24817-1.adoc',
+    outline: 'Outline',
+    bibliography: 'Bibliography',
+    validation: 'Validation',
+    review: 'Review',
+    pinned: 'Pinned · #fig-ion-beam',
+    identity: 'Identity & References',
+    attributes: 'Attributes',
+    structure: 'Structure',
+    derived: 'Derived · read-only',
+    overlays: 'Overlays',
+  };
+  const G = (id, views, activeView) => ({ id, views, activeView });
+  const leaf = (data, size) => ({ type: 'leaf', data, size });
+  const branch = (data, size) => ({ type: 'branch', data, size });
+
+  function presetLayout() {
+    const panels = {};
+    for (const id of Object.keys(TITLES)) {
+      // component key: panel id, except 'doc' which renders the 'document' component
+      const component = id === 'doc' ? 'document' : id;
+      panels[id] = { id, contentComponent: component, title: TITLES[id], params: {} };
+    }
+    return {
+      grid: {
+        root: branch([leaf(G('group-doc', ['doc'], 'doc'), 1200)], 800),
+        height: 800, width: 1200, orientation: 'HORIZONTAL',
+      },
+      panels,
+      activeGroup: 'group-doc',
+      floatingGroups: [
+        { // Navigation: Outline / Bibliography+Validation / Review
+          grid: {
+            root: branch([
+              leaf(G('group-nav-1', ['outline'], 'outline'), 244),
+              leaf(G('group-nav-2', ['bibliography', 'validation'], 'bibliography'), 132),
+              leaf(G('group-nav-3', ['review'], 'review'), 74),
+            ], 252),
+            width: 252, height: 474, orientation: 'VERTICAL',
+          },
+          position: { left: 18, top: 12, width: 252, height: 450 },
+        },
+        { // Pinned
+          grid: {
+            root: branch([leaf(G('group-pinned', ['pinned'], 'pinned'), 142)], 300),
+            width: 300, height: 168, orientation: 'VERTICAL',
+          },
+          position: { left: 292, top: 12, width: 300, height: 168 },
+        },
+        { // Inspector: Identity / Attributes / Structure / Derived+Overlays
+          grid: {
+            root: branch([
+              leaf(G('group-insp-1', ['identity'], 'identity'), 200),
+              leaf(G('group-insp-2', ['attributes'], 'attributes'), 180),
+              leaf(G('group-insp-3', ['structure'], 'structure'), 116),
+              leaf(G('group-insp-4', ['derived', 'overlays'], 'derived'), 100),
+            ], 320),
+            width: 320, height: 628, orientation: 'VERTICAL',
+          },
+          position: { left: 1050, top: 12, width: 320, height: 602 },
+        },
+      ],
+    };
+  }
+
+  const LS_KEY = 'mn-dockview7-floats-v1';
+  const saveLayout = (api) => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(api.toJSON())); } catch (e) {}
+  };
+  const loadLayout = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return null;
+      const j = JSON.parse(raw);
+      return j.grid ? j : null;
+    } catch (e) { return null; }
+  };
+
+  /* ============ titlebar drag-grip decoration ============
+     The stock FloatingTitleBar is intentionally blank. We decorate each
+     window's titlebar with a small ridged GRIP — no text: window titles
+     and usage hints live in the tabset tab strips; the bar's only job is
+     the drag affordance. Keyed by the real floating-panel objects
+     (api.component.floatingGroups: .group = anchor, .overlay.element =
+     the window DOM), so windows are identified structurally. */
+
+  function decorateTitlebars(api) {
+    const comp = api.component ?? api;
+    const floats = comp.floatingGroups ?? [];
+    for (const fp of floats) {
+      const bar = fp.overlay?.element?.querySelector('.dv-floating-titlebar');
+      if (!bar || bar.querySelector('.mn-drag-grip')) continue;
+      const grip = document.createElement('span');
+      grip.className = 'mn-drag-grip';
+      grip.setAttribute('aria-hidden', 'true');
+      bar.appendChild(grip);
+    }
+  }
+
+  /* ============ T6: titlebar = move-ONLY (kill the redock race) ============
+     With dndStrategy 'pointer' the float titlebar arms TWO gestures on any
+     mouse down+move: the overlay's move-the-window tracker AND the
+     GroupDragSource redock drag (pointer backend, 5px threshold, armed
+     immediately for mouse — groupDragSource.js omits the shift gate the
+     HTML5 backend has). Whichever wins its threshold first is speed-race
+     dependent: fast plain drags and ALL shift-drags fire the group drag
+     (ghost + willDrop + possible docking) instead of moving the window.
+     onWillDragGroup + preventDefault can NOT fix this: the event fires
+     inside PointerDragSource._beginDrag, which commits unconditionally, and
+     its nativeEvent is the already-dispatched pointerdown (preventDefault
+     is retroactively meaningless there). So we disable the titlebar's drag
+     sources outright — the FLOAT TITLEBAR is move-only by design ("pull
+     this group out" is meaningless for a tabset group; un-docking is T3,
+     stacking groups is the void-container drag).
+
+     Void containers (.dv-void-container, the empty tab-strip space INSIDE
+     the window's groups) keep their own untouched GroupDragSource — the
+     drag-a-whole-stack-into-another-window flow must survive.
+
+     Re-entrancy: dockview re-enables sources in updateDragAndDropState(),
+     but that only runs when disableDnd/dndStrategy options CHANGE, which
+     this mock never does — setDisabled(true) is durable. New windows
+     (T1 auto-wrap, T3) are covered because decorateTitlebars runs on every
+     layout change + the MutationObserver/interval safety net. */
+  function suppressTitlebarGroupDrag(api) {
+    const comp = api.component ?? api;
+    for (const fp of comp.floatingGroups ?? []) {
+      const ds = fp._titleBar?.dragSource;
+      if (!ds || ds.__mnMoveOnly) continue;
+      ds.html5DragSource?.setDisabled?.(true);
+      ds.pointerDragSource?.setDisabled?.(true);
+      ds.__mnMoveOnly = true;
+    }
+  }
+
+  /* ============ absolute per-tabset heights (pin model) ============
+     Model: every tabset in a float window OWNS its height; the window's
+     height is just the sum of its tabsets plus chrome (titlebar + sashes +
+     borders) — never adjusted directly, never redistributed. This mirrors
+     the FlexLayout mock and inverts dockview's stock model (window is
+     master; members are fitted proportionally into it, crushing siblings
+     to their 100px minimum on resizes/moves).
+
+     Mechanism (all public API + capture-phase takeover):
+     1. PIN — g.api.setConstraints({minimumHeight: h, maximumHeight: h})
+        freezes a tabset's height; every stock redistribution path
+        (Splitview resize/distributeEmptySpace/layout) clamps to per-view
+        min/max, so pinned members are byte-stable under any layout
+        pressure. Explicit constraints also override dockview's default
+        100px group minimum, so short tabsets (e.g. a 36px Review) pin fine.
+     2. FOLLOW — fp.position({height: Σ + chrome}) sizes the window to the
+        sum; the gridview then lays out exactly the pinned heights.
+     3. TAKEOVER — capture-phase pointerdown on .dv-sash (inside a float
+        window) and the window's bottom resize handles kills the stock
+        gesture (its listeners are bubble-phase on the elements) and runs
+        our drag instead: sashes resize the tabset ABOVE; the bottom edge
+        resizes the LAST tabset. Width stays stock (shared across members
+        by design — a width resize under pins was verified byte-stable in
+        height). The main grid keeps stock proportional behaviour.
+     NOTE the private hop: DockviewApi exposes floatingGroups only via
+     api.component (TS-private, plain runtime property) — same idiom as
+     decorateTitlebars/suppressTitlebarGroupDrag. */
+  const MIN_TS_H = 36;      // floor for one tabset (header + a sliver)
+  const MIN_WIN_H = 150;    // floor for a float window (overlay minimum)
+  const LS_H_KEY = 'mn-dockview7-heights-v1';
+  let heightsMap = {};      // groupId -> user height (persistence seed)
+  const PRESET_H = {};      // groupId -> preset leaf size (first-load seed)
+  const seedPresetHeights = () => {
+    for (const fg of presetLayout().floatingGroups ?? []) {
+      const leaves = fg.grid?.root?.data ?? [];
+      const ids = leaves.map((l) => l.data.id);
+      // single-group windows serialize as `data` (legacy form)
+      if (!ids.length && fg.data?.id) ids.push(fg.data.id);
+      leaves.forEach((l) => { PRESET_H[l.data.id] = l.size; });
+    }
+  };
+
+  const floatWindows = (api) => (api.component ?? api).floatingGroups ?? [];
+
+  function membersOf(api, fp) {
+    return api.groups
+      .filter((g) => fp.gridview.element.contains(g.element))
+      .sort((a, b) => {
+        const ra = a.element.getBoundingClientRect(), rb = b.element.getBoundingClientRect();
+        return ra.top - rb.top || ra.left - rb.left;
+      });
+  }
+
+  // TRUE chrome = everything in the window that is not member content:
+  // titlebar + borders (winH − gridview height) + the sashes between
+  // members (inside the gridview). Member rects can overflow the gridview
+  // when pins oversubscribe, so chromeOf must NOT be derived from them.
+  const chromeOf = (api, fp) => {
+    const wr = fp.overlay.element.getBoundingClientRect();
+    const gv = fp.gridview.element.getBoundingClientRect();
+    const n = membersOf(api, fp).length;
+    return (wr.height - gv.height) + Math.max(0, n - 1) * 4; // 4px per sash
+  };
+
+  function pinGroup(g, h) {
+    h = Math.max(MIN_TS_H, Math.round(h));
+    // no-op guard: re-pinning the same value must not re-fire constraint
+    // events (this runs inside onDidLayoutChange; a feedback loop would
+    // otherwise ping-pong forever). ±1px tolerance absorbs sub-pixel reads.
+    // NOTE: constraints read off the GROUP (g.minimumHeight), not g.api —
+    // the api interface doesn't expose the getters.
+    if (Math.abs((g.minimumHeight ?? 0) - h) <= 1 &&
+        Math.abs((g.maximumHeight ?? 0) - h) <= 1) return h;
+    g.api.setConstraints({ minimumHeight: h, maximumHeight: h });
+    return h;
+  }
+
+  function reconcileWindow(api, fp, target) {
+    const members = membersOf(api, fp);
+    if (!members.length) return;
+    // window := Σ members + chrome, where chrome = window − gridview content
+    // consumed by members (titlebar + borders + sashes live inside the
+    // window around/between members). Measured live, so sash count changes
+    // (members added/removed) are absorbed.
+    if (!Number.isFinite(target)) {
+      const sum = members.reduce((r, g) => r + g.element.getBoundingClientRect().height, 0);
+      target = Math.max(MIN_WIN_H, Math.round(sum + chromeOf(api, fp)));
+    }
+    const cur = Math.round(fp.overlay.element.getBoundingClientRect().height);
+    if (Math.abs(target - cur) > 1) {
+      fp.position({ height: target });
+      // A same-value position() is a no-op, so force the gridview to re-fit
+      // when only constraints changed: all-pinned members have no flexible
+      // view and the splitview won't redistribute on its own. A ±1px nudge
+      // triggers gridview.layout through the resize observer.
+      const gv = fp.gridview.element.getBoundingClientRect();
+      fp.position({ height: target });
+      void gv;
+    }
+  }
+
+  // Pin-then-fit: constraints alone don't resize a member (all-pinned
+  // splitviews have no flexible view); the window must be sized FIRST and a
+  // layout forced. Order: position to the TARGET sum → pin members → nudge.
+  function applyWindowHeights(api, fp, heights) {
+    const members = membersOf(api, fp);
+    if (!members.length) return;
+    const sum = heights.reduce((a, b) => a + b, 0);
+    const target = Math.max(MIN_WIN_H, Math.round(sum + chromeOf(api, fp)));
+    const cur = Math.round(fp.overlay.element.getBoundingClientRect().height);
+    if (target !== cur) fp.position({ height: target });
+    members.forEach((g, i) => pinGroup(g, heights[i]));
+    if (target === cur) fp.position({ height: target + 1 });  // force re-fit
+  }
+
+  function pinAllWindows(api) {
+    for (const fp of floatWindows(api)) {
+      const members = membersOf(api, fp);
+      if (!members.length) continue;
+      // Seed heights, in priority order:
+      //   1. persistence map (user heights from a previous session)
+      //   2. PRESET_H (the intended per-tabset sizes — membersOf rects are
+      //      post-distribution: the gridview stretches members to fill the
+      //      window, so pinning those oversubscribes the chrome)
+      //   3. current rendered rect (groups created at runtime, e.g. T1
+      //      auto-wrap or a group moved here — their rect IS their height)
+      const heights = members.map((g) => {
+        const saved = heightsMap[g.id];
+        const preset = PRESET_H[g.id];
+        // SAMPLE GUARD (see saveHeights): never pin a transient mid-layout
+        // rect — when a saved/preset height exists, distrust current-rect
+        // fallbacks that disagree with the member's own constraints.
+        const rect = Math.round(g.element.getBoundingClientRect().height);
+        if (!Number.isFinite(saved) && !Number.isFinite(preset)) {
+          const min = g.minimumHeight, max = g.maximumHeight;
+          if (Number.isFinite(min) && Math.abs(rect - min) > 1) {
+            return min;   // transient sample — keep the existing pin value
+          }
+        }
+        return Number.isFinite(saved) ? saved
+          : Number.isFinite(preset) ? preset
+          : rect;
+      });
+      const sum = heights.reduce((a, b) => a + b, 0);
+      const gv = fp.gridview.element.getBoundingClientRect();
+      const avail = Math.round(gv.height) - Math.max(0, members.length - 1) * 4; // minus sashes
+      // Constraints alone don't resize a member (an all-pinned splitview has
+      // no flexible view, so it won't redistribute on its own): the window
+      // must be positioned to the target sum FIRST, then members pinned,
+      // with a nudge to force gridview re-fit.
+      if (Math.abs(sum - avail) > 2) applyWindowHeights(api, fp, heights);
+      else members.forEach((g, i) => pinGroup(g, heights[i]));
+      // The stock floating-group service listens to group.onDidChange and
+      // grows the window by headerHeight whenever setSize fires — pinning
+      // therefore inflates the window asynchronously. Re-reconcile on the
+      // NEXT frame (after that handler settles), guarded to converge.
+      const gvEl = fp.gridview.element;
+      requestAnimationFrame(() => {
+        const fp2 = floatWindows(api).find((f) => f.gridview.element === gvEl);
+        if (!fp2) return;
+        const gv2 = fp2.gridview.element.getBoundingClientRect();
+        const avail2 = Math.round(gv2.height) - Math.max(0, membersOf(api, fp2).length - 1) * 4;
+        if (Math.abs(sum - avail2) > 2) applyWindowHeights(api, fp2, heights);
+      });
+    }
+  }
+
+  const saveHeights = (api) => {
+    const out = {};
+    for (const fp of floatWindows(api)) {
+      for (const g of membersOf(api, fp)) {
+        // SAMPLE GUARD: skip transient mid-layout rect reads. During the
+        // clear()/fromJSON cascade and titlebar-drag setBounds cascades, the
+        // splitview briefly lays members out OVERSUBSCRIBED (sashes not yet
+        // subtracted — e.g. [257,117,100] against pins [244,132,74], sum 16px
+        // over the gridview). Sampling such a frame and persisting it poisons
+        // heightsMap, and every later pin pass re-applies the bad values
+        // ("heights change after Reset / after a drag"). A stable read always
+        // matches the member's own min==max constraints within 1px.
+        const rect = Math.round(g.element.getBoundingClientRect().height);
+        const min = g.minimumHeight, max = g.maximumHeight;
+        if (Number.isFinite(min) && Number.isFinite(max) &&
+            Math.abs(rect - min) > 1) continue;   // transient — keep the previous entry
+        out[g.id] = rect;
+      }
+    }
+    heightsMap = out;   // keep the module map in sync — pinAllWindows reads it
+    try { localStorage.setItem(LS_H_KEY, JSON.stringify(out)); } catch (e) {}
+  };
+  const loadHeights = () => {
+    try { heightsMap = JSON.parse(localStorage.getItem(LS_H_KEY) || '{}') || {}; } catch (e) { heightsMap = {}; }
+  };
+
+  /* ---- takeover gestures: sash + window bottom edge ----
+     One capture-phase pointerdown on .dv-floating-overlay-host routes both:
+       A) .dv-sash inside a float window      → resize the tabset ABOVE
+       B) the window's bottom* resize handles → resize the LAST tabset
+     stopPropagation+preventDefault kills the stock bubble-phase listeners
+     (the splitview's sash drag and the overlay's resize drag); our drag pins
+     the target tabset per frame and grows the window with it. Corner handles
+     (bottomleft/bottomright) additionally apply the horizontal delta as width
+     (mirroring stock corner behaviour; width is shared by all members). */
+  function wireTabsetEdges() {
+    const host = document.querySelector('.dv-floating-overlay-host');
+    if (!host) return () => {};
+    const onDown = (e) => {
+      if (e.button !== 0) return;
+      const api = window.__api;
+      if (!api) return;
+      const sash = e.target.closest?.('.dv-sash');
+      const bottom = e.target.closest?.(
+        '.dv-resize-handle-bottom, .dv-resize-handle-bottomleft, .dv-resize-handle-bottomright');
+      if (!sash && !bottom) return;
+      const winEl = e.target.closest('.dv-resize-container');
+      if (!winEl) return;
+      const fp = floatWindows(api).find((f) => f.overlay.element === winEl);
+      if (!fp) return;
+      const members = membersOf(api, fp);
+      if (!members.length) return;
+
+      let target;
+      if (sash) {
+        const sashTop = sash.getBoundingClientRect().top;
+        target = members[0];
+        for (const m of members) {
+          if (m.element.getBoundingClientRect().bottom <= sashTop + 2) target = m;
+        }
+      } else {
+        target = members[members.length - 1];
+      }
+
+      const startH = target.element.getBoundingClientRect().height;
+      const startW = fp.overlay.element.getBoundingClientRect().width;
+      const startWin = fp.overlay.element.getBoundingClientRect().height;
+      const startX = e.clientX, startY = e.clientY;
+      const isCorner = !!e.target.closest?.('.dv-resize-handle-bottomleft, .dv-resize-handle-bottomright');
+      e.stopPropagation(); e.preventDefault();   // kill the stock gesture
+
+      const move = (ev) => {
+        const h = Math.max(MIN_TS_H, Math.round(startH + (ev.clientY - startY)));
+        pinGroup(target, h);
+        const winH = Math.max(MIN_WIN_H, Math.round(startWin + (h - startH)));
+        const bounds = { height: winH };
+        if (isCorner) bounds.width = Math.max(120, Math.round(startW + (ev.clientX - startX)));
+        fp.position(bounds);
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        reconcileWindow(api, fp);
+        // takeover gestures don't fire onDidLayoutChange (no structural
+        // change), so persist the new heights here or the next structural
+        // pass reverts them to preset
+        saveHeights(api);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    };
+    host.addEventListener('pointerdown', onDown, true);
+    return () => host.removeEventListener('pointerdown', onDown, true);
+  }
+
+  /* ============ window-drag tracking (edge snapping REMOVED) ============
+     Tabset-group viewport-edge snapping was deliberately removed: with a
+     group already flush against an edge, snapping another group into the
+     same band lands them on top of each other (overlap). Windows now place
+     freely — the pointer rules. What REMAINS is the windowDragLive gate,
+     which the pin maintenance pass depends on: it must not run mid-drag
+     (a foreign or corrupted setBounds during the drag can distort the
+     window box, and re-pinning to the transiently-crushed member rects
+     would persist that as the new tabset heights). */
+  let autoWrapEnabled = true;   // panel-drop auto-wrap (T1); doc tab stays docked
+  let windowDragLive = false;
+
+  /* ---- group-drag pointerup fallback (controller-independent unwrap) ----
+     The stock drop pipeline resolves which target handles a drop by what sits
+     under the POINTER at release — a lottery for our purposes: over the
+     toolbar (outside the layout area) NO target resolves so nothing fires;
+     over the document tab strip the per-tab/void targets may or may not
+     latch. Per the UX rule — a tabset dropped anywhere outside a tabset-group
+     mini window undocks into its own mini window — we handle the gesture end
+     ourselves: while a GROUP drag is live (tracked via onWillDragGroup),
+     a pointerup that is NOT over a float window (over the grid surface, or
+     anywhere outside the layout area: toolbar, statusbar, …) unwraps the
+     group via addFloatingGroup. The willDrop handler remains the primary
+     path (it also preventDefaults stock handling when it fires); this
+     fallback covers exactly the zones where it never does. Guard: if the
+     drop-target pipeline DID process the drop in the same tick (a stack/
+     merge into another window), the group has already moved — check that it
+     is still in a floating window and hasn't just been relocated before
+     unwrapping (a layout-change counter distinguishes handled drops). */
+  const groupDragLive = { group: null, ownerEl: null };
+
+  function wireGroupDragFallback(api) {
+    api.onWillDragGroup((e) => {
+      // only void-container drags reach here (the titlebar source is
+      // disabled by suppressTitlebarGroupDrag)
+      const g = e.group;
+      if (!g || g.api.location.type !== 'floating') return;
+      groupDragLive.group = g;
+      groupDragLive.ownerEl = null;
+      const comp = api.component ?? api;
+      const fp = (comp.floatingGroups ?? []).find((f) => f.gridview.element.contains(g.element));
+      if (fp) groupDragLive.ownerEl = fp.gridview.element;
+    });
+  }
+
+  function maybeUnwrapGroupAtPointer(ev, api) {
+    const g = groupDragLive.group;
+    const ownerEl = groupDragLive.ownerEl;
+    groupDragLive.group = null;
+    groupDragLive.ownerEl = null;
+    if (!ev || ev.button !== 0) return false;
+    if (!g || !autoWrapEnabled) return false;
+    try {
+      // still the same group, still floating, and STILL in the same float
+      // window as when the drag started — if a stock drop (or our willDrop
+      // unwrap) moved it, the owner gridview changed / it left the window
+      if (api.getGroup(g.id) !== g) return false;
+      if (g.api.location.type !== 'floating') return false;
+      const el = g.element.closest('.dv-grid-view');
+      if (!el || el !== ownerEl) return false;
+      // pointer over a float window (mini window)? then it's a drop INTO a
+      // window's zones — leave stock semantics alone
+      const under = document.elementFromPoint(ev.clientX, ev.clientY);
+      if (under && under.closest('.dv-resize-container')) return false;
+      const area = document.querySelector('.layoutArea');
+      const r = area.getBoundingClientRect();
+      const src = g.element.getBoundingClientRect();
+      const w = Math.round(src.width), h = Math.round(src.height);
+      const x = Math.min(Math.max(ev.clientX - r.left - w / 2, 4), Math.max(r.width - w - 4, 4));
+      const y = Math.min(Math.max(ev.clientY - r.top - 16, 4), Math.max(r.height - h - 4, 4));
+      api.addFloatingGroup(g, { x, y, width: w, height: h });
+      return true;
+    } catch (err) {
+      console.error('group unwrap fallback failed', err);
+      return false;
+    }
+  }
+
+  function wireWindowDragTracking() {
+    const arm = () => { windowDragLive = true; };
+    const retire = (ev) => {
+      windowDragLive = false;
+      // group-unwrap fallback FIRST (before the state clears): only when a
+      // group drag was live and the pointer released outside any mini window
+      if (groupDragLive.group && window.__api) {
+        maybeUnwrapGroupAtPointer(ev, window.__api);
+      }
+      // drop-zone suppression off with the gesture + sweep any stale zone
+      // overlays left in the main grid (a following drag can start before
+      // dockview re-runs willShow, so the class alone wouldn't re-hide them)
+      const area = document.querySelector('.layoutArea');
+      if (area) {
+        area.classList.remove('mn-unwrap-hover');
+        area.querySelectorAll('.dv-drop-target-selection, .dv-drop-target-dropzone, .dv-drop-target-anchor, .dv-drop-target-container')
+          .forEach((el) => { if (!el.closest('.dv-resize-container')) el.remove(); });
+      }
+      // re-anchor bottom-aligned windows to top form so toJSON stores {top}
+      // (see normalizeTops note) — after every pointer gesture, drag or not
+      if (window.__api) normalizeTops(window.__api);
+    };
+    window.addEventListener('pointerdown', arm);
+    window.addEventListener('pointerup', retire);
+    window.addEventListener('pointercancel', retire);
+    return () => {
+      window.removeEventListener('pointerdown', arm);
+      window.removeEventListener('pointerup', retire);
+      window.removeEventListener('pointercancel', retire);
+    };
+  }
+
+  /* ============ drag containment: everything but the bottom ============
+     Tabset-group windows must stay fully inside the layout area on the TOP,
+     LEFT and RIGHT edges — but may extend BELOW the bottom edge (panels
+     park half-off, like a drawer; the top of the window stays grabbable).
+
+     dockview's stock clamp is symmetric per axis, so no `floatingGroupBounds`
+     value can express "free at the bottom, contained at the top": the
+     vertical clamp floor/ceiling share one yOffset. Instead:
+       - floatingGroupBounds leaves the vertical axis UNclamped
+         (minimumHeightWithinViewport: 0 → yOffset = window height → the
+         stock clamp range spans the whole container, i.e. no-op) and the
+         horizontal axis likewise (minimumWidthWithinViewport: 0);
+       - transformFloatingGroupDrag re-imposes the bounds ourselves, on the
+         PRE-clamp proposed box each frame: top >= 0, left in
+         [0, container − width]; the bottom axis is left to the pointer.
+     The transform must return BOTH axes (a partial return assigns undefined
+     to the missing axis and corrupts the clamp — see the retired magnet's
+     bug note in git history).
+
+     BOTTOM-OVERHANG GOTCHAS handled here:
+     (a) ANCHOR PICK: the drag clamps top to [0, containerH − h] and, when
+         our returned top exceeds that, silently flips the window to a
+         BOTTOM-anchored form at the FAR extreme (full-height overhang) —
+         pointer-follow breaks. Guard: cap the returned top at containerH
+         (the last position where the top-anchored form still holds; the
+         overhang itself is bounded by the window height, which also keeps
+         the titlebar reachable). Partial overhangs between containerH − h
+         and containerH render fine as top-anchored styles.
+     (b) SERIALIZATION: bottom-anchored windows serialize as {bottom: −N};
+         on reload the Overlay constructor re-clamps with an UNMEASURED
+         element (height 0 → yOffset 0) and the overhang collapses to 0.
+         normalizeTops() re-anchors any bottom-aligned window to its
+         equivalent top form after each drag (pointerup), so toJSON always
+         writes {top} and the constructor's top clamp (max = containerH)
+         accepts it. */
+  const clampDragBox = (ctx) => {
+    const p = ctx.proposed, c = ctx.container;
+    return {
+      top: Math.min(Math.max(0, p.top), Math.max(0, c.height)),
+      left: Math.min(Math.max(0, p.left), Math.max(0, c.width - p.width)),
+    };
+  };
+
+  // re-anchor bottom-aligned float windows to their top form (after drags)
+  function normalizeTops(api) {
+    for (const fp of floatWindows(api)) {
+      const el = fp.overlay.element;
+      if (getComputedStyle(el).bottom !== 'auto') {
+        const r = el.getBoundingClientRect();
+        const c = fp.overlay.options.container.getBoundingClientRect();
+        fp.position({ top: r.top - c.top });
+      }
+    }
+  }
+
+  /* ============ React panel components ============ */
+  const components = {};
+  for (const key of Object.keys(PANELS)) {
+    const cls = key === 'document' ? 'panelwrap docwrap' : 'panelwrap';
+    const html = PANELS[key];
+    components[key] = () => h('div', { className: cls, dangerouslySetInnerHTML: { __html: html } });
+  }
+
+  /* ============ app ============ */
+  /* ============ panel-drop AUTO-WRAP ============
+     Dropping a dragged panel TAB on visually-empty space pops the panel into
+     a NEW floating window — the FlexLayout mock's auto-wrap behavior. Since
+     the Document group structurally fills the main grid, every "empty" pixel
+     IS the Document group's content dropzone, whose stock center-drop merges
+     the panel into the document group. We claim ONLY that case — via
+     onWillDrop + preventDefault, which makes dockview skip stock handling
+     (dockviewGroupPanelModel checks defaultPrevented before moving) — and
+     re-issue it as api.addFloatingGroup(panel, {x,y,w,h}) at the drop point.
+
+     Deliberately NOT claimed (stay stock / belong to sibling work):
+       kind 'tab'/'header_space'          → strip insert / reorder
+       target group inside a float window → merge into that window's group
+       panelId === null (whole-group drag)→ T3 un-dock affordance
+       source group is a GRID group       → doc tab can't be floated (by
+                                            decision: keeps the Document tab
+                                            docked; guards the same-group
+                                            self-drop no-op too)
+
+     Zone nuance: the group content dropzone spans the WHOLE layout area and
+     uses dockview's DEFAULT 20%-percentage activation size, so on a wide
+     area the outer ~20% bands are edge zones ('left'/'right'/…) even though
+     they are visually the gray pasteboard around the white page — obviously
+     "empty space" to a user, not a dock edge. We therefore claim BOTH:
+       (a) position 'center' anywhere on the doc surface, and
+       (b) any edge position whose pointer is over the gray pasteboard
+           (elementFromPoint resolves into the doc wrapper, NOT the white
+           .page itself and NOT a float window). The drag ghost is
+           pointer-events:none so it can't skew the hit test.
+     Edge positions over the WHITE PAGE stay stock — those are real docking
+     gestures (and T4's veto territory), and claiming them would break the
+     split-pane dock. */
+  const WRAP_W = 260, WRAP_H = 200;   // window size — FlexLayout reference
+
+  // is the pointer over "empty" doc surface — the gray pasteboard around the
+  // white page (not the page itself, not a float window, not group chrome)?
+  function overPasteboard(ne) {
+    const el = document.elementFromPoint(ne.clientX, ne.clientY);
+    if (!el) return false;
+    const area = el.closest('.layoutArea');
+    if (!area) return false;                       // outside the editor area
+    if (el.closest('.dv-resize-container')) return false;  // a float window
+    const page = el.closest('.page');              // white document page
+    if (page && area.contains(page)) return false; // over the page: not empty
+    return true;                                   // gray pasteboard
+  }
+
+  // "Outside tabset groups" = anywhere in the main grid's surface that is not
+  // a float window: the gray pasteboard AND the white document page. The
+  // Document group structurally fills the grid, so every such pixel is its
+  // content dropzone — and the 20%-percentage activation size means the outer
+  // bands of the PAGE (top: the bibdata strip and termdocsource row; bottom:
+  // the bibliography; left/right margins) resolve to 'left'/'right'/'top'/
+  // 'bottom' zones, not 'center'. Auto-wrap must claim them ALL: a drop on
+  // the bibdata node is as much "empty space" as one mid-pasteboard.
+  function overGridSurface(ne) {
+    const el = document.elementFromPoint(ne.clientX, ne.clientY);
+    if (!el) return false;
+    const area = el.closest('.layoutArea');
+    if (!area) return false;                       // outside the editor area
+    if (el.closest('.dv-resize-container')) return false;  // a float window
+    return true;                                   // pasteboard or page
+  }
+
+  function handleWillDrop(ev) {
+    if (autoWrapEnabled) {
+      // kinds: 'content' (doc grid surface), 'edge' (root band), 'tab' /
+      // 'header_space' (document tab strip / its void — still the grid
+      // surface; a group drop there must UNDOCK, never merge as tabs)
+      if (ev.kind !== 'content' && ev.kind !== 'edge' && ev.kind !== 'tab' && ev.kind !== 'header_space') return;
+      if ((ev.kind === 'content' || ev.kind === 'tab' || ev.kind === 'header_space') &&
+          (!ev.group || ev.group.api.location.type !== 'grid')) return;
+      // claim ANY position over the grid surface (center + all edge zones) —
+      // the whole doc grid is "empty space" for panel AND group drops
+      // (see overGridSurface)
+      if (!overGridSurface(ev.nativeEvent)) return;
+      const data = ev.getData();
+      if (!data) return;
+      const api = ev.api ?? window.__api;
+      const ne = ev.nativeEvent;
+      if (typeof ne.clientX !== 'number' || typeof ne.clientY !== 'number') return;
+
+      const isGroup = data.panelId === null || data.panelId === undefined;
+      const srcGroup = api.getGroup(data.groupId);
+      if (!srcGroup || srcGroup.api.location.type !== 'floating') return;
+
+      ev.preventDefault();   // skip the stock merge/dock into the Document group
+
+      // window position: drop point centered horizontally, ~16px below it,
+      // clamped so the window stays inside the layout area (dockview itself
+      // only clamps to >= 0, so the max-side clamp is ours)
+      const r = document.querySelector('.layoutArea').getBoundingClientRect();
+      const srcRect = srcGroup.element.getBoundingClientRect();
+      // SIZE: always inherit the SOURCE GROUP's live rect — for a tabset
+      // undock that carries its height (T7); for a PANEL undock it preserves
+      // the tabset height the panel came from (the Outline tabset is 244px
+      // tall; its solo window must be too — NOT the generic WRAP_H), and the
+      // width of the mini window it lived in. WRAP_W/H remain only as the
+      // fallback when the source rect is unavailable.
+      const size = (srcRect.width > 0 && srcRect.height > 0)
+        ? { w: Math.round(srcRect.width), h: Math.round(srcRect.height) }
+        : { w: WRAP_W, h: WRAP_H };
+      const x = Math.min(Math.max(ne.clientX - r.left - size.w / 2, 4),
+                         Math.max(r.width - size.w - 4, 4));
+      const y = Math.min(Math.max(ne.clientY - r.top - 16, 4),
+                         Math.max(r.height - size.h - 4, 4));
+
+      if (isGroup) {
+        // GROUP auto-unwrap: detach the whole tabset (panels + height) into
+        // a new window. addFloatingGroup(group) removes it from its float
+        // window (disposing that window if this was its last member) and
+        // mounts a fresh one — the T7 pin pass then reconciles heights on
+        // the next layout-change tick.
+        api.addFloatingGroup(srcGroup, { x, y, width: size.w, height: size.h });
+        return;
+      }
+
+      const panel = api.getPanel(data.panelId);
+      if (!panel) return;   // stale drag payload — nothing sensible to float
+      // PANEL undock: addFloatingGroup(panel) mints a NEW group; hand it the
+      // source tabset's height explicitly as well — the window height option
+      // is the OUTER box, so add the chrome so the CONTENT matches the source
+      // tabset's content height. Without this the maintenance pass re-pins
+      // the minted group to whatever the initial layout produced (observed:
+      // 125px for a 244px tabset) — the height reset this fixes.
+      const chrome = 26;   // titlebar(24) + borders(2); measured by T7's chromeOf
+      const g2 = api.addFloatingGroup(panel, { x, y, width: size.w, height: size.h + chrome });
+      void g2;
+      // pin the new group to the source height once it exists (the minted
+      // group id is discoverable via the panel's group after the call)
+      try {
+        const newGroup = panel.api.group;
+        if (newGroup && newGroup !== srcGroup) {
+          newGroup.api.setConstraints({ minimumHeight: size.h, maximumHeight: size.h });
+          heightsMap = heightsMap || {};
+          heightsMap[newGroup.id] = size.h;
+        }
+      } catch (e) { /* best-effort: the pin pass will reconcile anyway */ }
+      // the new window's titlebar gets a grip via the decoration net; its
+      // identity is carried by the tabset tab strip, not the titlebar.
+      // persistence rides the existing onDidLayoutChange → saveLayout net.
+    } else {
+      // auto-wrap OFF: group drops fall back to T2's veto (no docking);
+      // panel drops keep their T4 semantics
+    }
+  }
+
+  function App() {
+    const areaRef = useRef(null);
+    const [autoWrap, setAutoWrap] = useState(true);
+    autoWrapEnabled = autoWrap;
+
+    const onReady = ({ api }) => {
+      window.__api = api;
+      seedPresetHeights();                 // T7: preset sizes as first-load seed
+      loadHeights();                       // T7: user heights override them
+      api.fromJSON(loadLayout() || presetLayout());
+      saveLayout(api);
+      api.onDidLayoutChange(() => {
+        saveLayout(api); decorateTitlebars(api); suppressTitlebarGroupDrag(api);
+        // T7: heights + pins ride the same debounced pass — a synchronous
+        // read races mid-layout geometry (member rects and the window's own
+        // resize settle a frame later), which stales the saved heights.
+        // SKIPPED while a window drag is live: mid-drag the dragged window's
+        // box is owned by the overlay; a transient/corrupted bounds write
+        // would otherwise be re-pinned as permanent tabset heights.
+        if (windowDragLive) return;
+        if (window.__mnPinRaf) cancelAnimationFrame(window.__mnPinRaf);
+        window.__mnPinRaf = requestAnimationFrame(() => {
+          window.__mnPinRaf = 0;
+          pinAllWindows(api);
+          saveHeights(api);
+        });
+      });
+      api.onWillDrop(handleWillDrop);
+      wireGroupDragFallback(api);   // pointerup fallback for group drops in dead zones
+      const comp = api.component ?? api;
+      (comp.floatingGroups ?? []).forEach(() => {}); // (decorated by the observer net below)
+      decorateTitlebars(api);
+      suppressTitlebarGroupDrag(api);   // T6: titlebar is move-only (see above)
+      pinAllWindows(api);               // T7: initial pin of preset/restored heights
+
+      /* ---- T4: panels merge as TABS only — never split a grid ----
+         Veto non-center drop targets for PANEL drags on FLOAT-WINDOW group
+         content (kind 'content') and the layout root edge band
+         (kind 'edge'); kind 'tab' / 'header_space' (tab strip) drops are
+         exempt in full. Whole-GROUP drags (panelId === null) are exempt
+         ONLY for vertical stacking (top/bottom): dropping a tabset on the
+         LEFT/RIGHT zone splits the target into side-by-side columns —
+         e.g. two groups crammed into one 252px float window — the same
+         disease as the panel case, so left/right is vetoed for groups
+         too. Center = merge as tab; top/bottom = stack (required flow).
+         The onWillShowOverlay veto suppresses the overlay AND the
+         subsequent drop (pointerDropTarget clears its state on
+         preventDefault and only fires onDrop when state survives);
+         onWillDrop is the belt-and-braces backstop.
+         GRID-SURFACE EXEMPTION (T1): a panel dropped ANYWHERE on the main
+         grid's surface — gray pasteboard OR white page, in ANY zone — is
+         "empty space" and T1's auto-wrap claims it. This includes the
+         page's outer 20% bands (bibdata strip / termdocsource row at the
+         top, bibliography at the bottom), which resolve to edge zones:
+         without the exemption T4 would kill the drop before T1's
+         onWillDrop ever fires. Panel edge-zone vetoes therefore apply
+         only to FLOAT-WINDOW targets (never split a window's nested grid);
+         the doc grid never receives panel drops at all (T1 wraps them). */
+      const panelEdgeDrop = (ev) => {
+        if (ev.kind !== 'content' && ev.kind !== 'edge') return false; // tab-strip drops stay stock
+        if (ev.position === 'center') return false;                    // merges stay
+        const d = ev.getData();
+        if (!d || d.viewId !== comp.id) return false;
+        if (d.panelId != null) {
+          // panel drag on a GRID (doc) target:
+          //  - pointer over the grid surface → T1 auto-wrap claims it (no veto;
+          //    vetoing would clear the latched state and kill the claim)
+          //  - pointer NOT over the grid surface (the drop target resolved to
+          //    the doc group while the pointer sits on a float window's outer
+          //    band — protruding titlebar/resize-handle/edge shadow, where
+          //    overGridSurface is false) → NEITHER the claim nor a useful
+          //    stock outcome applies: veto, so the panel can never dock or
+          //    become a sibling tab of the document
+          if (ev.kind === 'content' && ev.group && ev.group.api.location.type === 'grid') {
+            return !(ev.nativeEvent && overGridSurface(ev.nativeEvent));
+          }
+          if (ev.kind === 'edge') return true;                         // root band never splits (T2 vetoes groups)
+          return true;                                                 // float-window edge zone → veto
+        }
+        // whole-group drag → GROUP AUTO-UNWRAP territory: over the grid
+        // surface (empty space, any zone) the unwrap handler claims the drop,
+        // so no veto may clear the drop-target state there. On FLOAT-WINDOW
+        // targets: center = merge as tabs (stock), top/bottom = stack
+        // (stock, required flow) — only left/right side-splits are vetoed.
+        if (ev.kind === 'content' && ev.group && ev.group.api.location.type !== 'floating') return false;
+        return ev.position === 'left' || ev.position === 'right';
+      };
+      /* ---- T2: whole-GROUP drops never dock into the main grid ----
+         The mock keeps every panel group floating (the grid is
+         Document-only), so a GROUP drag (panelId === null —
+         dragging a group's void container; the titlebar is move-only since
+         T6) released on ANY dropzone of the Document group (tab strip,
+         content edge zones, content center) must NOT dock. The void-container gesture is the live case, so the
+         release point can land on any of these zones — veto them all.
+         Drops whose target lives INSIDE a float window's nested grid
+         (location 'floating') stay stock: that is the
+         stacking-into-another-window flow and must survive. PANEL drags
+         are T4's domain; T1's center auto-wrap only fires for panelId.
+         GRID-SURFACE EXEMPTION (group auto-unwrap): a group dropped on
+         EMPTY SPACE (overGridSurface — not over a float window) is claimed
+         by handleWillDrop's group branch instead, which pops the whole
+         tabset into a NEW window — IDENTICALLY to the panel auto-wrap,
+         regardless of the drop zone the pointer resolves to (content
+         center/edge, tab strip, header space, or the root edge band) and
+         even when the pointer rests outside the layout area (toolbar etc.:
+         the last hover target's state must survive so the drop fires).
+         The veto still applies over float-window dropzones and as the
+         backstop when the unwrap handler declines (auto-wrap disabled). */
+      const groupGridDrop = (ev) => {
+        const d = ev.getData();
+        if (!d || d.viewId !== comp.id || d.panelId !== null) return false; // PANEL drags → T4/T1
+        // group auto-unwrap claims empty space first — every kind ('content',
+        // 'tab', 'header_space', 'edge'): without exempting ALL of them some
+        // willShow veto clears the latched drop state and the drop never
+        // fires (the kill-chain). Gated on the toggle: with auto-wrap OFF the
+        // vetoes apply (group drops never dock, never unwrap).
+        if (autoWrapEnabled && ev.nativeEvent && overGridSurface(ev.nativeEvent)) return false;
+        if (ev.kind === 'edge') return true;            // dndEdges root band over a window
+        if (ev.kind === 'content' || ev.kind === 'tab' || ev.kind === 'header_space') {
+          return !ev.group || ev.group.api.location.type === 'grid';  // grid targets: veto; float targets: stock
+        }
+        return false;
+      };
+      /* ---- DOCUMENT ISOLATION: panels and documents don't mix ----
+         The document panel (id 'doc') must never leave the main grid for a
+         float window: no merge-as-tab, no stack, no tab-strip insert. The doc
+         tab drag is a PANEL drag (panelId === 'doc'); the doc group's void
+         drag is a GROUP drag (groupId === the grid doc group). Both are vetoed
+         on ANY float-window target, every kind and position — the drop snaps
+         back and the document stays docked. (Grid-surface targets are already
+         handled: the auto-wrap claim declines doc-source drags via its
+         floating-source guard, and no veto is needed there since stock has
+         nothing to do — the doc is already home.) */
+      const docIntoFloat = (ev) => {
+        if (ev.kind !== 'content' && ev.kind !== 'tab' && ev.kind !== 'header_space') return false;
+        const tgt = ev.group;
+        if (!tgt || tgt.api.location.type !== 'floating') return false;
+        const d = ev.getData();
+        if (!d || d.viewId !== comp.id) return false;
+        if (d.panelId != null) return d.panelId === 'doc';
+        // group drag: the doc's own grid group
+        const srcGroup = api.getGroup(d.groupId);
+        return !!(srcGroup && srcGroup.panels.some((p) => p.id === 'doc'));
+      };
+      api.onWillShowOverlay((ev) => {
+        // OVERLAY SUPPRESSION for claimed drops: when the auto-unwrap/auto-
+        // wrap handler will claim this drop (a panel or group drag over the
+        // grid surface), the stock zone indicators are inert — every zone
+        // there unwraps — so hide them. onWillShowOverlay's preventDefault
+        // would ALSO kill the drop (pointerDropTarget clears its latched
+        // state), which we need for the claim; instead toggle a layout-area
+        // class and let CSS hide the doc-grid's zone elements. Float-window
+        // overlays (real stacking/merge targets) stay visible.
+        const d = ev.getData();
+        const claimed = autoWrapEnabled && d && d.viewId === comp.id &&
+          ev.nativeEvent && overGridSurface(ev.nativeEvent) &&
+          !(ev.group && ev.group.element && ev.group.element.closest('.dv-resize-container'));
+        const area = document.querySelector('.layoutArea');
+        if (area) area.classList.toggle('mn-unwrap-hover', !!claimed);
+        if (panelEdgeDrop(ev)) ev.preventDefault();
+        if (groupGridDrop(ev)) ev.preventDefault();   // don't even show the misleading zone
+        if (docIntoFloat(ev)) ev.preventDefault();    // doc never enters a mini window
+      });
+      api.onWillDrop((ev) => {
+        if (panelEdgeDrop(ev)) ev.preventDefault();
+        if (groupGridDrop(ev)) ev.preventDefault();
+        if (docIntoFloat(ev)) ev.preventDefault();
+      });
+    };
+
+    // decoration safety net: new/moved windows get titled on DOM changes
+    useEffect(() => {
+      const paint = () => {
+        if (!window.__api) return;
+        decorateTitlebars(window.__api);
+        suppressTitlebarGroupDrag(window.__api);
+      };
+      paint();
+      const mo = new MutationObserver(paint);
+      mo.observe(document.getElementById('root'), { childList: true, subtree: true });
+      const t = setInterval(paint, 500);
+      return () => { mo.disconnect(); clearInterval(t); };
+    }, []);
+
+    // window-drag tracking (windowDragLive gate for the pin pass; snapping removed)
+    useEffect(() => wireWindowDragTracking(), []);
+    // T7: sash + window-bottom-edge takeover (per-tabset heights)
+    useEffect(() => wireTabsetEdges(), []);
+
+    const reset = () => {
+      try { localStorage.removeItem(LS_KEY); localStorage.removeItem(LS_H_KEY); } catch (e) {}
+      heightsMap = {};
+      seedPresetHeights();
+      window.__api?.clear();
+      window.__api?.fromJSON(presetLayout());
+      saveLayout(window.__api);
+      pinAllWindows(window.__api);
+    };
+
+    return h('div', { className: 'window' },
+      h('div', { className: 'toolbar' },
+        h('button', { className: 'tb-btn' }, 'Bold'),
+        h('button', { className: 'tb-btn' }, 'Italic'),
+        h('span', { className: 'tb-sep' }),
+        h('button', { className: 'tb-btn' }, 'Quote'),
+        h('button', { className: 'tb-btn' }, 'Note'),
+        h('span', { className: 'tb-sep' }),
+        h('button', { className: 'tb-btn' }, 'Xref'),
+        h('button', { className: 'tb-btn' }, 'Eref'),
+        h('span', { className: 'tb-spacer' }),
+        h('button', {
+          className: 'tb-btn' + (autoWrap ? ' on' : ''),
+          onClick: () => setAutoWrap(v => !v),
+          title: 'When ON, dropping a dragged panel tab on empty space pops it into a new floating window (the Document tab itself stays docked)',
+        }, 'Auto-wrap panels: ' + (autoWrap ? 'ON' : 'OFF')),
+        h('button', { className: 'tb-btn', onClick: reset }, 'Reset')),
+      h('div', { className: 'layoutArea', ref: areaRef },
+        h(DockviewReact, {
+          components,
+          theme: themeLight,
+          onReady,
+          floatingGroupDragHandle: 'titlebar',
+          dndStrategy: 'pointer',
+          // drag containment — everything but the bottom edge (see
+          // "drag containment" above): the vertical/horizontal stock clamps
+          // are disabled via 0-minimums (no-op clamp range) and our transform
+          // re-imposes top/left bounds per frame, leaving the bottom free.
+          floatingGroupBounds: {
+            minimumHeightWithinViewport: 0,
+            minimumWidthWithinViewport: 0,
+          },
+          dndEdges: {
+            size: { value: 160, type: 'pixels' },
+            activationSize: { value: 26, type: 'pixels' },
+          },
+          transformFloatingGroupDrag: clampDragBox,   // containment, not snapping
+          defaultTabComponent: DockviewDefaultTab,
+        })),
+      h('div', { className: 'statusbar' },
+        h('span', null, h('span', { className: 'dot' }),
+          'Semantic XML valid · 1 unresolved reference · 1 duplicate docid'),
+        h('span', { className: 'grow' }),
+        h('span', { className: 'live' },
+          'dockview v7 · drag tabs between windows · drop a tab on empty space = new window · drag empty tab-strip space to move a whole stack · layout saved'),
+        h('span', null, '1 412 words · saved 12:04')));
+  }
+
+  createRoot(document.getElementById('root')).render(h(App));
+  boot.remove();
+} catch (err) {
+  boot.textContent = 'Failed to load from CDN: ' + (err && err.message || err) +
+    '\n\nThis page imports react@19 + dockview v7 from esm.sh/unpkg and needs network access.';
+  console.error(err);
+}
+</script>
+</body>
+</html>
