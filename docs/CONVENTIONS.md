@@ -94,7 +94,7 @@ When a spec depends on or references another, express it as a **relative
 markdown link in body text**, pointing at the relevant section:
 
 ```markdown
-The schema defines 46 node types ([schema.spec.md](./schema.spec.md) §3.1).
+The schema defines 48 node types ([schema.spec.md](./schema.spec.md) §3.1).
 ```
 
 Rules:

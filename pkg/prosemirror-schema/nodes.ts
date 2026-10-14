@@ -120,6 +120,38 @@ const sectionTitleNode: Record<string, NodeSpec> = {
   },
 };
 
+/**
+ * The caption child nodes — `figure_name` and `table_name` — one per parent,
+ * both textblocks whose inline content is the caption. Permitted as an
+ * optional first child of `figure` / `table` respectively (§8.5, §8.6). Both
+ * have no group membership so they cannot be inserted as general blocks; they
+ * are created by the insertion commands (`insertImage` / `insertTable`) and
+ * never swapped between parents.
+ *
+ * Two node types are REQUIRED, not stylistic: no single HTML element
+ * round-trips through the HTML parser as a child of BOTH `<figure>` and
+ * `<table>` — Chromium destroys a `<caption>` inside `<figure>` (reduced to a
+ * bare text node), and foster-parents `<figcaption>` and `<div>` OUT of
+ * `<table>` (they reappear as siblings before it). The DOM round-trip
+ * acceptance test (§14) locks these parser facts in.
+ *
+ * Mirrors Metanorma's `<name>` child element (TextElement content, §17).
+ */
+const captionNodes: Record<string, NodeSpec> = {
+  figure_name: {
+    content: `${INLINE_GROUP}*`,
+    attrs: { ...DATA_ATTR },
+    toDOM: () => ['figcaption', { class: CLASS.figureName }, 0],
+    parseDOM: [{ tag: `figcaption.${CLASS.figureName}` }],
+  },
+  table_name: {
+    content: `${INLINE_GROUP}*`,
+    attrs: { ...DATA_ATTR },
+    toDOM: () => ['caption', { class: CLASS.tableName }, 0],
+    parseDOM: [{ tag: `caption.${CLASS.tableName}` }],
+  },
+};
+
 const sectionNodes: Record<string, NodeSpec> = {
   // Standoc Clause-Section: STRICT XOR — blocks (leaf) or subclauses, never
   // both (no hanging paragraphs in the numbered body hierarchy).
@@ -460,11 +492,11 @@ const listNodes: Record<string, NodeSpec> = {
 
 const tableNodes: Record<string, NodeSpec> = {
   table: {
-    content: '(table_head | table_body | table_foot)+',
+    content: `table_name? (table_head | table_body | table_foot)+`,
     group: BLOCK_GROUP,
     attrs: {
       id: { default: null }, number: { default: null },
-      title: { default: null }, ...DATA_ATTR,
+      ...DATA_ATTR,
     },
     toDOM: () => ['table', 0],
     parseDOM: [{ tag: 'table' }],
@@ -511,12 +543,11 @@ const tableNodes: Record<string, NodeSpec> = {
 
 const mediaNodes: Record<string, NodeSpec> = {
   figure: {
-    content: `(image | ${BLOCK_GROUP})*`,
+    content: `figure_name? (image | ${BLOCK_GROUP})*`,
     group: BLOCK_GROUP,
     attrs: {
       id: { default: null },
       number: { default: null },
-      title: { default: null },
       ...DATA_ATTR,
     },
     toDOM: (node) => {
@@ -693,6 +724,7 @@ const leafInlineNodes: Record<string, NodeSpec> = {
 export const metanormaNodes: Record<string, NodeSpec> = {
   ...structuralNodes,
   ...sectionTitleNode,
+  ...captionNodes,
   ...sectionNodes,
   ...bibItemNodes,
   ...blockNodes,

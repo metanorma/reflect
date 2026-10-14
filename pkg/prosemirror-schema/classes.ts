@@ -56,6 +56,12 @@ export const CLASS = {
   // Section title child node (§8.2)
   sectionTitle: 'mn-section-title',
 
+  // Caption child nodes (§8.5, §8.6) — one per parent; see nodes.ts for why
+  // two tags are required (HTML parser destroys/foster-parents cross-parent
+  // caption elements).
+  figureName: 'mn-figure-name',
+  tableName: 'mn-table-name',
+
   // Block nodes (§8.3)
   note:          'mn-note',
   admonition:    'mn-admonition',

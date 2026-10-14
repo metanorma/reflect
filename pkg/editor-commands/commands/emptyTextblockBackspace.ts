@@ -437,6 +437,46 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
     return true;
   }
 
+  // §4.4.9b — caption guard (figure_name / table_name). An empty caption
+  // deletes just the caption node; the parent figure is deleted only when the
+  // caption is its sole child (an empty figure shell serves no one); a table
+  // is NEVER deleted for an empty caption — its content expression requires
+  // rows, so deleting the table would destroy user content.
+  const captionName = $from.parent.type.name;
+  if (captionName === NODE_NAME.figure_name || captionName === NODE_NAME.table_name) {
+    if (dispatch === undefined) return true;
+
+    const parentDepth = $from.depth - 1;
+    const captionStart = $from.before($from.depth);
+    const captionEnd = $from.after($from.depth);
+    const parentNode = $from.node(parentDepth);
+    const isSoleChild = parentNode.childCount === 1;
+
+    const tr = state.tr;
+
+    if (isSoleChild && captionName === NODE_NAME.figure_name) {
+      // Sole-child caption inside a figure: delete the whole figure.
+      const figStart = $from.before(parentDepth);
+      const figEnd = $from.after(parentDepth);
+      const figIndex = $from.index(parentDepth - 1);
+      tr.delete(figStart, figEnd);
+      const dir = figIndex > 0 ? -1 : 1;
+      tr.setSelection(TextSelection.near(tr.doc.resolve(figStart), dir));
+    } else {
+      // Delete only the caption; land in the next sibling's first textblock
+      // (table: first cell paragraph; figure with image: the atom stays, the
+      // cursor falls forward).
+      tr.delete(captionStart, captionEnd);
+      const nextIndex = $from.index(parentDepth) + 1;
+      const dir = nextIndex < parentNode.childCount ? 1 : -1;
+      tr.setSelection(TextSelection.near(tr.doc.resolve(captionStart), dir));
+    }
+
+    tr.scrollIntoView();
+    dispatch(tr);
+    return true;
+  }
+
   // §4.7.3 — walk the container stack.
   const result = walkContainerStack($from, $from.depth);
   if (result.kind === 'refuse') return false;

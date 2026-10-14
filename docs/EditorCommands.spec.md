@@ -431,10 +431,11 @@ chainCommands(
   splitListItem,          // 3. inside a list_item
   insertSectionAbove,     // 4. caret at start of a non-empty section_title
   exitSectionTitle,       // 5. inside a section_title (move to body / insert body)
-  exitFloatingTitle,      // 6. inside a floating_title (move to next sibling / insert clause)
-  exitContainerBlock,     // 7. empty para at the end of a container block
-  createParagraphNear,    // 8. node-selection on an atom
-  splitBlockKeepMarks,    // 9. default: split the innermost textblock
+  exitName,               // 6. inside a figure_name / table_name caption
+  exitFloatingTitle,      // 7. inside a floating_title (move to next sibling / insert clause)
+  exitContainerBlock,     // 8. empty para at the end of a container block
+  createParagraphNear,    // 9. node-selection on an atom
+  splitBlockKeepMarks,    // 10. default: split the innermost textblock
 )
 ```
 
@@ -448,7 +449,10 @@ because every state it fires on (caret inside a `section_title`) is also an
 `exitSectionTitle` trigger — only the offset-0/non-empty/collapsed/s legality
 conditions discriminate; `exitSectionTitle` must preempt the default split so
 that pressing Enter inside a section heading moves to the body rather than
-producing a second heading textblock; `createParagraphNear` must preempt the
+producing a second heading textblock; `exitName` must preempt the default
+split for the same reason inside captions — a split would create a second
+`figure_name`/`table_name` sibling, violating the `figure_name?`/`table_name?`
+quantifier; `createParagraphNear` must preempt the
 split for node selections on atoms (which have no inline content to split). The
 generic split is the fallback.
 
@@ -724,6 +728,7 @@ The Enter feature introduces the following commands in
 | `splitListItem` | `(schema) => Command` | adapted from `prosemirror-schema-list` | Continue a `bullet_list`/`ordered_list` by splitting the item's inner block into a new item, or exit the list (one level) on an empty trailing item. Generalised for `list_item` content `block+`. |
 | `insertSectionAbove` | `Command` | custom | Word/Docs/Pages heading-split analog. When the caret is a collapsed `TextSelection` at offset 0 of a **non-empty** `section_title`, insert a new same-type sibling section **before** the current section (empty `section_title` + empty `paragraph`, fresh generated `id`) and keep the caret at offset 0 of the current title. Schema-derived legality: pre-flights `parent.canReplaceWith(titleIndex, titleIndex, sectionType)`; on refusal returns `false` (stricter flavors degrade to `exitSectionTitle`). Fires before `exitSectionTitle` in the chain (every state it accepts is also an `exitSectionTitle` trigger). |
 | `exitSectionTitle` | `Command` | custom | When the cursor is inside a `section_title` textblock (the heading of a section node), move the cursor to the section's first body block, or insert an empty `paragraph` as the first body block if none exists. Preempts the generic split so Enter inside a heading does not produce a second heading textblock. |
+| `exitName` | `Command` | custom | When the cursor is inside a `figure_name` / `table_name` caption textblock (the optional leading caption child of `figure` / `table`), move the cursor on without splitting. `table_name`: descend into the first cell's paragraph. `figure_name`: land in the first following sibling inside the figure that can hold a textblock cursor; if none (the `image` atom is next, or the caption is the figure's last child), insert an empty `paragraph` after the figure's last child and place the cursor in it. Preempts the generic split so Enter inside a caption does not create a second caption sibling (violating `figure_name?` / `table_name?`). |
 | `exitFloatingTitle` | `Command` | custom | When the cursor is inside a `floating_title` textblock (an unnumbered free-standing heading), move the cursor to the start of the next sibling, or — when the title is its parent's last child — insert a new `clause` (empty `section_title` + `paragraph`, cursor in the heading) after it. Preempts the generic split so Enter inside a floating title starts the titled section rather than producing a second heading. |
 | `exitContainerBlock` | `Command` | custom | Lift an empty trailing paragraph out of a `block+` container (`note`, `example`, `quote`, `review`, `admonition`, `figure`), removing the container if it would become empty. |
 | `createParagraphNear` | `Command` | re-exported from `prosemirror-commands` | Create an empty paragraph adjacent to a node-selected atom. |
@@ -1449,6 +1454,26 @@ section and re-seed a body paragraph when needed. It is the structural dual of
 the Enter feature's `exitSectionTitle` command (§2.7): just as Enter inside a
 heading exits to the body, Backspace on an empty heading removes the heading
 but keeps the body.
+
+#### 4.4.9b Captions (`figure_name`, `table_name`)
+
+A caption is the optional leading textblock of `figure` / `table` (schema
+§8.5–§8.6). Like a `section_title`, it is a heading-shaped textblock, not a
+body block — Backspace on an **empty** caption deletes the caption, never the
+content it captions:
+
+| Selection | Zone | Context | Effect | Invariant |
+|---|---|---|---|---|
+| Collapsed | start-of-empty | empty `table_name` (table always has rows) | **Delete the caption only.** Cursor falls forward into the first cell's paragraph. | Table and all cells untouched. |
+| Collapsed | start-of-empty | empty `figure_name` with siblings (image, blocks) | **Delete the caption only.** Cursor falls forward to the next sibling's first textblock (or backward if the caption was last). | Figure and its image/blocks untouched. |
+| Collapsed | start-of-empty | empty `figure_name` that is the figure's **sole** child | **Delete the whole figure** (an empty caption-only figure is an empty shell). Cursor to the nearest neighbouring textblock. | No empty figure shell left behind. |
+| Collapsed | start (non-empty) / middle / end | inside a caption | No-op (`false`). Default character deletion runs. | `inline*` intact. |
+
+A `table` is **never** deleted for an empty caption: its content expression
+requires `(table_head | table_body | table_foot)+`, so deleting it would
+destroy user content. The guard fires before the §4.7.3 container-stack walk
+(the caption's parent is not a `block+` container the walk understands) and is
+the structural dual of the Enter feature's `exitName` command (§2.7).
 
 ### 4.5 Schema-preservation guarantees
 

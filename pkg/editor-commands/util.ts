@@ -59,8 +59,9 @@ export function generateId(): string {
  * cursor's textblock, plus the textblock's child index in it.
  *
  * Returns `null` when the cursor is not inside a textblock, when the
- * textblock is a `section_title` (a heading is not body content — block
- * insertion commands must not replace it), or when the textblock has no
+ * textblock is a `section_title` heading or a `figure_name`/`table_name`
+ * caption (headings and captions are not body content — block insertion
+ * commands must not replace or neighbour them), or when the textblock has no
  * enclosing block parent (depth < 2; cannot happen in this schema, but the
  * guard keeps the helper total).
  */
@@ -69,7 +70,12 @@ export function bodyBlockContext(
 ): { readonly parent: Node; readonly index: number; readonly depth: number } | null {
   const { $from } = state.selection;
   if (!$from.parent.isTextblock) return null;
-  if ($from.parent.type.name === 'section_title') return null;
+  const name = $from.parent.type.name;
+  if (
+    name === 'section_title' ||
+    name === 'figure_name' ||
+    name === 'table_name'
+  ) return null;
   if ($from.depth < 2) return null;
   const parentDepth = $from.depth - 1;
   return {

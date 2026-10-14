@@ -14,8 +14,8 @@ deeply nested, schema-valid subtree (`table > table_body > table_row+ >
 table_cell+`, each cell holding block content). This document therefore
 specifies two coupled deliverables — a **dimension-selection popover** (the "row
 /column dimension selection UI" the base spec called out) and an **`insertTable`
-command** that materialises the chosen grid as ProseMirror nodes and places the
-cursor in the first cell.
+command** that materialises the chosen grid (with a seeded `table_name`
+caption, §8.1.3) as ProseMirror nodes and places the cursor in the caption.
 
 It deliberately does **not** re-specify anything from the base toolbar (marks,
 blocks, lists, links, the `ToolbarButton` descriptor, the `mn-toolbar` styling
@@ -30,7 +30,8 @@ All table nodes come from `@metanorma/prosemirror-schema`
 
 | Node | Content | Group | Attrs |
 |---|---|---|---|
-| `table` | `(table_head \| table_body \| table_foot)+` | `block` | `id`, `number`, `title` (all default `null`), plus `data` (default `{}`) |
+| `table` | `table_name? (table_head \| table_body \| table_foot)+` | `block` | `id`, `number` (default `null`), plus `data` (default `{}`); the caption is the `table_name` child node |
+| `table_name` | `inline*` | — | `data` (default `{}`) — the caption textblock |
 | `table_head` | `table_row+` | — | `data` (default `{}`) |
 | `table_body` | `table_row+` | — | `data` (default `{}`) |
 | `table_foot` | `table_row+` | — | `data` (default `{}`) |
@@ -47,8 +48,8 @@ Two consequences drive the design:
 
 The attribute helper `DATA_ATTR` (`{ data: { default: {} } }`) backs the open
 `data` index on every table node. The `table` node inlines its attrs
-(`{ id, number, title, ...DATA_ATTR }`) rather than using `baseAttrs()`, because
-it carries a `title`; the other five table nodes carry only `...DATA_ATTR`.
+(`{ id, number, ...DATA_ATTR }`); the caption lives in the `table_name` child
+node, and the other five table nodes carry only `...DATA_ATTR`.
 
 ## 3. Package and files
 
@@ -389,10 +390,22 @@ document pipeline assign ids. This was rejected in favour of assigning at
 insertion time for consistency across all node-insertion commands (tables,
 figures, sections, footnotes).
 
-**The `title` (caption) attribute is not collected at insertion time.** The
-table's `title` is left `null` and can be edited later (e.g. via a node view
-or a future properties panel). Adding a caption prompt to the insert flow was
-considered and deferred to keep the grid-picker interaction lightweight.
+**The caption is seeded, not prompted.** The inserted table carries an empty
+`table_name` caption as its first child (§8.1.3), and the cursor lands in it —
+the author types the caption inline (full inline markup applies), then Enter
+(`exitName`, `EditorCommands.spec.md` §2.7) descends into the first cell. No
+caption prompt appears in the grid-picker flow. An empty caption is deletable
+with Backspace (the table survives; §4.4.9b).
+
+### 8.1.3 Caption seeding and cursor contract
+
+`buildTable` prepends `table_name.create()` to the body, and the command sets
+the selection into the caption's text position. The inserted table is located
+by its **generated `id`** (a `descendants` scan): whether
+`replaceSelectionWith` replaces an empty textblock wholesale or splits a
+non-empty one at the caret, the position differs — neither pre- nor
+post-replace selection arithmetic is reliable. The seeded caption is empty;
+on export an empty caption is dropped (`schema.spec.md` §17.6).
 
 ### 8.2 Algorithm
 
@@ -407,17 +420,20 @@ considered and deferred to keep the grid-picker interaction lightweight.
   3. **Build the node tree** bottom-up using the schema node types resolved from
      `state.schema` and `NodeType.create` / `node.create`. Every leaf cell contains
      a single empty `paragraph` (a `block`, satisfying `table_cell`'s `block+`
-     content). The `table` node is created with a **generated `id`** (see §8.1.2).
+     content). The tree is prepended with an empty `table_name` caption (§8.1.3).
+     The `table` node is created with a **generated `id`** (see §8.1.2).
 4. **Insert.** Replace the (possibly empty) selection with the `table` node via
    `tr.replaceSelectionWith(table)`. When the selection is empty and inside a
    paragraph, ProseMirror splits appropriately; when the parent is a block that
    only allows one child, use `replaceWith` against the grandparent if needed
    (the legality check already guarantees a valid slot).
-5. **Place the cursor.** Compute a `TextSelection` at the start of the first
-   cell's paragraph (position of the empty paragraph's content start) and set it
-   via `tr.setSelection` using `TextSelection.near(...)`. This puts the caret
-   inside cell `(1,1)` ready to type and guarantees a content-model-valid
-   selection (§1.7.2).
+5. **Place the cursor.** Compute a `TextSelection` inside the seeded
+   `table_name` caption (§8.1.3): locate the inserted table by its generated
+   `id` (neither pre- nor post-replace selection arithmetic is reliable —
+   `replaceSelectionWith` may replace an empty textblock wholesale or split a
+   non-empty one at the caret). Set it via `tr.setSelection` using
+   `TextSelection.near(...)` — a content-model-valid selection (§1.7.2).
+   Enter inside the caption (`exitName`) descends into cell `(1,1)`.
 6. **Scroll into view.** `tr.scrollIntoView()` — this is a user-initiated
    command, so the viewport follows the cursor (§1.7.3).
 7. **Dispatch once.** `dispatch(tr)` exactly once, return `true`. The command
@@ -448,6 +464,7 @@ function buildTable(schema: Schema, rows: number, cols: number): Node {
   const rowType = schema.nodes["table_row"]!;
   const bodyType = schema.nodes["table_body"]!;
   const tableType = schema.nodes["table"]!;
+  const nameType = schema.nodes["table_name"]!;
 
   const emptyParagraph = schema.nodes["paragraph"]!.create();
 
@@ -460,8 +477,9 @@ function buildTable(schema: Schema, rows: number, cols: number): Node {
   });
 
     const body = bodyType.create(null, rowNodes);
-    // table attrs: id is generated (§8.1.2), number/title default null, data defaults {}.
-    return tableType.create({ id: generateId() }, [body]);
+    // table attrs: id is generated (§8.1.2), number defaults null, data defaults {}.
+    // Empty caption seeded first (§8.1.3).
+    return tableType.create({ id: generateId() }, [nameType.create(), body]);
 }
 
 export function insertTable(
@@ -484,16 +502,23 @@ export function insertTable(
   const tr = state.tr;
   tr.replaceSelectionWith(table);
 
-  // Move the cursor into the first cell's empty paragraph. Resolve the table
-  // start from the post-replace selection and descend to the first table_cell,
-  // rather than hard-coding a position offset.
-  const $tableStart = tr.doc.resolve(tr.selection.from);
-  // After replaceSelectionWith the selection sits just past the inserted table;
-  // step back onto the table node and descend into its first cell.
-  const firstCell = $tableStart.nodeAfter?.firstChild?.firstChild?.firstChild;
-  if (firstCell) {
-    const firstCellPos = $tableStart.pos + 1; // into table
-    tr.setSelection(TextSelection.near(tr.doc.resolve(firstCellPos), 1));
+  // Place the cursor in the seeded empty caption (§8.1.3): the author types
+  // the caption first; Enter (`exitName`) descends into the first cell.
+  // Locate the inserted table by its generated id — replaceSelectionWith may
+  // replace an empty textblock or split a non-empty one, so selection
+  // arithmetic is unreliable.
+  const tableId = table.attrs.id;
+  let tablePos = -1;
+  tr.doc.descendants((n, p) => {
+    if (tablePos === -1 && n.type.name === "table" && n.attrs.id === tableId) {
+      tablePos = p;
+      return false;
+    }
+    return true;
+  });
+  if (tablePos !== -1 && table.firstChild?.type.name === "table_name") {
+    const captionPos = tablePos + 2; // table open + caption open
+    tr.setSelection(TextSelection.near(tr.doc.resolve(captionPos), 1));
   }
 
   tr.scrollIntoView(); // user-initiated command (§1.7.3)

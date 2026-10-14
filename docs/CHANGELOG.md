@@ -7,6 +7,54 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-10-14 — captions become rich child nodes (`figure_name`, `table_name`)
+
+`@metanorma/prosemirror-schema` feature + `editor-commands` / `toolbar` /
+`editor-gui` ripples; `docs/schema.spec.md` §3.1/§4/§5/§6.1/§8.5–§8.6/§14/§17,
+`docs/EditorCommands.spec.md` §2.3/§2.7/§4.4.9b,
+`docs/AdvancedMetanormaToolbar/{tables,images-figures,reference-marks}.md`,
+`docs/MetanormaProseMirror.spec.md`; **Commits: *(pending)***.
+
+- **Change** — figure/table captions move from a plain-string `title`
+  attribute to rich inline child textblocks, mirroring the already-shipped
+  `section_title` pattern: `figure.content` becomes
+  `figure_name? (image | block)*`, `table.content` becomes
+  `table_name? (table_head | table_body | table_foot)+`; the `title` attrs
+  are dropped. Node count 46→48 (`CAPTION_TYPES`). Captions accept all 14
+  marks and export as Standoc `<name>` child elements (§17).
+- **Why two node types** — no single HTML element round-trips through the
+  browser's HTML parser as a child of both parents: Chromium destroys
+  `<caption>` inside `<figure>` (reduced to a bare text node) and
+  foster-parents `<figcaption>`/`<div>` out of `<table>` (they reappear as
+  siblings before it). So `figure_name` serializes as
+  `<figcaption class="mn-figure-name">` and `table_name` as
+  `<caption class="mn-table-name">` — the only pair where each parent's
+  serialization survives clipboard re-parsing. Locked in as acceptance
+  criterion §14.11 and a browser e2e (`caption.spec.ts`).
+- **Editing surface** — `exitName` (Enter in a caption: first cell for
+  tables; first textblock-bearing sibling inside the figure, else a
+  paragraph inserted after the figure's last child, so
+  `[figure_name, image]` + Enter yields `[figure_name, image, paragraph]`);
+  `emptyTextblockBackspace` §4.4.9b caption guard (empty caption deletes
+  itself; a figure is deleted only when the caption is its sole child; a
+  table never); `insertTable`/`insertImage` seed an empty caption and land
+  the cursor in it (the figure is no longer node-selected on insert);
+  `bodyBlockContext` treats captions as non-body (block-insert buttons stay
+  disabled in captions); `TargetPicker` labels read the caption child.
+- **Known coercion** — Standoc `tname` is `element name { NestedTextElement+ }`
+  (≥1 child) while editor captions are `inline*`; an empty caption is
+  dropped on export, and `NestedTextElement` members outside the editor's
+  inline vocabulary are dropped on import (§17.6 — coercions, not
+  ambiguities). Sourcecode `<name>` captions remain dropped (§17.5): the
+  `code: true` textblock cannot host a rich child; a container/body split
+  would be a separate change.
+- Sample housekeeping — `91855.mn.json`'s table `attrs.title`
+  ("List of equivalent terms") migrated to a leading `table_name` child
+  (no e2e loads this file; the migration prevents silent caption loss if
+  it is loaded, since `nodeFromJSON` drops unknown attrs).
+
+---
+
 ## 2026-09-30 — minimap: rows join the §8.4 z-sorted draw order (background layers)
 
 `@metanorma/prosemirror-minimap` fix, `docs/ProseMirrorMinimap.spec.md`

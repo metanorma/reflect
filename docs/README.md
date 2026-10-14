@@ -42,7 +42,7 @@ node and mark vocabulary, content model, attributes, and DOM serialization rules
 are aligned with the **Metanorma document model** (the Semantic XML that the
 Metanorma pipeline authors and validates) — documents convert unambiguously to
 Semantic XML. This is the **source of truth** for the
-document model — 46 node types and 14 mark types.
+document model — 48 node types and 14 mark types.
 
 | § | Section |
 |---|---|

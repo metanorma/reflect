@@ -67,10 +67,11 @@ export function canInsertTable(state: EditorState): boolean {
 }
 
 /**
- * Build the table node tree bottom-up: every cell holds a single empty
- * paragraph (a `block`, satisfying `table_cell`'s `block+` content). The
- * `table` node carries a generated `id` (§8.1.2). Node types are resolved off
- * the passed schema, not a captured singleton.
+ * Build the table node tree bottom-up: a seeded empty `table_name` caption
+ * first child, then `table_body > table_row+ > table_cell+`, each cell holding
+ * a single empty paragraph (a `block`, satisfying `table_cell`'s `block+`
+ * content). The `table` node carries a generated `id` (§8.1.2). Node types are
+ * resolved off the passed schema, not a captured singleton.
  */
 function buildTable(schema: Schema, rows: number, cols: number): Node | null {
   const cellType = schema.nodes['table_cell'];
@@ -78,12 +79,14 @@ function buildTable(schema: Schema, rows: number, cols: number): Node | null {
   const bodyType = schema.nodes['table_body'];
   const tableType = schema.nodes['table'];
   const paragraphType = schema.nodes['paragraph'];
+  const nameType = schema.nodes['table_name'];
   if (
     cellType === undefined ||
     rowType === undefined ||
     bodyType === undefined ||
     tableType === undefined ||
-    paragraphType === undefined
+    paragraphType === undefined ||
+    nameType === undefined
   ) {
     return null;
   }
@@ -99,8 +102,10 @@ function buildTable(schema: Schema, rows: number, cols: number): Node | null {
   });
 
   const body = bodyType.create(null, rowNodes);
-  // table attrs: id is generated (§8.1.2), number/title default null, data {}.
-  return tableType.create({ id: generateId() }, [body]);
+  // table attrs: id is generated (§8.1.2), number defaults null, data {}.
+  // The caption is seeded empty (tables.md §8.1.3): Enter inside it exits to
+  // the first cell (`exitName`); Backspace on the empty caption deletes it.
+  return tableType.create({ id: generateId() }, [nameType.create(), body]);
 }
 
 /**
@@ -125,18 +130,31 @@ export function insertTable(
   const c = clamp(cols ?? 1, 1, MAX_COLS);
   const table = buildTable(state.schema, r, c);
   if (table === null) return false;
+  const tableType = table.type; // the resolved table node type (from buildTable)
 
   const tr = state.tr;
   tr.replaceSelectionWith(table);
 
-  // Move the cursor into the first cell's empty paragraph. Resolve the table
-  // from the post-replace selection and descend into its first cell, rather
-  // than hard-coding a position offset (robust to table_head additions).
-  const $tableStart = tr.doc.resolve(tr.selection.from);
-  const firstCell = $tableStart.nodeAfter?.firstChild?.firstChild?.firstChild;
-  if (firstCell !== undefined && firstCell !== null) {
-    const firstCellPos = $tableStart.pos + 1; // into table
-    tr.setSelection(TextSelection.near(tr.doc.resolve(firstCellPos), 1));
+  // Place the cursor in the seeded empty caption (tables.md §8.1.3): the
+  // author types the table's caption first, then Enter (`exitName`) descends
+  // into the first cell. Locate the inserted table by its generated id — the
+  // position depends on whether replaceSelectionWith replaced an empty
+  // textblock wholesale or split a non-empty one at the caret, so neither
+  // pre- nor post-replace selection arithmetic is reliable.
+  const tableId = table.attrs['id'];
+  let tablePos = -1;
+  tr.doc.descendants((n, p) => {
+    if (tablePos !== -1) return false;
+    if (n.type === tableType && n.attrs['id'] === tableId) {
+      tablePos = p;
+      return false;
+    }
+    return true;
+  });
+  const caption = table.firstChild;
+  if (tablePos !== -1 && caption !== null && caption.type.name === 'table_name') {
+    const captionPos = tablePos + 2; // table open + caption open
+    tr.setSelection(TextSelection.near(tr.doc.resolve(captionPos), 1));
   }
 
   tr.scrollIntoView(); // user-initiated command (§1.7.3)

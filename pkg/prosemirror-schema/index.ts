@@ -2,7 +2,7 @@
  * Public API for `@metanorma/prosemirror-schema` (§11).
  *
  * Implements [`docs/schema.spec.md`](../../docs/schema.spec.md) — the source
- * of truth for the document model (46 node types, 14 mark types, content
+ * of truth for the document model (48 node types, 14 mark types, content
  * model, attributes, and DOM serialization rules).
  *
  * Assembles the single ProseMirror `Schema` whose node/mark vocabulary,
@@ -49,7 +49,7 @@ export type { SectionCohort } from './cohorts.js';
 // ---------------------------------------------------------------------------
 
 /**
- * The 46 node names, in §3.1 group order. The authoritative list that the
+ * The 48 node names, in §3.1 group order. The authoritative list that the
  * schema's `nodes` map must contain exactly.
  */
 export const NODE_NAMES: readonly string[] = [
@@ -67,6 +67,9 @@ export const NODE_NAMES: readonly string[] = [
   'bibitem',
   // SECTION_TITLE_TYPES (1)
   'section_title',
+  // CAPTION_TYPES (2) — groupless textblocks, named explicitly as the
+  // optional first child of figure / table
+  'figure_name', 'table_name',
   // BLOCK_TYPES (8)
   'paragraph', 'note', 'admonition', 'example', 'sourcecode',
   'formula', 'quote', 'review',

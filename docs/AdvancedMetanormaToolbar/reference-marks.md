@@ -158,8 +158,9 @@ tiers of resolution, best available wins:
    insertion time** by all node-insertion commands (the established convention),
    these `id` values are reliably populated in any document created by this
    editor — there is no separate "anchor" construct. Each entry shows a
-   readable label (the `title` attr for sections/floating_title, or node text)
-   and its id.
+   readable label (the node's heading text: its `section_title` child for
+   sections, `figure_name`/`table_name` for figures/tables, or node text
+   otherwise) and its id.
 2. **Free-text input (fallback).** A `window.prompt('Cross-reference target
    id:')` when no picker is available or the host declines to supply one.
 3. **Upgrade hook.**

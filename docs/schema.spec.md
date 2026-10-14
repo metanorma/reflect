@@ -102,7 +102,7 @@ constructs it covers (§1.1). Names need not match the XML element names — the
 converter performs renames (§17) — but each name denotes exactly one XML
 construct.
 
-### 3.1 Node types (46)
+### 3.1 Node types (48)
 
 | Group constant | Members |
 |---|---|
@@ -119,6 +119,7 @@ construct.
 | `FOOTNOTE_TYPES` (3) | `footnotes`, `footnote_marker`, `footnote_entry` |
 | `INLINE_ATOM_TYPES` (1) | `stem` |
 | `SECTION_TITLE_TYPES` (1) | `section_title` |
+| `CAPTION_TYPES` (2) | `figure_name`, `table_name` |
 | `FLOATING_TITLE_TYPES` (1) | `floating_title` |
 | `LEAF_TYPES` (2) | `text`, `soft_break` |
 
@@ -136,6 +137,21 @@ subclause branches of `clause` and `annex` (§8.2). Carrying `id` and `depth`
 (not the `id`/`number` pair of section nodes, §6.1), its inline content is
 the heading text, so it supports
 full inline markup (emphasis, links, etc.).
+
+**Note.** `figure_name` and `table_name` are **parent-scoped caption
+textblocks** (content `inline*`, no PM group membership) — the optional leading
+child of `figure` and `table` respectively (§8.5, §8.6). Both mirror Standoc's
+`<name>` caption element (`tname = element name { NestedTextElement+ }`) with
+rich inline content, and each supports full inline markup. There are two node
+types — not one — because no single HTML element round-trips through the HTML
+parser as a child of both parents: Chromium destroys a `<caption>` inside
+`<figure>` (reduced to a bare text node), and foster-parents `<figcaption>`
+and `<div>` out of `<table>` (they reappear as siblings before it). So
+`figure_name` serializes as `<figcaption class="mn-figure-name">` and
+`table_name` as `<caption class="mn-table-name">` — the only two-tag pair
+where each parent's serialization survives clipboard/HTML re-parsing (§14.11).
+The captions are never interchangeable: each content expression names exactly
+one, so a caption cannot be moved between parents.
 
 ### 3.2 Mark types (14)
 
@@ -178,12 +194,14 @@ container** — `annex` nodes are direct children of `doc`, ordered after
 `doc.content` expression rather than a container's. The companion cohort
 metadata (§8.0a) maps each type to its cohort and drives command-level routing.
 
-**Groupless nodes.** Two textblocks carry **no** PM group membership and are
+**Groupless nodes.** Four textblocks carry **no** PM group membership and are
 admissible only where a content expression names them explicitly:
-`section_title` (the optional leading heading child of a section node, §8.2) and
-`floating_title` (the free-standing unnumbered heading, admitted at `sections`
-top level and in the subclause branches of `clause` and `annex`, §8.3). Because
-neither is in the `block` group, neither can be inserted as a general block or
+`section_title` (the optional leading heading child of a section node, §8.2),
+`figure_name` and `table_name` (the parent-scoped caption children of `figure`
+and `table`, §8.5–§8.6), and `floating_title` (the free-standing unnumbered
+heading, admitted at `sections` top level and in the subclause branches of
+`clause` and `annex`, §8.3). Because none is in the
+`block` group, none can be inserted as a general block or
 appear inside container blocks (`note`, `example`, `dd`, …) — only the
 positions that name them accept them. This matches Standoc, where
 `floating-title` is never a `BasicBlock`.
@@ -221,11 +239,13 @@ positions that name them accept them. This matches Standoc, where
 | `dl` | `(dt dd)+` | Definition list: alternating term/description pairs. |
 | `dt` | `inline*` | Definition term. |
 | `dd` | `block+` | Definition description. |
-| `table` | `(table_head \| table_body \| table_foot)+` | Honour the typed head/body/foot parts. |
+| `table` | `table_name? (table_head \| table_body \| table_foot)+` | Optional leading caption textblock, then the typed head/body/foot parts. |
 | `table_head`, `table_body`, `table_foot` | `table_row+` | |
 | `table_row` | `table_cell+` | |
 | `table_cell` | `block+` | |
-| `figure` | `(image \| block)*` | An optional `image` plus caption/other blocks. `image` is allowed **only** here. |
+| `figure` | `figure_name? (image \| block)*` | Optional leading caption textblock, then an optional `image` plus other blocks. `image` is allowed **only** here. |
+| `figure_name` | `inline*` | Caption of its parent `figure`; no group (§3.1 note). |
+| `table_name` | `inline*` | Caption of its parent `table`; no group (§3.1 note). |
 | `image` | *(empty)* | Atom leaf; `src` attr required. |
 | `footnotes` | `footnote_entry+` | Single container of all footnote entries (doc-level). |
 | `footnote_entry` | `block+` | Footnote body. |
@@ -269,8 +289,9 @@ following rules:
 | `bibitem` | `item` | A `BibliographicItem` JSON object (`@metanorma/relaton`). Default `null`. |
 | `formula` | `id`, `number`, `type` (enum `asciimath` \| `mathml`, default `'asciimath'`), `asciimath`, `mathml` | |
 | `stem` | `type` (enum `asciimath` \| `mathml`, default `'asciimath'`), `asciimath`, `mathml` | |
-| `figure` | `id`, `number`, `title` | The `src` attr is dropped — `src` lives only on the `image` child, avoiding a dual source of truth (§17.1). |
-| `table` | `id`, `number`, `title` | |
+| `figure` | `id`, `number` | `title` is not an attribute — the caption is a `figure_name` child node (§8.6). The `src` attr is dropped — `src` lives only on the `image` child, avoiding a dual source of truth (§17.1). |
+| `table` | `id`, `number` | `title` is not an attribute — the caption is a `table_name` child node (§8.5). |
+| `figure_name`, `table_name` | *(none beyond `data`)* | The caption text is inline content, not an attribute. |
 | `table_cell` | `colspan` (default `1`), `rowspan` (default `1`) | Real table-spanning values, hence `1` not `null` (§6 rule 3). |
 | `image` | `src` (default `''`), `alt` | `src` is required semantically → default `''` + the runtime guard below. |
 | `admonition` | `type` | |
@@ -541,7 +562,8 @@ command work inside `sourcecode`; the editor-commands package relies on it
 
 | Node | `content` | `toDOM` | `parseDOM` |
 |---|---|---|---|
-| `table` | `(table_head \| table_body \| table_foot)+`, `group: 'block'` | `['table', 0]` | `[{tag: 'table'}]` |
+| `table` | `table_name? (table_head \| table_body \| table_foot)+`, `group: 'block'` | `['table', 0]` | `[{tag: 'table'}]` |
+| `table_name` | `inline*` (no group) | `['caption', {class: CLASS.tableName}, 0]` | `[{tag: 'caption.mn-table-name'}]` |
 | `table_head` | `table_row+` | `['thead', 0]` | `[{tag: 'thead'}]` |
 | `table_body` | `table_row+` | `['tbody', 0]` | `[{tag: 'tbody'}]` |
 | `table_foot` | `table_row+` | `['tfoot', 0]` | `[{tag: 'tfoot'}]` |
@@ -551,12 +573,23 @@ command work inside `sourcecode`; the editor-commands package relies on it
 **Note.** The catalog has no `th` type; both `<td>` and `<th>` parse to
 `table_cell`.
 
+**Note.** `table_name` serializes as `<caption>` — the only element the HTML
+parser preserves as a `<table>` child. A `<figcaption>` or `<div>` caption is
+foster-parented out of `<table>` on clipboard re-parsing (see the §3.1
+caption note and §14.11).
+
 ### 8.6 Media nodes
 
 | Node | `content` | `atom`/leaf | `toDOM` | `parseDOM` |
 |---|---|---|---|---|
-| `figure` | `(image \| block)*`, `group: 'block'` | — | `['figure', {class: CLASS.figure, 'data-id': id}, 0]` (function) | `[{tag: 'figure'}]` |
+| `figure` | `figure_name? (image \| block)*`, `group: 'block'` | — | `['figure', {class: CLASS.figure, 'data-id': id}, 0]` (function) | `[{tag: 'figure'}]` |
+| `figure_name` | `inline*` (no group) | — | `['figcaption', {class: CLASS.figureName}, 0]` | `[{tag: 'figcaption.mn-figure-name'}]` |
 | `image` | *(empty)* | atom, `draggable: true` | `['img', {src, alt, 'data-src': src}]` (function; **no content slot** — leaf) | `[{tag: 'img', getAttrs: el => ({ src: el.getAttribute('src'), alt: el.getAttribute('alt') })}]` |
+
+**Note.** `figure_name` serializes as `<figcaption>` — inside `<figure>` a
+`<caption>` is destroyed by the HTML parser (reduced to a bare text node), so
+`<figcaption>` is the only figure-caption tag that survives clipboard
+re-parsing (§3.1 caption note, §14.11).
 
 ### 8.7 Footnote nodes
 
@@ -624,7 +657,7 @@ export const metanormaSchema = new Schema({
 });
 ```
 
-`nodes` **must** contain exactly the 46 names in §3.1 (including `text`, which
+`nodes` **must** contain exactly the 48 names in §3.1 (including `text`, which
 ProseMirror requires). `marks` **must** contain exactly the 14 names in §3.2.
 The spec order is not semantically significant but should follow the group order
 in §3 for readability.
@@ -644,7 +677,7 @@ export const metanormaNodes: Record<string, NodeSpec>;
 export const metanormaMarks: Record<string, MarkSpec>;
 
 /** Convenience lookups derived from the schema. */
-export const NODE_NAMES: readonly string[];   // 46 entries, in §3.1 order
+export const NODE_NAMES: readonly string[];   // 48 entries, in §3.1 order
 export const MARK_NAMES: readonly string[];   // 14 entries, in §3.2 order
 
 /** The CSS class emitted by every `toDOM`/`parseDOM` rule (§8.0). */
@@ -683,7 +716,7 @@ round-trip contract reduces to:
 2. **`toJSON`** of a node loaded from a `MetanormaDocument` reproduces the same
    `type`, the same typed attribute values, and the same extra keys (via
    `data`). `marks`, `content`, and `text` round-trip identically.
-3. The 46 node names and 14 mark names in the schema are the editor-side
+3. The 48 node names and 14 mark names in the schema are the editor-side
    vocabulary (§3). They are the editor's own naming of the covered
    document-model constructs — the `footnote` mark is absent in favour of the
    `footnote_marker` node (§3.2), and `stem` is an inline node rather than a
@@ -716,7 +749,7 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 
 1. `yarn workspace @metanorma/prosemirror-schema compile` succeeds with **zero**
    TypeScript errors under the repo tsconfig.
-2. `metanormaSchema.spec.nodes` contains **exactly** the 46 names in §3.1 and
+2. `metanormaSchema.spec.nodes` contains **exactly** the 48 names in §3.1 and
    `metanormaSchema.spec.marks` contains **exactly** the 14 names in §3.2
    (asserted by a unit test against `NODE_NAMES` / `MARK_NAMES`).
 3. For every node type `T` with a typed attribute interface, constructing
@@ -735,6 +768,14 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
 9. `soft_break`, `footnote_marker`, and `stem` are inline atoms (`inline: true`,
    `atom: true`, `group: 'inline'`); all three may appear inside `paragraph`.
 10. `assertValidImageAttrs({ src: '' })` throws; `assertValidImageAttrs({ src: 'x.png' })` does not.
+11. The caption serializations survive the HTML parser: rendering a doc whose
+   `figure` carries a `figure_name` child and whose `table` carries a
+   `table_name` child to an HTML string, then re-parsing that string with the
+   browser's HTML parser, yields the `<figcaption>` **inside** the `<figure>`
+   and the `<caption>` as the `<table>`'s **first child** — with no
+   foster-parented caption node appearing **before** the `<table>`. (This locks
+   in the empirical parser facts that motivate the two parent-scoped caption
+   node types, §3.1.)
 
 ---
 
@@ -799,7 +840,8 @@ structure — the authoring form that `metanorma-standoc` validates
 (`isodoc-compile.rng`; pipeline and grammar facts are pinned in
 [`metanorma-model.md`](./metanorma-model.md)). A dedicated converter performs attribute/element
 renames and structural reshapes (e.g. `cite` → `citeas`, `href` → `target`,
-`number` → `reference`, the `section_title` child node → a `<title>`/`<name>`
+`number` → `reference`, the `section_title` child node → a `<title>` child
+element, the `figure_name`/`table_name` caption child nodes → a `<name>`
 child element, the doc-level `footnotes`/`footnote_entry`/`footnote_marker` split → a single inline
 `<fn>` with body). Name and shape differences are **not** incompatibilities.
 `<eref citeas>`, `<link target>`, and `<fn reference>` are direct renames of
@@ -893,6 +935,13 @@ coercion, not ambiguity — there is a single valid target):
 - `content_section` serializes as a `<clause>` element — its name is the
   grammar's internal pattern name (`Content-Section`, reached from `<content>`),
   not an XML element name (§8.2).
+- The caption textblocks (`figure_name`, `table_name`) are `inline*` — an
+  **empty** caption is permitted by the schema but Standoc's `tname` is
+  `element name { NestedTextElement+ }` (≥1 child required), so the converter
+  drops an empty caption on export. Symmetrically, a `<name>` whose inline
+  children fall outside the editor's inline vocabulary (e.g. `<index>`) is
+  dropped on import. Both are coercions with a single valid target, not
+  ambiguities.
 
 `floating_title` is **not** a source of over-permissiveness: it is a groupless
 textblock whose legal positions (§8.3) — `sections` top level and the subclause

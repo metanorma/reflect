@@ -24,7 +24,7 @@ Provide a single, reusable React component — `MetanormaProseMirror` — that:
 
 1. Mounts a ProseMirror editor driven by `metanormaSchema`
    (`@metanorma/prosemirror-schema`), so the editable document vocabulary is
-   **exactly** the 46 node types and 14 mark types of `schema.spec.md` §3.
+   **exactly** the 48 node types and 14 mark types of `schema.spec.md` §3.
 2. Renders the editor through React using
    `@handlewithcare/react-prosemirror@3.2.7` (the `ProseMirror` +
    `ProseMirrorDoc` components, the `reactKeys` plugin, and the React node-view
@@ -332,7 +332,7 @@ Default registered node views (node type → component):
 | Node type | Component | Why a React node view |
 |---|---|---|
 | `image` | `ImageNodeView` | Atom leaf, `draggable`; displays `src`/`alt`; leaf (no `contentDOMRef`). |
-| `figure` | `FigureNodeView` | Wraps its `image` child + caption blocks; forwards `contentDOMRef`. |
+| `figure` | `FigureNodeView` | Wraps its `figure_name` caption child + `image` child + other blocks; forwards `contentDOMRef`. |
 | `formula` | `FormulaNodeView` | Atom leaf; renders math placeholder from the `asciimath`/`mathml` attr selected by the `type` attr. |
 | `sourcecode` | `SourcecodeNodeView` | `text*` container; renders `<pre><code>` with `language-${language}` class; forwards `contentDOMRef`. |
 
@@ -365,8 +365,8 @@ The component must not register node views for these by default.
 
 #### `FigureNodeView`
 - Renders `<figure class={CLASS.figure} data-id={node.attrs.id}>` containing
-  `{children}` (the `image` child plus any caption blocks). `CLASS.figure` is
-  `"mn-figure"` (schema §8.0).
+  `{children}` (the `figure_name` caption child, the `image` child, and any
+  other blocks). `CLASS.figure` is `"mn-figure"` (schema §8.0).
 - Forwards `ref` to `<figure>`; forwards `nodeProps.contentDOMRef` to the same
   element (use `useMergedDOMRefs`).
 

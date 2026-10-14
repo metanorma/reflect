@@ -15,11 +15,32 @@
 
 @layer document {
 
-  /* ---- figure (image + caption block) ---- */
+  /* ---- figure (caption + image) ---- */
 
   .mn-prosemirror figure.mn-figure {
     margin: var(--mn-space-4) 0;
     text-align: center;
+  }
+
+  /*
+   * Figure caption (figure_name child, serializes as <figcaption>). Renders
+   * above the image in document order — the Semantic-XML <name> position.
+   * Below-placement is a deliberate follow-up decision, not a schema concern.
+   */
+  .mn-prosemirror figure.mn-figure .mn-figure-name {
+    font-size: 0.9em;
+    color: var(--mn-text-muted, inherit);
+    margin: 0 0 var(--mn-space-2);
+  }
+
+  /* ---- table caption (table_name child, serializes as <caption>) ---- */
+
+  .mn-prosemirror table .mn-table-name {
+    font-size: 0.9em;
+    color: var(--mn-text-muted, inherit);
+    text-align: center;
+    caption-side: top;
+    padding: var(--mn-space-1) 0;
   }
 
   /* ---- formula ---- */

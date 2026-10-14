@@ -45,6 +45,8 @@ export const NODE_NAME = Object.freeze({
   references: 'references',
   bibitem: 'bibitem',
   section_title: 'section_title',
+  figure_name: 'figure_name',
+  table_name: 'table_name',
   paragraph: 'paragraph',
   note: 'note',
   admonition: 'admonition',

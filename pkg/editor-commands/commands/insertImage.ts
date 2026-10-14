@@ -1,9 +1,10 @@
 /**
- * `insertImage` — insert a `figure > image` at the current selection
- * (images-figures.md §6).
+ * `insertImage` — insert a `figure > [figure_name, image]` at the current
+ * selection (images-figures.md §6).
  *
  * Validates the resolved `src` via `assertValidImageAttrs`, materialises the
- * `figure > image` subtree, and selects the figure. The command takes
+ * `figure > [figure_name, image]` subtree with a seeded empty caption, and
+ * places the cursor in the caption. The command takes
  * already-resolved `{ src, alt }` and is synchronous — no `EditorView`, no DOM,
  * no async. The adapter layer in `@metanorma/toolbar` owns the `EditorView`,
  * async upload/URL resolution, and focus.
@@ -12,7 +13,7 @@
  * §1.5).
  */
 
-import { NodeSelection } from 'prosemirror-state';
+import { TextSelection } from 'prosemirror-state';
 import type { EditorState, Transaction } from 'prosemirror-state';
 
 import { assertValidImageAttrs } from '@metanorma/prosemirror-schema';
@@ -75,23 +76,43 @@ export function insertImage(
     return false; // src missing / empty / wrong type
   }
 
-  // 4. Build figure > image, resolving types through state.schema.
+  // 4. Build figure > [figure_name, image], resolving types through
+  // state.schema. The caption is seeded empty before the image
+  // (images-figures.md §6.4): the author types the caption first; Enter
+  // (`exitName`) or clicking the image moves on.
   const schema = state.schema;
   const imageType = schema.nodes['image'];
   const figureType = schema.nodes['figure'];
-  if (imageType === undefined || figureType === undefined) return false;
+  const nameType = schema.nodes['figure_name'];
+  if (imageType === undefined || figureType === undefined || nameType === undefined) {
+    return false;
+  }
   const image = imageType.create({ src, alt: attrs!.alt ?? null });
   // figure attrs: id is generated for cross-referencing;
-  // number/title/data default.
-  const figure = figureType.create({ id: generateId() }, [image]);
+  // number/data default.
+  const figure = figureType.create({ id: generateId() }, [nameType.create(), image]);
 
-  // 5. Insert + select the figure. ONE transaction.
+  // 5. Insert + place the cursor inside the seeded caption. ONE transaction.
   const tr = state.tr.replaceSelectionWith(figure);
 
-  // replaceSelectionWith on a content-bearing block leaves the selection just
-  // past it; the figure starts at (selection.from - nodeSize).
-  const figPos = tr.selection.from - figure.nodeSize;
-  tr.setSelection(NodeSelection.create(tr.doc, figPos));
+  // Locate the inserted figure by its generated id — the position depends on
+  // whether replaceSelectionWith replaced an empty textblock wholesale or
+  // split a non-empty one at the caret, so selection arithmetic is unreliable
+  // (same hazard as insertTable).
+  const figureId = figure.attrs['id'];
+  let figPos = -1;
+  tr.doc.descendants((n, p) => {
+    if (figPos !== -1) return false;
+    if (n.type === figureType && n.attrs['id'] === figureId) {
+      figPos = p;
+      return false;
+    }
+    return true;
+  });
+  if (figPos !== -1) {
+    const captionPos = figPos + 2; // figure open + figure_name open
+    tr.setSelection(TextSelection.near(tr.doc.resolve(captionPos), 1));
+  }
 
   // 6. scrollIntoView (user-initiated) + dispatch EXACTLY ONCE.
   // No view.focus().

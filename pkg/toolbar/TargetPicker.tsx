@@ -69,12 +69,22 @@ function capitalize(s: string): string {
 
 /**
  * Build a readable label for an id-bearing node (reference-marks.md §5.1):
- * the `title` attr if non-empty, else the first ~60 chars of node text, else
- * the capitalized type name.
+ * the node's heading text — its `section_title` child for sections, its
+ * `figure_name`/`table_name` caption child for figures/tables — else the
+ * first ~60 chars of node text, else the capitalized type name.
  */
 function labelFor(node: Node): string {
-  const title = node.attrs["title"];
-  if (typeof title === "string" && title.length > 0) return title;
+  const first = node.firstChild;
+  if (
+    first !== null &&
+    (first.type.name === "section_title" ||
+      first.type.name === "figure_name" ||
+      first.type.name === "table_name") &&
+    first.content.size > 0
+  ) {
+    const heading = first.textBetween(0, first.content.size, " ").trim();
+    if (heading !== "") return heading;
+  }
   if (node.content.size > 0) {
     const text = node.textBetween(0, node.content.size, " ").trim();
     if (text !== "") return text.length > 60 ? text.slice(0, 60) + "…" : text;

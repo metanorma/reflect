@@ -40,7 +40,8 @@ defined in `schema.spec.md` §8.6 — implementation
 
 | Node | Content | Group | Atom | Draggable | Attrs |
 |---|---|---|---|---|---|
-| `figure` | `(image \| block)*` | `block` | no | — | `id`, `number`, `title` (all default `null`), plus `data` (default `{}`) |
+| `figure` | `figure_name? (image \| block)*` | `block` | no | — | `id`, `number` (default `null`), plus `data` (default `{}`); the caption is the `figure_name` child node |
+| `figure_name` | `inline*` | **none** | no | — | `data` (default `{}`) — the caption textblock |
 | `image` | *(empty)* | **none** | yes | yes | `src` (default `""`), `alt` (default `null`), plus `data` (default `{}`) |
 
 Three consequences drive the entire design:
@@ -60,9 +61,10 @@ Three consequences drive the entire design:
    and returning `false` if invalid (§6.2 step 3). This is exactly the concern
    the base spec's §5.5 anticipated.
 3. **`figure` and `image` split attribute responsibility.** `figure` owns
-   `title` (the caption); it has **no `alt`** and **no `src`** (`src` lives only
+   `id`/`number` and its caption lives in a `figure_name` child textblock
+   (schema §8.6); it has **no `alt`** and **no `src`** (`src` lives only
    on the `image` child — see schema §17.1). `image` owns `alt` (the a11y text)
-   and `src`; it has **no `title`**. There is therefore **no duplicated `alt`**
+   and `src`; it has **no caption**. There is therefore **no duplicated `alt`**
    to mirror or ignore — the two nodes carry disjoint caption/a11y/source
    attributes by design. The rendered image attributes (`src`, `alt`) live on
    the `image` child; `figure` renders only `class="mn-figure"` and `data-id`.
@@ -183,11 +185,13 @@ directly into the document is not supported in v1; it is future work that
 would reuse `insertImage` via `handlePaste`/`handleDrop`. The toolbar button
 is the sole image-entry surface for v1.
 
-**The `title` (caption) attribute is not collected at insertion time.** The
-dialog collects only `src` and `alt`; `figure.title` is left `null` and can
-be edited later (e.g. via a node view or a future properties panel). Adding a
-caption field to the insert dialog was considered and deferred to keep the
-dialog lightweight.
+**The caption is seeded, not prompted.** The dialog collects only `src` and
+`alt`; the inserted figure carries an empty `figure_name` caption before its
+`image` (§6.2 step 5), and the cursor lands in it — the author types the
+caption inline (full inline markup applies) without a caption field in the
+dialog. Enter (`exitName`) moves on to the image; Backspace on the empty
+caption deletes just the caption (the figure and image survive;
+`EditorCommands.spec.md` §4.4.9b).
 
 ## 5. Source resolution — the `ImageInsertDialog`
 
@@ -372,19 +376,28 @@ required.
    schema singleton):
      - `image = state.schema.nodes.image.create({ src, alt: attrs.alt ?? null })`
        — the atom leaf carrying the rendered `src`/`alt`.
-     - `figure = state.schema.nodes.figure.create({ id: generateId() }, [image])`
-       — the block wrapper; the `figure` carries a **generated `id`** for
-         cross-referencing. `number`/`title`/`data` default to their
-          schema values (`figure` has no `alt` and no `src` attribute — §2).
+     - `figure_name = state.schema.nodes.figure_name.create()` — the seeded
+       empty caption textblock, first child of the figure (§6.5).
+     - `figure = state.schema.nodes.figure.create({ id: generateId() },
+       [figure_name, image])` — the block wrapper; the `figure` carries a
+       **generated `id`** for cross-referencing. `number`/`data` default to
+       their schema values (`figure` has no `alt`, no `src`, and no `title`
+       attribute — §2).
        `generateId()` is the shared helper from `@metanorma/editor-commands`
        (`util.ts`).
 6. **Insert.** `tr = state.tr.replaceSelectionWith(figure)`.
-7. **Select the figure.** Compute the figure's start position and set a valid
-   `NodeSelection` on it, so the inserted image is visibly selected and the user
-   can immediately delete or replace it. Position arithmetic and the robust
-   fallback are documented in §6.3.
+7. **Place the cursor in the seeded caption.** Locate the inserted figure by
+   its **generated `id`** (a `descendants` scan — `replaceSelectionWith` may
+   replace an empty textblock wholesale or split a non-empty one at the
+   caret, so selection arithmetic is unreliable; same hazard as
+   `insertTable`, `tables.md` §8.1.3) and set a `TextSelection`
+   in the caption (`+2`: figure open + caption open), so the author types the
+   caption immediately (full inline markup applies). Enter (`exitName`,
+   `EditorCommands.spec.md` §2.7) then lands in the first textblock-bearing
+   sibling or inserts a paragraph after the image. The figure is no longer
+   node-selected on insertion.
 8. **Scroll into view + dispatch once.** `tr.scrollIntoView(); dispatch(tr);
-   return true;` — exactly one transaction, dispatched exactly once. No
+   `return true;` — exactly one transaction, dispatched exactly once. No
    `view.focus()` (that is the adapter's job, §7); no `EditorView` at all.
 
 ### 6.3 Example implementation
@@ -392,7 +405,7 @@ required.
 ```typescript
 // pkg/editor-commands/commands/insertImage.ts
 // @metanorma/editor-commands — PURE command logic. No EditorView, no DOM.
-import { NodeSelection, type EditorState, type Transaction } from "prosemirror-state";
+import { TextSelection, type EditorState, type Transaction } from "prosemirror-state";
 import type { Node } from "prosemirror-model";
 import { assertValidImageAttrs } from "@metanorma/prosemirror-schema";
 import { generateId } from "../util.js";
@@ -440,24 +453,38 @@ export function insertImage(
     return false; // src missing / empty / wrong type
   }
 
-  // 4. Build figure > image, resolving types through state.schema (not a
-  //    captured singleton) — schema-parameterised by construction.
+  // 4. Build figure > [figure_name, image], resolving types through
+  //    state.schema (not a captured singleton) — schema-parameterised by
+  //    construction. The caption is seeded empty before the image (§6.5).
   const schema = state.schema;
   const imageType = schema.nodes["image"];
   const figureType = schema.nodes["figure"];
-  if (!imageType || !figureType) return false;
+  const nameType = schema.nodes["figure_name"];
+  if (!imageType || !figureType || !nameType) return false;
   const image = imageType.create({ src, alt: attrs!.alt ?? null });
   // figure attrs: id is generated for cross-referencing (see §6.2 step 5);
-  // number/title/src/data default to their schema values (null/{}).
-  const figure = figureType.create({ id: generateId() }, [image]);
+  // number/data default to their schema values (null/{}).
+  const figure = figureType.create({ id: generateId() }, [nameType.create(), image]);
 
-  // 5. Insert + select the figure. ONE transaction.
+  // 5. Insert + place the cursor in the seeded caption. ONE transaction.
   const tr = state.tr.replaceSelectionWith(figure);
 
-  // replaceSelectionWith on a content-bearing block leaves the selection just
-  // past it; the figure starts at (selection.from - nodeSize).
-  const figPos = tr.selection.from - figure.nodeSize;
-  tr.setSelection(NodeSelection.create(tr.doc, figPos)); // valid NodeSelection
+  // Locate the inserted figure by its generated id — replaceSelectionWith may
+  // replace an empty textblock or split a non-empty one at the caret, so
+  // selection arithmetic is unreliable (same hazard as insertTable).
+  const figureId = figure.attrs.id;
+  let figPos = -1;
+  tr.doc.descendants((n, p) => {
+    if (figPos === -1 && n.type.name === "figure" && n.attrs.id === figureId) {
+      figPos = p;
+      return false;
+    }
+    return true;
+  });
+  if (figPos !== -1) {
+    const captionPos = figPos + 2; // figure open + figure_name open
+    tr.setSelection(TextSelection.near(tr.doc.resolve(captionPos), 1));
+  }
 
   // 6. scrollIntoView (user-initiated) + dispatch EXACTLY ONCE. No view.focus().
   tr.scrollIntoView();
@@ -469,14 +496,15 @@ export function insertImage(
 **Command contract compliance.** The command conforms to the Command contract
 (README §6.2; `EditorCommands.spec.md` §1.5).
 
-**Position arithmetic.** `figPos = tr.selection.from - figure.nodeSize` assumes
-`replaceSelectionWith` leaves the selection immediately after the inserted
-block, which holds for the common cursor-in-paragraph case. If the node lands
-adjacent to rather than replacing a block, recompute `figPos` by resolving
-`tr.doc.resolve(tr.selection.from)` and searching backward for the first node
-whose `type.name === "figure"`, then `NodeSelection.create(tr.doc, pos)`. As
-with `insertTable` (`tables.md` §8.3), prefer resolving over hard-coded offsets
-in production.
+**Position arithmetic.** The id-based `descendants` scan (§6.3) is robust to
+both insertion shapes — `replaceSelectionWith` replacing an empty textblock
+wholesale (selection arithmetic would then point **into the preceding
+text's split point**) or splitting a non-empty one at the caret. An earlier
+revision computed `figPos = tr.selection.from - figure.nodeSize`; that
+assumption holds only when the selection sits immediately after the inserted
+block, and mis-landed the caption cursor in browser flows. As with
+`insertTable` (`tables.md` §8.1.3), prefer locating the inserted node by its
+generated id over selection arithmetic.
 
 ### 6.4 Why a `figure` wrapping the `image`
 
