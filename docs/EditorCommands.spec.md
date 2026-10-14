@@ -391,7 +391,7 @@ keypress. The relevant inputs are:
      below applies.
    - *Ranged* (a non-collapsed text selection spanning inline content and/or
      whole blocks).
-   - *Node* (a whole node selected via gap cursor or keyboard node-selection).
+   - *Node* (a whole node selected).
 2. **Innermost textblock** — the nearest ancestor of the selection whose content
    is inline (`paragraph`, `sourcecode`, `dt`).
 3. **Container stack** — the chain of ancestors from the textblock up to the
@@ -433,7 +433,7 @@ chainCommands(
   exitSectionTitle,       // 5. inside a section_title (move to body / insert body)
   exitFloatingTitle,      // 6. inside a floating_title (move to next sibling / insert clause)
   exitContainerBlock,     // 7. empty para at the end of a container block
-  createParagraphNear,    // 8. node-selection on / gap-cursor beside an atom
+  createParagraphNear,    // 8. node-selection on an atom
   splitBlockKeepMarks,    // 9. default: split the innermost textblock
 )
 ```
@@ -588,18 +588,16 @@ table does what it does in a paragraph, nothing more.
 
 #### 2.4.7 Atoms and node selections (`image`, `formula`)
 
-`image` and `formula` are block-level atoms (empty content, `atom: true`). The
-cursor cannot rest *inside* them; it can only node-select them or sit in a gap
-cursor beside them. (`footnote_marker` and `soft_break` are *inline* atoms and
-are never the target of Enter — Enter inside a paragraph that contains them
-just splits the paragraph around them. `floating_title` is a textblock with
-`inline*` content — not an atom — so Enter inside it splits it via the
-default `splitBlockKeepMarks` branch, just like a paragraph.)
+`image` and `formula` are block-level atoms (empty content, `atom: true`).
+(`footnote_marker` and `soft_break` are *inline* atoms and are never the
+target of Enter — Enter inside a paragraph that contains them just splits the
+paragraph around them. `floating_title` is a textblock with `inline*` content
+— not an atom — so Enter inside it splits it via the default
+`splitBlockKeepMarks` branch, just like a paragraph.)
 
 | Selection | Context | Effect | Invariant |
 |---|---|---|---|
 | Node selection on an atom | `image` / `formula` | **`createParagraphNear`**: insert an empty paragraph adjacent to the atom (before it if the selection is at the front, after it otherwise); cursor in the new paragraph. | New paragraph is a legal sibling; atom untouched. |
-| Gap cursor immediately before/after an atom | — | Same: create an adjacent empty paragraph on the cursor's side; cursor in it. | New paragraph is a legal child of the atom's parent. |
 | Node selection on a **non-atom** block (`paragraph`, `sourcecode`, `note`, `clause`, …) | — | Return `false` (Enter does nothing). Restructuring whole blocks or sections on Enter is surprising; dedicated commands handle those, and the user can arrow into the block to type. | — |
 
 #### 2.4.8 Structural and section nodes
@@ -728,7 +726,7 @@ The Enter feature introduces the following commands in
 | `exitSectionTitle` | `Command` | custom | When the cursor is inside a `section_title` textblock (the heading of a section node), move the cursor to the section's first body block, or insert an empty `paragraph` as the first body block if none exists. Preempts the generic split so Enter inside a heading does not produce a second heading textblock. |
 | `exitFloatingTitle` | `Command` | custom | When the cursor is inside a `floating_title` textblock (an unnumbered free-standing heading), move the cursor to the start of the next sibling, or — when the title is its parent's last child — insert a new `clause` (empty `section_title` + `paragraph`, cursor in the heading) after it. Preempts the generic split so Enter inside a floating title starts the titled section rather than producing a second heading. |
 | `exitContainerBlock` | `Command` | custom | Lift an empty trailing paragraph out of a `block+` container (`note`, `example`, `quote`, `review`, `admonition`, `figure`), removing the container if it would become empty. |
-| `createParagraphNear` | `Command` | re-exported from `prosemirror-commands` | Create an empty paragraph adjacent to a node-selected atom or at a gap cursor beside one. |
+| `createParagraphNear` | `Command` | re-exported from `prosemirror-commands` | Create an empty paragraph adjacent to a node-selected atom. |
 | `splitBlockKeepMarks` | `Command` | adapted from `prosemirror-commands` | Default fallback: split the innermost textblock (typically a `paragraph`) carrying active marks, after deleting any ranged selection. |
 
 The package also re-exports the `chainCommands` combinator (§1.9.2) so consumers
@@ -856,7 +854,6 @@ rows:
   cell (or no-op); cell/row count unchanged.
 - **A1** node-selected `image` / `formula` → adjacent empty
   paragraph created on the selection's side.
-- **A2** gap cursor beside an atom → adjacent empty paragraph on that side.
 - **A3** node-selected non-atom block (a `paragraph`, a `clause`, …) → no-op
   (`false`).
 - **S1** every exit branch: assert no `bullet_list` / `ordered_list` / `dl` /
@@ -1126,8 +1123,7 @@ The relevant inputs are:
    - *Ranged* (a non-collapsed text selection spanning inline content and/or
      whole blocks) — handled by stock deletion (this feature returns `false`,
      letting the editor view's default `deleteSelection` run).
-   - *Node* (a whole node selected via gap cursor or keyboard node-selection) —
-     see §4.4.7.
+   - *Node* (a whole node selected) — see §4.4.7.
 2. **Innermost textblock** — the nearest ancestor of the selection whose content
    is inline (`paragraph`, `sourcecode`, `dt`).
 3. **Container stack** — the chain of ancestors from the textblock up to the
@@ -1359,19 +1355,17 @@ cell by deletion; arrow keys or a dedicated toolbar are the way out.
 
 #### 4.4.7 Atoms and node selections (`image`, `formula`)
 
-`image` and `formula` are block-level atoms (empty content, `atom: true`);
-the cursor cannot rest *inside* them. (`footnote_marker` and `soft_break` are
-inline atoms; Backspace at the cursor immediately after one deletes it via
-default character handling, not this feature. `floating_title` is a textblock
-with `inline*` content — not an atom — so Backspace on an empty
-`floating_title` deletes the block via the §4.7.3 walk, just like an empty
-paragraph.)
+`image` and `formula` are block-level atoms (empty content, `atom: true`).
+(`footnote_marker` and `soft_break` are inline atoms; Backspace at the cursor
+immediately after one deletes it via default character handling, not this
+feature. `floating_title` is a textblock with `inline*` content — not an atom
+— so Backspace on an empty `floating_title` deletes the block via the §4.7.3
+walk, just like an empty paragraph.)
 
 | Selection | Context | Effect | Invariant |
 |---|---|---|---|
 | Node selection on a block atom | `image` / `formula` | **No-op** (`false`) for this feature; the chain's `deleteSelection` step (§4.3) then deletes the atom. Cursor lands at the merge of the surrounding textblocks, or at the start/end of the surrounding container if the atom was its only child. | Atom removed in one transaction by the chain; surrounding content model honoured. |
 | Node selection on a **non-atom** block (`paragraph`, `sourcecode`, `note`, `clause`, …) | — | `false`. Default handling may delete the node (per ProseMirror's stock node-deletion behaviour). Restructuring sections on Backspace is left to dedicated commands. | — |
-| Gap cursor immediately before/after an atom | — | `false` for this feature; chain's `deleteSelection` may delete the adjacent atom. | As above. |
 
 This feature's only job for atoms is to **decline** so the chain's deletion step
 can run. It never dispatches a transaction for an atom or node selection itself.

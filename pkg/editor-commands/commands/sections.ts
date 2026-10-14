@@ -257,18 +257,17 @@ function ensureContainer(
  * location (before the child the cursor precedes). Returns `null` if the
  * cursor is not inside this container.
  *
- * This lets `insertSection` insert at the cursor position (e.g. before the
- * first section when a gap cursor is there) rather than always appending to
- * the end of the container.
+ * This lets `insertSection` insert at the cursor position rather than always
+ * appending to the end of the container.
  */
 function cursorPosInContainer(
   $from: ResolvedPos,
   info: ContainerInfo,
 ): number | null {
   // Only use cursor-relative insertion when the cursor is directly inside the
-  // container at depth 1 (e.g. a gap cursor between children). When the cursor
-  // is deeper (inside a section's textblock), fall back to append — the body
-  // cohort path handles that case via nearestBodySectionAncestor.
+  // container at depth 1. When the cursor is deeper (inside a section's
+  // textblock), fall back to append — the body cohort path handles that case
+  // via nearestBodySectionAncestor.
   if ($from.depth !== 1) return null;
   const parent = $from.node(1);
   // Verify the parent's position matches the container's position.

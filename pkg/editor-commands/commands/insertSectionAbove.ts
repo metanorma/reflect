@@ -11,8 +11,7 @@
  * the current title.
  *
  * This is the only Enter affordance for "create a section BEFORE this one"
- * without gap-cursor fiddling (`insertSection` only ever inserts after the
- * nearest body-section ancestor).
+ * (`insertSection` only ever inserts after the nearest body-section ancestor).
  *
  * Applicability (all must hold; any failure returns `false` so the chain
  * falls through to `exitSectionTitle`):
