@@ -660,14 +660,16 @@ test.describe('minimap (package e2e)', () => {
   });
 
   test('a row taller than the pane keeps its block to the document end (tall-row gap regression)', async ({ page }) => {
-    // Regression (91855-class documents): the inter-bar gap was
-    // proportional to the ROW'S OWN slot, so a table spanning several
-    // panes lost 15% of its whole height to a phantom separator — its
-    // block visibly ended screens before the document end while the
-    // editor itself scrolled all the way. The fix anchors the gap to a
-    // ONE-LINE slot. Shape: an opaque 6000-editor-px `image` row at zoom
-    // 0.25 → a 1500px slot in the 600px pane (2.5 panes), with the tall
-    // row LAST (the long-table position — nothing paints below it).
+    // Regression (tall-row documents, §15.1.20 — one block dominating
+    // the document; original sample: fixtures/iso-5843-6.mn.json): the
+    // inter-bar gap was proportional to the ROW'S OWN slot, so a table
+    // spanning several panes lost 15% of its whole height to a phantom
+    // separator — its block visibly ended screens before the document
+    // end while the editor itself scrolled all the way. The fix anchors
+    // the gap to a ONE-LINE slot. Shape: an opaque 6000-editor-px
+    // `image` row at zoom 0.25 → a 1500px slot in the 600px pane
+    // (2.5 panes), with the tall row LAST (the long-table position —
+    // nothing paints below it).
     await page.goto('/');
     await mount(page, {
       doc: docWith(

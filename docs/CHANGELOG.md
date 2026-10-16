@@ -48,7 +48,7 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
   ambiguities). Sourcecode `<name>` captions remain dropped (§17.5): the
   `code: true` textblock cannot host a rich child; a container/body split
   would be a separate change.
-- Sample housekeeping — `91855.mn.json`'s table `attrs.title`
+- Sample housekeeping — `fixtures/iso-5843-6.mn.json`'s table `attrs.title`
   ("List of equivalent terms") migrated to a leading `table_name` child
   (no e2e loads this file; the migration prevents silent caption loss if
   it is loaded, since `nodeFromJSON` drops unknown attrs).
@@ -95,7 +95,8 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 §6.5/§15.1.20; **Commits: *(pending)***.
 
 - **Symptom** — on a document with a table spanning several viewports
-  (the 91855 sample: a 257-row table, 26 282 px — 94% of the document),
+  (sample `fixtures/iso-5843-6.mn.json`: a 257-row table, 26 282 px — 94%
+  of the document),
   dragging the minimap scrolled the editor correctly to the end, but the
   block representing the table visibly ended ~3–4 screens early: at max
   scroll, its paint stopped ~709 px (a full pane) above the pane bottom.
