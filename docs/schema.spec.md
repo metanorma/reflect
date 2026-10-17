@@ -562,7 +562,7 @@ command work inside `sourcecode`; the editor-commands package relies on it
 
 | Node | `content` | `toDOM` | `parseDOM` |
 |---|---|---|---|
-| `table` | `table_name? (table_head \| table_body \| table_foot)+`, `group: 'block'` | `['table', 0]` | `[{tag: 'table'}]` |
+| `table` | `table_name? (table_head \| table_body \| table_foot)+`, `group: 'block'` | `['table', 0]` | `[{tag: 'table', getAttrs}]` |
 | `table_name` | `inline*` (no group) | `['caption', {class: CLASS.tableName}, 0]` | `[{tag: 'caption.mn-table-name'}]` |
 | `table_head` | `table_row+` | `['thead', 0]` | `[{tag: 'thead'}]` |
 | `table_body` | `table_row+` | `['tbody', 0]` | `[{tag: 'tbody'}]` |
@@ -577,6 +577,30 @@ command work inside `sourcecode`; the editor-commands package relies on it
 parser preserves as a `<table>` child. A `<figcaption>` or `<div>` caption is
 foster-parented out of `<table>` on clipboard re-parsing (see the §3.1
 caption note and §14.11).
+
+**Note — `table` attrs.** `table` carries `id`, `number`, `data`, and
+`colwidths` (default `null`). `colwidths` is the two-mode column-sizing
+attribute: `null` = autowidth; a non-null value is an array of percentage
+strings, exactly one per grid column (grid width = max Σ colspan over all
+rows of all row groups). `toDOM` stays `['table', 0]` — prosemirror-model's
+`renderSpec` requires the content hole to be the only child of its parent
+element, so a `<colgroup>` can never ride in `toDOM`; the editor renders the
+colgroup via the resize plugin's widget decoration, `.mn.json` persistence
+carries widths in the attribute, and the clipboard serializer re-encodes
+them as a `data-colwidths` attribute on `<table>`.
+
+**Note — `table` `getAttrs` (widths ingest).** `parseDOM` reads `id`/`number`
+off the element and resolves `colwidths` from two sources in precedence
+order: the `data-colwidths` attribute (JSON percentage-string array — the
+intra-editor clipboard encoding), then a child `<colgroup>`'s `<col>`
+elements, accepting both the conforming `<col style="width:16.67%">` form
+and the legacy `<col width="16.67%">` attribute form (percentage values
+only; px and other units are ignored). Ingested lists are repaired against
+the element's grid column count (pad missing / drop extra entries) with a
+sum tolerance of ±0.5 percentage points — lists inside tolerance are kept
+verbatim (pipeline rounding such as 6 × 16.67 = 100.02 is legitimate), lists
+outside are renormalized proportionally, unrecoverable input parses as
+`null` (autowidth).
 
 ### 8.6 Media nodes
 
@@ -910,7 +934,7 @@ The following Metanorma features exist in the covered element families but have
 | Feature | XML location | Status |
 |---|---|---|
 | Sourcecode callouts, annotations, `<name>` caption, line numbering (`linenums`) | `<sourcecode>` | dropped — schema models raw code text only |
-| Table key/legend, table notes, column widths (`colgroup`), source citation | `<table>` | dropped — schema models head/body/foot rows only |
+| Table key/legend, table notes, source citation | `<table>` | dropped — schema models head/body/foot rows and column widths only (`colwidths`; see §8.5) |
 | Row-header cells (`<th>` inside `<tbody>`) | `<tr>` | dropped — single `table_cell` type; only header rows (via `table_head`/`<thead>`) are distinguished |
 | List numbering style (`<ol type="…">`: roman/arabic/…) | `<ol>` | dropped — schema models `start` only; upstream `@type` is now an open enum (renderer-native format strings, e.g. metanorma-ietf `R%d`) |
 | Cell alignment (`align`, `valign`) | `<td>`/`<th>` | dropped |

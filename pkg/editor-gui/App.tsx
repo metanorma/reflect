@@ -3,6 +3,7 @@ import {
   MetanormaProseMirror,
   createInitialEditorState,
   DEFAULT_HISTORY_OPTIONS,
+  tableColumnResizePlugin,
 } from '@metanorma/prosemirror-editor';
 import type { EditorState, MetanormaDocument } from '@metanorma/prosemirror-editor';
 import { AdvancedMetanormaToolbar } from '@metanorma/toolbar';
@@ -142,6 +143,11 @@ const editorPlugins = [
     // after the keymap so it observes every transaction on its way into
     // state; renders via <MinimapPane> below.
     createMinimap({ classifier: metanormaClassifier }),
+    // Table column resizing (tables.md §8.6): renders the colgroup widget
+    // for fixed-width tables, mounts the column-edge handles, and supplies
+    // the clipboard serializer carrying `data-colwidths`. Appended after the
+    // keymap/minimap so it only observes transactions.
+    tableColumnResizePlugin(),
   ];
 
 

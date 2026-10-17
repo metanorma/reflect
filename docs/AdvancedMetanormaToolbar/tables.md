@@ -575,6 +575,93 @@ the library. The custom command is therefore the standing approach; it may
 grow (e.g. cell merge/split, row/column add-remove) as separate hand-rolled
 commands as Metanorma table-editing needs emerge.
 
+### 8.6 Column sizing
+
+Column widths are a two-mode attribute on the `table` node
+(`colwidths`, schema.spec.md §8.5): `null` is **autowidth** — the default for
+every new table, with no `<colgroup>` in the editor DOM and CSS
+`table-layout: auto`; a non-null value is an array of percentage strings
+(`["16.67%", …]`), exactly one per **grid** column (grid width = max Σ colspan
+over all rows of all row groups), rendered as a
+`<colgroup><col style="width:…">` widget with `table-layout: fixed`.
+
+**Rendering — two widget decorations, no node view.** The
+`tableColumnResizePlugin` (`@metanorma/prosemirror-editor`) mounts two widget
+decorations inside each `table` element: the colgroup widget (only while
+`colwidths ≠ null`, positioned after the `table_name` caption per HTML
+content-model order) and a handles widget with one absolutely-positioned hit
+area per interior grid edge — present for **every** table, because
+first-drag materialization needs a grabbable edge in autowidth mode too.
+The renderer wraps widget decorations in a `<span>` (never a direct table
+child); CSS `display: contents` makes that wrapper layout-transparent, so the
+colgroup and handles participate in table layout as effective direct
+children. Both widgets scroll and re-layout with content — there is no
+editor-root overlay and no scroll/updateState geometry synchronization.
+
+**Geometry comes from the laid-out DOM, never from attr percentages** —
+min-width clamps and content make real widths diverge from stored ones. A
+spanning cell **hides interior grid edges**: per-grid-column widths and edge
+positions are measured on rows that declare the edge (body rows when a header
+cell spans); a spanning cell's own width is only ever the sum of its covered
+slots. Handle positions are re-derived after every transaction, after the
+initial mount, and on `ResizeObserver` firings (window resize, font zoom,
+panel collapse).
+
+**Drag semantics.** Dragging the edge between grid columns k−1 and k trades
+width 1:1 between those two columns (**neighbor-trades-1:1**); the table's
+total width never changes, and there is no outer-edge table resize (the
+page-width model fixes the table width). Both traded columns clamp to a
+minimum of `MIN_COLUMN_WIDTH_PX` (40px, as a share of the measured table
+width); when either hits the clamp the drag stalls there. A 3px drag
+threshold distinguishes a click-past from a drag; below it no transaction is
+dispatched.
+
+**One transaction per gesture.** During pointermove the plugin mutates only
+the preview colgroup's `<col>` styles (DOM-only, coalesced to one write per
+frame via `requestAnimationFrame`); pointerup recomputes the final widths
+from pointer geometry against the gesture-start measurement and dispatches
+exactly one `setColumnWidths` transaction — undo is one step. **First-drag
+materialization**: dragging the edge of an autowidth table measures the
+current per-grid-column widths, seeds percentages, and commits seed + delta
+in that single transaction — the mode flip and the resize are one undo step.
+Escape during a drag cancels with no transaction.
+
+**Drag hygiene.** `preventDefault()` on handle pointerdown suppresses the
+caret/selection; `setPointerCapture` on the handle element carries the
+gesture, with window-level `pointerup`/`pointercancel` listeners as a
+capture-loss fallback; the handles widget's `stopEvent` keeps ProseMirror's
+selection machinery away from handle interactions.
+
+**Commands.** `autoTableWidths` (the **Auto widths** toolbar button) returns
+the enclosing table to `colwidths: null`; `distributeColumnsEvenly` (the
+**Distribute evenly** button) sets equal shares — enabled in both modes, and
+on an autowidth table it materializes equal widths (the one intentional mode
+flip besides first-drag). Both conform to the Command contract
+(`isEnabled` mirrors the predicate). `setColumnWidths` is the internal write
+primitive the drag plugin ends at; its signature carries a doc position
+before `dispatch`, so it is not toolbar-bindable and is not re-exported from
+`@metanorma/toolbar`.
+
+**Clipboard fidelity.** The plugin supplies the `clipboardSerializer`
+EditorProps override — its `table` entry emits a `data-colwidths` attribute
+(JSON array of percentage strings) when widths are fixed — so whole-table
+intra-editor copy/paste round-trips exactly; the clipboard path only is
+overridden (schema `toDOM` is untouched). Paste needs no counterpart: the
+schema `parseDOM.getAttrs` reads `data-colwidths` back with priority over
+colgroup parsing, and also accepts `<col style="width:…%">` and the legacy
+`<col width="…">` attribute form with a ±0.5-percentage-point sum tolerance
+(pipeline output such as 6 × 16.67 = 100.02 stays verbatim). Intra-editor
+drag-and-drop preserves attrs natively (the in-memory slice bypasses HTML).
+Known, accepted limitation: a **partial** copy whose selection opens inside
+the table (rows serialize as top-level `tr`/`thead`/`tbody`) drops widths —
+per-cell width storage is the only remedy for that case and is rejected by
+the table-level storage model.
+
+**Accessibility.** The dragging movement has a non-dragging equivalent: the
+numeric width field of the table-properties surface (a separate feature)
+accepts exact percentages. No keyboard-driven resize gesture exists, per
+WCAG 2.5.7 / F108.
+
 ## 9. Export changes
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported

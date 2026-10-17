@@ -7,7 +7,7 @@
   "scripts": {
     "compile": "tsc --outdir compiled",
     "pretest": "yarn compile",
-    "test": "yarn node --import ./test-register.mjs --test sections.test.mjs dl.test.mjs captions.test.mjs"
+    "test": "yarn node --import ./test-register.mjs --test sections.test.mjs dl.test.mjs captions.test.mjs tablewidths.test.mjs"
   },
   "dependencies": {
     "@metanorma/prosemirror-schema": "workspace:^",

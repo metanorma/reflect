@@ -65,6 +65,19 @@ export {
   MAX_COLS,
 } from './commands/insertTable.js';
 
+// Table column widths (tables.md §8.6). `setColumnWidths` is the internal
+// write primitive for the resize plugin / numeric channel — its signature
+// carries `pos` before `dispatch`, so it is NOT Command-contract shaped and
+// is deliberately not toolbar-bindable (no toolbar re-export).
+export {
+  setColumnWidths,
+  autoTableWidths,
+  distributeColumnsEvenly,
+  MIN_COLUMN_WIDTH_PX,
+  MIN_COLUMN_SHARE_PCT,
+  pctToNumber,
+} from './commands/tableWidths.js';
+
 // Images / figures (images-figures.md).
 export { insertImage, canInsertFigure } from './commands/insertImage.js';
 export type { InsertImageAttrs } from './commands/insertImage.js';

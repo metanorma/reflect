@@ -118,6 +118,52 @@
     border-collapse: collapse;
     margin: var(--mn-space-4) 0;
     width: 100%;
+    /* Anchors the absolutely-positioned resize handles (tables.md §8.6). */
+    position: relative;
+  }
+
+  /*
+   * Fixed layout applies exactly when a colgroup with widths is present
+   * (the plugin renders it only while `colwidths` is set). Autowidth tables
+   * keep auto layout — the two-mode model.
+   *
+   * The renderer wraps native widget decorations in a `<span>` — never a
+   * direct table child — so the wrapper is made layout-transparent via
+   * `display: contents`; the colgroup/handles inside it then participate in
+   * table layout as effective direct children.
+   */
+  .mn-prosemirror table:has(colgroup.mn-col-resize-colgroup) {
+    table-layout: fixed;
+  }
+
+  .mn-prosemirror table > span:has(> colgroup.mn-col-resize-colgroup),
+  .mn-prosemirror table > span:has(> .mn-col-resize-handles) {
+    display: contents;
+  }
+
+  /* Column-resize hit areas (tables.md §8.6): one per interior grid edge,
+   * absolutely positioned inside the table box, geometry set from the
+   * laid-out DOM by the resize plugin. Inert pointer-wise unless editable. */
+  .mn-prosemirror .mn-col-resize-handles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .mn-prosemirror .mn-col-resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    user-select: none;
+    pointer-events: auto;
+    background: transparent;
+  }
+
+  .mn-prosemirror .mn-col-resize-handle:hover,
+  .mn-prosemirror .mn-col-resize-handle:active {
+    background: color-mix(in srgb, var(--mn-accent, #4a90d9) 25%, transparent);
   }
 
   .mn-prosemirror th,

@@ -30,6 +30,11 @@ export {
 } from "./state.js";
 
 export { placeholderClickPlugin } from "./plugins/placeholderClick.js";
+export {
+  tableColumnResizePlugin,
+  tableColumnResizeKey,
+  tableColumnResizeDecorations,
+} from "./plugins/tableColumnResize.js";
 
 export {
   ImageNodeView,

@@ -35,6 +35,11 @@ export const metanormaSchema: Schema = new Schema({
 
 export { metanormaNodes } from './nodes.js';
 export { metanormaMarks } from './marks.js';
+export { tableGridColumnCount } from './nodes.js';
+export {
+  parseColWidths, repairColWidths, normalizeWidths, equalWidths, parsePct,
+  DATA_COLWIDTHS_ATTR, WIDTHS_SUM_TOLERANCE,
+} from './tableWidths.js';
 export { CLASS } from './classes.js';
 export type { ClassName } from './classes.js';
 export {

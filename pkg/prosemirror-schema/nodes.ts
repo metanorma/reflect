@@ -17,6 +17,7 @@ import {
 } from './groups.js';
 import { baseAttrs, sectionAttrs, DATA_ATTR } from './attrs.js';
 import { CLASS } from './classes.js';
+import { parseColWidths } from './tableWidths.js';
 
 
 // ---------------------------------------------------------------------------
@@ -490,16 +491,107 @@ const listNodes: Record<string, NodeSpec> = {
 // 5. Table nodes (§8.5)
 // ---------------------------------------------------------------------------
 
+/**
+ * Count the table's grid columns: the maximum `Σ colspan` over all rows of
+ * all row groups (`table_head` / `table_body` / `table_foot`, any order or
+ * presence). A single row's cell count never suffices — header rows span
+ * differently than body rows, and the grid is the union of all declarations.
+ */
+export function tableGridColumnCount(table: Node): number {
+  let cols = 0;
+  table.forEach((group) => {
+    if (
+      group.type.name === 'table_head'
+      || group.type.name === 'table_body'
+      || group.type.name === 'table_foot'
+    ) {
+      group.forEach((row) => {
+        let rowCols = 0;
+        row.forEach((cell) => {
+          rowCols += Number(cell.attrs['colspan'] ?? 1);
+        });
+        cols = Math.max(cols, rowCols);
+      });
+    }
+  });
+  return cols;
+}
+
+/**
+ * `<table>` `getAttrs`: read `id`/`number`/`colwidths` off the element.
+ *
+ * Column widths come from {@link parseColWidths} — `data-colwidths` first
+ * (intra-editor clipboard), then a child `<colgroup>` (`style` form, legacy
+ * `width`-attribute form). The grid column count is computed from the
+ * element's parsed content, so imported widths are repaired against the
+ * grid they actually join. `data` is not read here (the `data` attr is a
+ * catch-all written on JSON load, not parsed from HTML).
+ */
+function tableGetAttrs(el: HTMLElement): Record<string, unknown> {
+  const attrs: Record<string, unknown> = {
+    id: el.getAttribute('data-id'),
+    number: el.getAttribute('data-number'),
+  };
+  // Grid-column counting needs the parsed subtree; parse from the live
+  // element with the schema's own DOMParser so colspan attrs resolve.
+  const colCount = countGridColumnsFromDOM(el);
+  if (colCount > 0) {
+    const widths = parseColWidths(el, colCount);
+    if (widths !== null) attrs['colwidths'] = widths;
+  }
+  return attrs;
+}
+
+/**
+ * Count grid columns from a live `<table>` element by scanning its
+ * `<thead>/<tbody>/<tfoot>` rows and summing `colspan` attributes — the DOM
+ * twin of {@link tableGridColumnCount}.
+ */
+function countGridColumnsFromDOM(el: HTMLElement): number {
+  let cols = 0;
+  const rows = el.querySelectorAll('thead > tr, tbody > tr, tfoot > tr');
+  rows.forEach((row) => {
+    let rowCols = 0;
+    row.querySelectorAll(':scope > td, :scope > th').forEach((cell) => {
+      const cs = Number(cell.getAttribute('colspan') ?? '1');
+      rowCols += Number.isFinite(cs) && cs > 0 ? cs : 1;
+    });
+    if (rowCols > 0) cols = Math.max(cols, rowCols);
+  });
+  return cols;
+}
+
 const tableNodes: Record<string, NodeSpec> = {
   table: {
     content: `table_name? (table_head | table_body | table_foot)+`,
     group: BLOCK_GROUP,
     attrs: {
       id: { default: null }, number: { default: null },
+      // One percentage string per grid column (`"16.67%"`), `null` =
+      // autowidth — the two-mode model (schema.spec.md §8.5). Grid columns =
+      // max Σ colspan over all rows of all row groups. Not emitted by toDOM
+      // (see the toDOM note below); the editor renders a colgroup via a
+      // plugin widget, `.mn.json` carries it here, and the clipboard
+      // serializer re-encodes it as `data-colwidths`.
+      colwidths: { default: null },
       ...DATA_ATTR,
     },
+    // `['table', 0]` — deliberately bare. prosemirror-model's renderSpec
+    // requires the content hole to be the ONLY child of its parent element,
+    // so a `<colgroup>` (or any non-content sibling) can never ride in
+    // toDOM. Column widths render through a plugin widget decoration; the
+    // clipboard serializer (an EditorProps override, clipboard path only)
+    // re-encodes widths as a `data-colwidths` attribute so intra-editor
+    // copy/paste round-trips. Known consequence, accepted: a PARTIAL copy
+    // (selection opening inside the table — rows serialize as top-level
+    // tr/thead/tbody and are bare-wrapped by ProseMirror's wrapMap) drops
+    // widths; per-cell storage is the only remedy for that case and is
+    // rejected here (table-level storage model).
     toDOM: () => ['table', 0],
-    parseDOM: [{ tag: 'table' }],
+    parseDOM: [{
+      tag: 'table',
+      getAttrs: (el) => tableGetAttrs(el as HTMLElement),
+    }],
   },
   table_head: {
     content: 'table_row+',

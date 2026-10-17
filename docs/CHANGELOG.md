@@ -7,6 +7,40 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-10-16 — table column sizing: two-mode `colwidths`, drag-to-resize, clipboard fidelity
+
+`@metanorma/prosemirror-schema` + `editor-commands` + `prosemirror-editor` +
+`toolbar` + `editor-gui` ripples; `docs/schema.spec.md` §8.5 + §14 gap table,
+`docs/AdvancedMetanormaToolbar/tables.md` §8.6; **Commits: *(pending)***.
+
+- **Change** — the `table` node gains a `colwidths` attribute (default
+  `null` = autowidth; non-null = one percentage string per grid column,
+  grid = max Σ colspan over all rows of all row groups), and a complete
+  column-sizing feature lands on top of it: the `tableColumnResizePlugin`
+  (dual widget decorations — colgroup + per-edge drag handles; DOM-derived
+  spanning-aware geometry; neighbor-trades-1:1 drags with a 40px min-width
+  stall, 3px threshold, rAF-coalesced preview, single-transaction commit,
+  first-drag materialization, Escape cancel), the pure commands
+  `setColumnWidths` / `autoTableWidths` / `distributeColumnsEvenly`, the
+  **Auto widths** / **Distribute evenly** toolbar buttons, and a
+  `clipboardSerializer` override carrying `data-colwidths` so whole-table
+  copy/paste round-trips widths exactly.
+- **Ingest** — `table.parseDOM.getAttrs` reads `data-colwidths` (priority)
+  then `<colgroup>` `<col>` elements in both `style="width:…%"` and legacy
+  `width="…%"` forms, repaired against the grid column count with a ±0.5pp
+  sum tolerance (verbatim within tolerance — pipeline rounding such as
+  6 × 16.67 = 100.02 is legitimate).
+- **Why table-level storage** — per-cell width storage (the
+  prosemirror-tables model) is the only remedy for partial-copy fidelity
+  and is rejected: the Metanorma model is colgroup/table-level, the grid is
+  derivable from `colspan` without `TableMap`, and one attribute write per
+  gesture keeps undo/collab clean.
+- **Known limitation (accepted)** — a partial copy whose selection opens
+  inside the table (rows serialize as top-level `tr`/`thead`/`tbody`)
+  drops widths; recorded next to the `toDOM` rationale in tables.md §8.6.
+
+---
+
 ## 2026-10-14 — captions become rich child nodes (`figure_name`, `table_name`)
 
 `@metanorma/prosemirror-schema` feature + `editor-commands` / `toolbar` /

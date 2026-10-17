@@ -46,6 +46,8 @@ export {
   toggleList,
   insertTable,
   canInsertTable,
+  autoTableWidths,
+  distributeColumnsEvenly,
   insertImage,
   canInsertFigure,
   wrapInClause,
