@@ -48,7 +48,7 @@ Types & schema
     an `Effect schema <https://effect.website/docs/guides/schema/basic-usage>`_
     and derive the typings from that.
 
-    - For consistently, the schema for a type ``Something`` must be called
+    - For consistency, the schema for a type ``Something`` must be called
       ``SomethingSchema``, and the following pattern is OK::
 
           import * as S from 'effect/Schema';
@@ -61,7 +61,7 @@ Types & schema
 
   - Instead of using type guards and ad-hoc checking, or annotating types without
     actual validation, decode incoming structure with the schema
-    (even with simple ``S.decodeUnkownSync()``) and handle parsing errors.
+    (even with simple ``S.decodeUnknownSync()``) and handle parsing errors.
 
 - If constant type was defined and can obviously be inferred by TSC
   *and* by a human without explicit annotation, avoid manually annotating
