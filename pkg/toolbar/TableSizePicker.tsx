@@ -23,6 +23,7 @@ import type { EditorView } from "prosemirror-view";
 
 import { insertTable, canInsertTable, MAX_ROWS, MAX_COLS } from "@metanorma/editor-commands";
 
+import { toolbarButtonClass } from "./ToolbarButtonView.js";
 import "./table-picker.css";
 
 /** The grid-picker popover itself (tables.md §5). */
@@ -173,7 +174,7 @@ export function InsertTableButton(): React.JSX.Element {
       <button
         ref={triggerRef}
         type="button"
-        className="mn-toolbar-btn"
+        className={toolbarButtonClass(false, enabled)}
         aria-haspopup="dialog"
         disabled={!enabled}
         title="Insert table"

@@ -38,6 +38,7 @@ import {
 } from "@metanorma/editor-commands";
 
 import type { RefPromptContext } from "./AdvancedMetanormaToolbar.js";
+import { toolbarButtonClass } from "./ToolbarButtonView.js";
 
 import "./reference-marks.css";
 
@@ -321,11 +322,7 @@ export function FootnoteButton({
       <button
         ref={triggerRef}
         type="button"
-        className={
-          isMarkerSelected
-            ? "mn-toolbar-btn mn-toolbar-btn--active"
-            : "mn-toolbar-btn"
-        }
+        className={toolbarButtonClass(isMarkerSelected, enabled)}
         aria-haspopup="dialog"
         disabled={!enabled}
         title="Insert footnote"

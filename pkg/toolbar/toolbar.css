@@ -58,7 +58,15 @@
     background: var(--mn-active);
   }
 
-  .mn-toolbar-btn--disabled {
+  /*
+   * The disabled visual contract is keyed off BOTH the modifier class (base
+   * spec §8 — what ToolbarButtonView/toolbarButtonClass emit) and the native
+   * :disabled attribute, so a hand-rolled trigger that sets only the
+   * attribute still renders disabled (opacity + cursor), never a
+   * cursor:pointer button that looks enabled.
+   */
+  .mn-toolbar-btn--disabled,
+  .mn-toolbar-btn:disabled {
     opacity: 0.4;
     cursor: default;
   }

@@ -31,6 +31,7 @@ import { collectBibliographyItems, citeas, label } from "@metanorma/relaton";
 import type { BibliographicItem } from "@metanorma/relaton";
 
 import type { ToolbarGroupDef } from "../types.js";
+import { toolbarButtonClass } from "../ToolbarButtonView.js";
 import type {
   AdvancedFeatureOptions,
   RefPromptContext,
@@ -177,7 +178,7 @@ function ErefButton({
       <button
         ref={triggerRef}
         type="button"
-        className={isActive ? "mn-toolbar-btn mn-toolbar-btn--active" : "mn-toolbar-btn"}
+        className={toolbarButtonClass(isActive, enabled)}
         aria-pressed={isActive}
         disabled={!enabled}
         title="Insert bibliographic reference"
@@ -359,7 +360,7 @@ function Bcp14Button({
       <button
         ref={triggerRef}
         type="button"
-        className={isActive ? "mn-toolbar-btn mn-toolbar-btn--active" : "mn-toolbar-btn"}
+        className={toolbarButtonClass(isActive, enabled)}
         aria-pressed={isActive}
         disabled={!enabled}
         title="Insert BCP14 keyword"
@@ -466,7 +467,7 @@ function StemButton({
       <button
         ref={triggerRef}
         type="button"
-        className="mn-toolbar-btn"
+        className={toolbarButtonClass(false, enabled)}
         disabled={!enabled}
         title="Insert inline formula"
         onClick={handleClick}
@@ -510,7 +511,7 @@ function BibitemButton(): React.JSX.Element {
   return (
     <button
       type="button"
-      className={enabled ? "mn-toolbar-btn" : "mn-toolbar-btn mn-toolbar-btn--disabled"}
+      className={toolbarButtonClass(false, enabled)}
       title="Add bibliography entry (inside References)"
       disabled={!enabled}
       onClick={() => void insertAndFocus()}

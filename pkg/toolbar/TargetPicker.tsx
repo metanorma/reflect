@@ -31,6 +31,7 @@ import { toggleXref, toggleConcept } from "@metanorma/editor-commands";
 
 import type { RefPromptContext } from "./AdvancedMetanormaToolbar.js";
 import { isInlineContext } from "./predicates.js";
+import { toolbarButtonClass } from "./ToolbarButtonView.js";
 
 import "./reference-marks.css";
 
@@ -402,11 +403,7 @@ function TargetButton({
       <button
         ref={triggerRef}
         type="button"
-        className={
-          isActive
-            ? "mn-toolbar-btn mn-toolbar-btn--active"
-            : "mn-toolbar-btn"
-        }
+        className={toolbarButtonClass(isActive, enabled)}
         aria-haspopup="dialog"
         disabled={!enabled}
         title={markTitle}

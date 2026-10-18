@@ -26,6 +26,7 @@ import type { EditorView } from "prosemirror-view";
 
 import { insertImageIntoFigure, canInsertImageIntoFigure } from "@metanorma/editor-commands";
 import type { OnImageUpload } from "./AdvancedMetanormaToolbar.js";
+import { toolbarButtonClass } from "./ToolbarButtonView.js";
 
 import "./image-dialog.css";
 
@@ -201,7 +202,7 @@ export function InsertImageButton({
       <button
         ref={triggerRef}
         type="button"
-        className="mn-toolbar-btn"
+        className={toolbarButtonClass(false, enabled)}
         aria-haspopup="dialog"
         disabled={!enabled}
         title="Add image to figure"

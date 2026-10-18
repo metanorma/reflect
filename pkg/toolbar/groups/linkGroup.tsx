@@ -20,6 +20,7 @@ import type { EditorView } from "prosemirror-view";
 
 import type { ToolbarGroupDef } from "../types.js";
 import { isInlineContext, isMarkActive, requireMark } from "../predicates.js";
+import { toolbarButtonClass } from "../ToolbarButtonView.js";
 import { PromptPopover } from "../PromptPopover.js";
 
 // ---------------------------------------------------------------------------
@@ -126,11 +127,7 @@ function LinkButton({ onLinkPrompt }: LinkButtonProps): React.JSX.Element {
       <button
         ref={triggerRef}
         type="button"
-        className={
-          isActive
-            ? "mn-toolbar-btn mn-toolbar-btn--active"
-            : "mn-toolbar-btn"
-        }
+        className={toolbarButtonClass(isActive, isEnabled)}
         aria-pressed={isActive}
         disabled={!isEnabled}
         title="Link"
