@@ -18,6 +18,7 @@ import {
 import type { EditorState } from "prosemirror-state";
 
 import { CLASS } from "@metanorma/prosemirror-schema";
+import { mergeNodeViewProps } from "./mergeNodeViewProps.js";
 
 /**
  * Compute the ordinal (1-based) of the `footnote_entry` identified by
@@ -63,13 +64,16 @@ export function FootnoteEntryNodeView({
   // Prefer an explicit `number` attr, fall back to the computed ordinal.
   const label = number ?? (computedNumber !== null ? String(computedNumber) : "•");
 
+  // Merge the selection class in (node-selectable via click).
+  const { className, rest } = mergeNodeViewProps(props, CLASS.footnoteEntry);
+
   return (
     <div
       ref={ref}
-      className={CLASS.footnoteEntry}
+      className={className}
       {...(id != null ? { "data-id": id } : {})}
       {...(number != null ? { "data-number": number } : {})}
-      {...props}
+      {...rest}
     >
       <span
         className="mn-footnote-entry-label"

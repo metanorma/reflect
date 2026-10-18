@@ -18,7 +18,7 @@ responsibilities:
 
 1. The **Figure button** (`insertFigure`, §6) — creates a `figure` with a
    seeded empty `figure_name` caption and an empty body rendered with a
-   placeholder (§11). The author types the caption inline (full inline
+   placeholder (§12). The author types the caption inline (full inline
    markup applies).
 2. The **Image button** (`ImageInsertDialog` + `insertImageIntoFigure`,
    §4–§7) — single-mode: it adds an `image` atom to the figure the caret is
@@ -863,13 +863,13 @@ The Figure button is a plain `ToolbarButton` — it uses the base
 
 ## 12. The empty-figure placeholder
 
-An image-less figure renders a placeholder so the author always sees the
-missing image. One selector, in the document layer
+A figure with an **empty body** renders a placeholder so the author sees the
+empty state. One selector, in the document layer
 (`pkg/prosemirror-editor/document.css`, beside the existing figure rules):
 
 ```css
-.mn-prosemirror figure.mn-figure:not(:has(img))::after {
-  content: "Add an image with the Image button";
+.mn-prosemirror figure.mn-figure:not(:has(> :not(.mn-figure-name)))::after {
+  content: "Empty figure";
   display: block;
   margin: var(--mn-space-2);
   padding: var(--mn-space-4);
@@ -881,16 +881,33 @@ missing image. One selector, in the document layer
 }
 ```
 
+The label is a **state, not an instruction** — it names the document state
+without prescribing content and without naming toolbar chrome the host may
+not render (`visibleGroups: { images: false }`, the base
+`MetanormaToolbar`, or an `onImagePrompt`-replaced UI would all leave the
+old "Add an image with the Image button" text describing a button that
+doesn't exist). Standoc's `FigureBody` choice group admits `image` XOR a
+`paragraph-with-footnote+` run XOR nested figures (§2.1): a figure holding
+paragraphs is a **complete, valid figure**, so an image-missing message would
+misdescribe it. "Empty figure" is true of exactly the figures the selector
+matches. The affordance for adding an image is the **enabled Image button**
+(§8.3), not placeholder text.
+
+**Match set.** The selector matches a figure whose children are at most the
+caption — `[figure_name]` (fresh `insertFigure`, or after the image is
+deleted: the recovery state, §8.3) and the caption-less empty figure (a
+parsed doc). It does **not** match figures with any body content — an image,
+paragraphs (including the Enter/`exitName` residue `[figure_name,
+paragraph]`), or nested figures. A deliberate text-figure therefore never
+shows the placeholder.
+
 **Why no empty-textblock guard.** The section-title placeholder uses
 `:has(> .ProseMirror-trailingBreak:only-child)` because it detects an empty
 **textblock** — and `:empty` can never match a ProseMirror textblock, since PM
 always keeps a trailing `<br>` inside one. The figure condition is
-**structural**, not content-emptiness: "the figure has no `img` descendant".
-`:not(:has(img))` expresses that exactly and completely, with no auxiliary
-guard. Notably it keeps matching intermediate states such as
-`[figure_name, paragraph]` (caption typed, Enter pressed — the paragraph is
-the `exitName` residue) that a caption-emptiness guard would wrongly exclude:
-those figures still lack an image and must keep showing the placeholder.
+**structural**, not content-emptiness: "no child element other than the
+caption". `:not(:has(> :not(.mn-figure-name)))` expresses that exactly, with
+no auxiliary guard.
 
 The pseudo-element is invisible to ProseMirror's DOM reading (PM parses only
 its content DOM; pseudo-elements generate no DOM nodes), so there is no

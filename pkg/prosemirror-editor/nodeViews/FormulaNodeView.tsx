@@ -12,6 +12,7 @@
 import React from "react";
 import type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
 import { CLASS } from "@metanorma/prosemirror-schema";
+import { mergeNodeViewProps } from "./mergeNodeViewProps.js";
 
 export function FormulaNodeView({ nodeProps, ref, ...props }: NodeViewComponentProps) {
   const { node } = nodeProps;
@@ -22,13 +23,16 @@ export function FormulaNodeView({ nodeProps, ref, ...props }: NodeViewComponentP
 
   const placeholder = type === "mathml" ? (mathml ?? "") : (asciimath ?? "");
 
+  // Atom: a plain click node-selects it — merge the selection class in.
+  const { className, rest } = mergeNodeViewProps(props, CLASS.formula);
+
   return (
     <div
       ref={ref}
-      className={CLASS.formula}
+      className={className}
       {...(number != null ? { "data-number": number } : {})}
       data-type={type}
-      {...props}
+      {...rest}
     >
       {placeholder}
     </div>

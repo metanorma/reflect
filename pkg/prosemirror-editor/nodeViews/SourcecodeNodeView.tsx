@@ -11,14 +11,17 @@
 import React from "react";
 import type { RefObject } from "react";
 import type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
+import { mergeNodeViewProps } from "./mergeNodeViewProps.js";
 
 export function SourcecodeNodeView({ nodeProps, children, ref, ...props }: NodeViewComponentProps) {
   const { node, contentDOMRef } = nodeProps;
   const language = node.attrs["language"] as string | null;
-  const className = language != null ? `language-${language}` : undefined;
+  const ownClass = language != null ? `language-${language}` : "";
+  // Triple-click can node-select the block — merge the selection class in.
+  const { className, rest } = mergeNodeViewProps(props, ownClass);
 
   return (
-    <pre ref={ref} {...(className != null ? { className } : {})} {...props}>
+    <pre ref={ref} className={className} {...rest}>
       <code ref={contentDOMRef as RefObject<HTMLElement>}>{children}</code>
     </pre>
   );

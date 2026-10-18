@@ -15,6 +15,7 @@
 import React from "react";
 import type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
 import { CLASS } from "@metanorma/prosemirror-schema";
+import { mergeNodeViewProps } from "./mergeNodeViewProps.js";
 
 export function StemNodeView({ nodeProps, ref, ...props }: NodeViewComponentProps) {
   const { node } = nodeProps;
@@ -24,12 +25,15 @@ export function StemNodeView({ nodeProps, ref, ...props }: NodeViewComponentProp
 
   const source = type === "mathml" ? (mathml ?? "") : (asciimath ?? "");
 
+  // Inline atom: a plain click node-selects it — merge the selection class in.
+  const { className, rest } = mergeNodeViewProps(props, CLASS.stem);
+
   return (
     <span
       ref={ref}
-      className={CLASS.stem}
+      className={className}
       data-type={type}
-      {...props}
+      {...rest}
     >
       {source}
     </span>

@@ -34,23 +34,30 @@
   }
 
   /*
-   * Empty-figure placeholder (images-figures.md §12). A figure with no image
-   * renders a muted dashed box with a hint, so the author always sees the
-   * missing image and the Image button's target is visible.
+   * Empty-figure placeholder (images-figures.md §12). A figure whose body is
+   * empty — no children except (at most) the caption — renders a muted dashed
+   * box with a state label, mirroring the section-title placeholder.
    *
-   * One structural selector — NO empty-textblock guard: the section-title
-   * placeholder needs `:has(> .ProseMirror-trailingBreak:only-child)` only
-   * because it detects an EMPTY TEXTBLOCK (where `:empty` can never match —
-   * PM keeps a trailing <br> inside every textblock). The figure condition is
-   * structural — "no img descendant" — which `:not(:has(img))` expresses
-   * exactly; it deliberately still matches intermediate states like
-   * [figure_name, paragraph] (caption typed, Enter pressed) that a
-   * caption-emptiness guard would wrongly exclude. The pseudo-element
+   * The label is a STATE, not an instruction: "Empty figure" names the
+   * document state without prescribing content (Standoc's FigureBody admits
+   * image XOR paragraphs XOR subfigures — a paragraphs-figure is complete,
+   * not unfinished) and without naming toolbar chrome the host may not
+   * render. The enabled Image button is the affordance for adding an image;
+   * this placeholder only marks the empty body.
+   *
+   * Structural selector — NO empty-textblock guard: the condition is "no
+   * child element other than the caption", which
+   * `:not(:has(> :not(.mn-figure-name)))` expresses exactly (the
+   * section-title placeholder needs `:has(> .ProseMirror-trailingBreak:only-child)`
+   * only because IT detects an empty textblock, where `:empty` can never
+   * match — PM keeps a trailing <br> inside every textblock). Figures with
+   * real body content — an image, paragraphs, nested figures — never match,
+   * so a deliberate text-figure is never nagged. The pseudo-element
    * generates no DOM node, so serialization is unaffected; clicks fall
    * through to the figure, where PM lands the caret in the caption.
    */
-  .mn-prosemirror figure.mn-figure:not(:has(img))::after {
-    content: "Add an image with the Image button";
+  .mn-prosemirror figure.mn-figure:not(:has(> :not(.mn-figure-name)))::after {
+    content: "Empty figure";
     display: block;
     margin: var(--mn-space-2);
     padding: var(--mn-space-4);

@@ -19,6 +19,7 @@ import type { EditorState } from "prosemirror-state";
 import type { Node } from "prosemirror-model";
 
 import { CLASS } from "@metanorma/prosemirror-schema";
+import { mergeNodeViewProps } from "./mergeNodeViewProps.js";
 
 /**
  * Compute the 1-based ordinal of the footnote entry identified by `target`,
@@ -61,13 +62,16 @@ export function FootnoteMarkerNodeView({
     targetOrdinal(state, target),
   );
 
+  // Inline atom: a plain click node-selects it — merge the selection class in.
+  const { className, rest } = mergeNodeViewProps(props, CLASS.footnoteMarker);
+
   return (
     <sup
       ref={ref}
-      className={CLASS.footnoteMarker}
+      className={className}
       {...(target != null ? { "data-target": target } : {})}
       {...(id != null ? { "data-id": id } : {})}
-      {...props}
+      {...rest}
     >
       {number ?? "•"}
     </sup>

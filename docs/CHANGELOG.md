@@ -31,10 +31,15 @@ bullet; **Commits: *(pending)***.
   (`insertFigure` query/dispatch) before the dialog control; the Image button
   is single-mode (enabled = `canInsertImageIntoFigure`, static title "Add
   image to figure").
-- **Placeholder** — `figure.mn-figure:not(:has(img))::after` renders a muted
-  dashed placeholder in an image-less figure (structural selector; no
-  empty-textblock guard — deliberately still shown for `[figure_name,
-  paragraph]` states).
+- **Placeholder** — a figure with an **empty body** (no children except at
+  most the caption) renders the state label "Empty figure"
+  (`figure.mn-figure:not(:has(> :not(.mn-figure-name)))::after`); figures
+  with real body content — an image, paragraphs, nested figures — never
+  match, so a deliberate text-figure (Standoc `FigureBody` admits
+  `paragraph-with-footnote+` in place of `image`) is not nagged with an
+  image-missing hint. The label names the document state without prescribing
+  content or referencing toolbar chrome; the enabled Image button is the
+  add-image affordance.
 - **Insertion-point rationale** — Standoc `FigureBody`'s choice group is
   single-occurrence (image XOR `paragraph-with-footnote+` XOR subfigures), so
   the slot immediately after the caption is the only position valid in both
