@@ -1,6 +1,21 @@
 Contributing
 ============
 
+Where conventions live
+~~~~~~~~~~~~~~~~~~~~~~
+
+Rules are split by what they govern:
+
+- **Code** — ``pkg/**``, build scripts, dependencies, TypeScript and
+  style — is governed by this file, ending with the `Verification`_
+  commands.
+- **The specification corpus** — ``docs/**/*.md`` and
+  ``pkg/*/README.spec.md`` — is governed by
+  `docs/CONVENTIONS.md <docs/CONVENTIONS.md>`_: spec placement,
+  cross-referencing, change tracking, markdown style, and the
+  ``docs(<area>):`` commit convention for spec changes. Its index is
+  `docs/README.md <docs/README.md>`_.
+
 Code conventions
 ~~~~~~~~~~~~~~~~
 
@@ -139,3 +154,51 @@ Style guidelines
                 </span>
               )
             : null}
+
+Verification
+~~~~~~~~~~~~
+
+What to run before submitting, by what a change touches:
+
+- **Specs or docs** (``docs/**/*.md``, ``pkg/*/README.spec.md``) —
+  ``yarn check-specs`` (CI-enforced on every PR). Before changing a
+  spec that other docs link to, run ``yarn spec-impact <spec-path.md>``
+  and review the listed dependents (``docs/CONVENTIONS.md`` §7).
+
+- **Any code under ``pkg/``** — ``yarn workspace <name> compile``
+  type-checks and emits for one workspace (names below);
+  ``yarn workspaces foreach -A run compile`` compiles all of them.
+
+- **Unit tests** — ``yarn test`` runs every suite in one command.
+  Three packages have unit tests today (``editor-commands``,
+  ``prosemirror-minimap``, ``relaton``); the rest have none, so a green
+  ``yarn test`` means those three suites passed.
+
+- **Browser e2e** (not CI-enforced) — ``yarn workspace editor-gui e2e``
+  and ``yarn workspace @metanorma/prosemirror-minimap e2e``. Each suite
+  builds its own target via Playwright's ``webServer`` and serves it;
+  the only prerequisite is the one-time browser install,
+  ``yarn workspace <pkg> e2e:install``.
+
+- **Dependencies added or upgraded** — run ``yarn`` and check for the
+  duplicate-instance error at the end (see the dependency policy above),
+  then ``yarn check-for-multiple-instances`` (narrow with
+  ``yarn why <pkg>``) and ``yarn constraints`` (dependency ranges
+  consistent across workspaces; note it currently fails at baseline on
+  a pre-existing ``prosemirror-model`` range conflict, unrelated to
+  new work).
+
+- **Whole-repo quick gate** — what CI runs on every PR:
+  ``yarn check-specs`` and ``yarn build-gui``.
+
+Workspace inventory (all under ``pkg/``; used by the
+``yarn workspace <name>`` commands above):
+
+- ``@metanorma/prosemirror-schema`` (``pkg/prosemirror-schema``) — no tests
+- ``@metanorma/prosemirror-editor`` (``pkg/prosemirror-editor``) — no tests
+- ``@metanorma/editor-commands`` (``pkg/editor-commands``) — unit tests
+- ``@metanorma/toolbar`` (``pkg/toolbar``) — no tests
+- ``@metanorma/relaton`` (``pkg/relaton``) — unit tests
+- ``@metanorma/prosemirror-minimap``
+  (``pkg/prosemirror-minimap``) — unit tests, e2e
+- ``editor-gui`` (``pkg/editor-gui``) — e2e

@@ -15,6 +15,7 @@
     "build-minimap-demo": "yarn node build-minimap-demo.mjs",
     "check-specs": "node scripts/check-specs.mjs",
     "spec-impact": "node scripts/spec-impact.mjs",
+    "test": "yarn workspaces foreach -A run test",
     "build-self": "yarn compile; yarn clean && yarn build-server-builder && yarn build-server"
   },
   "files": [

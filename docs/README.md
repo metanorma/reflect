@@ -16,7 +16,10 @@ intended for independent publication are **colocated** with their package at
 conventions live in [`CONVENTIONS.md`](./CONVENTIONS.md); curated change records
 live in [`CHANGELOG.md`](./CHANGELOG.md). Run `yarn check-specs` before
 submitting a PR that touches a spec; use `yarn spec-impact <spec-path.md>` to
-find what to review when changing a spec.
+find what to review when changing a spec. Code-side conventions (TypeScript,
+style, dependencies) and the verification command for every change type live in
+[`../CONTRIBUTING.rst`](../CONTRIBUTING.rst) — this directory governs the spec
+corpus; that file governs the code.
 
 **Upstream reference.** [`metanorma-model.md`](./metanorma-model.md) records
 commit-pinned, verified facts about the Metanorma pipeline and grammars that

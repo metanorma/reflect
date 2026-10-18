@@ -3,7 +3,10 @@
 This document is the authority for how the specs in this repository are
 governed: cross-referencing, change tracking, and the tooling that enforces
 consistency. It supersedes any earlier governance conventions that lived in
-session memory.
+session memory. It governs the spec corpus only — code conventions
+(TypeScript, style, dependency policy) and the verification commands for
+code changes live in the repository's
+[`CONTRIBUTING.rst`](../CONTRIBUTING.rst).
 
 ## 1. Source-of-truth hierarchy
 
