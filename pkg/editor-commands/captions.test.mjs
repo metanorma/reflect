@@ -1,8 +1,8 @@
 /**
  * Unit tests for the caption feature: `exitName` (Enter in
  * `figure_name`/`table_name`), the §4.4.9b empty-caption Backspace guard,
- * insertion seeding (`insertTable`/`insertImage`), and the caption-aware
- * `bodyBlockContext` predicates.
+ * two-stage figure authoring (`insertFigure` / `insertImageIntoFigure`), and
+ * the caption-aware `bodyBlockContext` predicates.
  *
  * Patterned on sections.test.mjs: builds EditorState from JSON docs against
  * `metanormaSchema`, invokes commands headlessly with a state-apply dispatch.
@@ -10,15 +10,17 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { EditorState, TextSelection } from "prosemirror-state";
+import { EditorState, TextSelection, NodeSelection } from "prosemirror-state";
 import { metanormaSchema } from "@metanorma/prosemirror-schema";
 import {
   exitName,
   emptyTextblockBackspace,
   insertTable,
-  insertImage,
-  canInsertTable,
+  insertFigure,
   canInsertFigure,
+  insertImageIntoFigure,
+  canInsertImageIntoFigure,
+  canInsertTable,
 } from "./compiled/index.js";
 
 // ---------------------------------------------------------------------------
@@ -77,15 +79,23 @@ function tableNode(captionText) {
   };
 }
 
-/** A figure with a caption and (optionally) its image. */
-function figureNode(captionText, withImage) {
+/** A figure with a caption, optionally its image, and optional extra children. */
+function figureNode(captionText, withImage, extraChildren = []) {
   const content = [
     { type: "figure_name", attrs: { data: {} }, content: captionText ? [{ type: "text", text: captionText }] : [] },
   ];
   if (withImage) {
     content.push({ type: "image", attrs: { src: "x.png", alt: null, data: {} } });
   }
+  content.push(...extraChildren);
   return { type: "figure", attrs: { id: "f1", number: null, data: {} }, content };
+}
+
+/** Names of a figure's direct children (assertion helper). */
+function figureChildNames(figNode) {
+  const names = [];
+  figNode.forEach((c) => names.push(c.type.name));
+  return names;
 }
 
 /**
@@ -297,7 +307,89 @@ describe("emptyTextblockBackspace: captions", () => {
 // Insertion seeding
 // ---------------------------------------------------------------------------
 
-describe("insertion seeds captions", () => {
+// ---------------------------------------------------------------------------
+// Two-stage figure authoring — insertFigure
+// ---------------------------------------------------------------------------
+
+describe("insertFigure", () => {
+  it("query/dispatch parity from a plain paragraph", () => {
+    let state = stateWith([{ type: "paragraph", attrs: { data: {} } }]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "paragraph"))),
+    );
+    assert.equal(canInsertFigure(state), true);
+    assert.equal(insertFigure(state), true, "query form matches predicate");
+  });
+
+  it("empty-textblock replace: no paragraph residue, cursor in the caption", () => {
+    let state = stateWith([{ type: "paragraph", attrs: { data: {} } }]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "paragraph"))),
+    );
+    const { ok, state: after } = run(insertFigure, state);
+    assert.equal(ok, true);
+    // Clause children: [section_title, figure] — the empty paragraph is
+    // REPLACED by the figure (no empty-paragraph residue).
+    const clause = after.doc.content.content[1].content.content[0];
+    assert.deepEqual(clauseChildNames(clause), ["section_title", "figure"]);
+    const fig = clause.child(1);
+    assert.equal(fig.type.name, "figure");
+    assert.deepEqual(figureChildNames(fig), ["figure_name"]);
+    assert.notEqual(fig.attrs.id, null, "figure id generated");
+    // Cursor inside the seeded caption.
+    assert.equal(after.selection.$from.parent.type.name, "figure_name");
+    assert.equal(after.selection.$from.node(after.selection.$from.depth - 1).type.name, "figure");
+  });
+
+  it("non-empty split: halves around the figure, cursor in the caption", () => {
+    let state = stateWith([
+      { type: "paragraph", attrs: { data: {} }, content: [{ type: "text", text: "helloworld" }] },
+    ]);
+    // Cursor after "hello" (offset 5) — replaceSelectionWith splits the block.
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "paragraph") + 5)),
+    );
+    assert.equal(canInsertFigure(state), true);
+    const { ok, state: after } = run(insertFigure, state);
+    assert.equal(ok, true);
+    const clause = after.doc.content.content[1].content.content[0];
+    assert.deepEqual(
+      clauseChildNames(clause),
+      ["section_title", "paragraph", "figure", "paragraph"],
+    );
+    assert.equal(clause.child(1).textContent, "hello");
+    assert.equal(clause.child(3).textContent, "world");
+    assert.deepEqual(figureChildNames(clause.child(2)), ["figure_name"]);
+    // Cursor inside the seeded caption — not in either text half.
+    assert.equal(after.selection.$from.parent.type.name, "figure_name");
+  });
+
+  it("is false with the cursor inside a caption", () => {
+    let state = stateWith([figureNode("", true)]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "figure_name"))),
+    );
+    assert.equal(canInsertFigure(state), false);
+    assert.equal(insertFigure(state), false);
+    const { ok, fired } = run(insertFigure, state);
+    assert.equal(ok, false);
+    assert.equal(fired, false, "nothing dispatched");
+  });
+
+  it("nesting refusal: false inside a figure's paragraph", () => {
+    const paraInFigure = { type: "paragraph", attrs: { data: {} }, content: [{ type: "text", text: "in fig" }] };
+    let state = stateWith([figureNode("Cap", false, [paraInFigure])]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "paragraph"))),
+    );
+    // Cursor IS inside the figure (ancestor check), so insertion is refused.
+    assert.equal(canInsertFigure(state), false);
+    assert.equal(insertFigure(state), false);
+    const { ok, fired } = run(insertFigure, state);
+    assert.equal(ok, false);
+    assert.equal(fired, false, "nothing dispatched");
+  });
+
   it("insertTable seeds table_name and lands the cursor in it", () => {
     let state = stateWith([{ type: "paragraph", attrs: { data: {} } }]);
     state = state.apply(
@@ -309,20 +401,161 @@ describe("insertion seeds captions", () => {
     const tbl = after.selection.$from.node(after.selection.$from.depth - 1);
     assert.equal(tbl.type.name, "table");
   });
+});
 
-  it("insertImage seeds figure_name and lands the cursor in it", () => {
-    let state = stateWith([{ type: "paragraph", attrs: { data: {} } }]);
+/** Direct-child type names of the clause (assertion helper). */
+function clauseChildNames(clause) {
+  const names = [];
+  clause.forEach((c) => names.push(c.type.name));
+  return names;
+}
+
+// ---------------------------------------------------------------------------
+// Two-stage figure authoring — insertImageIntoFigure
+// ---------------------------------------------------------------------------
+
+describe("insertImageIntoFigure", () => {
+  it("happy path: adds the image after the caption with src/alt", () => {
+    let state = stateWith([figureNode("", false)]);
     state = state.apply(
-      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "paragraph"))),
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "figure_name"))),
     );
+    assert.equal(canInsertImageIntoFigure(state), true);
     const { ok, state: after } = run(
-      (s, d) => insertImage(s, d, { src: "a.png", alt: null }),
+      (s, d) => insertImageIntoFigure(s, d, { src: "a.png", alt: "alt text" }),
       state,
     );
     assert.equal(ok, true);
+    const fig = after.doc.content.content[1].content.content[0].child(1);
+    assert.deepEqual(figureChildNames(fig), ["figure_name", "image"]);
+    const img = fig.child(1);
+    assert.equal(img.attrs.src, "a.png");
+    assert.equal(img.attrs.alt, "alt text");
+    // Selection unchanged (still in the caption).
     assert.equal(after.selection.$from.parent.type.name, "figure_name");
-    const fig = after.selection.$from.node(after.selection.$from.depth - 1);
-    assert.equal(fig.type.name, "figure");
+  });
+
+  it("query/dispatch parity inside an image-less figure", () => {
+    let state = stateWith([figureNode("Cap", false)]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "figure_name"))),
+    );
+    assert.equal(insertImageIntoFigure(state), true, "query form matches predicate");
+  });
+
+  it("ordering: image lands right after the caption, before the exitName paragraph", () => {
+    // [figure_name, paragraph] — the Enter flow's intermediate state.
+    const para = { type: "paragraph", attrs: { data: {} }, content: [{ type: "text", text: "residue" }] };
+    let state = stateWith([figureNode("Cap", false, [para])]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "figure_name"))),
+    );
+    assert.equal(canInsertImageIntoFigure(state), true);
+    const { ok, state: after } = run(
+      (s, d) => insertImageIntoFigure(s, d, { src: "b.png", alt: null }),
+      state,
+    );
+    assert.equal(ok, true);
+    const fig = after.doc.content.content[1].content.content[0].child(1);
+    // The image is inserted immediately after figure_name — NOT appended after
+    // the paragraph (the only XML-valid position: schema.spec.md §17.6).
+    assert.deepEqual(figureChildNames(fig), ["figure_name", "image", "paragraph"]);
+    assert.equal(fig.child(2).textContent, "residue");
+  });
+
+  it("caption-less figure (parsed doc): image becomes the first child", () => {
+    const para = { type: "paragraph", attrs: { data: {} }, content: [{ type: "text", text: "body" }] };
+    const figNoCaption = {
+      type: "figure",
+      attrs: { id: "f2", number: null, data: {} },
+      content: [para],
+    };
+    let state = stateWith([figNoCaption]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "paragraph"))),
+    );
+    assert.equal(canInsertImageIntoFigure(state), true);
+    const { ok, state: after } = run(
+      (s, d) => insertImageIntoFigure(s, d, { src: "c.png", alt: null }),
+      state,
+    );
+    assert.equal(ok, true);
+    const fig = after.doc.content.content[1].content.content[0].child(1);
+    assert.deepEqual(figureChildNames(fig), ["image", "paragraph"]);
+  });
+
+  it("false on empty src (assertValidImageAttrs guard)", () => {
+    let state = stateWith([figureNode("", false)]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "figure_name"))),
+    );
+    const { ok, fired } = run(
+      (s, d) => insertImageIntoFigure(s, d, { src: "", alt: null }),
+      state,
+    );
+    assert.equal(ok, false);
+    assert.equal(fired, false, "nothing dispatched");
+  });
+
+  it("false outside any figure", () => {
+    let state = stateWith([
+      { type: "paragraph", attrs: { data: {} }, content: [{ type: "text", text: "plain" }] },
+    ]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "paragraph"))),
+    );
+    assert.equal(canInsertImageIntoFigure(state), false);
+    const { ok, fired } = run(
+      (s, d) => insertImageIntoFigure(s, d, { src: "a.png", alt: null }),
+      state,
+    );
+    assert.equal(ok, false);
+    assert.equal(fired, false, "nothing dispatched");
+  });
+
+  it("false when the figure already has an image (one image per figure)", () => {
+    let state = stateWith([figureNode("", true)]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "figure_name"))),
+    );
+    assert.equal(canInsertImageIntoFigure(state), false);
+    const { ok, fired } = run(
+      (s, d) => insertImageIntoFigure(s, d, { src: "b.png", alt: null }),
+      state,
+    );
+    assert.equal(ok, false);
+    assert.equal(fired, false, "nothing dispatched");
+  });
+
+  it("recovery: delete the image atom, figure regains image-less state, refill", () => {
+    let state = stateWith([figureNode("", true)]);
+    // Node-select the image atom (find its position, NodeSelection on it).
+    let imgPos = -1;
+    state.doc.descendants((n, p) => {
+      if (imgPos !== -1) return false;
+      if (n.type.name === "image") { imgPos = p; return false; }
+      return true;
+    });
+    assert.notEqual(imgPos, -1);
+    state = state.apply(state.tr.setSelection(NodeSelection.create(state.doc, imgPos)));
+    const { state: afterDelete } = run((s, d) => d(s.tr.deleteSelection()), state);
+    const fig = afterDelete.doc.content.content[1].content.content[0].child(1);
+    assert.deepEqual(figureChildNames(fig), ["figure_name"], "figure back to caption-only");
+    // With the caret inside the emptied figure, the button re-enables.
+    let restored = afterDelete.apply(
+      afterDelete.tr.setSelection(
+        TextSelection.create(afterDelete.doc, posInFirst(afterDelete, "figure_name")),
+      ),
+    );
+    assert.equal(canInsertImageIntoFigure(restored), true);
+    const { ok, state: afterRefill } = run(
+      (s, d) => insertImageIntoFigure(s, d, { src: "new.png", alt: null }),
+      restored,
+    );
+    assert.equal(ok, true);
+    const fig2 = afterRefill.doc.content.content[1].content.content[0].child(1);
+    assert.deepEqual(figureChildNames(fig2), ["figure_name", "image"]);
+    assert.equal(fig2.child(1).attrs.src, "new.png");
   });
 });
 

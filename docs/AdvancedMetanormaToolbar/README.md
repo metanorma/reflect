@@ -360,7 +360,7 @@ modules, `MetanormaToolbar.tsx`) are specified by `MetanormaToolbar.spec.md`
 pkg/editor-commands/                  ← pure commands (no React, no DOM, no EditorView)
   commands/
     insertTable.ts                        ← insertTable(state, dispatch?, rows, cols), canInsertTable
-    insertImage.ts                        ← insertImage(state, dispatch?, attrs), canInsertFigure
+    insertImage.ts                        ← insertFigure, canInsertFigure, insertImageIntoFigure, canInsertImageIntoFigure
     sections.ts                           ← wrapInClause, promoteClause, demoteClause, insertSection, insertFloatingTitle
     referenceMarks.ts                     ← applyReferenceMark, toggleXref/Eref/Concept/Bcp14, insertFootnoteMarker/insertStem
     definitionList.ts                     ← insertDefinitionList, addDefinitionPair (+ helpers)
@@ -372,7 +372,7 @@ pkg/editor-commands/                  ← pure commands (no React, no DOM, no Ed
 pkg/toolbar/                          ← @metanorma/toolbar (advanced additions alongside base)
   groups/
     tablesGroup.tsx                       ← stateful: TableSizePicker + view adapter
-    imagesGroup.tsx                       ← stateful: ImageInsertDialog + view adapter
+    imagesGroup.tsx                       ← Figure button (plain) + ImageInsertDialog control + view adapter
     sectionsGroup.tsx                     ← view adapter over editor-commands + SectionPopover
     refsGroup.tsx                         ← stateful: popovers + view adapter
     definitionListGroup.tsx               ← view adapter over editor-commands
@@ -405,7 +405,11 @@ are specified by `MetanormaToolbar.spec.md` §12.
 // Each command conforms to Command = (state, dispatch?) => boolean
 // (or (schema) => Command factory form — see §6).
 export { insertTable, canInsertTable } from "./commands/insertTable.js";
-export { insertImage, canInsertFigure } from "./commands/insertImage.js";
+export {
+  insertFigure, canInsertFigure,
+  insertImageIntoFigure, canInsertImageIntoFigure,
+} from "./commands/insertImage.js";
+export type { InsertImageAttrs } from "./commands/insertImage.js";
 export {
   wrapInClause, promoteClause, demoteClause, insertSection,
   insertFloatingTitle,
@@ -436,7 +440,8 @@ export { ImageInsertDialog } from "./ImageInsertDialog.js";
 // Re-export pure commands for one-stop imports (sourced from editor-commands)
 export {
   insertTable, canInsertTable,
-  insertImage, canInsertFigure,
+  insertFigure, canInsertFigure,
+  insertImageIntoFigure, canInsertImageIntoFigure,
   wrapInClause, promoteClause, demoteClause, insertSection,
   insertFloatingTitle,
   applyReferenceMark,
@@ -587,7 +592,7 @@ This satisfies `EditorCommands.spec.md` §1.8 (purity) without losing the UX:
 | Feature doc | Pure command(s) → `editor-commands` | UI / view adapter → `@metanorma/toolbar` |
 |---|---|---|
 | `tables.md` | `insertTable(state, dispatch?, rows, cols)`; `canInsertTable(state)` is the predicate form | `TableSizePicker.tsx` (popover) + toolbar `run` adapter |
-| `images-figures.md` | `insertImage(state, dispatch?, attrs)`; `canInsertFigure(state)` predicate | `ImageInsertDialog.tsx` (URL/upload) + toolbar `run` adapter |
+| `images-figures.md` | `insertFigure(state, dispatch?)`; `insertImageIntoFigure(state, dispatch?, attrs)`; `canInsertFigure` / `canInsertImageIntoFigure` predicates | `ImageInsertDialog.tsx` (URL/upload) + plain Figure button + toolbar `run` adapter |
 | `sections.md` | `wrapInClause`, `promoteClause`, `demoteClause`, `insertSection`, `insertFloatingTitle` (+ legality helpers) | toolbar `run` adapter + `SectionPopover.tsx` (no view-taking overloads) |
 | `reference-marks.md` | `applyReferenceMark`, `toggleXref/Eref/Concept/Bcp14`, `insertFootnoteMarker`, `insertStem` | per-mark popover/prompt UI + toolbar `run` adapter |
 | `definition-lists.md` | `insertDefinitionList`, `addDefinitionPair` (pure `Command` only; no `(view)` overload) | `definitionListKeymap.ts` plugin + toolbar `run` adapter |

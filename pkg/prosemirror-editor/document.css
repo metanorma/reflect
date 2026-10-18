@@ -33,6 +33,34 @@
     margin: 0 0 var(--mn-space-2);
   }
 
+  /*
+   * Empty-figure placeholder (images-figures.md §12). A figure with no image
+   * renders a muted dashed box with a hint, so the author always sees the
+   * missing image and the Image button's target is visible.
+   *
+   * One structural selector — NO empty-textblock guard: the section-title
+   * placeholder needs `:has(> .ProseMirror-trailingBreak:only-child)` only
+   * because it detects an EMPTY TEXTBLOCK (where `:empty` can never match —
+   * PM keeps a trailing <br> inside every textblock). The figure condition is
+   * structural — "no img descendant" — which `:not(:has(img))` expresses
+   * exactly; it deliberately still matches intermediate states like
+   * [figure_name, paragraph] (caption typed, Enter pressed) that a
+   * caption-emptiness guard would wrongly exclude. The pseudo-element
+   * generates no DOM node, so serialization is unaffected; clicks fall
+   * through to the figure, where PM lands the caret in the caption.
+   */
+  .mn-prosemirror figure.mn-figure:not(:has(img))::after {
+    content: "Add an image with the Image button";
+    display: block;
+    margin: var(--mn-space-2);
+    padding: var(--mn-space-4);
+    border: 1px dashed var(--mn-border);
+    border-radius: var(--mn-radius-sm);
+    background: var(--mn-surface-muted);
+    color: var(--mn-text-placeholder);
+    font-size: 0.9em;
+  }
+
   /* ---- table caption (table_name child, serializes as <caption>) ---- */
 
   .mn-prosemirror table .mn-table-name {

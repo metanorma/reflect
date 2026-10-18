@@ -91,11 +91,16 @@ test.describe('popovers', () => {
   // ImageInsertDialog — `popover="manual"` (HTML Popover API, top-layer).
   // -------------------------------------------------------------------------
   test.describe('ImageInsertDialog', () => {
-    test('URL + alt text flow inserts a figure with an image', async ({ page }) => {
+    test('URL + alt text flow adds an image to the figure under the caret', async ({ page }) => {
       await openEditor(page);
-      // Caret in the body paragraph (Image is disabled in a heading).
+      // Caret in the body paragraph (needed for the Figure button).
       await clickBodyParagraph(page);
       await page.keyboard.type('intro ');
+
+      // Seed the figure first — the single-mode Image button is disabled in a
+      // plain paragraph; Figure lands the caret in the seeded caption, where
+      // the dialog can fire.
+      await toolbarButton(page, 'Figure').click();
 
       // Open the dialog.
       await toolbarButton(page, 'Image').click();

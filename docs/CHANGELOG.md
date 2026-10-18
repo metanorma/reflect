@@ -7,6 +7,42 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-10-16 — figures become two-stage: Figure button + single-mode Image button
+
+`editor-commands` + `toolbar` + `prosemirror-editor` + `editor-gui` ripples;
+`docs/AdvancedMetanormaToolbar/images-figures.md` rewritten around the
+two-command split; `docs/schema.spec.md` §17.6 gains the figure-body coercion
+bullet; **Commits: *(pending)***.
+
+- **Change** — the combined `insertImage(state, dispatch?, attrs)` command
+  (always emitting `figure > [figure_name, image]`) is **removed** from
+  `@metanorma/editor-commands` and `@metanorma/toolbar`. Replacing it:
+  `insertFigure(state, dispatch?)` (creates `figure > [figure_name]` with a
+  generated id, cursor in the seeded caption), `canInsertFigure(state)`
+  (extended: refuses when any ancestor is a `figure` — v1 does not author
+  subfigures), `canInsertImageIntoFigure(state)` (nearest enclosing image-less
+  figure; one image per figure), and `insertImageIntoFigure(state, dispatch?,
+  {src, alt})` (inserts the atom **immediately after `figure_name`**).
+- **Why** — under the combined command, deleting the `image` atom left
+  `figure > [figure_name]` with no toolbar path back to an image (the image is
+  reachable only as a figure child). The stage split makes that state
+  recoverable: the Image button re-enables inside an image-less figure.
+- **Toolbar** — the `images` group renders a plain **Figure** button
+  (`insertFigure` query/dispatch) before the dialog control; the Image button
+  is single-mode (enabled = `canInsertImageIntoFigure`, static title "Add
+  image to figure").
+- **Placeholder** — `figure.mn-figure:not(:has(img))::after` renders a muted
+  dashed placeholder in an image-less figure (structural selector; no
+  empty-textblock guard — deliberately still shown for `[figure_name,
+  paragraph]` states).
+- **Insertion-point rationale** — Standoc `FigureBody`'s choice group is
+  single-occurrence (image XOR `paragraph-with-footnote+` XOR subfigures), so
+  the slot immediately after the caption is the only position valid in both
+  models; recorded in schema.spec.md §17.6 with the export coercion (drop
+  empty trailing paragraphs; non-empty blocks after an image = coverage gap).
+
+---
+
 ## 2026-10-16 — table column sizing: two-mode `colwidths`, drag-to-resize, clipboard fidelity
 
 `@metanorma/prosemirror-schema` + `editor-commands` + `prosemirror-editor` +

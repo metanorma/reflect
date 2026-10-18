@@ -2,30 +2,34 @@
 
 ## 1. Purpose
 
-This document is the detailed implementation proposal for **image / figure
-insertion** in the `AdvancedMetanormaToolbar`. It addresses the single item
-deferred by `MetanormaToolbar.spec.md` §5.5:
+This document is the detailed implementation spec for **image / figure
+authoring** in the `AdvancedMetanormaToolbar`. It addresses the item deferred
+by `MetanormaToolbar.spec.md` §5.5:
 
 **Images / figures** — require file upload or URL resolution and
 `assertValidImageAttrs`.
 
-Inserting an image is unlike toggling a mark: it requires the user to supply a
-**source** — either a remote URL or a local file that must be turned into a
-URL — before any node can be created. The schema then forbids a bare `image`
-from living on its own: `image` carries no group and is reachable **only** as a
-child of `figure`. So the feature is necessarily a two-part operation: **resolve
-a `src`** (URL or upload), then **build a `figure` wrapping an `image`** and
-insert it. The runtime guard `assertValidImageAttrs` gates the first part.
+Authoring an image-backed figure is a **two-stage** operation because the
+schema makes it one: `image` carries no group and is reachable **only** as a
+child of `figure` (`schema.spec.md` §8.6), while a figure's `src` can only be
+resolved through the **UI** (a remote URL or a local file that must be turned
+into a URL). The toolbar therefore exposes two controls with cleanly split
+responsibilities:
 
-This document therefore specifies three coupled deliverables — an **"Insert
-image" button** that opens a source-resolution dialog, the **`ImageInsertDialog`**
-itself (URL field + file picker + alt text), and an **`insertImage` command**
-that validates the resolved `src`, materialises the
-`figure > image` subtree, and selects it. Per the `@metanorma/editor-commands`
-Command contract (`EditorCommands.spec.md` §1.5), the command is split cleanly
-from the UI: the **pure command** (no `EditorView`/DOM, synchronous) lives in `@metanorma/editor-commands`; the **button + dialog adapter**
-(`EditorView`, async upload/URL resolution, focus) live in
-`@metanorma/toolbar`.
+1. The **Figure button** (`insertFigure`, §6) — creates a `figure` with a
+   seeded empty `figure_name` caption and an empty body rendered with a
+   placeholder (§11). The author types the caption inline (full inline
+   markup applies).
+2. The **Image button** (`ImageInsertDialog` + `insertImageIntoFigure`,
+   §4–§7) — single-mode: it adds an `image` atom to the figure the caret is
+   in. It is enabled exactly when the selection sits inside a figure with no
+   `image` child (`canInsertImageIntoFigure`, §6.3), which serves both
+   first-fill after `insertFigure` and recovery after the image is deleted.
+
+Stage-splitting is what makes the figure robust: deleting the `image` leaves
+`figure > [figure_name]`, a document state from which the Image button can
+re-add the image (§8.3), instead of a captioned shell with no path back to an
+image.
 
 It deliberately does **not** re-specify anything from the base toolbar (marks,
 blocks, lists, links, the `ToolbarButton` descriptor, the `mn-toolbar` styling
@@ -49,17 +53,16 @@ Three consequences drive the entire design:
 1. **`image` is ungrouped.** It appears in no group and is mentioned by exactly
    one content expression — `figure`'s `(image | block)*`. An `image` node is
    therefore reachable **only** as a child of a `figure`. The toolbar cannot
-   insert a bare `image` into a paragraph or clause; it must always emit a
-   `figure` containing the `image`. This is why there is a single button, not two
-   (see §4).
+   insert a bare `image` into a paragraph or clause; adding an image
+   presupposes a figure to hold it. This is why there are two controls, not
+   one (see §4).
 2. **`image.src` defaults to `""` but must be non-empty.** ProseMirror requires
    every attribute to declare a default; the image source is semantically
    required, so the schema uses `""` as the placeholder default and
    pushes the real requirement to a **runtime guard**, `assertValidImageAttrs`,
-   which throws when `src` is missing or empty. The pure `insertImage` command
-   (§6) enforces this requirement before creating the node by validating `src`
-   and returning `false` if invalid (§6.2 step 3). This is exactly the concern
-   the base spec's §5.5 anticipated.
+   which throws when `src` is missing or empty. `insertImageIntoFigure`
+   (§6.4) enforces this requirement before creating the node by validating
+   `src` and returning `false` if invalid (§6.4 step 3).
 3. **`figure` and `image` split attribute responsibility.** `figure` owns
    `id`/`number` and its caption lives in a `figure_name` child textblock
    (schema §8.6); it has **no `alt`** and **no `src`** (`src` lives only
@@ -68,6 +71,49 @@ Three consequences drive the entire design:
    to mirror or ignore — the two nodes carry disjoint caption/a11y/source
    attributes by design. The rendered image attributes (`src`, `alt`) live on
    the `image` child; `figure` renders only `class="mn-figure"` and `data-id`.
+
+### 2.1 Relation to Standoc `FigureBody`
+
+The Standoc grammar (`basicdoc.rnc`) defines a positionally ordered figure
+body:
+
+```
+FigureBody = tname?, (image | video | audio | pre | paragraph-with-footnote+ | figure*), fn*, dl?, note*, source?
+```
+
+Two structural facts follow:
+
+- The choice group is **single-occurrence**: an XML figure carries `image`
+  XOR a `paragraph-with-footnote+` run XOR nested figures — never both an
+  image and sibling paragraphs.
+- Everything after the choice group (`fn*`, `dl?`, `note*`, `source?`) is
+  trailing content that follows the primary content.
+
+The ProseMirror schema's `figure_name? (image | block)*` is intentionally
+looser (schema.spec.md §17.6): the editor admits a figure holding an image
+alongside blocks, because the Enter/`exitName` flow legitimately leaves an
+empty paragraph after the image. The export coercion for that divergence is
+governed by the §17.6 ledger (`schema.spec.md` §17.6), not by this feature.
+For `insertImageIntoFigure` the constraint is positional: **given the XOR, the
+slot immediately after `figure_name` is the only position valid in both
+models** — `[figure_name, image]` is the canonical XML figure, while
+`[figure_name, paragraph, image]` is invalid XML under any ordering of the
+trailing content. The command therefore always inserts immediately after the
+caption (§6.4 step 5).
+
+### 2.2 Nested figures (subfigures)
+
+Nested figures are **legal in both models**. In the PM schema, `figure` is in
+the `block` group and its content expression admits blocks, so a figure may
+contain a figure. In Standoc, `figure*` is one of the `FigureBody` choice
+branches — subfigures are a first-class Metanorma feature.
+
+v1 does not surface subfigure authoring. The **Figure button creates
+top-level figures only**: `canInsertFigure` (§6.2) returns `false` when any
+ancestor of the selection is a `figure`. Imported or pasted nested figures
+remain valid documents. For those, `insertImageIntoFigure` targets the
+**nearest** enclosing figure that lacks an `image` child (§6.3) — a
+documented, well-defined rule, not a silent one.
 
 The guard, exported from both `@metanorma/prosemirror-schema` and
 `@metanorma/toolbar`:
@@ -83,12 +129,29 @@ export function assertValidImageAttrs(
 ```
 
 Existing node views — `ImageNodeView` (renders `<img src alt>` or a placeholder
-when `src === ""`) and `FigureNodeView` (renders `<figure class="mn-figure">` with
-`contentDOMRef`) — already render these nodes once they exist in the document.
-This feature only **creates** them; it does not change the node views.
-(Reusing the node views for attribute editing of an existing figure is a
+when `src === ""`) and `FigureNodeView` (renders `<figure class="mn-figure">`
+with `contentDOMRef`) — already render these nodes once they exist in the
+document. This feature only **creates** them; it does not change the node
+views. (Reusing the node views for attribute editing of an existing figure is a
 plausible future enhancement; an `updateImageAttrs` helper is deferred. v1 is
 insert-only.)
+
+### 2.3 Serialization notes
+
+Precise mappings only:
+
+- **Editor DOM** (display and clipboard HTML): `figure_name` renders as
+  `<figcaption class="mn-figure-name">` (`pkg/prosemirror-schema/nodes.ts`,
+  `figure_name.toDOM`). This is browser-facing only.
+- **Export** (editor → Standoc XML): `figure_name` maps to the `tname` /
+  `<name>` element per the schema ledger (`schema.spec.md` §17.6), and an
+  **empty caption is dropped on export**.
+- Consequently the image-less figure this feature seeds (`figure >
+  [figure_name]`, caption still empty) exports as `<figure id="…"/>`. A
+  contentless figure is **valid** per the RNC — the `FigureBody` choice group
+  is optional — so no downstream validation error is expected from the element
+  itself; this spec makes no further claim about downstream compile-time
+  warnings (unverified).
 
 ## 3. Package and files
 
@@ -96,7 +159,7 @@ insert-only.)
 |---|---|
 | Command-logic package | `@metanorma/editor-commands` |
 | Command module | `pkg/editor-commands/commands/insertImage.ts` (pure command logic) |
-| Toolbar package (consumer) | `@metanorma/toolbar` — re-exports `insertImage`/`canInsertFigure` (§10) |
+| Toolbar package (consumer) | `@metanorma/toolbar` — re-exports the commands/predicates (§10) |
 | Dialog / adapter component | `pkg/toolbar/ImageInsertDialog.tsx` (`InsertImageButton` + dialog; owns `EditorView`, async, DOM) |
 | Dialog styles | `pkg/toolbar/image-dialog.css` (imported side-effect) |
 | Public barrel (toolbar) | `pkg/toolbar/index.ts` (re-exports — §10) |
@@ -113,19 +176,31 @@ calls the synchronous pure command with the resolved `{ src, alt }`. Because
 the source may need to be uploaded, the dialog's commit handler does not call
 the command synchronously from `run`; see §7 for the async dispatch pattern.
 
-## 4. The "Insert image" button
+## 4. The toolbar controls
 
-| Field | Value |
-|---|---|
-| `key` | `"image"` |
-| `label` | `"Image"` |
-| `title` | `"Insert image"` |
-| `isActive` | `false` — image insertion is not a toggle; see §8. |
-| `isEnabled` | §8 enabled rule (`canInsertFigure(state)`). |
-| `run` | Does **not** dispatch immediately. It toggles the `ImageInsertDialog` open/closed against local React state (see §5). The actual dispatch happens in the dialog's commit handler, after the source is resolved. |
+The `images` group renders two entries, in order:
 
-Because `run` needs to open a dialog (and gather a source asynchronously) rather
-than fire a transaction, the "Insert image" button — like the table button in
+| Entry | Kind | Label | Title | Enabled when |
+|---|---|---|---|---|
+| Figure | plain `ToolbarButton` | `"Figure"` | `"Insert figure (caption + empty body)"` | `insertFigure(state) === true` (§6.2) |
+| Image | dialog control (`InsertImageButton`) | `"Image"` | `"Add image to figure"` | `canInsertImageIntoFigure(state)` (§6.3) |
+
+### 4.1 The Figure button
+
+A plain data-driven `ToolbarButton` (base spec §5): `isActive` is always
+`false` (insertion is not a toggle); `isEnabled` is the query form of the
+`insertFigure` command; `run(view)` dispatches
+`insertFigure(view.state, view.dispatch)` then calls `view.focus()` — the
+standard adapter shape (README §6.2), patterned on the outdent button.
+
+`insertFigure` lands the cursor inside the seeded caption, so immediately
+after clicking Figure the Image button is enabled (the caret is inside an
+image-less figure) and the Figure button is disabled (nesting refusal, §2.2).
+
+### 4.2 The Image button
+
+Because the Image button needs to open a dialog (and gather a source
+asynchronously) rather than fire a transaction, it — like the table button in
 `tables.md` §4 — is **not** a plain `ToolbarButton.run`-on-click control. It is
 rendered by a dedicated React component that owns the dialog's open state and
 renders the `ToolbarButton` visuals (`.mn-toolbar-btn` and modifiers) plus the
@@ -134,6 +209,15 @@ itself express "open a dialog and later, asynchronously, dispatch"; this is the
 minimal, non-invasive deviation, reusing the same `.mn-toolbar-btn` classes for
 visual consistency.
 
+The button is **single-mode**: its enabled state is
+`canInsertImageIntoFigure(state)` alone, its title is static ("Add image to
+figure"), and its commit handler always dispatches `insertImageIntoFigure`.
+There is no context-dependent title, no alternate behavior outside a figure —
+outside an image-less figure the button is simply disabled. When the command
+returns `false` (e.g. the selection moved during an async upload), the dialog
+surfaces the inline error "Insertion point is no longer inside a figure"
+(§9.1).
+
 ```tsx
 // pkg/toolbar/ImageInsertDialog.tsx (excerpt)
 export function InsertImageButton({
@@ -141,57 +225,56 @@ export function InsertImageButton({
 }: {
   readonly onImageUpload?: OnImageUpload;
 }): React.JSX.Element {
-  const [open, setOpen] = useState(false);
-  const enabled = useEditorStateSelector(canInsertFigure);
+  const enabled = useEditorStateSelector(canInsertImageIntoFigure);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="mn-toolbar-image">
       <button
+        ref={triggerRef}
         type="button"
         className="mn-toolbar-btn"
         aria-haspopup="dialog"
-        aria-expanded={open}
         disabled={!enabled}
-        title="Insert image"
-        onClick={() => setOpen((v) => !v)}
+        title="Add image to figure"
+        onClick={() => dialogRef.current?.togglePopover()}
       >
         Image
       </button>
-      {open ? (
-        <ImageInsertDialog
-          onImageUpload={onImageUpload}
-          onCommit={() => setOpen(false)}
-          onCancel={() => setOpen(false)}
-        />
-      ) : null}
+      <ImageInsertDialog
+        ref={dialogRef}
+        onImageUpload={onImageUpload}
+        onCommit={closeDialog}
+        onCancel={closeDialog}
+      />
     </div>
   );
 }
 ```
 
-### 4.1 Why a single button (no separate "Insert figure")
+### 4.3 Why two controls (the stage split)
 
-A second "Insert figure" button that created a figure with **no** `image` child
-would be legal (`figure` content is `(image | block)*`, so an empty figure
-satisfies the `*`), but it would produce a figure with nothing to display and no
-way to add an image except by re-opening this very dialog. Since the toolbar is
-the only image-entry surface, the single "Insert image" button always emits a
-complete `figure > image`. An image-less (caption-only) figure is **not needed**
-for v1 and will not be added: the schema mandates `figure > image`, and the
-single button always produces that.
+Creating the figure and filling its image are separate user actions because
+they have separate preconditions: a figure needs only a legal block slot
+(§6.2), while an image needs a `src` that only the dialog can resolve and a
+figure to live in (§6.3). Merging them into one always-emit-`figure > image`
+action would leave the no-`src` case unhandleable and the post-deletion state
+unrecoverable (§1). The stage split keeps each control's enabled predicate a
+plain function of state.
 
 **Drag-and-drop / paste is out of scope.** Dropping or pasting an image
 directly into the document is not supported in v1; it is future work that
-would reuse `insertImage` via `handlePaste`/`handleDrop`. The toolbar button
-is the sole image-entry surface for v1.
+would reuse `insertImageIntoFigure` via `handlePaste`/`handleDrop`. The
+toolbar button is the sole image-entry surface for v1.
 
 **The caption is seeded, not prompted.** The dialog collects only `src` and
-`alt`; the inserted figure carries an empty `figure_name` caption before its
-`image` (§6.2 step 5), and the cursor lands in it — the author types the
+`alt`; the figure created by `insertFigure` carries an empty `figure_name`
+caption (§6.2 step 5), and the cursor lands in it — the author types the
 caption inline (full inline markup applies) without a caption field in the
 dialog. Enter (`exitName`) moves on to the image; Backspace on the empty
-caption deletes just the caption (the figure and image survive;
-`EditorCommands.spec.md` §4.4.9b).
+caption deletes just the caption when the figure has other children (the
+figure and image survive; `EditorCommands.spec.md` §4.4.9b).
 
 ## 5. Source resolution — the `ImageInsertDialog`
 
@@ -206,8 +289,8 @@ pieces of input and resolves them to a single `src` URL plus an optional `alt`:
 
 Exactly one source is required: a non-empty URL **or** a chosen file. Alt text is
 optional (the `image.alt` attr defaults to `null`). The dialog does not itself
-validate the URL beyond non-emptiness; the pure `insertImage` command performs
-the authoritative `src` validation (returns `false` if invalid — §6.1,
+validate the URL beyond non-emptiness; the pure `insertImageIntoFigure` command
+performs the authoritative `src` validation (returns `false` if invalid — §6.4,
 EditorCommands §1.5(4)).
 
 ### 5.1 URL path
@@ -216,18 +299,12 @@ When the user types or pastes a URL into the Source URL field and commits:
 
 1. The dialog reads the trimmed `src` value and the (optional) `alt`.
 2. It calls the commit handler, which resolves the source (synchronous here),
-   then dispatches `insertImage(view.state, view.dispatch, { src, alt })` via
-   `useEditorEventCallback` (§7). The `EditorView`/`dispatch` are held in the
-   adapter, never in the pure command.
-3. The pure command validates `src` (returns `false` without
-   dispatching if `src` is empty/invalid — §6.1); on a `false` return the dialog
-   surfaces an inline error (`aria-live`, §9).
-
-**Minimal-v1 alternative.** If a full dialog is deferred, the URL path can be
-collected with `window.prompt('Image URL:')` (and a second prompt for alt),
-mirroring the base toolbar's link-URL prompt. The dialog proposed here is the
-recommended shape because alt text materially affects accessibility and a
-single `window.prompt` cannot collect both fields cleanly.
+   then dispatches `insertImageIntoFigure(view.state, view.dispatch, { src,
+   alt })` via `useEditorEventCallback` (§7). The `EditorView`/`dispatch` are
+   held in the adapter, never in the pure command.
+3. The pure command validates `src` (returns `false` without dispatching if
+   `src` is empty/invalid — §6.4); on a `false` return the dialog surfaces an
+   inline error (`aria-live`, §9).
 
 **Upgrade hook.** Following the base toolbar's `onLinkPrompt` pattern
 (`MetanormaToolbar.spec.md` §6), the toolbar accepts an optional
@@ -242,15 +319,15 @@ export type OnImagePrompt = () => Promise<
 ```
 
 When `onImagePrompt` resolves to a non-null object, the toolbar adapter
-dispatches `insertImage(view.state, view.dispatch, { src, alt })` with that
-`src`/`alt`; when it resolves to `null`, the operation is cancelled. When
-`onImagePrompt` is absent, the built-in `ImageInsertDialog` is used. The
+dispatches `insertImageIntoFigure(view.state, view.dispatch, { src, alt })`
+with that `src`/`alt`; when it resolves to `null`, the operation is cancelled.
+When `onImagePrompt` is absent, the built-in `ImageInsertDialog` is used. The
 `Promise`/async concerns stay in the adapter; the pure command is synchronous.
 
 ### 5.2 File path
 
-When the user selects a local file via the hidden `<input type="file">`, the file
-must be turned into a `src` value before it can become `image.src`. Two
+When the user selects a local file via the hidden `<input type="file">`, the
+file must be turned into a `src` value before it can become `image.src`. Two
 strategies, selected by whether the host app supplies an upload callback:
 
 ```typescript
@@ -294,22 +371,21 @@ dispatching; see §7.
 serialization, so a reloaded or server-rendered document cannot resolve them.
 The default `data:` URL path is the supported no-server strategy instead.
 
-## 6. The `insertImage` command
+## 6. The pure commands
 
 Lives in `pkg/editor-commands/commands/insertImage.ts` — the
-`@metanorma/editor-commands` package. It conforms to the Command contract
-(`EditorCommands.spec.md` §1.5): it is a pure `(state, dispatch?) => boolean`
-function — **no `EditorView`, no DOM**. The `EditorView`, async
-URL/upload resolution, and focus management concerns live only in the toolbar
-adapter in `@metanorma/toolbar` (§4, §7). The command takes
-**already-resolved** `{ src, alt }` and is synchronous.
+`@metanorma/editor-commands` package. Both commands conform to the Command
+contract (`EditorCommands.spec.md` §1.5): they are pure
+`(state, dispatch?) => boolean` functions — **no `EditorView`, no DOM**. The
+`EditorView`, async URL/upload resolution, and focus management concerns live
+only in the toolbar adapter in `@metanorma/toolbar` (§4, §7). The image
+command takes **already-resolved** `{ src, alt }` and is synchronous.
 
-### 6.1 Signature
+### 6.1 Signatures
 
 ```typescript
 import type { EditorState, Transaction } from "prosemirror-state";
-import type { Node } from "prosemirror-model";
-// NOTE: NO import of EditorView — the pure command never touches a view or DOM.
+// NOTE: NO import of EditorView — the pure commands never touch a view or DOM.
 
 /** Attributes gathered by the adapter (dialog / prompt). `src` must be non-empty. */
 export interface InsertImageAttrs {
@@ -318,23 +394,31 @@ export interface InsertImageAttrs {
 }
 
 /**
- * Validate that a figure may be inserted at the current selection.
+ * Validate that a top-level figure may be inserted at the current selection.
  * Pure function of EditorState — plugs straight into useEditorStateSelector.
  */
 export function canInsertFigure(state: EditorState): boolean;
 
 /**
- * Insert a `figure > image` at the current selection and select the figure.
- *
- * Conforms to the @metanorma/editor-commands Command contract (README §6.2;
- * EditorCommands.spec.md §1.5). Feature-specific: `src` is validated via the
- * `assertValidImageAttrs` guard (returns `false` if missing/empty); the query
- * form (`dispatch` omitted) returns the same boolean as `canInsertFigure(state)`.
- *
- * @returns `true` iff a transaction was dispatched; `false` if `src` was
- *          invalid or insertion was not legal at the current selection.
+ * Insert an empty `figure > [figure_name]` at the current selection and place
+ * the cursor in the caption.
  */
-export function insertImage(
+export function insertFigure(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+): boolean;
+
+/**
+ * True when the selection sits inside (or node-selects) a figure with no
+ * `image` child — the nearest such ancestor.
+ */
+export function canInsertImageIntoFigure(state: EditorState): boolean;
+
+/**
+ * Insert an `image` atom into the figure at (or enclosing) the current
+ * selection, immediately after its `figure_name` child.
+ */
+export function insertImageIntoFigure(
   state: EditorState,
   dispatch?: (tr: Transaction) => void,
   attrs?: InsertImageAttrs,
@@ -342,140 +426,160 @@ export function insertImage(
 ```
 
 **Query/dispatch parity (EditorCommands §1.5(1)/(3)).** With `dispatch`
-omitted, `insertImage(state)` returns `true` exactly when
-`canInsertFigure(state)` returns `true`, and mutates nothing. The button's
-`isEnabled` rule (§8.2) is therefore `canInsertFigure(state)`, and
-`insertImage(state)` is its command-parity equivalent.
+omitted, `insertFigure(state)` and `insertImageIntoFigure(state)` return
+`true` exactly when their `can*` predicates return `true`, and mutate nothing.
+The buttons' `isEnabled` rules (§4) are therefore the query forms of their
+commands.
 
-**Factory form (EditorCommands §1.6.2).** The command resolves node types
+**Factory form (EditorCommands §1.6.2).** The commands resolve node types
 through `state.schema` per README §6.4; no `(schema) => Command` factory is
 required.
 
-### 6.2 Algorithm
+### 6.2 `insertFigure` — algorithm
 
-1. **Applicability check (always).** Run `canInsertFigure(state)`. If it returns
-   `false`, return `false` — whether or not `dispatch` is supplied. This is the
-   query form: `insertImage(state)` is equivalent to `canInsertFigure(state)`.
+1. **Applicability check (always).** Run `canInsertFigure(state)`. If it
+   returns `false`, return `false` — whether or not `dispatch` is supplied.
 2. **No dispatch ⇒ pure predicate.** If `dispatch` is **not** supplied, return
-   `true` here (applicability confirmed, nothing mutated). Steps 3–8 only run
-   when `dispatch` **is** supplied.
+   `true` here. Steps 3–8 only run when `dispatch` **is** supplied.
+3. **Build the node tree.** Resolve types through `state.schema` (NOT a
+   captured schema singleton):
+     - `figure_name = state.schema.nodes.figure_name.create()` — the seeded
+       empty caption textblock, first (and only) child of the figure.
+     - `figure = state.schema.nodes.figure.create({ id: generateId() },
+       [figure_name])` — the block wrapper; the `figure` carries a
+       **generated `id`** for cross-referencing. `number`/`data` default to
+       their schema values.
+4. **Insert.** `tr = state.tr.replaceSelectionWith(figure)`.
+5. **Place the cursor in the seeded caption.** Locate the inserted figure by
+   its **generated `id`** (a `descendants` scan — `replaceSelectionWith` may
+   replace an empty textblock wholesale or split a non-empty one at the
+   caret, so selection arithmetic is unreliable; same hazard as `insertTable`,
+   `tables.md` §8.1.3) and set a `TextSelection` in the caption (`+2`: figure
+   open + caption open), so the author types the caption immediately (full
+   inline markup applies). The figure is not node-selected on insertion.
+6. **Scroll into view + dispatch once.** `tr.scrollIntoView(); dispatch(tr);
+   return true;` — exactly one transaction, dispatched exactly once. No
+   `view.focus()` (that is the adapter's job, §7); no `EditorView` at all.
+
+`canInsertFigure` asks whether a `figure` may occupy the slot immediately
+after the cursor's textblock: `canInsertBlockAdjacent(state, figureType)`
+(shared legality machinery, `util.ts`), restricted to a collapsed/single-block
+selection (`$from.sameParent($to)`), **and** the cursor's textblock must be
+body content (not a `section_title` heading — `bodyBlockContext` already
+excludes captions, headings, and non-textblock positions), **and** no ancestor
+of the selection is a `figure` (§2.2 nesting refusal — v1 does not author
+subfigures from the toolbar).
+
+### 6.3 `canInsertImageIntoFigure` — the target rule
+
+Walk the selection's ancestors from the cursor outward. The **target** is the
+nearest enclosing `figure` that contains **no `image` child**. `true` iff such
+a figure exists. When the selection is a `NodeSelection` whose selected node
+is itself a `figure` without an `image` child, that node is the target.
+
+Rules the walk encodes:
+
+- **One image per figure (v1).** A figure that already has an `image` is not a
+  target; the walk continues outward from its context — e.g. inside a
+  subfigure-with-image, the enclosing parent figure (if image-less) is a legal
+  target for `insertImageIntoFigure`. This guards accidental duplicates and
+  serves first-fill (§6.2 leaves the caret in the caption of an image-less
+  figure) and post-deletion recovery (§8.3) alike.
+- The nearest-ancestor walk is what makes imported/pasted **nested figures**
+  well-defined targets (§2.2): an image is added to the innermost image-less
+  figure containing the caret.
+
+### 6.4 `insertImageIntoFigure` — algorithm
+
+1. **Applicability check (always).** Run `canInsertImageIntoFigure(state)`. If
+   `false`, return `false` — whether or not `dispatch` is supplied.
+2. **No dispatch ⇒ pure predicate.** If `dispatch` is **not** supplied, return
+   `true` here.
 3. **Validate `src` (non-throwing).** The throwing guard
    `assertValidImageAttrs({ src: attrs?.src })` is wrapped in a `try`/`catch`;
    on throw (or if `attrs`/`src` is missing/empty), return `false` without
-   dispatching. This satisfies EditorCommands §1.5(4): the command never throws
-   on well-formed state. (An equivalent inline check —
-   `typeof src === "string" && src !== ""` — may be used instead.) The assert
-   also narrows `src` to `string` for the type system.
-4. **Re-check legality against `state`.** Because the adapter may have resolved
-   the source asynchronously, the selection may have moved since the button was
-   clicked — this check runs against the **current** `state` passed in (the
-   adapter passes the live `view.state`, §7). `canInsertFigure(state)` was
-   already run in step 1; re-running is cheap and keeps the validation local.
-   If `false`, return `false`.
-5. **Build the node tree.** Resolve types through `state.schema` (NOT a captured
-   schema singleton):
-     - `image = state.schema.nodes.image.create({ src, alt: attrs.alt ?? null })`
-       — the atom leaf carrying the rendered `src`/`alt`.
-     - `figure_name = state.schema.nodes.figure_name.create()` — the seeded
-       empty caption textblock, first child of the figure (§6.5).
-     - `figure = state.schema.nodes.figure.create({ id: generateId() },
-       [figure_name, image])` — the block wrapper; the `figure` carries a
-       **generated `id`** for cross-referencing. `number`/`data` default to
-       their schema values (`figure` has no `alt`, no `src`, and no `title`
-       attribute — §2).
-       `generateId()` is the shared helper from `@metanorma/editor-commands`
-       (`util.ts`).
-6. **Insert.** `tr = state.tr.replaceSelectionWith(figure)`.
-7. **Place the cursor in the seeded caption.** Locate the inserted figure by
-   its **generated `id`** (a `descendants` scan — `replaceSelectionWith` may
-   replace an empty textblock wholesale or split a non-empty one at the
-   caret, so selection arithmetic is unreliable; same hazard as
-   `insertTable`, `tables.md` §8.1.3) and set a `TextSelection`
-   in the caption (`+2`: figure open + caption open), so the author types the
-   caption immediately (full inline markup applies). Enter (`exitName`,
-   `EditorCommands.spec.md` §2.7) then lands in the first textblock-bearing
-   sibling or inserts a paragraph after the image. The figure is no longer
-   node-selected on insertion.
-8. **Scroll into view + dispatch once.** `tr.scrollIntoView(); dispatch(tr);
-   `return true;` — exactly one transaction, dispatched exactly once. No
-   `view.focus()` (that is the adapter's job, §7); no `EditorView` at all.
+   dispatching (EditorCommands §1.5(4)). The assert also narrows `src` to
+   `string` for the type system.
+4. **Resolve the target figure** (same walk as §6.3, re-run against the
+   passed `state`): the nearest ancestor `figure` with no `image` child (or
+   the node-selected figure itself). Resolve its position (`figStart =
+   $target.before(depth)`; for NodeSelection, `selection.from`).
+5. **Compute the insertion point: immediately after `figure_name`.** If the
+   target figure's first child is a `figure_name`, insert at `figStart + 1 +
+   figure_name.nodeSize`; if it has no caption child (a parsed/imported
+   figure), insert at `figStart + 1`. Rationale: §2.1 — given the Standoc XOR,
+   the slot after the caption is the only position valid in both models, and
+   it is immune to whatever trailing content the figure has accumulated
+   (paragraphs, notes, …).
+6. **Insert.** `tr.insert(pos, imageType.create({ src, alt: attrs.alt ?? null }))`
+   — one transaction. The selection is left unchanged (the cursor stays where
+   the author had it, e.g. in the caption).
+7. **Scroll into view + dispatch once.** `tr.scrollIntoView(); dispatch(tr);
+   return true;` — exactly one transaction, dispatched exactly once.
 
-### 6.3 Example implementation
+### 6.5 Position arithmetic
+
+Both commands locate nodes through stable anchors instead of selection
+arithmetic. `insertFigure` uses the id-based `descendants` scan because
+`replaceSelectionWith` has two insertion shapes (empty-textblock replace vs
+mid-text split) and the resulting figure's position differs between them.
+`insertImageIntoFigure` computes `figStart` from the resolved-position walk
+(`$target.before(depth)`), which is exact by construction.
+
+### 6.6 Example implementation
 
 ```typescript
 // pkg/editor-commands/commands/insertImage.ts
 // @metanorma/editor-commands — PURE command logic. No EditorView, no DOM.
 import { TextSelection, type EditorState, type Transaction } from "prosemirror-state";
-import type { Node } from "prosemirror-model";
 import { assertValidImageAttrs } from "@metanorma/prosemirror-schema";
-import { generateId } from "../util.js";
+import { generateId, canInsertBlockAdjacent } from "../util.js";
 
 export interface InsertImageAttrs {
   readonly src: string;
   readonly alt?: string | null;
 }
 
-/** True when a `figure` (a `block`) may be inserted at the current selection. */
-export function canInsertFigure(state: EditorState): boolean {
-  const figureType = state.schema.nodes["figure"];
-  if (!figureType) return false;
-  const { $from, $to } = state.selection;
-  // For a block node, validity depends on the ancestor that holds blocks, not on
-  // $from.parent (which is usually a paragraph allowing only inline content).
-  // Walk up the resolution and ask each ancestor whether the figure can occupy a
-  // child slot at the cursor index.
-  if (!$from.sameParent($to)) return false; // v1: cursor / single-block only
-  for (let d = $from.depth; d >= 0; d--) {
-    const ancestor = $from.node(d);
-    const index = $from.indexAfter(d);
-    if (ancestor.canReplaceWith(index, index, figureType)) return true;
+/** True when the cursor is inside a figure (any ancestor is a figure). */
+function insideFigure($from: ResolvedPos): boolean {
+  for (let d = $from.depth; d >= 1; d--) {
+    if ($from.node(d).type.name === "figure") return true;
   }
   return false;
 }
 
-export function insertImage(
+/** True when a top-level figure may be inserted at the current selection. */
+export function canInsertFigure(state: EditorState): boolean {
+  const figureType = state.schema.nodes["figure"];
+  if (figureType === undefined) return false;
+  const { $from, $to } = state.selection;
+  // v1: cursor / single-block only; refuse inside any figure (§2.2).
+  if (!$from.sameParent($to) || insideFigure($from)) return false;
+  return canInsertBlockAdjacent(state, figureType);
+}
+
+export function insertFigure(
   state: EditorState,
   dispatch?: (tr: Transaction) => void,
-  attrs?: InsertImageAttrs,
 ): boolean {
-  // 1. Applicability check (runs in BOTH query and dispatch forms).
   if (!canInsertFigure(state)) return false;
+  if (dispatch === undefined) return true;
 
-  // 2. Query form: no dispatch ⇒ pure predicate, mutate nothing.
-  if (!dispatch) return true;
-
-  // 3. Validate src via the throwing guard, wrapped to return false (§6.2 step 3).
-  let src: string;
-  try {
-    assertValidImageAttrs({ src: attrs?.src });
-    src = attrs!.src; // narrowed by the assert above
-  } catch {
-    return false; // src missing / empty / wrong type
-  }
-
-  // 4. Build figure > [figure_name, image], resolving types through
-  //    state.schema (not a captured singleton) — schema-parameterised by
-  //    construction. The caption is seeded empty before the image (§6.5).
   const schema = state.schema;
-  const imageType = schema.nodes["image"];
   const figureType = schema.nodes["figure"];
   const nameType = schema.nodes["figure_name"];
-  if (!imageType || !figureType || !nameType) return false;
-  const image = imageType.create({ src, alt: attrs!.alt ?? null });
-  // figure attrs: id is generated for cross-referencing (see §6.2 step 5);
-  // number/data default to their schema values (null/{}).
-  const figure = figureType.create({ id: generateId() }, [nameType.create(), image]);
+  if (figureType === undefined || nameType === undefined) return false;
+  const figure = figureType.create({ id: generateId() }, [nameType.create()]);
 
-  // 5. Insert + place the cursor in the seeded caption. ONE transaction.
   const tr = state.tr.replaceSelectionWith(figure);
 
-  // Locate the inserted figure by its generated id — replaceSelectionWith may
-  // replace an empty textblock or split a non-empty one at the caret, so
-  // selection arithmetic is unreliable (same hazard as insertTable).
+  // Locate the inserted figure by generated id — the position depends on
+  // whether replaceSelectionWith replaced an empty textblock wholesale or
+  // split a non-empty one (same hazard as insertTable).
   const figureId = figure.attrs.id;
   let figPos = -1;
   tr.doc.descendants((n, p) => {
-    if (figPos === -1 && n.type.name === "figure" && n.attrs.id === figureId) {
+    if (figPos === -1 && n.type === figureType && n.attrs.id === figureId) {
       figPos = p;
       return false;
     }
@@ -486,40 +590,95 @@ export function insertImage(
     tr.setSelection(TextSelection.near(tr.doc.resolve(captionPos), 1));
   }
 
-  // 6. scrollIntoView (user-initiated) + dispatch EXACTLY ONCE. No view.focus().
+  tr.scrollIntoView();
+  dispatch(tr);
+  return true;
+}
+
+/** The nearest ancestor figure with no image child, or null. */
+function targetFigure($pos: ResolvedPos): { node: Node; depth: number } | null {
+  for (let d = $pos.depth; d >= 1; d--) {
+    const node = $pos.node(d);
+    if (node.type.name !== "figure") continue;
+    if (nodeHasImage(node)) continue;
+    return { node, depth: d };
+  }
+  return null;
+}
+
+/** True when the selection is inside (or node-selects) an image-less figure. */
+export function canInsertImageIntoFigure(state: EditorState): boolean {
+  const sel = state.selection;
+  if (sel instanceof NodeSelection && sel.node.type.name === "figure"
+      && !nodeHasImage(sel.node)) {
+    return true;
+  }
+  return targetFigure(sel.$from) !== null;
+}
+
+export function insertImageIntoFigure(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void,
+  attrs?: InsertImageAttrs,
+): boolean {
+  if (!canInsertImageIntoFigure(state)) return false;
+  if (dispatch === undefined) return true;
+
+  let src: string;
+  try {
+    assertValidImageAttrs({ src: attrs?.src });
+    src = attrs!.src;
+  } catch {
+    return false;
+  }
+
+  const schema = state.schema;
+  const imageType = schema.nodes["image"];
+  if (imageType === undefined) return false;
+
+  // Resolve the target (§6.4 step 4).
+  const sel = state.selection;
+  let figStart: number;
+  let captionSize: number;
+  if (sel instanceof NodeSelection && sel.node.type.name === "figure") {
+    figStart = sel.from;
+    captionSize = sel.node.firstChild?.type.name === "figure_name"
+      ? sel.node.firstChild.nodeSize : 0;
+  } else {
+    const target = targetFigure(sel.$from);
+    if (target === null) return false;
+    figStart = sel.$from.before(target.depth);
+    captionSize = target.node.firstChild?.type.name === "figure_name"
+      ? target.node.firstChild.nodeSize : 0;
+  }
+
+  // Insert immediately after figure_name (§6.4 step 5).
+  const image = imageType.create({ src, alt: attrs!.alt ?? null });
+  const tr = state.tr.insert(figStart + 1 + captionSize, image);
   tr.scrollIntoView();
   dispatch(tr);
   return true;
 }
 ```
 
-**Command contract compliance.** The command conforms to the Command contract
-(README §6.2; `EditorCommands.spec.md` §1.5).
+**Command contract compliance.** Both commands conform to the Command contract
+(README §6.2; `EditorCommands.spec.md` §1.5): query/dispatch parity, single
+transaction, non-throwing, selection-aware.
 
-**Position arithmetic.** The id-based `descendants` scan (§6.3) is robust to
-both insertion shapes — `replaceSelectionWith` replacing an empty textblock
-wholesale (selection arithmetic would then point **into the preceding
-text's split point**) or splitting a non-empty one at the caret. An earlier
-revision computed `figPos = tr.selection.from - figure.nodeSize`; that
-assumption holds only when the selection sits immediately after the inserted
-block, and mis-landed the caption cursor in browser flows. As with
-`insertTable` (`tables.md` §8.1.3), prefer locating the inserted node by its
-generated id over selection arithmetic.
-
-### 6.4 Why a `figure` wrapping the `image`
+### 6.7 Why an image must be placed inside a figure
 
 Because `image` is ungrouped and appears in no content expression except
-`figure`'s, it cannot be placed directly into any block container. The command
-therefore always emits the two-node `figure > image` subtree. The `image`
-carries the rendered `src`/`alt`; the `figure` is the block the document model
-(and the `FigureNodeView`) expects. This matches §2 and is the sole reason no
+`figure`'s, it cannot be placed directly into any block container. The image
+command therefore always targets an existing figure. The `figure` is the block
+the document model (and the `FigureNodeView`) expects; the `image` atom
+carries the rendered `src`/`alt`. This matches §2 and is the sole reason no
 bare-`image` insertion path is offered.
 
 ## 7. The async dispatch pattern
 
 All async/`Promise`/`File` work is **UI-only** and lives in the toolbar adapter
-(`ImageInsertDialog.tsx` in `@metanorma/toolbar`); the pure command
-(§6) is synchronous. URL entry is synchronous, but the **file path is
+(`ImageInsertDialog.tsx` in `@metanorma/toolbar`); the pure commands
+(§6) are synchronous. URL entry is synchronous, but the **file path is
 asynchronous** (both `data:`-URL generation and `onImageUpload`), and even URL
 entry via the `onImagePrompt` hook returns a `Promise`. The **adapter** resolves
 the source to a `src` string first, then calls the synchronous pure command with
@@ -531,12 +690,13 @@ rules make this safe:
    invokes its callback with the **current** `EditorView`. The callback must read
    `view.state` (not a state captured at click time) when it finally dispatches.
    The adapter passes `view.state` and `view.dispatch` into the pure command.
-2. **Validate at dispatch time.** `insertImage` re-runs `canInsertFigure(state)`
-   internally against the passed `state` (§6.2 step 4). If the user moved the
-   cursor during an upload, insertion either proceeds at the new site (if still
-   legal) or silently no-ops (returning `false`). The dialog should treat a
-   `false` return as a soft failure (close without inserting, or show a transient
-   message).
+2. **Validate at dispatch time.** `insertImageIntoFigure` re-runs
+   `canInsertImageIntoFigure(state)` internally against the passed `state`
+   (§6.4 step 4). If the user moved the cursor during an upload, insertion
+   either proceeds into the figure at the new site (if still legal) or
+   returns `false`. The dialog treats a `false` return as a soft failure:
+   it stays open and shows the inline error "Insertion point is no longer
+   inside a figure" (`aria-live`, §9.1).
 3. **Handle a detached view + re-focus.** The callback's `view` argument is
    `EditorView | null`; if the editor unmounted mid-upload (e.g. the dialog was
    dismissed and the component torn down), the callback must bail on `null`. On a
@@ -546,15 +706,16 @@ rules make this safe:
 ```tsx
 // pkg/toolbar/ImageInsertDialog.tsx (commit handler)
 // The ADAPTER owns EditorView, async, and DOM. The pure command owns none.
-import { insertImage } from "@metanorma/editor-commands"; // re-exported through toolbar pkg
+import { insertImageIntoFigure } from "@metanorma/editor-commands"; // re-exported through toolbar pkg
 
 const dispatchInsert = useEditorEventCallback(
   async (view: EditorView | null, src: string, alt: string | null) => {
     if (!view) return;                 // editor unmounted
     // Synchronous pure command with resolved attrs; view.state/dispatch stay here.
-    const ok = insertImage(view.state, view.dispatch, { src, alt });
-    if (!ok) return;                   // soft failure: selection moved, or src invalid
+    const ok = insertImageIntoFigure(view.state, view.dispatch, { src, alt });
+    if (!ok) return false;             // soft failure: selection moved out, or src invalid
     view.focus();                      // focus is the ADAPTER's concern, never the command's
+    return true;
   },
 );
 
@@ -583,8 +744,8 @@ The boundary is thus: the adapter resolves `src`/`alt` (async, `File`,
 command takes already-resolved `{ src, alt }` plus `view.state`/`view.dispatch`
 and performs the synchronous, schema-aware insert. The
 `EditorView` reference is always current, and the transaction is built and
-dispatched from the live `view.state` inside `insertImage` at the moment the
-resolved `src` is available.
+dispatched from the live `view.state` inside `insertImageIntoFigure` at the
+moment the resolved `src` is available.
 
 ## 8. Active / enabled detection
 
@@ -594,28 +755,48 @@ resolved `src` is available.
 isActive: () => false;
 ```
 
-Image insertion is **not a toggle** — there is no "active" state, and the button
-is never rendered with `.mn-toolbar-btn--active`. (Selecting an existing figure
-to **edit** its `src`/`alt` via the same dialog is a plausible future
-enhancement; an `updateImageAttrs` helper is deferred. v1 is insert-only.)
+Neither control is a **toggle** — there is no "active" state, and neither
+button is ever rendered with `.mn-toolbar-btn--active`. (Selecting an existing
+figure or image to **edit** its `src`/`alt` via the same dialog is a plausible
+future enhancement; an `updateImageAttrs` helper is deferred. v1 is
+insert-only.)
 
-### 8.2 Enabled
+### 8.2 Figure button enabled
 
-The button is enabled when a `figure` may legally be inserted at the selection
-(§6.3 `canInsertFigure`). Because `figure` is a `block`, this is true whenever an
-ancestor of the cursor accepts block children — i.e. inside a `paragraph`,
-`note`, `example`, `quote`, list item, or `table_cell`, but **not** inside an
-atom node (`formula`, `image`) or inside `sourcecode`
-(`text*`-only) or `floating_title` (`inline*`-only).
+`insertFigure(state) === true` — i.e. `canInsertFigure` (§6.2): a collapsed
+selection in body content whose parent admits a block after the cursor's
+textblock, and no figure ancestor. Because `figure` is a `block`, the
+first condition is true inside a `paragraph`, `note`, `example`, `quote`, list
+item, or `table_cell`, but **not** inside an atom node (`formula`, `image`) or
+inside `sourcecode` (`text*`-only) or `floating_title` (`inline*`-only); and it
+is false inside any caption (`figure_name`/`table_name` — `bodyBlockContext`
+excludes captions) and inside any figure (nesting refusal, §2.2).
 
-`canInsertFigure` is a pure function of `EditorState`, so it plugs directly into
-`useEditorStateSelector`, exactly like `canInsertTable` in `tables.md` §7.2.
+### 8.3 Image button enabled (and the recovery story)
 
-Notes on the strict-tsconfig constraints in play:
+`canInsertImageIntoFigure(state)` (§6.3). The two gating conditions mirror the
+two stages:
 
-- `state.schema.nodes["figure"]` returns `NodeType | undefined` under
-  `noUncheckedIndexedAccess`; `canInsertFigure` guards with an explicit early
-  `if (!figureType) return false;` before use, keeping the type system honest.
+- **First fill.** After `insertFigure`, the caret is inside the caption of an
+  image-less figure → enabled. The author may type the caption first; the
+  caret stays inside the figure, the button stays enabled.
+- **Recovery.** Deleting the `image` atom (node-select it, Backspace/Delete —
+  stock `deleteSelection`) leaves `figure > [figure_name]`. The caret lands
+  inside the figure context, the button re-enables, and re-running the dialog
+  restores the image. This is the state that motivated the stage split (§1):
+  under the stage split it is recoverable, not a dead end.
+- **Disabled otherwise.** Outside any figure (a plain paragraph, a clause
+  body, a table cell, a heading) → no target → disabled. Inside a figure that
+  already has an image (v1 one-image rule) → disabled.
+
+`canInsertImageIntoFigure` is a pure function of `EditorState`, so it plugs
+directly into `useEditorStateSelector`.
+
+### 8.4 Strict-tsconfig notes
+
+- `state.schema.nodes["figure"]` / `["image"]` return `NodeType | undefined`
+  under `noUncheckedIndexedAccess`; guard with an explicit early return before
+  use, keeping the type system honest.
 - `imageType.create({ src, alt })` passes `alt` as `string | null`; the schema
   default for `alt` is `null`, so omitting it would also be valid, but the
   command passes `alt ?? null` explicitly to avoid an `undefined` value
@@ -631,26 +812,27 @@ the WAI-ARIA **dialog** pattern:
 
 | Element | Role / attributes |
 |---|---|
-| Dialog root | `role="dialog"`, `aria-label="Insert image"`, `aria-modal="false"` (non-modal — `Escape`/outside-click dismiss it without trapping global focus). |
+| Dialog root | `role="dialog"`, `aria-label="Add image to figure"`, `aria-modal="false"` (non-modal — `Escape`/outside-click dismiss it without trapping global focus). |
 | Source URL input | `<label>` (or `aria-label="Image URL"`) associated via `htmlFor`/`id`; `type="url"`, `autocomplete="off"`. |
 | File input | Visually hidden `<input type="file" accept="image/*">` with an associated `<label>`/button labelled "Choose file"; the chosen filename is announced. |
 | Alt text input | `<label>` (or `aria-label="Alternative text"`) associated via `htmlFor`/`id`; `type="text"`. |
-| Inline error region | `aria-live="polite"` so an "Image URL is required" / "Insertion point is no longer valid" message is announced. |
-| Trigger button | `aria-haspopup="dialog"`, `aria-expanded={open}`, `aria-controls={dialogId}` when open. |
+| Inline error region | `aria-live="polite"` so an "Image URL is required" / "Insertion point is no longer inside a figure" message is announced. |
+| Figure (trigger) button | Standard `ToolbarButton` markup (base spec §5): `<button>` + `title` + `.mn-toolbar-btn`. |
+| Image (trigger) button | `aria-haspopup="dialog"`, `aria-expanded` when open, `aria-controls={dialogId}` when open. |
 
 ### 9.2 Keyboard operability
 
 | Key | Action |
 |---|---|
 | `Tab` / `Shift+Tab` | Move focus between the dialog controls (URL → file → alt → commit → cancel). |
-| `Enter` | On the commit control: submit the dialog (resolve source, dispatch `insertImage`). Inside a text field: submit only when the field has a value, otherwise default form behaviour. |
+| `Enter` | On the commit control: submit the dialog (resolve source, dispatch `insertImageIntoFigure`). Inside a text field: submit only when the field has a value, otherwise default form behaviour. |
 | `Escape` | Cancel: close the dialog without inserting; discard any in-flight `data:`-URL generation or upload. |
 | Click outside the dialog | Cancel (same as `Escape`). |
 
 ### 9.3 Focus management
 
 - When the dialog opens, focus moves to the Source URL input.
-- On commit or cancel, focus returns to the "Insert image" trigger button.
+- On commit or cancel, focus returns to the Image trigger button.
 - The dialog must not insert a full focus trap (it is `aria-modal="false"`); it
   relies on `Escape`/outside-click for dismissal.
 
@@ -658,15 +840,17 @@ the WAI-ARIA **dialog** pattern:
 
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/toolbar`; see the consolidated export listing in
-README §5.6. This feature adds no feature-specific export notes.
+README §5.6. The exports are `insertFigure`, `canInsertFigure`,
+`insertImageIntoFigure`, `canInsertImageIntoFigure`, and the
+`InsertImageAttrs` type. No combined `insertImage` command exists.
 
 ## 11. CSS classes
 
-The dialog introduces feature-specific classes under the existing `mn-toolbar`
-prefix:
+The group introduces feature-specific classes/uses under the existing
+`mn-toolbar` prefix:
 
 ```
-.mn-toolbar-image              /* wrapper: trigger button + dialog */
+.mn-toolbar-image              /* wrapper: Image trigger button + dialog */
   .mn-toolbar-btn              /* the trigger (reuses base class) */
 .mn-toolbar-dialog             /* absolutely-positioned dialog container */
   .mn-toolbar-dialog-field     /* a label + input row */
@@ -674,46 +858,76 @@ prefix:
   .mn-toolbar-dialog-actions   /* commit / cancel button row */
 ```
 
-Minimum required styling:
+The Figure button is a plain `ToolbarButton` — it uses the base
+`.mn-toolbar-btn` classes and adds no feature classes.
 
-| Selector | Purpose |
-|---|---|
-| `.mn-toolbar-dialog` | `position: absolute; z-index: 10; background: var(--mn-surface, #fff); border: 1px solid var(--mn-border, #ccc); border-radius: 4px; padding: 0.5em; display: grid; gap: 0.4em; box-shadow: 0 2px 8px rgba(0,0,0,.15);` |
-| `.mn-toolbar-dialog-field` | `display: grid; gap: 0.15em;` (label above input) |
-| `.mn-toolbar-dialog-error` | `color: var(--mn-danger, #b00); font-size: 0.85em;` |
-| `.mn-toolbar-dialog-actions` | `display: flex; gap: 0.25em; justify-content: flex-end;` |
-| Dark mode | `.mn-toolbar-dialog` adapts via `@media (prefers-color-scheme: dark)` as in the base toolbar. |
+## 12. The empty-figure placeholder
 
-The stylesheet is plain CSS imported as a side-effect in `ImageInsertDialog.tsx`,
-matching the base toolbar's `toolbar.css` convention and `tables.md`'s
-`table-picker.css`.
+An image-less figure renders a placeholder so the author always sees the
+missing image. One selector, in the document layer
+(`pkg/prosemirror-editor/document.css`, beside the existing figure rules):
 
-## 12. File-structure summary
+```css
+.mn-prosemirror figure.mn-figure:not(:has(img))::after {
+  content: "Add an image with the Image button";
+  display: block;
+  margin: var(--mn-space-2);
+  padding: var(--mn-space-4);
+  border: 1px dashed var(--mn-border);
+  border-radius: var(--mn-radius-sm);
+  background: var(--mn-surface-muted);
+  color: var(--mn-text-placeholder);
+  font-size: 0.9em;
+}
+```
+
+**Why no empty-textblock guard.** The section-title placeholder uses
+`:has(> .ProseMirror-trailingBreak:only-child)` because it detects an empty
+**textblock** — and `:empty` can never match a ProseMirror textblock, since PM
+always keeps a trailing `<br>` inside one. The figure condition is
+**structural**, not content-emptiness: "the figure has no `img` descendant".
+`:not(:has(img))` expresses that exactly and completely, with no auxiliary
+guard. Notably it keeps matching intermediate states such as
+`[figure_name, paragraph]` (caption typed, Enter pressed — the paragraph is
+the `exitName` residue) that a caption-emptiness guard would wrongly exclude:
+those figures still lack an image and must keep showing the placeholder.
+
+The pseudo-element is invisible to ProseMirror's DOM reading (PM parses only
+its content DOM; pseudo-elements generate no DOM nodes), so there is no
+serialization impact. Clicks on the pseudo-element fall through to the
+`figure` element, where ProseMirror lands the caret in the nearest textblock
+(the caption), which enables the Image button.
+
+## 13. File-structure summary
 
 See the consolidated file-structure summary in README §5.5. This feature adds
-no feature-specific structure notes.
+no feature-specific structure notes: `insertFigure` /
+`insertImageIntoFigure` live in `pkg/editor-commands/commands/insertImage.ts`,
+the Figure button in `pkg/toolbar/groups/imagesGroup.tsx`, the dialog adapter
+in `pkg/toolbar/ImageInsertDialog.tsx`, and the placeholder CSS in
+`pkg/prosemirror-editor/document.css`.
 
-## 13. TypeScript constraints
+## 14. TypeScript constraints
 
 The project tsconfig enforces `strict`, `exactOptionalPropertyTypes`,
 `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, `module: node16`. All new
 code must:
 
-- Use `import type` for type-only imports (`EditorState`, `Transaction`, `Node`).
-  The **pure command** imports `EditorState`/`Transaction`/`Node` but must
-  **never** import `EditorView`/`prosemirror-view`; only the UI adapter in
-  `@metanorma/toolbar` imports `EditorView`.
+- Use `import type` for type-only imports (`EditorState`, `Transaction`,
+  `ResolvedPos`, `Node`).
+  The **pure commands** must **never** import `EditorView`/`prosemirror-view`;
+  only the UI adapter in `@metanorma/toolbar` imports `EditorView`.
 - Use `.js` extensions in relative imports (`"./commands/insertImage.js"`).
 - Treat `schema.nodes["figure"]` / `schema.nodes["image"]` lookups as
   `NodeType | undefined` under `noUncheckedIndexedAccess` — guard or assert
-  before use (`canInsertFigure` guards explicitly).
+  before use.
 - Pass `null` (not `undefined`) for defaulted attrs in `NodeType.create`; pass
   `alt: attrs.alt ?? null` so no `undefined` reaches the attrs object
   (`exactOptionalPropertyTypes`).
 - Export all types alongside their implementations (`InsertImageAttrs`,
   `OnImageUpload`, `OnImagePrompt`).
-- **Command contract (EditorCommands §1.5):** the pure `insertImage` must be
-  assignable to `Command` — `(state, dispatch?) => boolean`; it must never throw
-  (wrap `assertValidImageAttrs` in `try`/`catch` → return `false`); and its
-  query form (`dispatch` omitted) must return the same boolean as
-  `canInsertFigure(state)`.
+- **Command contract (EditorCommands §1.5):** the pure commands must be
+  assignable to `Command` — `(state, dispatch?) => boolean`; they must never
+  throw (wrap `assertValidImageAttrs` in `try`/`catch` → return `false`); and
+  their query forms (`dispatch` omitted) must return the same booleans as
+  their `can*` predicates.

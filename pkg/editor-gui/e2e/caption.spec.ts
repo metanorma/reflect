@@ -109,11 +109,14 @@ test.describe('table captions', () => {
 });
 
 test.describe('figure captions', () => {
-  test('insertImage seeds a caption; Enter with only the image following inserts a paragraph after it', async ({ page }) => {
+  test('Figure+Image seeds a caption; Enter with only the image following inserts a paragraph after it', async ({ page }) => {
     await openEditor(page);
     await clickBodyParagraph(page);
     await page.keyboard.type('intro ');
 
+    // Two-stage flow: Figure seeds figure > [figure_name] with the caret in
+    // the caption; Image fills the same figure from the dialog.
+    await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
     const dialog = page.locator('.mn-image-dialog[popover]');
     await dialog.locator('#mn-img-src').fill('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>');
@@ -121,7 +124,7 @@ test.describe('figure captions', () => {
     await dialog.getByRole('button', { name: 'Insert' }).click();
     await expect(dialog).toBeHidden();
 
-    // Cursor in the seeded figure_name — type the caption.
+    // Cursor back in the seeded figure_name — type the caption.
     await page.keyboard.type('Fig caption');
 
     // Enter: no textblock-bearing sibling inside the figure (image is next) →
@@ -148,6 +151,7 @@ test.describe('figure captions', () => {
     await openEditor(page);
     await clickBodyParagraph(page);
 
+    await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
     const dialog = page.locator('.mn-image-dialog[popover]');
     await dialog.locator('#mn-img-src').fill('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>');

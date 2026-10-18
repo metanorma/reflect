@@ -966,6 +966,15 @@ coercion, not ambiguity — there is a single valid target):
   children fall outside the editor's inline vocabulary (e.g. `<index>`) is
   dropped on import. Both are coercions with a single valid target, not
   ambiguities.
+- `figure` permits an `image` alongside sibling blocks
+  (`figure_name? (image | block)*`), but Standoc's `FigureBody` choice group
+  (`basicdoc.rnc`) is single-occurrence — `image` XOR a
+  `paragraph-with-footnote+` run XOR nested figures — with only `fn*`, `dl?`,
+  `note*`, `source?` trailing. The converter's coercion: **drop empty trailing
+  paragraphs** after an image on export (the Enter/`exitName` residue —
+  `[figure_name, image, paragraph]` exports as `[figure_name, image]`);
+  **non-empty blocks after an image are a coverage gap** (the editor admits
+  them; export cannot express them — flagged as such, not silently dropped).
 
 `floating_title` is **not** a source of over-permissiveness: it is a groupless
 textblock whose legal positions (§8.3) — `sections` top level and the subclause

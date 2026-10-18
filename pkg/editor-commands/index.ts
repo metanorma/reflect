@@ -78,8 +78,14 @@ export {
   pctToNumber,
 } from './commands/tableWidths.js';
 
-// Images / figures (images-figures.md).
-export { insertImage, canInsertFigure } from './commands/insertImage.js';
+// Images / figures (images-figures.md) — two-stage authoring: create the
+// figure, then add the image inside it.
+export {
+  insertFigure,
+  canInsertFigure,
+  insertImageIntoFigure,
+  canInsertImageIntoFigure,
+} from './commands/insertImage.js';
 export type { InsertImageAttrs } from './commands/insertImage.js';
 
 // Bibliography entries (Relaton integration).

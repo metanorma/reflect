@@ -1,13 +1,15 @@
 /**
- * `ImageInsertDialog` — the URL/upload dialog for image insertion
- * (images-figures.md §4, §5).
+ * `ImageInsertDialog` — the URL/upload dialog for adding an image to a figure
+ * (images-figures.md §4.2, §5).
  *
  * A dedicated React component (`InsertImageButton`) owns the dialog's open
  * state. The dialog collects a Source URL **or** a File plus optional Alt text,
  * resolves the `src` (synchronously for URLs, asynchronously for files via
  * `readAsDataURL` or the `onImageUpload` hook), then dispatches the pure
- * `insertImage` command. The `EditorView`/async/DOM concerns stay in this
- * adapter; the pure command is synchronous.
+ * `insertImageIntoFigure` command. The button is single-mode: enabled exactly
+ * when the selection is inside a figure with no image child
+ * (`canInsertImageIntoFigure`). The `EditorView`/async/DOM concerns stay in
+ * this adapter; the pure command is synchronous.
  *
  * Uses the HTML Popover API (`popover="auto"`) with CSS Anchor Positioning
  * so the dialog renders in the browser's **top layer** — escaping all ancestor
@@ -22,7 +24,7 @@ import {
 } from "@handlewithcare/react-prosemirror";
 import type { EditorView } from "prosemirror-view";
 
-import { insertImage, canInsertFigure } from "@metanorma/editor-commands";
+import { insertImageIntoFigure, canInsertImageIntoFigure } from "@metanorma/editor-commands";
 import type { OnImageUpload } from "./AdvancedMetanormaToolbar.js";
 
 import "./image-dialog.css";
@@ -64,13 +66,14 @@ export function ImageInsertDialog({
 
   const dispatchInsert = useEditorEventCallback(
     async (view: EditorView | null, resolvedSrc: string, resolvedAlt: string | null) => {
-      if (view === null) return;
-      const ok = insertImage(view.state, view.dispatch, {
+      if (view === null) return false;
+      const ok = insertImageIntoFigure(view.state, view.dispatch, {
         src: resolvedSrc,
         alt: resolvedAlt,
       });
-      if (!ok) return;
+      if (!ok) return false; // selection moved out / src invalid — soft failure
       view.focus();
+      return true;
     },
   );
 
@@ -93,7 +96,13 @@ export function ImageInsertDialog({
       return;
     }
     setError(null);
-    await dispatchInsert(src, alt.trim() === "" ? null : alt);
+    const ok = await dispatchInsert(src, alt.trim() === "" ? null : alt);
+    if (ok === false) {
+      // images-figures.md §7 rule 2 — validate at dispatch time: the
+      // selection may have left the figure during an async upload.
+      setError("Insertion point is no longer inside a figure.");
+      return;
+    }
     onCommit();
   }
 
@@ -108,7 +117,7 @@ export function ImageInsertDialog({
       popover="auto"
       className="mn-image-dialog"
       role="dialog"
-      aria-label="Insert image"
+      aria-label="Add image to figure"
       aria-modal="false"
       ref={ref}
       onKeyDown={(e) => {
@@ -168,16 +177,17 @@ export function ImageInsertDialog({
 }
 
 /**
- * The "Insert image" trigger button + dialog (images-figures.md §4). Owns open
- * state and resolves the source before dispatching the pure `insertImage`
- * command.
+ * The "Add image to figure" trigger button + dialog (images-figures.md §4.2).
+ * Single-mode: enabled exactly when the selection is inside a figure with no
+ * image child. Owns open state and resolves the source before dispatching the
+ * pure `insertImageIntoFigure` command.
  */
 export function InsertImageButton({
   onImageUpload,
 }: {
   readonly onImageUpload?: OnImageUpload | undefined;
 }): React.JSX.Element {
-  const enabled = useEditorStateSelector(canInsertFigure);
+  const enabled = useEditorStateSelector(canInsertImageIntoFigure);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -194,7 +204,7 @@ export function InsertImageButton({
         className="mn-toolbar-btn"
         aria-haspopup="dialog"
         disabled={!enabled}
-        title="Insert image"
+        title="Add image to figure"
         onClick={() => dialogRef.current?.togglePopover()}
       >
         Image
