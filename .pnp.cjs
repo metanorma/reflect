@@ -1044,7 +1044,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./.yarn/cache/@yarnpkg-types-npm-4.0.0-cfa3270e50-41f67a4aa5.zip/node_modules/@yarnpkg/types/",\
         "packageDependencies": [\
           ["@yarnpkg/types", "npm:4.0.0"],\
-          ["tslib", "npm:2.7.0"]\
+          ["tslib", "npm:2.8.1"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -1381,7 +1381,7 @@ const RAW_RUNTIME_STATE =
           ["prosemirror-history", "npm:1.5.0"],\
           ["prosemirror-state", "npm:1.4.4"],\
           ["prosemirror-transform", "npm:1.12.0"],\
-          ["prosemirror-view", "npm:1.42.2"],\
+          ["prosemirror-view", "npm:1.42.0"],\
           ["rope-sequence", "npm:1.3.4"]\
         ],\
         "linkType": "HARD"\
@@ -1427,7 +1427,7 @@ const RAW_RUNTIME_STATE =
           ["prosemirror-model", "npm:1.25.11"],\
           ["prosemirror-state", "npm:1.4.4"],\
           ["prosemirror-transform", "npm:1.12.0"],\
-          ["prosemirror-view", "npm:1.42.1"]\
+          ["prosemirror-view", "npm:1.42.0"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -1450,26 +1450,6 @@ const RAW_RUNTIME_STATE =
           ["prosemirror-state", "npm:1.4.4"],\
           ["prosemirror-transform", "npm:1.12.0"],\
           ["prosemirror-view", "npm:1.42.0"]\
-        ],\
-        "linkType": "HARD"\
-      }],\
-      ["npm:1.42.1", {\
-        "packageLocation": "./.yarn/cache/prosemirror-view-npm-1.42.1-e2b8aea2ba-159131ef97.zip/node_modules/prosemirror-view/",\
-        "packageDependencies": [\
-          ["prosemirror-model", "npm:1.25.11"],\
-          ["prosemirror-state", "npm:1.4.4"],\
-          ["prosemirror-transform", "npm:1.12.0"],\
-          ["prosemirror-view", "npm:1.42.1"]\
-        ],\
-        "linkType": "HARD"\
-      }],\
-      ["npm:1.42.2", {\
-        "packageLocation": "./.yarn/cache/prosemirror-view-npm-1.42.2-8dc73951fe-2fb9bc68bc.zip/node_modules/prosemirror-view/",\
-        "packageDependencies": [\
-          ["prosemirror-model", "npm:1.25.11"],\
-          ["prosemirror-state", "npm:1.4.4"],\
-          ["prosemirror-transform", "npm:1.12.0"],\
-          ["prosemirror-view", "npm:1.42.2"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -1685,13 +1665,6 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["tslib", [\
-      ["npm:2.7.0", {\
-        "packageLocation": "./.yarn/cache/tslib-npm-2.7.0-21668f5c21-469e1d5bf1.zip/node_modules/tslib/",\
-        "packageDependencies": [\
-          ["tslib", "npm:2.7.0"]\
-        ],\
-        "linkType": "HARD"\
-      }],\
       ["npm:2.8.1", {\
         "packageLocation": "./.yarn/cache/tslib-npm-2.8.1-66590b21b8-9c4759110a.zip/node_modules/tslib/",\
         "packageDependencies": [\

@@ -28,6 +28,14 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Check dependency dedupe
+        # Fails when any package's overlapping ranges resolve to different
+        # locators. Guards the prosemirror-view single-instance
+        # consolidation (its lockfile descriptors all resolve to 1.42.0);
+        # also catches unrelated drift, e.g. a future `yarn up` or
+        # fresh-lockfile resolution re-splitting a package.
+        run: yarn dedupe --check
+
       - name: Build editor-gui
         # Same build the Pages deploy runs; keeping it PR-visible means a
         # bundling regression fails the PR, not the main-branch deploy.

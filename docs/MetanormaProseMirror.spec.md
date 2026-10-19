@@ -99,9 +99,19 @@ to the `workspaces` array in the root `package.json` (which currently lists
 2. **Exact pin of `prosemirror-view`.** Because `react-prosemirror@3.2.7`
    declares `prosemirror-view` peer as exactly `1.42.0`, the editor package
    **must** declare `"prosemirror-view": "1.42.0"` and the workspace must resolve
-   a single instance. The repo uses Yarn PnP with the
-   `prevent-multiple-instances` plugin; `prosemirror-view` is therefore
-   implicitly single-instanced.
+   a single instance. Single-instancing is enforced through the
+   descriptor→resolution mapping inside `yarn.lock` itself: each lockfile
+   block's quoted header lists the descriptors it serves and its
+   `resolution:` line names the locator they share. Overrides applied via
+   `yarn set resolution` (e.g. for `prosemirror-view@npm:^1.27.0` and
+   `prosemirror-view@npm:^1.31.0`, the ranges declared by `prosemirror-state`
+   and `prosemirror-history`) move those descriptors into the exact-pinned
+   `1.42.0` block's header, so every descriptor resolves to the same locator.
+   These overrides are keyed to their descriptors and disappear if the
+   lockfile is deleted or the descriptors re-resolve; the
+   `yarn dedupe --check` step in `check-build.yml` is the durable guard that
+   fails the build when any package's overlapping ranges resolve to different
+   locators.
 3. **Reconciler/React parity.** `react-reconciler` `0.32.0` is paired with
    `react`/`react-dom` `^19.2.7`. The component must not be used with React 18
    reconcilers.

@@ -546,7 +546,9 @@ re-exports `undo`/`redo`/`undoDepth`/`redoDepth`/`history`), and
 
 Exact versions to be pinned to whatever the workspace resolves; the ranges
 above are the current `prosemirror-*` 1.x line compatible with the existing
-`prosemirror-state@^1.4.4` / `prosemirror-view@1.42.0`.
+`prosemirror-state@^1.4.4`. Every `prosemirror-view` descriptor in the
+workspace (`1.42.0`, `^1.27.0`, `^1.31.0`) resolves to the single `1.42.0`
+locator via the lockfile descriptor→resolution mapping.
 
 The editor package no longer needs a direct `prosemirror-history` dependency
 for the commands/keymap path — it reaches `undo`/`redo` through
