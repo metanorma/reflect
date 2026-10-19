@@ -1,3 +1,5 @@
+This is currently in pre-production stage.
+
 [Live demo](https://metanorma.github.io/reflect/).
 
 Refer to [docs](./docs/README.md). For how to contribute — code conventions
