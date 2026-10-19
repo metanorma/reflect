@@ -180,6 +180,19 @@ What to run before submitting, by what a change touches:
   the only prerequisite is the one-time browser install,
   ``yarn workspace <pkg> e2e:install``.
 
+- **Plugins that render DOM** (widgets, node views, decorations) —
+  a change that adds or modifies one wires it into the GUI app and
+  extends ``pkg/editor-gui/e2e/plugin-smoke.spec.ts`` **in the same
+  change**; rendering verification is not deferred to interaction-level
+  e2e. The smoke asserts what the plugin draws (widget presence,
+  placement, layout effects) with no interaction; feature specs own
+  interaction semantics. Rationale: the table column-resize work shipped
+  three renderer-integration bugs (decorations drawn only via
+  ``props.decorations``; native widgets wrapped in ``<span>``, never
+  direct children; React committing widget DOM asynchronously to PM
+  update hooks) — all three are smoke-level failures, none is
+  discoverable from unit tests.
+
 - **Dependencies added or upgraded** — run ``yarn`` and check for the
   duplicate-instance error at the end (see the dependency policy above),
   then ``yarn check-for-multiple-instances`` (narrow with
@@ -201,4 +214,4 @@ Workspace inventory (all under ``pkg/``; used by the
 - ``@metanorma/relaton`` (``pkg/relaton``) — unit tests
 - ``@metanorma/prosemirror-minimap``
   (``pkg/prosemirror-minimap``) — unit tests, e2e
-- ``editor-gui`` (``pkg/editor-gui``) — e2e
+- ``editor-gui`` (``pkg/editor-gui``) — e2e (incl. plugin rendering smoke)
