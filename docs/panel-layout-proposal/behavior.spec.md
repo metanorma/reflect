@@ -196,10 +196,17 @@ the emptied state. HP9 restores.
 | J6 Maximize | — | Unused; no affordance | N/A |
 | J7 Reduced motion | `prefers-reduced-motion` | **not implemented** — no media query anywhere | min: kill J4/J5 transitions under the query |
 
-**Frames recommended** (3, static only, not yet created):
-`panel-layout-proposal/states/cdn-failure.html`,
-`panel-layout-proposal/states/empty-editor.html`,
-`panel-layout-proposal/states/narrow-viewport.html` (labeled FUTURE).
+**Frames** (3, static state frames captured from the live mock; build outputs
+— regenerate all three plus their PNG siblings with
+`node docs/panel-layout-proposal/states/capture.mjs`):
+[`states/cdn-failure.html`](./states/cdn-failure.html) (A3),
+[`states/empty-editor.html`](./states/empty-editor.html) (B1),
+[`states/narrow-viewport.html`](./states/narrow-viewport.html) (I2 — captured
+720×900 degraded reality, plus the PROPOSED FUTURE collapsed variant). The B1
+"Reset restores the preset" hint and the I2 collapsed variant are PROPOSED
+content pending designer sign-off (delimited in the frames by PROPOSED / END
+PROPOSED comments and `data-proposed` attributes); neither is implemented in
+the mock.
 
 ## 4. Default / initial values
 

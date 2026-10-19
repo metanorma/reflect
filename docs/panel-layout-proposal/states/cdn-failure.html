@@ -1,0 +1,356 @@
+<!--
+GENERATED FILE — do not edit by hand; regenerate with:
+    node docs/panel-layout-proposal/states/capture.mjs
+
+State frame: cdn-failure.html — behavior.spec.md §3 A3 (C1) — CDN failure
+Source mock: docs/panel-layout-proposal/editor-dockview7-floats.html
+Mock git SHA at capture: 8656ef8310734926142ac4d4271162e716e29886  (file clean in working tree)
+Capture date (UTC): 2026-10-19T10:01:25Z
+Viewport at capture: 1440x900 (device pixel ratio 1); PNG sibling captured at the same size
+Mechanism: Page served from a local HTTP server; every esm.sh/* and unpkg.com/* request aborted via request interception; the mock catch block set the #boot failure copy; captured verbatim.
+Post-processing: every script element removed (the frame executes zero JS); the dockview.css link was REMOVED (dockview never fetched or rendered it — CDN routes were aborted); the mock own style block is kept verbatim. Inlining dockview.css here was judged unnecessary dead weight.
+PROPOSED content (not in the mock; pending designer sign-off) is delimited by
+HTML comments "PROPOSED (not in mock; pending designer sign-off)" ... "END PROPOSED"
+plus machine-readable data-proposed attributes / .mn-proposed classes.
+Offline guarantee: zero external references — loads from file:// with no network.
+-->
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metanorma editor — state frame A3: CDN failure</title>
+
+<!-- Real dockview stylesheet (theme vars + structural rules) -->
+
+
+<style>
+  /* ============================================================
+     Live mock — dockview v7.0.4 floating windows.
+     Main grid = Document only, full viewport. Every panel group is a
+     FLOATING WINDOW whose nested gridview (v7 SerializedFloatingGroup.grid)
+     hosts a vertical stack of groups: shared width = window; moves as one
+     window. All of that is native v7 — where the FlexLayout mock needed
+     ~800 lines of custom drag code, dockview v7 ships nested-gridview
+     floats with pointer DnD into/out of them.
+     SIZING MODEL (absolute per-tabset heights): each tabset OWNS its
+     height (pinned via min==max constraints); the window's height is just
+     the sum of its tabsets plus chrome (titlebar + borders + sashes) —
+     never adjusted directly, never redistributed. Sashes resize the
+     tabset ABOVE; the window's bottom edge resizes the LAST tabset; a
+     group keeps its height when moved between windows. Heights persist
+     in localStorage and survive reload.
+     Custom bits kept from the FlexLayout mock: window titles in the float
+     titlebar, panel auto-wrap on empty space, layout persistence.
+     NOTE: no viewport-edge snapping for tabset groups — with a group
+     already flush to an edge, snapping another into the same band stacks
+     them into an overlap (free-form float placement instead).
+     ============================================================ */
+  :root{
+    --ink:#1c2733; --muted:#66707d; --faint:#9aa3ad;
+    --chrome:#eef1f4; --line:#d7dde3; --line-soft:#e6ebef;
+    --accent:#2f6fdb; --accent-ink:#1d4fa8; --accent-bg:#e8f0fe;
+    --err:#c4392f; --warn-ink:#8a6100; --warn-bg:#fff3d6; --warn-line:#e3c565;
+    --derive-ink:#7c8692;
+    --rail-w:128px;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    --doc:"Helvetica Neue",Arial,"Liberation Sans",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{background:var(--chrome);font-family:var(--sans);color:var(--ink);overflow:hidden}
+  #boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+        color:#cfd6dd;font:13px var(--sans);background:#22262c;z-index:99;
+        white-space:pre-line;text-align:center}
+  /* full-bleed editor surface (no mock browser-window chrome: the fake
+     titlebar/lights/rounded frame/backdrop were removed — the editor's own
+     toolbar + statusbar remain the app chrome) */
+  .window{width:100vw;height:100vh;max-width:100%;
+          background:var(--chrome);
+          display:flex;flex-direction:column;
+          position:relative}
+  .toolbar{display:flex;align-items:center;gap:4px;padding:7px 12px;background:#fff;
+           border-bottom:1px solid var(--line);font-size:12px}
+  .tb-btn{border:1px solid transparent;background:transparent;border-radius:6px;
+          padding:4px 8px;color:var(--ink);font-size:12px;cursor:pointer}
+  .tb-btn:hover{background:var(--chrome)}
+  .tb-btn.on{background:var(--accent-bg);color:var(--accent-ink);border-color:#c4d7f7}
+  .tb-sep{width:1px;height:18px;background:var(--line);margin:0 6px}
+  .tb-spacer{flex:1}
+  .layoutArea{flex:1;min-height:0;position:relative;background:#e3e7eb}
+  .statusbar{display:flex;align-items:center;gap:16px;padding:6px 14px;background:#fff;
+             border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+  .statusbar .dot{width:7px;height:7px;border-radius:50%;background:var(--warn-line);
+                  display:inline-block;margin-right:5px;vertical-align:-.5px}
+  .statusbar .grow{flex:1}
+  .statusbar .live{font-family:var(--mono);font-size:10px;color:var(--accent-ink)}
+
+  /* ============ dockview theme overrides (InDesign-ish float panels) ============ */
+  .layoutArea .dockview-theme-light{
+    --dv-group-view-background-color:#fff;
+    --dv-tabs-and-actions-container-background-color:#eef1f5;
+    --dv-tabs-and-actions-container-height:30px;
+    --dv-tabs-and-actions-container-font-size:11.5px;
+    --dv-separator-border:#ccd3da;
+    --dv-activegroup-visiblepanel-tab-background-color:#fff;
+    --dv-inactivegroup-visiblepanel-tab-background-color:#f4f6f8;
+    --dv-activegroup-visiblepanel-tab-color:#1c2733;
+    --dv-inactivegroup-visiblepanel-tab-color:#66707d;
+    --dv-activegroup-hiddenpanel-tab-color:#8b95a0;
+    --dv-inactivegroup-hiddenpanel-tab-color:#9aa3ad;
+    --dv-drag-over-background-color:rgba(47,111,219,.10);
+    --dv-drag-over-border-color:#7ea6ea;
+    --dv-icon-hover-background-color:rgba(47,111,219,.10);
+    --dv-floating-box-shadow:0 14px 40px rgba(15,25,40,.30),0 2px 8px rgba(15,25,40,.18);
+    --dv-floating-border:1px solid #c6cdd4;
+    --dv-floating-titlebar-height:24px;
+    --dv-floating-titlebar-background-color:linear-gradient(#f8fafc,#e8edf2);
+    --dv-floating-titlebar-border-bottom:1px solid #d6dce2;
+    --dv-border-radius:8px;
+  }
+  /* the floating window itself (overflow must stay visible: the 4px resize
+     handles protrude 2px beyond the box and would be clipped/unhittable) */
+  .layoutArea .dv-resize-container.dv-resize-container-with-titlebar{
+    border-radius:8px;
+  }
+  /* dedicated float move-handle: drag = move window — move-ONLY (T6: the
+     titlebar's redock drag source is disabled; see suppressTitlebarGroupDrag).
+     Dragging against an edge magnetizes the window flush (LIVE MAGNET in
+     transformFloatingGroupDrag) — it never docks into the grid. */
+  .layoutArea .dv-floating-titlebar{
+    background-image:linear-gradient(#f8fafc,#e8edf2);
+    background-color:#e8edf2;
+    display:flex;align-items:center;justify-content:center;cursor:grab;
+    overflow:hidden;
+  }
+  .layoutArea .dv-floating-titlebar:active{cursor:grabbing}
+  /* drag-affordance grip: a centered ridged bar (no text — titles and hints
+     live in the tabset tab strips below; the bar only signals "grab here") */
+  .mn-drag-grip{
+    flex:0 0 auto;width:44px;height:12px;border-radius:6px;
+    background:repeating-linear-gradient(90deg,
+      #b7c0c9 0 3px, transparent 3px 7px);
+    opacity:.8;user-select:none;pointer-events:none;
+  }
+  .layoutArea .dv-floating-titlebar:hover .mn-drag-grip,
+  .layoutArea .dv-floating-titlebar:active .mn-drag-grip{opacity:1;background:repeating-linear-gradient(90deg,
+    #8a99a8 0 3px, transparent 3px 7px)}
+  /* tab strip + tabs + sashes */
+  .layoutArea .dv-tabs-and-actions-container{border-bottom:1px solid var(--line-soft)}
+  .layoutArea .dv-tab{border-radius:5px 5px 0 0}
+  .layoutArea .dv-sash{background:#ccd3da}
+  .layoutArea .dv-sash.dv-enabled:hover,.layoutArea .dv-sash.dv-enabled.dv-active-sash{background:var(--accent)}
+  /* Per-tabset-height takeover (see "absolute per-tabset heights" below):
+     the pin model (min==max on every member) makes dockview's stock
+     sash-enablement logic mark float-window sashes dv-disabled — with an
+     all-pinned splitview no view can give or take space, so stock disables
+     the sash and the cursor falls back to default. OUR takeover drag
+     resizes them regardless (pin + window reposition), so restore the
+     resize affordance for sashes inside float windows: always show the
+     ns-resize cursor and the hover accent. */
+  .layoutArea .dv-resize-container .dv-split-view-container > .dv-sash-container > .dv-sash{cursor:ns-resize;background:#ccd3da}
+  .layoutArea .dv-resize-container .dv-split-view-container > .dv-sash-container > .dv-sash:hover,
+  .layoutArea .dv-resize-container .dv-split-view-container > .dv-sash-container > .dv-sash.dv-active-sash{background:var(--accent)}
+
+  /* edge-snap indicator retired (snapping removed) — kept: none */
+
+  /* drop-zone suppression while an unwrap/wrap-claimed drag hovers the doc
+     grid: every zone there means "undock into a new window", so the stock
+     center/left/right/tab-strip indicators are inert. Hide ALL zone overlays
+     in the layout area, then re-show the ones inside FLOAT windows (real
+     stacking/merge targets — their gridviews are nested in
+     .dv-resize-container; the main grid's are not). */
+  .layoutArea.mn-unwrap-hover .dv-drop-target-selection,
+  .layoutArea.mn-unwrap-hover .dv-drop-target-dropzone,
+  .layoutArea.mn-unwrap-hover .dv-drop-target-anchor,
+  .layoutArea.mn-unwrap-hover .dv-drop-target-container{display:none !important}
+  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-selection,
+  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-dropzone,
+  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-anchor,
+  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-container{display:block !important}
+
+  /* ---- panel content ---- */
+  .panelwrap{height:100%;overflow:auto;background:#fff;font-size:12px;padding:10px 12px}
+  .panelwrap.docwrap{overflow:auto;background:#e3e7eb;padding:16px 12px 56px}
+  .osearch{display:block;width:100%;border:1px solid var(--line);border-radius:6px;
+           padding:4px 8px;font-size:11.5px;color:var(--faint);margin-bottom:10px}
+  .o-node{display:block;padding:3px 8px;border-radius:6px;color:var(--ink);cursor:pointer}
+  .o-node.sub{padding-left:22px;color:var(--muted)}
+  .o-node:hover{background:var(--chrome)}
+  .o-node.sel{background:var(--accent-bg);color:var(--accent-ink);font-weight:600}
+  .o-node .otag{font-size:10px;color:var(--faint);font-family:var(--mono);margin-left:4px}
+  .o-node.floating{color:var(--derive-ink);font-style:italic}
+  .bib-row{display:flex;gap:8px;align-items:baseline;padding:5px 0;
+           border-top:1px dashed var(--line-soft);cursor:pointer}
+  .bib-row:first-of-type{border-top:none}
+  .bib-row .docid{font:11px var(--mono);color:var(--ink);flex:0 0 118px}
+  .bib-row .bt{font-size:11px;color:var(--muted);flex:1;min-width:0;
+               white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bib-row:hover{background:#f6f9fc}
+  .pfoot{font:10px var(--mono);color:var(--faint);margin-top:7px;
+         border-top:1px solid var(--line-soft);padding-top:6px}
+  .pfilter{display:block;width:100%;border:1px solid var(--line);border-radius:6px;
+           padding:5px 9px;font-size:11.5px;color:var(--ink);background:#fff;margin-bottom:7px}
+  .pfilter::placeholder{color:var(--faint)}
+  .iss{display:flex;gap:8px;align-items:baseline;padding:5px 0;font-size:11.5px}
+  .iss .sev{flex:0 0 8px;width:8px;height:8px;border-radius:50%;margin-top:2px}
+  .sev.err{background:var(--err)} .sev.warn{background:var(--warn-line)}
+  .iss .txt{flex:1;line-height:1.35}
+  .iss .txt b{font-weight:600}
+  .iss .jump{color:var(--accent-ink);cursor:pointer;font-size:11px;white-space:nowrap}
+  .mono10{font-family:var(--mono);font-size:10px}
+  .node-pill{font:700 10.5px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;
+             color:var(--accent-ink);background:var(--accent-bg);border:1px solid #c4d7f7;
+             border-radius:5px;padding:4px 8px;display:inline-block}
+  .anchor-ref{font:11.5px var(--mono);color:var(--muted);margin-left:6px}
+  .field{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;align-items:start;
+         padding:4px 0}
+  .field>label{font-size:11px;color:var(--muted);padding-top:4px}
+  .ctl input[type=text],.ctl .selbox{width:100%;border:1px solid var(--line);border-radius:6px;
+       padding:4.5px 8px;font-size:12px;background:#fff;color:var(--ink)}
+  .ctl .selbox{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+  .ctl .selbox::after{content:"▾";color:var(--faint);font-size:10px}
+  .ctl input[readonly]{background:#f4f6f8;color:var(--muted);font-family:var(--mono);font-size:11px}
+  .fnote{font-size:10px;color:var(--faint);margin-top:3px;line-height:1.4}
+  .kv{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;padding:3px 0;font-size:11.5px}
+  .kv .k{color:var(--muted)}
+  .kv .v{color:var(--ink)}
+  .hatched{background:repeating-linear-gradient(-45deg,#fafbfc,#fafbfc 6px,#f4f6f8 6px,#f4f6f8 12px);
+           height:100%}
+  .derived-note{font-size:10px;color:var(--faint);font-style:italic;margin-top:7px;line-height:1.45}
+  .prow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .pick{display:inline-flex;gap:6px;align-items:center;font-size:11.5px;
+        border:1px solid #c4d7f7;background:var(--accent-bg);color:var(--accent-ink);
+        border-radius:6px;padding:3.5px 8px;cursor:pointer}
+  .linklike{font-size:11px;color:var(--accent-ink);cursor:pointer}
+  .blink-list{list-style:none;margin:4px 0 0;padding:0}
+  .blink-list li{display:flex;gap:7px;align-items:baseline;font-size:11.5px;
+                 padding:3.5px 0;border-top:1px dashed var(--line-soft)}
+  .blink-list li:first-child{border-top:none}
+  .blink-list .jump{margin-left:auto;color:var(--accent-ink);cursor:pointer;font-size:11px}
+  .blink-list .src{color:var(--faint);font-family:var(--mono);font-size:10px}
+  .ftoggles{display:flex;gap:5px;margin:0 0 7px}
+  .ft{font-size:10.5px;border:1px solid var(--line);border-radius:10px;padding:2.5px 8px;
+      color:var(--faint);background:#fff;cursor:pointer}
+  .ft.on{color:var(--accent-ink);background:var(--accent-bg);border-color:#c4d7f7}
+  .ovrow{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px}
+  .ovrow .lbl{flex:1}
+  .ovrow .lock{font-size:10px;color:var(--faint)}
+  .tg{font:600 10px/1 var(--sans);border-radius:10px;padding:3px 9px;border:1px solid}
+  .tg.on{color:#175c37;background:#e2f3e9;border-color:#b7e0c6}
+  .tg.off{color:var(--faint);background:#f1f3f5;border-color:var(--line)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-top:6px}
+  .seg span{font-size:11px;padding:4px 10px;color:var(--muted);background:#fff}
+  .seg span.on{background:var(--accent-bg);color:var(--accent-ink);font-weight:600}
+
+  /* ---- document page (same language as earlier mocks) ---- */
+  .page{width:848px;margin:0 auto;background:#fff;border:1px solid #d0d6dc;
+        box-shadow:0 3px 14px rgba(20,30,40,.10);padding:38px 44px 64px 26px;
+        font-family:var(--doc);color:#111922;font-size:13.5px;line-height:1.55}
+  .row{display:grid;grid-template-columns:var(--rail-w) minmax(0,1fr);column-gap:20px}
+  .row+.row{margin-top:2px}
+  .rail{position:relative;text-align:right;padding-right:6px;padding-top:.18em}
+  .cell{min-width:0}
+  .mk{display:inline-flex;align-items:center;gap:5px;font:10.5px/1 var(--mono);
+      color:var(--muted);background:#f4f7fa;border:1px solid var(--line-soft);
+      border-radius:20px;padding:3px 8px;cursor:default}
+  .mk b{font-weight:600;color:#4a5560}
+  .mk.hot{border-color:#b9d0f5;background:var(--accent-bg);color:var(--accent-ink)}
+  .mk.hot b{color:var(--accent-ink)}
+  .mk.dot{background:transparent;border-color:transparent;padding:3px 2px;color:var(--faint)}
+  .mk.dot::before{content:"";width:7px;height:7px;border-radius:50%;
+                  border:1.5px solid var(--faint);display:inline-block}
+  .mk.dot.weak::before{border-color:#cfd5da}
+  .mk.selmark{border-color:var(--accent);box-shadow:0 0 0 2px rgba(47,111,219,.15)}
+  .mk-region{font:10.5px/1.25 var(--mono);color:var(--faint);padding-right:6px;cursor:pointer}
+  .badge{display:inline-flex;align-items:center;gap:4px;font:600 10px/1 var(--sans);
+         letter-spacing:.02em;border-radius:4px;padding:2.5px 6px;vertical-align:1px;
+         border:1px solid;cursor:default;white-space:nowrap}
+  .b-shall{color:var(--accent-ink);background:var(--accent-bg);border-color:#c4d7f7}
+  .b-should{color:var(--warn-ink);background:var(--warn-bg);border-color:var(--warn-line)}
+  .b-meta{color:var(--muted);background:#f3f6f8;border-color:var(--line)}
+  .b-warn{color:var(--warn-ink);background:var(--warn-bg);border-color:var(--warn-line);cursor:pointer}
+  .chip-d{display:inline-flex;align-items:center;font:italic 10px/1 var(--sans);
+          color:var(--derive-ink);background:repeating-linear-gradient(45deg,#f6f7f8,#f6f7f8 4px,#eef1f3 4px,#eef1f3 8px);
+          border:1px dashed var(--line);border-radius:4px;padding:2.5px 6px;vertical-align:1px;white-space:nowrap}
+  .ptr{display:inline-flex;align-items:center;gap:3px;font:11.5px var(--sans);
+       color:var(--accent-ink);border-bottom:1px dotted #9db8e4;cursor:pointer;white-space:nowrap}
+  .ptr .arr{font-size:10px}
+  .xref{border-bottom:1px dotted #9db8e4;cursor:pointer}
+  .eref{border-bottom:1px dotted #9db8e4;cursor:pointer;font-style:italic}
+  .broken{color:var(--err);text-decoration:underline wavy var(--err) 1.2px;
+          text-underline-offset:3px;cursor:pointer}
+  .doc-title{font-size:17px;font-weight:700;line-height:1.3;margin:2px 0 2px}
+  .doc-id{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+  h.cl{font-size:14.5px;font-weight:700;margin:20px 0 6px}
+  h.scl{font-size:13.5px;font-weight:700;margin:15px 0 5px}
+  p.body{margin:0 0 9px;text-align:justify}
+  sup.fn{color:var(--accent-ink);cursor:pointer;font-size:10px}
+  .footnote{font-size:11px;color:var(--muted);margin:2px 0 6px}
+  .footnote .fnline{display:inline-block;width:26px;height:1px;background:var(--line);
+                    vertical-align:4px;margin-right:6px}
+  .term-word{font-weight:700}
+  .tsrc{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .req{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;
+       padding:10px 14px 11px;margin:6px 0 10px;background:#fdfefe}
+  .req.rec{border-left-color:var(--warn-line)}
+  .req.selq{outline:2px solid var(--accent);outline-offset:2px;
+            box-shadow:0 0 0 6px rgba(47,111,219,.08)}
+  .req-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .req-kind{font:700 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .req-id{font:11px var(--mono);color:var(--accent-ink);background:var(--accent-bg);
+          border-radius:4px;padding:2px 6px}
+  .req-meta-row{font-size:11.5px;color:var(--muted);margin-top:7px;display:flex;
+                gap:6px;align-items:baseline;flex-wrap:wrap}
+  .req-meta-row .k{font-weight:600;color:#4a5560}
+  .req p{margin:0}
+  .figure{margin:10px 0 12px}
+  .figbox{border:1px solid var(--line);border-radius:6px;height:150px;
+          background:linear-gradient(160deg,#dfe7ee 0%,#cfdbe6 55%,#c2d2e0 100%);
+          display:flex;align-items:center;justify-content:center;color:#8195a6;
+          font-size:12px;letter-spacing:.04em}
+  .figure.small .figbox{height:86px}
+  .figcap{font-size:12px;color:#333c46;margin-top:6px;text-align:center}
+  .figcap b{font-weight:700}
+  .formula{margin:10px 0 12px;text-align:center;font-family:"STIX Two Math",Georgia,serif;
+           font-size:15px;font-style:italic}
+  .figtools{display:flex;gap:6px;justify-content:center;margin-top:6px;flex-wrap:wrap}
+  table.mn{border-collapse:collapse;margin:8px 0 4px;font-size:12.5px;width:100%}
+  table.mn th,table.mn td{border:1px solid #c9d1d8;padding:4.5px 9px;text-align:left}
+  table.mn th{background:#eef2f5;font-weight:600}
+  .tblcap{font-size:12px;color:#333c46;margin:6px 0 2px;text-align:center}
+  .note{border-left:3px solid #b8c4cf;background:#f6f8fa;font-size:12px;
+        padding:7px 11px;margin:8px 0;border-radius:0 6px 6px 0}
+  .bibdata-strip{display:flex;align-items:center;gap:14px;border:1px solid #c8d9ee;
+                 border-left:4px solid var(--accent);background:linear-gradient(90deg,#f2f7fd,#fbfdff);
+                 border-radius:8px;padding:10px 14px;margin-bottom:10px;cursor:pointer}
+  .bibdata-strip .tag{font:600 9.5px/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;
+                      color:var(--accent-ink);background:#fff;border:1px solid #c4d7f7;
+                      border-radius:4px;padding:3px 6px}
+  .bibdata-strip .id{font:700 13px var(--doc)}
+  .bibdata-strip .sub{font-size:11px;color:var(--muted)}
+  .bibdata-strip .grow{flex:1}
+  .tds-row{display:flex;align-items:center;gap:7px;margin:0 0 16px;font-size:11px;color:var(--muted)}
+  .tds-row .tag{font:600 9.5px/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;
+                color:var(--muted);background:#fff;border:1px solid var(--line);
+                border-radius:4px;padding:3px 6px}
+  .bib-item{display:flex;gap:10px;align-items:baseline;margin:0 0 8px;cursor:pointer}
+  .bib-item .n{font-family:var(--mono);font-size:11.5px;color:var(--muted);flex:0 0 26px}
+  .bib-item .t{flex:1;font-size:12.5px}
+  .bib-item .t em{font-style:italic}
+  .bib-side{display:flex;gap:5px;flex:0 0 auto}
+  h.floating{font-size:13.5px;font-weight:700;font-style:italic;color:#2c3641;margin:18px 0 5px}
+</style>
+
+
+</head>
+<body>
+<div id="boot">Failed to load from CDN: Failed to fetch dynamically imported module: https://esm.sh/react@19.2.8?target=es2022
+
+This page imports react@19 + dockview v7 from esm.sh/unpkg and needs network access.</div>
+<div id="root"></div>
+
+
+
+
+</body></html>
