@@ -45,6 +45,29 @@ Dependencies
   or some downstream package’s own specification. The above commands
   make it possible to narrow down the cause.
 
+Integration surfaces
+^^^^^^^^^^^^^^^^^^^^
+
+- When a feature builds on a library’s extension mechanism — ProseMirror
+  plugins, decorations, node views, clipboard/DOM serializers, editor
+  props — verify the mechanism against the version **installed in this
+  repo** (the Yarn PnP zips under ``.yarn/cache``), not against upstream
+  docs, examples, or memory. The installed version is the only one whose
+  behaviour counts.
+
+- Verify **every layer the feature touches**, not just the library called
+  directly. Wrapper libraries carry their own pipelines:
+  ``@handlewithcare/react-prosemirror``, for example, draws plugin
+  decorations only through a ``props.decorations`` hook (a
+  ``DecorationSet`` held in plugin state renders nothing) and wraps every
+  native widget decoration in a ``<span>``, so a widget is never a direct
+  child of its parent element — ``table:has(> colgroup)`` CSS and
+  ``:scope >`` DOM queries silently match nothing.
+
+- Record non-obvious behavior in a code comment
+  where it was verified (package, file, what it does), so the assumption
+  can be re-checked after dependency upgrades.
+
 Types & schema
 ^^^^^^^^^^^^^^
 
