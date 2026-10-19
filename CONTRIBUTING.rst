@@ -158,51 +158,44 @@ Style guidelines
 Verification
 ~~~~~~~~~~~~
 
-What to run before submitting, by what a change touches:
+What CI runs on every PR:
+``yarn check-specs`` and ``yarn build-gui``.
 
-- **Specs or docs** (``docs/**/*.md``, ``pkg/*/README.spec.md``) —
+More specifically, check the following before submitting:
+
+- Specs/docs (``docs/**/*.md``, ``pkg/*/README.spec.md``):
   ``yarn check-specs`` (CI-enforced on every PR). Before changing a
   spec that other docs link to, run ``yarn spec-impact <spec-path.md>``
   and review the listed dependents (``docs/CONVENTIONS.md`` §7).
 
-- **Any code under ``pkg/``** — ``yarn workspace <name> compile``
-  type-checks and emits for one workspace (names below);
-  ``yarn workspaces foreach -A run compile`` compiles all of them.
-
-- **Unit tests** — ``yarn test`` runs every suite in one command.
-  Three packages have unit tests today (``editor-commands``,
-  ``prosemirror-minimap``, ``relaton``); the rest have none, so a green
-  ``yarn test`` means those three suites passed.
-
-- **Browser e2e** (not CI-enforced) — ``yarn workspace editor-gui e2e``
-  and ``yarn workspace @metanorma/prosemirror-minimap e2e``. Each suite
-  builds its own target via Playwright's ``webServer`` and serves it;
-  the only prerequisite is the one-time browser install,
-  ``yarn workspace <pkg> e2e:install``.
-
-- **Plugins that render DOM** (widgets, node views, decorations) —
-  a change that adds or modifies one wires it into the GUI app and
-  extends ``pkg/editor-gui/e2e/plugin-smoke.spec.ts`` **in the same
-  change**; rendering verification is not deferred to interaction-level
-  e2e. The smoke asserts what the plugin draws (widget presence,
-  placement, layout effects) with no interaction; feature specs own
-  interaction semantics. Rationale: the table column-resize work shipped
-  three renderer-integration bugs (decorations drawn only via
-  ``props.decorations``; native widgets wrapped in ``<span>``, never
-  direct children; React committing widget DOM asynchronously to PM
-  update hooks) — all three are smoke-level failures, none is
-  discoverable from unit tests.
-
-- **Dependencies added or upgraded** — run ``yarn`` and check for the
+- Dependency graph: run ``yarn`` and check for the
   duplicate-instance error at the end (see the dependency policy above),
-  then ``yarn check-for-multiple-instances`` (narrow with
+  then ``yarn check-for-multiple-instances`` (narrow it down with
   ``yarn why <pkg>``) and ``yarn constraints`` (dependency ranges
   consistent across workspaces; note it currently fails at baseline on
   a pre-existing ``prosemirror-model`` range conflict, unrelated to
   new work).
 
-- **Whole-repo quick gate** — what CI runs on every PR:
-  ``yarn check-specs`` and ``yarn build-gui``.
+- Any code under ``pkg/``: ``yarn workspace <name> compile``
+  type-checks and emits for one workspace (names below);
+  ``yarn workspaces foreach -A run compile`` compiles all of them.
+
+- Unit tests: ``yarn test`` runs every suite in one command.
+  Three packages have unit tests today (``editor-commands``,
+  ``prosemirror-minimap``, ``relaton``); the rest have none, so a green
+  ``yarn test`` means those three suites passed.
+
+- Browser e2e (not CI-enforced): ``yarn workspace editor-gui e2e``
+  and ``yarn workspace @metanorma/prosemirror-minimap e2e``. Each suite
+  builds its own target via Playwright's ``webServer`` and serves it;
+  the only prerequisite is the one-time browser install,
+  ``yarn workspace <pkg> e2e:install``.
+
+- DOM-rendering plugins (widgets, node views, decorations): wire the
+  plugin into the GUI app and extend
+  ``pkg/editor-gui/e2e/plugin-smoke.spec.ts`` in the same change. The
+  smoke asserts rendering only (widget presence, placement, layout
+  effects) — interaction-level e2e does not substitute for it.
 
 Workspace inventory (all under ``pkg/``; used by the
 ``yarn workspace <name>`` commands above):
