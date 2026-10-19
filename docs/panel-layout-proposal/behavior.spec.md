@@ -5,14 +5,14 @@
 This document specifies the **behavior states of the panel layout GUI** —
 window chrome, tabsets, tabs, sashes, drop zones, drag/drop semantics,
 persistence, focus, and viewport behavior — as realized in the live mock
-[`mockups/editor-dockview7-floats.html`](../../mockups/editor-dockview7-floats.html)
+[`editor-dockview7-floats.html`](./editor-dockview7-floats.html)
 (dockview v7.0.4, floating "tabset group" mini-windows). The older
 [`mockups/editor-flexlayout-floats.html`](../../mockups/editor-flexlayout-floats.html)
 is the visual-language reference and is cited where both mocks share an
 artifact.
 
 All `:NNN` line references point into
-`mockups/editor-dockview7-floats.html`.
+`editor-dockview7-floats.html`.
 
 **Scope.** Panel **chrome and layout behavior** is the reference contract.
 Panel **content is out of scope**: the panel bodies in the mock are
@@ -139,7 +139,7 @@ the emptied state. HP9 restores.
 | **A. Loading** | | | |
 | A1 Boot pending | Page open, modules unresolved | `#boot` full-viewport #22262c overlay, centered gray text "Loading React + dockview v7 from CDN (esm.sh/unpkg)…" (:47, :345) | Same artifact in both mocks; no spinner; removed only after render (:1564) |
 | A2 Slow CDN | Import latency | Same overlay, indefinite; `#root` empty behind | No timeout/retry |
-| A3 CDN failure | Any `await import` throws | Overlay text → `Failed to load from CDN: <msg>` + instructions (:1566–1568) | **Frame: `mockups/states/cdn-failure.html`** — dark overlay + real copy, no other chrome |
+| A3 CDN failure | Any `await import` throws | Overlay text → `Failed to load from CDN: <msg>` + instructions (:1566–1568) | **Frame: `states/cdn-failure.html`** — dark overlay + real copy, no other chrome |
 | A4 First hydration | No layout in storage | Preset; members 1–2 frames oversubscribed ([257,117,100] vs pins [244,132,74], :904) then pin pass settles | Grips may appear ≤500ms late (interval net, :1496) |
 | A5 Reload, persisted layout | Valid storage keys | Saved window rects + saved per-tabset heights (`loadHeights` → pin pass) | `normalizeTops` keeps serialization `{top}`-only (:1133) |
 | A6 Corrupted layout JSON | Parse throws / `j.grid` falsy | Silent fallback to preset (:665–672) | min: statusbar flash "layout restored to preset" |
@@ -147,7 +147,7 @@ the emptied state. HP9 restores.
 | A8 Stale group ids in heights | Windows closed since save | Ignored; map rebuilt from live members (:898) | Cosmetic only |
 | A9 fromJSON throws mid-restore | Structurally bad saved JSON | **not implemented** — dockview logs 'failed to deserialize layout. Reverting changes', clears, rethrows → React unmounts → blank page | min: try/catch → `fromJSON(presetLayout())` |
 | **B. Empty** | | | |
-| B1 All panels closed incl. doc | Every tab ✕'d | Floats dispose as they empty; grid shows stock watermark = bare `div.dv-watermark`, zero text; toolbar/statusbar remain | **Frame: `mockups/states/empty-editor.html`** — existing chrome + pasteboard + faint "Reset restores the preset" hint (hint itself not implemented) |
+| B1 All panels closed incl. doc | Every tab ✕'d | Floats dispose as they empty; grid shows stock watermark = bare `div.dv-watermark`, zero text; toolbar/statusbar remain | **Frame: `states/empty-editor.html`** — existing chrome + pasteboard + faint "Reset restores the preset" hint (hint itself not implemented) |
 | B2 Last float window closes | Last tab of a window | Window vanishes; layout auto-saves | No animation |
 | B3 Tabset just before disposal | Second-to-last tab closed | Normal tabset at pinned height; last close removes row + its sash | No intermediate state exists |
 | B4 Tabset at MIN_TS_H | Drag to 36px floor (:758) | 24px titlebar + 30px tab strip + ~6px content sliver | Sash hover accent is the only expand cue |
@@ -185,7 +185,7 @@ the emptied state. HP9 restores.
 | H1 `dir=rtl` | Hypothetical | **not supported.** Tab strip order, `clampDragBox` physical left/top (:1140), float overlay positioning, gradient directions (:203, :310) all LTR | Bidirectional build: logical properties, direction-aware clamp, mirrored gradients, dockview RTL verification |
 | **I. Narrow viewport** | | | |
 | I1 <~1400px | Narrow browser | Inspector (left:1050,w:320) hangs off-right; stock clamp disabled by 0-minimums (:1543) | min: clamp saved `left` on load |
-| I2 <~800px | Phone-class | Floats overlap on tiny pasteboard; toolbar flex no-wrap (:57) → buttons clip; statusbar `.live` wraps tall | **Frame (FUTURE): `mockups/states/narrow-viewport.html`** — ≤720px single-window/tabbed collapsed variant, icon toolbar, hint hidden |
+| I2 <~800px | Phone-class | Floats overlap on tiny pasteboard; toolbar flex no-wrap (:57) → buttons clip; statusbar `.live` wraps tall | **Frame (FUTURE): `states/narrow-viewport.html`** — ≤720px single-window/tabbed collapsed variant, icon toolbar, hint hidden |
 | I3 Touch | Touch device | Pointer DnD works; 24px titlebar under-tuned | Out of scope |
 | **J. Motion** | | | |
 | J1 Drag ghost | Any tab drag | Stock pointer-DnD ghost, unthemed | — |
@@ -197,8 +197,9 @@ the emptied state. HP9 restores.
 | J7 Reduced motion | `prefers-reduced-motion` | **not implemented** — no media query anywhere | min: kill J4/J5 transitions under the query |
 
 **Frames recommended** (3, static only, not yet created):
-`mockups/states/cdn-failure.html`, `mockups/states/empty-editor.html`,
-`mockups/states/narrow-viewport.html` (labeled FUTURE).
+`panel-layout-proposal/states/cdn-failure.html`,
+`panel-layout-proposal/states/empty-editor.html`,
+`panel-layout-proposal/states/narrow-viewport.html` (labeled FUTURE).
 
 ## 4. Default / initial values
 
