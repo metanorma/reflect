@@ -1287,7 +1287,8 @@ docks the toolbar and sidebar today.
 | `createMinimap` | function | §7.1 |
 | `getMinimapController` | function (`(view) => MinimapController \| null`) | §7.1 |
 | `Minimap` | React component | §11 |
-| `MinimapOptions`, `MinimapClassifier`, `RowSpec`, `HeightStrategy`, `MinimapTheme`, `LayerDeclaration`, `LayerSpans`, `RowSpan`, `BlockRow`, `DisplayMode`, `Renderer`, `TieredRenderer`, `MinimapView`, `MinimapTr`, `EpochInputs`, `BlockHoverInfo` | types | §5, §6, §8, §7 |
+| `MinimapOptions`, `MinimapClassifier`, `RowSpec`, `HeightStrategy`, `MinimapTheme`, `LayerDeclaration`, `LayerSpans`, `RowSpan`, `BlockRow`, `DisplayMode`, `Renderer`, `TieredRenderer`, `EpochInputs`, `BlockHoverInfo` | types | §5, §6, §8 |
+| `MinimapView` (alias of `EditorView`), `MinimapTr` (`Pick<Transaction, 'docChanged' \| 'doc' \| 'mapping'>`) | thin aliases defined in §7.1/§7.2 | §7 |
 | `defaultClassifier`, `defaultTheme` | constants | §5.2, §5.4 |
 | `flatten`, `flattenAll`, `countRows`, `diffRows`, `diffBounds`, `rowAt` | pure functions (testing/introspection) | §4.1, §6.1, §7.2 |
 | `InlineRenderer`, `RecordingRenderer`, `planPaint`, `DrawCall` | classes/function/type (test surface) | §8.3 |
