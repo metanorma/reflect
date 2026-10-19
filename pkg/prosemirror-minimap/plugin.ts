@@ -19,7 +19,8 @@
  */
 
 import { Plugin, PluginKey } from 'prosemirror-state';
-import type { EditorState, Transaction } from 'prosemirror-state';
+import type { Transaction } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
 
 import { MinimapController } from './controller.js';
 import type { MinimapOptions, MinimapTr, MinimapView } from './types.js';
@@ -42,9 +43,8 @@ interface TrSlot {
 }
 
 /**
- * The structural `MinimapTr` view of a real `Transaction`: the slice the
- * controller consumes (§7.2). Crosses the dual-instance boundary the same
- * way `MinimapView` does.
+ * The `MinimapTr` slice of a real `Transaction`: what the controller
+ * consumes (§7.2).
  */
 function structural(tr: Transaction): MinimapTr {
   return {
@@ -84,11 +84,7 @@ export function createMinimap(options?: MinimapOptions): Plugin {
       },
     },
     view(editorView) {
-      // The real EditorView satisfies the structural `MinimapView` seam
-      // (types.ts) at runtime; the nominal dual-instance mismatch between
-      // prosemirror-view 1.42.0/1.42.1 in this repo's PnP graph is bridged
-      // here, once.
-      const view = editorView as unknown as MinimapView;
+      const view: EditorView = editorView;
       const controller = new MinimapController(view, opts);
       registry.set(view, controller);
       controller.start();
@@ -102,7 +98,7 @@ export function createMinimap(options?: MinimapOptions): Plugin {
             ? structural(slot.tr)
             : null;
           controller.update(
-            (v as unknown as MinimapView).state as EditorState,
+            v.state,
             tr,
           );
         },

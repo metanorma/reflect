@@ -6,9 +6,8 @@
  * Run: yarn workspace @metanorma/editor-commands test
  *
  * Uses Node's built-in `node:test` + `node:assert` — no test framework dep.
- * Pure JS (.mjs) so it runs directly under Node without a TypeScript loader
- * (and without the prosemirror-view 1.42.0/1.42.1 nominal-type split that a
- * TS build would resurface). Imports from ./compiled/ — the `pretest` script
+ * Pure JS (.mjs) so it runs directly under Node without a TypeScript loader.
+ * Imports from ./compiled/ — the `pretest` script
  * compiles first, so tests never run against stale output.
  *
  * Scope: the pure COMMAND layer — sibling insertSection semantics (§5.2),

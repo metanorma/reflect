@@ -38,7 +38,7 @@ import { baseKeymap } from 'prosemirror-commands';
 import { keymap } from 'prosemirror-keymap';
 
 import { createMinimap, Minimap } from '../index.js';
-import type { MinimapClassifier, MinimapOptions, MinimapView } from '../types.js';
+import type { MinimapClassifier, MinimapOptions } from '../types.js';
 import { docFromJson } from './schema.js';
 
 /** DOM id on the editor viewport — the overlay's `aria-controls` (§9.1). */
@@ -190,7 +190,7 @@ function mount(spec: MountSpec): void {
   root = createRoot(pane);
   root.render(
     React.createElement(Minimap, {
-      view: view as unknown as MinimapView,
+      view,
       options,
       editorViewportId: EDITOR_VIEWPORT_ID,
       style: { width: '100%', height: '100%' },

@@ -26,28 +26,8 @@
  */
 
 import { Plugin, PluginKey, TextSelection } from "prosemirror-state";
-import type { Node as PMNode, Mark as PMMark } from "prosemirror-model";
-
-/**
- * Minimal structural view type.
- *
- * Not `EditorView`: this repo's PnP graph resolves `prosemirror-view` 1.42.0
- * (pinned direct dep) and 1.42.1 (`prosemirror-state`'s peer range) as
- * SEPARATE instances, so `EditorView` types are nominally incompatible across
- * package boundaries. The plugin only needs `dom`, `posAtDOM`, `state`, and
- * `dispatch` — all present on both.
- */
-interface ViewLike {
-  readonly dom: HTMLElement;
-  readonly state: {
-    readonly doc: PMNode;
-    readonly selection: import("prosemirror-state").Selection;
-    readonly storedMarks: PMMark[] | null;
-    readonly tr: import("prosemirror-state").Transaction;
-  };
-  posAtDOM(node: Node, offset: number): number;
-  dispatch(tr: unknown): void;
-}
+import type { Node as PMNode } from "prosemirror-model";
+import type { EditorView } from "prosemirror-view";
 
 /** DOM event target → nearest element (self if already an element). */
 function elementOf(node: EventTarget | null): HTMLElement | null {
@@ -62,7 +42,7 @@ function elementOf(node: EventTarget | null): HTMLElement | null {
  * the state that shows the CSS placeholder), return its caret position.
  * `null` otherwise.
  */
-function emptyTextblockPos(view: ViewLike, target: EventTarget | null): number | null {
+function emptyTextblockPos(view: EditorView, target: EventTarget | null): number | null {
   const el = elementOf(target);
   if (el === null || !view.dom.contains(el)) return null;
 
@@ -100,7 +80,7 @@ export function placeholderClickPlugin(): Plugin {
             || mouse.ctrlKey || mouse.metaKey) return false;
           if ((event as MouseEvent & { detail?: number }).detail !== 1) return false;
 
-          const v = view as unknown as ViewLike;
+          const v = view;
           const pos = emptyTextblockPos(v, mouse.target);
           if (pos === null) return false;
 

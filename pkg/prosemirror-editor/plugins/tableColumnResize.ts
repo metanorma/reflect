@@ -61,24 +61,9 @@
 import { Plugin, PluginKey } from "prosemirror-state";
 import type { EditorState, Transaction } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
+import type { EditorView } from "prosemirror-view";
 import { DOMSerializer } from "prosemirror-model";
 import type { Node as PMNode } from "prosemirror-model";
-
-/**
- * Minimal structural view type (same rationale as placeholderClick.ts): the
- * PnP graph resolves prosemirror-view 1.42.0 (pinned direct dep) and 1.42.1
- * (prosemirror-state's peer range) as separate instances, so `EditorView`
- * types are nominally incompatible across package boundaries. This plugin
- * needs `dom`, `state`, `dispatch`, `editable`, and `posAtDOM` only.
- */
-interface ViewLike {
-  readonly dom: HTMLElement;
-  readonly editable: boolean;
-  readonly state: EditorState;
-  posAtDOM(node: Node, offset: number): number;
-  dispatch(tr: Transaction): void;
-  focus(): void;
-}
 
 import { metanormaSchema, tableGridColumnCount } from "@metanorma/prosemirror-schema";
 import { setColumnWidths, MIN_COLUMN_WIDTH_PX } from "@metanorma/editor-commands";
@@ -455,7 +440,7 @@ function previewDrag(d: DragState): void {
 }
 
 /** Commit the drag: exactly one transaction via the pure command. */
-function finishDrag(view: ViewLike): void {
+function finishDrag(view: EditorView): void {
   const d = drag;
   if (d === null) return;
   drag = null;
@@ -475,7 +460,7 @@ function finishDrag(view: ViewLike): void {
 
 /** Begin a gesture from a pointerdown on a handle (delegated listener). */
 function beginDrag(
-  view: ViewLike,
+  view: EditorView,
   handle: HTMLElement,
   ev: PointerEvent,
   tablePos: number,
@@ -562,7 +547,8 @@ export function tableColumnResizePlugin(): Plugin {
       // prosemirror-view and react-prosemirror's renderer gather decorations
       // ONLY through this prop — a DecorationSet held in plugin state alone
       // never draws (the prosemirror-tables pattern: prop reads key state).
-      // (Return-typed loosely for the same nominal-split reason as ViewLike.)
+      // (Return-typed loosely to satisfy both stock prosemirror-view and
+      // react-prosemirror's renderer prop shapes.)
       decorations: ((state: EditorState): unknown =>
         tableColumnResizeKey.getState(state) ?? DecorationSet.empty) as never,
     },
@@ -579,7 +565,7 @@ export function tableColumnResizePlugin(): Plugin {
       },
     },
     view: (viewUntyped: unknown) => {
-      const view = viewUntyped as ViewLike;
+      const view = viewUntyped as EditorView;
       // One delegated pointerdown listener for every handle in the editor.
       const onPointerDown = (ev: Event): void => {
         if (!(ev instanceof PointerEvent)) return;

@@ -81,11 +81,7 @@ export const MinimapPane = React.memo(function MinimapPane() {
   const [view, setView] = useState<MinimapView | null>(null);
 
   useEditorEffect((v) => {
-    // The real EditorView satisfies the structural `MinimapView` seam at
-    // runtime; the nominal prosemirror-view 1.42.0/1.42.1 dual-instance
-    // mismatch in this repo's PnP graph is bridged here, once (same
-    // pattern as the minimap package's own plugin.ts).
-    const minimapView = v as unknown as MinimapView;
+    const minimapView = v;
     // `aria-controls` target for the overlay (§9.1) — stable id on the
     // scroll container itself.
     if (v.dom.id === '') {

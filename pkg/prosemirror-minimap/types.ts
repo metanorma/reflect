@@ -10,7 +10,8 @@
  */
 
 import type { Node } from 'prosemirror-model';
-import type { EditorState } from 'prosemirror-state';
+import type { Transaction } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
 
 
 // ---------------------------------------------------------------------------
@@ -26,32 +27,17 @@ export interface Coords {
 }
 
 /**
- * Minimal structural editor-view type.
- *
- * Not `EditorView`: this repo's PnP graph resolves `prosemirror-view`
- * 1.42.0 (pinned direct dep) and 1.42.1 (`prosemirror-state`'s peer range)
- * as separate instances, so `EditorView` types are nominally incompatible
- * across package boundaries. The controller needs `dom`, `state`,
- * `nodeDOM`, and `coordsAtPos` — all present on both.
+ * The editor view. A thin alias: the workspace resolves a single
+ * `prosemirror-view` instance (every lockfile descriptor resolves to the same
+ * locator), so `EditorView` is the shared type across package boundaries.
  */
-export interface MinimapView {
-  readonly dom: HTMLElement;
-  readonly state: EditorState;
-  nodeDOM(pos: number): HTMLElement | ChildNode | null;
-  coordsAtPos(pos: number, side?: number): Coords;
-}
+export type MinimapView = EditorView;
 
 /**
- * The transaction seam (§7.2): the structural slice of a ProseMirror
- * `Transaction` the controller consumes. Structural so the plugin's
- * state slot (which captures the real transaction) crosses the same
- * dual-instance boundary as `MinimapView`.
+ * The transaction slice the controller consumes (§7.2): whether the doc
+ * changed, the changed doc, and the position mapping.
  */
-export interface MinimapTr {
-  readonly docChanged: boolean;
-  readonly doc: Node;
-  readonly mapping: { map(pos: number, assoc?: number): number };
-}
+export type MinimapTr = Pick<Transaction, 'docChanged' | 'doc' | 'mapping'>;
 
 
 // ---------------------------------------------------------------------------
