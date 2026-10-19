@@ -10,7 +10,15 @@
  * drag hygiene (caret stability under handle pointer events).
  */
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, getDoc, clickBodyParagraph } from './helpers.js';
+import {
+  openEditor,
+  toolbarButton,
+  getDoc,
+  clickBodyParagraph,
+  dispatchCopy,
+  dispatchPasteHtml,
+  selectAllInEditor,
+} from './helpers.js';
 
 /** Insert an r×c table via the grid picker; cursor lands in the caption. */
 async function insertTable(page: import('@playwright/test').Page, rows: number, cols: number): Promise<void> {
@@ -78,30 +86,6 @@ async function dragEdge(
   await page.mouse.down();
   await page.mouse.move(x + dx, y, { steps: 8 });
   await page.mouse.up();
-}
-
-/** Dispatch a synthetic paste ClipboardEvent with text/html on the editor. */
-async function pasteHtml(page: import('@playwright/test').Page, html: string): Promise<void> {
-  await page.evaluate((payload: string) => {
-    const dt = new DataTransfer();
-    dt.setData('text/html', payload);
-    const target = document.querySelector('.mn-prosemirror .ProseMirror')!;
-    target.dispatchEvent(
-      new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }),
-    );
-  }, html);
-}
-
-/** Dispatch a synthetic copy and return the serialized text/html payload. */
-async function copyHtml(page: import('@playwright/test').Page): Promise<string> {
-  return page.evaluate(() => {
-    const dt = new DataTransfer();
-    const target = document.querySelector('.mn-prosemirror .ProseMirror')!;
-    target.dispatchEvent(
-      new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }),
-    );
-    return dt.getData('text/html');
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +207,7 @@ test.describe('colgroup ingest', () => {
       '<col width="16.67%"><col width="16.67%"><col width="16.67%">' +
       '<col width="16.67%"><col width="16.67%"><col width="16.67%">' +
       '</colgroup><tbody><tr><td>a</td><td>b</td><td>c</td><td>d</td><td>e</td><td>f</td></tr></tbody></table>';
-    await pasteHtml(page, html);
+    await dispatchPasteHtml(page, html);
 
     const w = await tableWidths(page);
     expect(w).not.toBeNull();
@@ -311,26 +295,14 @@ test.describe('clipboard', () => {
     await page.waitForTimeout(250);
 
     // Copy: select the whole doc, dispatch synthetic copy, inspect the HTML.
-    // Selection via execCommand('selectAll') on the focused PM root — it
-    // drives the DOM selection ProseMirror observes, so PM's own selection
-    // state syncs (a keyboard Control+A can be consumed by the browser's
-    // native select-all without updating PM state, and the copy handler
-    // serializes from PM state, yielding an empty slice). The select+copy
-    // pair retries: immediately after the toolbar interaction PM's focus
-    // bookkeeping can still be settling, and a first attempt may serialize
-    // an empty slice — a fresh select heals it.
+    // The select+copy pair retries: immediately after the toolbar
+    // interaction PM's focus bookkeeping can still be settling, and a first
+    // attempt may serialize an empty slice — a fresh select heals it.
     let html = '';
     for (let attempt = 0; attempt < 3 && !html.includes('data-colwidths'); attempt++) {
       await page.locator('tbody td').first().click();
-      await page.evaluate(() => {
-        const target = document.querySelector('.mn-prosemirror .ProseMirror');
-        target?.focus();
-        document.execCommand('selectAll');
-      });
-      await expect
-        .poll(() => page.evaluate(() => (window.getSelection()?.toString().length ?? 0)), { timeout: 5_000 })
-        .toBeGreaterThan(0);
-      html = await copyHtml(page);
+      await selectAllInEditor(page);
+      html = await dispatchCopy(page);
     }
     expect(html).toContain('data-colwidths');
     expect(html).toContain('33.33');
@@ -343,7 +315,7 @@ test.describe('clipboard', () => {
     for (let attempt = 0; attempt < 3 && tables.length < 2; attempt++) {
       await page.locator('.mn-prosemirror .ProseMirror p').first().click({ force: true });
       await page.keyboard.press('End');
-      await pasteHtml(page, html);
+      await dispatchPasteHtml(page, html);
       const doc = (await getDoc(page)) as any;
       tables = [];
       const walk = (node: any): void => {
@@ -368,7 +340,7 @@ test.describe('clipboard', () => {
     // opens inside the table — the documented partial-copy case).
     const firstCell = page.locator('tbody tr td').first();
     await firstCell.click({ clickCount: 3 });
-    const html = await copyHtml(page);
+    const html = await dispatchCopy(page);
     // The serialized fragment carries no table-level widths (rows only).
     expect(html).not.toContain('data-colwidths');
 
@@ -376,7 +348,7 @@ test.describe('clipboard', () => {
     // exactly one colgroup in the DOM.
     await page.locator('table > caption').click({ force: true });
     await page.keyboard.press('Control+End');
-    await pasteHtml(page, html);
+    await dispatchPasteHtml(page, html);
 
     const w = await tableWidths(page);
     expect(w).toEqual(['50.00%', '50.00%']);

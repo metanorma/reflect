@@ -78,7 +78,7 @@ test.describe('table captions', () => {
     // Enter inside the caption descends into the first cell. The Bold click
     // left focus on the toolbar button — click back into the caption first
     // (keyboard.press targets the focused element; Enter on the button would
-    // re-toggle Bold instead).
+    // re-toggle Bold instead). Interaction rule #2 in helpers.ts's docblock.
     await cap.click({ force: true });
     await page.keyboard.press('End');
     await page.keyboard.press('Enter');

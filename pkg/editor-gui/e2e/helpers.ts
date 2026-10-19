@@ -3,7 +3,26 @@
  *
  * Importing these from every spec keeps selector drift in one place — if the
  * bootstrap mount quirk or a class name changes, update it here once.
+ *
+ * ## Interaction rules (learned the hard way — see the table-resize work)
+ *
+ * 1. **Real (non-`force`) clicks wherever ProseMirror selection state must
+ *    sync.** Forced clicks bypass PM's mouse pipeline: the DOM selection
+ *    moves, PM's own selection state does not — and PM commands (copy
+ *    serialization, keymaps, paste placement) read PM state, not the DOM
+ *    selection. Symptom: a copy serializes an empty slice, a paste lands
+ *    nowhere, despite a healthy-looking DOM selection.
+ *
+ * 2. **After any toolbar interaction, click back into the editor before
+ *    driving the keyboard.** Toolbar buttons keep focus; a subsequent
+ *    `Ctrl+A`/`Enter` goes to the button, not the editor keymap.
+ *
+ * 3. **Keyboard select-all is unreliable for PM-state selection.** A
+ *    keyboard `Ctrl+A` can be consumed by the browser's native select-all
+ *    without updating PM state. Use {@link selectAllInEditor}, which drives
+ *    the DOM selection PM observes (execCommand) and polls for the sync.
  */
+import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 
 /**
@@ -118,10 +137,68 @@ export async function getDoc(page: Page): Promise<unknown> {
 }
 
 /**
- * Select all text in the editor body (Ctrl+A), so subsequent mark toggles or
- * prompt actions apply to the full paragraph.
+ * Select all editor content with a selection ProseMirror can see.
+ *
+ * Drives the DOM selection via `execCommand('selectAll')` on the focused PM
+ * root (which PM observes and syncs into its own selection state), then
+ * polls until the DOM selection is non-empty. Replaces keyboard `Ctrl+A`:
+ * after a toolbar click the button holds focus (the keypress never reaches
+ * the editor keymap), and even focused, the browser's native select-all can
+ * consume the keypress without updating PM state — the copy handler then
+ * serializes an empty slice.
  */
 export async function selectAllInEditor(page: Page): Promise<void> {
-  await clickEditor(page);
-  await page.keyboard.press('Control+A');
+  await page.evaluate(() => {
+    document.querySelector('.mn-prosemirror .ProseMirror')?.focus();
+    document.execCommand('selectAll');
+  });
+  await expect
+    .poll(() => page.evaluate(() => window.getSelection()?.toString().length ?? 0), {
+      timeout: 5_000,
+    })
+    .toBeGreaterThan(0);
+}
+
+/**
+ * Dispatch a synthetic `copy` on the ProseMirror root and return the
+ * serialized `text/html` payload.
+ *
+ * Synthetic (ClipboardEvent + DataTransfer) because it needs no clipboard
+ * permissions while exercising the true pipeline: PM's copy handler →
+ * `serializeForClipboard` → any plugin `clipboardSerializer` prop. Call
+ * {@link selectAllInEditor} (or otherwise set a PM-visible selection)
+ * first — the handler serializes from PM state, not the DOM selection.
+ */
+export async function dispatchCopy(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const dt = new DataTransfer();
+    const target = document.querySelector('.mn-prosemirror .ProseMirror');
+    if (target === null) throw new Error('dispatchCopy: editor root not found');
+    target.dispatchEvent(
+      new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }),
+    );
+    return dt.getData('text/html');
+  });
+}
+
+/**
+ * Dispatch a synthetic `paste` carrying `text/html` on the ProseMirror
+ * root.
+ *
+ * Exercises the true paste pipeline: PM's paste handler →
+ * `parseFromClipboard` → the schema `DOMParser` (parseDOM rules, including
+ * `getAttrs`). No clipboard permissions needed. The caret/selection in PM
+ * state determines the paste location — see the interaction rules in the
+ * module docblock.
+ */
+export async function dispatchPasteHtml(page: Page, html: string): Promise<void> {
+  await page.evaluate((payload: string) => {
+    const dt = new DataTransfer();
+    dt.setData('text/html', payload);
+    const target = document.querySelector('.mn-prosemirror .ProseMirror');
+    if (target === null) throw new Error('dispatchPasteHtml: editor root not found');
+    target.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }),
+    );
+  }, html);
 }
