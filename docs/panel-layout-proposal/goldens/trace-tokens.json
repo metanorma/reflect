@@ -1,0 +1,18 @@
+{
+  "topic": "tokens",
+  "element": ".layoutArea .dockview-theme-light",
+  "resolved": true,
+  "dockviewTokens": {
+    "--dv-active-sash-transition-duration": "0.1s",
+    "--dv-active-sash-transition-delay": "0.5s",
+    "--dv-floating-titlebar-height": "24px",
+    "--dv-tabs-and-actions-container-height": "30px",
+    "--dv-border-radius": "8px",
+    "--dv-floating-box-shadow": "0 14px 40px rgba(15,25,40,.30),0 2px 8px rgba(15,25,40,.18)"
+  },
+  "mockTokensFromDocumentRoot": {
+    "--accent": "#2f6fdb",
+    "--chrome": "#eef1f4",
+    "--ink": "#1c2733"
+  }
+}

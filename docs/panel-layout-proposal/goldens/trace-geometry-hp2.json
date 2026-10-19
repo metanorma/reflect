@@ -1,0 +1,98 @@
+{
+  "topic": "geometry-hp2",
+  "sourceTabBeforeDrag": {
+    "title": "Outline",
+    "rect": {
+      "left": 19,
+      "top": 76,
+      "width": 75,
+      "height": 29
+    },
+    "x": 57,
+    "y": 91,
+    "groupId": "group-nav-1",
+    "groupRect": {
+      "left": 19,
+      "top": 76,
+      "width": 250,
+      "height": 244
+    }
+  },
+  "pasteboardDropPoint": {
+    "x": 280,
+    "y": 539,
+    "resolved": "panelwrap docwrap"
+  },
+  "midDrag": {
+    "pointer": {
+      "x": 280,
+      "y": 539
+    },
+    "unwrapHoverActive": true,
+    "layoutAreaClasses": "layoutArea mn-unwrap-hover",
+    "ghost": {
+      "selector": ".dv-tab-ghost-drag",
+      "rect": {
+        "left": 250,
+        "top": 549,
+        "width": 75,
+        "height": 29
+      },
+      "text": "Outline",
+      "opacity": "0.8",
+      "pointerEvents": "none",
+      "position": "fixed",
+      "zIndex": "99999",
+      "transform": "matrix(1, 0, 0, 1, 250, 549)"
+    }
+  },
+  "afterUnwrap": {
+    "floatCount": 4,
+    "newWindow": {
+      "rect": {
+        "left": 155,
+        "top": 523,
+        "width": 250,
+        "height": 270
+      },
+      "groupIds": [
+        "1"
+      ],
+      "memberHeights": {
+        "1": 244
+      },
+      "views": [
+        [
+          "outline"
+        ]
+      ],
+      "activeViews": [
+        null
+      ],
+      "tabs": [
+        "Outline"
+      ]
+    },
+    "heightsKeysBefore": [],
+    "heightsKeysAfter": [
+      "1",
+      "group-insp-1",
+      "group-insp-2",
+      "group-insp-3",
+      "group-insp-4",
+      "group-nav-2",
+      "group-nav-3",
+      "group-pinned"
+    ],
+    "heightsKeysAdded": [
+      "1",
+      "group-insp-1",
+      "group-insp-2",
+      "group-insp-3",
+      "group-insp-4",
+      "group-nav-2",
+      "group-nav-3",
+      "group-pinned"
+    ]
+  }
+}

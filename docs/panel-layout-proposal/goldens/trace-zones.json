@@ -1,0 +1,46 @@
+{
+  "topic": "zones",
+  "moment": "HP2 panel-tab drag hovering the doc-grid surface (pointer over gray pasteboard)",
+  "layoutAreaClasses": "layoutArea mn-unwrap-hover",
+  "unwrapHoverActive": true,
+  "ghostPresent": true,
+  "zoneElements": [
+    {
+      "element": "dv-drop-target-dropzone",
+      "className": "dv-drop-target-dropzone",
+      "inFloatWindow": false,
+      "floatWindowTabs": null,
+      "display": "none",
+      "visibility": "visible",
+      "pointerEvents": "none",
+      "rect": {
+        "left": 0,
+        "top": 0,
+        "width": 0,
+        "height": 0
+      }
+    },
+    {
+      "element": "dv-drop-target-selection",
+      "className": "dv-drop-target-selection dv-drop-target-left",
+      "inFloatWindow": false,
+      "floatWindowTabs": null,
+      "display": "none",
+      "visibility": "visible",
+      "pointerEvents": "none",
+      "rect": {
+        "left": 0,
+        "top": 0,
+        "width": 0,
+        "height": 0
+      }
+    }
+  ],
+  "counts": {
+    "total": 2,
+    "inFloatWindow": 0,
+    "inDocGrid": 2,
+    "displayedInDocGrid": 0,
+    "displayedInFloatWindows": 0
+  }
+}

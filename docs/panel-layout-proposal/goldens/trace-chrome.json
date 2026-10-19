@@ -1,0 +1,455 @@
+{
+  "topic": "chrome",
+  "windows": [
+    {
+      "index": 0,
+      "window": {
+        "left": 18,
+        "top": 51,
+        "width": 252,
+        "height": 484
+      },
+      "titlebar": {
+        "left": 19,
+        "top": 52,
+        "width": 250,
+        "height": 24
+      },
+      "titlebarHeightPx": 24,
+      "titlebarCursor": "grab",
+      "grip": {
+        "rect": {
+          "left": 122,
+          "top": 57.5,
+          "width": 44,
+          "height": 12
+        },
+        "width": "44px",
+        "height": "12px",
+        "pointerEvents": "none",
+        "opacity": "0.8",
+        "ariaHidden": "true"
+      },
+      "sashes": [
+        {
+          "rect": {
+            "left": 19,
+            "top": 318,
+            "width": 250,
+            "height": 4
+          },
+          "className": "dv-sash dv-disabled"
+        },
+        {
+          "rect": {
+            "left": 19,
+            "top": 450,
+            "width": 250,
+            "height": 4
+          },
+          "className": "dv-sash dv-disabled"
+        }
+      ],
+      "resizeHandles": [
+        {
+          "className": "dv-resize-handle-top",
+          "rect": {
+            "left": 23,
+            "top": 50,
+            "width": 242,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-bottom",
+          "rect": {
+            "left": 23,
+            "top": 532,
+            "width": 242,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-left",
+          "rect": {
+            "left": 17,
+            "top": 56,
+            "width": 4,
+            "height": 474
+          }
+        },
+        {
+          "className": "dv-resize-handle-right",
+          "rect": {
+            "left": 267,
+            "top": 56,
+            "width": 4,
+            "height": 474
+          }
+        },
+        {
+          "className": "dv-resize-handle-topleft",
+          "rect": {
+            "left": 17,
+            "top": 50,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-topright",
+          "rect": {
+            "left": 267,
+            "top": 50,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-bottomleft",
+          "rect": {
+            "left": 17,
+            "top": 532,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-bottomright",
+          "rect": {
+            "left": 267,
+            "top": 532,
+            "width": 4,
+            "height": 4
+          }
+        }
+      ],
+      "memberTabStrips": [
+        {
+          "left": 19,
+          "top": 76,
+          "width": 250,
+          "height": 30
+        },
+        {
+          "left": 19,
+          "top": 320,
+          "width": 250,
+          "height": 30
+        },
+        {
+          "left": 19,
+          "top": 452,
+          "width": 250,
+          "height": 30
+        }
+      ],
+      "tabStripHeightPx": 30,
+      "memberCount": 3,
+      "tabs": [
+        "Outline",
+        "Bibliography",
+        "Validation",
+        "Review"
+      ]
+    },
+    {
+      "index": 1,
+      "window": {
+        "left": 292,
+        "top": 51,
+        "width": 300,
+        "height": 168
+      },
+      "titlebar": {
+        "left": 293,
+        "top": 52,
+        "width": 298,
+        "height": 24
+      },
+      "titlebarHeightPx": 24,
+      "titlebarCursor": "grab",
+      "grip": {
+        "rect": {
+          "left": 420,
+          "top": 57.5,
+          "width": 44,
+          "height": 12
+        },
+        "width": "44px",
+        "height": "12px",
+        "pointerEvents": "none",
+        "opacity": "0.8",
+        "ariaHidden": "true"
+      },
+      "sashes": [],
+      "resizeHandles": [
+        {
+          "className": "dv-resize-handle-top",
+          "rect": {
+            "left": 297,
+            "top": 50,
+            "width": 290,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-bottom",
+          "rect": {
+            "left": 297,
+            "top": 216,
+            "width": 290,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-left",
+          "rect": {
+            "left": 291,
+            "top": 56,
+            "width": 4,
+            "height": 158
+          }
+        },
+        {
+          "className": "dv-resize-handle-right",
+          "rect": {
+            "left": 589,
+            "top": 56,
+            "width": 4,
+            "height": 158
+          }
+        },
+        {
+          "className": "dv-resize-handle-topleft",
+          "rect": {
+            "left": 291,
+            "top": 50,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-topright",
+          "rect": {
+            "left": 589,
+            "top": 50,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-bottomleft",
+          "rect": {
+            "left": 291,
+            "top": 216,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-bottomright",
+          "rect": {
+            "left": 589,
+            "top": 216,
+            "width": 4,
+            "height": 4
+          }
+        }
+      ],
+      "memberTabStrips": [
+        {
+          "left": 293,
+          "top": 76,
+          "width": 298,
+          "height": 30
+        }
+      ],
+      "tabStripHeightPx": 30,
+      "memberCount": 1,
+      "tabs": [
+        "Pinned · #fig-ion-beam"
+      ]
+    },
+    {
+      "index": 2,
+      "window": {
+        "left": 1050,
+        "top": 51,
+        "width": 320,
+        "height": 634
+      },
+      "titlebar": {
+        "left": 1051,
+        "top": 52,
+        "width": 318,
+        "height": 24
+      },
+      "titlebarHeightPx": 24,
+      "titlebarCursor": "grab",
+      "grip": {
+        "rect": {
+          "left": 1188,
+          "top": 57.5,
+          "width": 44,
+          "height": 12
+        },
+        "width": "44px",
+        "height": "12px",
+        "pointerEvents": "none",
+        "opacity": "0.8",
+        "ariaHidden": "true"
+      },
+      "sashes": [
+        {
+          "rect": {
+            "left": 1051,
+            "top": 274,
+            "width": 318,
+            "height": 4
+          },
+          "className": "dv-sash dv-disabled"
+        },
+        {
+          "rect": {
+            "left": 1051,
+            "top": 454,
+            "width": 318,
+            "height": 4
+          },
+          "className": "dv-sash dv-disabled"
+        },
+        {
+          "rect": {
+            "left": 1051,
+            "top": 570,
+            "width": 318,
+            "height": 4
+          },
+          "className": "dv-sash dv-disabled"
+        }
+      ],
+      "resizeHandles": [
+        {
+          "className": "dv-resize-handle-top",
+          "rect": {
+            "left": 1055,
+            "top": 50,
+            "width": 310,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-bottom",
+          "rect": {
+            "left": 1055,
+            "top": 682,
+            "width": 310,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-left",
+          "rect": {
+            "left": 1049,
+            "top": 56,
+            "width": 4,
+            "height": 624
+          }
+        },
+        {
+          "className": "dv-resize-handle-right",
+          "rect": {
+            "left": 1367,
+            "top": 56,
+            "width": 4,
+            "height": 624
+          }
+        },
+        {
+          "className": "dv-resize-handle-topleft",
+          "rect": {
+            "left": 1049,
+            "top": 50,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-topright",
+          "rect": {
+            "left": 1367,
+            "top": 50,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-bottomleft",
+          "rect": {
+            "left": 1049,
+            "top": 682,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "className": "dv-resize-handle-bottomright",
+          "rect": {
+            "left": 1367,
+            "top": 682,
+            "width": 4,
+            "height": 4
+          }
+        }
+      ],
+      "memberTabStrips": [
+        {
+          "left": 1051,
+          "top": 76,
+          "width": 318,
+          "height": 30
+        },
+        {
+          "left": 1051,
+          "top": 276,
+          "width": 318,
+          "height": 30
+        },
+        {
+          "left": 1051,
+          "top": 456,
+          "width": 318,
+          "height": 30
+        },
+        {
+          "left": 1051,
+          "top": 572,
+          "width": 318,
+          "height": 30
+        }
+      ],
+      "tabStripHeightPx": 30,
+      "memberCount": 4,
+      "tabs": [
+        "Identity & References",
+        "Attributes",
+        "Structure",
+        "Derived · read-only",
+        "Overlays"
+      ]
+    }
+  ],
+  "gridTabStrip": {
+    "rect": {
+      "left": 0,
+      "top": 39,
+      "width": 1440,
+      "height": 30
+    },
+    "heightPx": 30,
+    "tabs": [
+      "24817-1.adoc"
+    ]
+  }
+}

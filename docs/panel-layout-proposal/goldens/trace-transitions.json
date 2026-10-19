@@ -1,0 +1,46 @@
+{
+  "topic": "transitions",
+  "samples": {
+    "sashIdle": {
+      "state": "idle",
+      "className": "dv-sash dv-disabled",
+      "transition": "all",
+      "transitionProperty": "all",
+      "transitionDuration": "0s",
+      "transitionDelay": "0s",
+      "backgroundColor": "rgb(204, 211, 218)",
+      "cursor": "ns-resize"
+    },
+    "titlebarCursorIdle": {
+      "cursor": "grab",
+      "className": "dv-floating-titlebar dv-draggable"
+    },
+    "sashHover": {
+      "state": "hover",
+      "className": "dv-sash dv-disabled",
+      "transition": "background-color 0.1s ease-in-out 0.5s",
+      "transitionProperty": "background-color",
+      "transitionDuration": "0.1s",
+      "transitionDelay": "0.5s",
+      "backgroundColor": "rgb(47, 111, 219)",
+      "cursor": "ns-resize"
+    },
+    "titlebarCursorHover": {
+      "cursor": "grab",
+      "className": "dv-floating-titlebar dv-draggable"
+    },
+    "dropTargetSelectionDuringDrag": {
+      "selector": ".layoutArea .dv-drop-target-selection (doc grid, suppressed)",
+      "className": "dv-drop-target-selection dv-drop-target-left",
+      "display": "none",
+      "transition": "top 0.07s ease-out, left 0.07s ease-out, width 0.07s ease-out, height 0.07s ease-out, opacity 0.07s ease-out",
+      "transitionProperty": "top, left, width, height, opacity",
+      "transitionDuration": "0.07s, 0.07s, 0.07s, 0.07s, 0.07s",
+      "transitionDelay": "0s, 0s, 0s, 0s, 0s"
+    },
+    "titlebarCursorActive": {
+      "cursor": "grabbing",
+      "className": "dv-floating-titlebar dv-draggable"
+    }
+  }
+}

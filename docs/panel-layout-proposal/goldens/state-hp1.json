@@ -1,0 +1,1122 @@
+{
+  "_meta": {
+    "flow": "hp1",
+    "viewport": [
+      1440,
+      900
+    ],
+    "deviceScaleFactor": 1,
+    "floatCount": 3,
+    "tabCount": 11,
+    "watermark": false,
+    "notes": [
+      "heightsMap is module-scoped in the mock (not on window) — unreachable from the page;",
+      "the persisted mn-dockview7-heights-v1 is its saved copy and is captured under storage."
+    ]
+  },
+  "layout": {
+    "grid": {
+      "root": {
+        "type": "branch",
+        "data": [
+          {
+            "type": "leaf",
+            "data": {
+              "views": [
+                "doc"
+              ],
+              "activeView": "doc",
+              "id": "group-doc"
+            },
+            "size": 1440
+          }
+        ],
+        "size": 836
+      },
+      "width": 1440,
+      "height": 836,
+      "orientation": "HORIZONTAL"
+    },
+    "panels": {
+      "doc": {
+        "id": "doc",
+        "contentComponent": "document",
+        "title": "24817-1.adoc"
+      },
+      "outline": {
+        "id": "outline",
+        "contentComponent": "outline",
+        "title": "Outline"
+      },
+      "bibliography": {
+        "id": "bibliography",
+        "contentComponent": "bibliography",
+        "title": "Bibliography"
+      },
+      "validation": {
+        "id": "validation",
+        "contentComponent": "validation",
+        "title": "Validation"
+      },
+      "review": {
+        "id": "review",
+        "contentComponent": "review",
+        "title": "Review"
+      },
+      "pinned": {
+        "id": "pinned",
+        "contentComponent": "pinned",
+        "title": "Pinned · #fig-ion-beam"
+      },
+      "identity": {
+        "id": "identity",
+        "contentComponent": "identity",
+        "title": "Identity & References"
+      },
+      "attributes": {
+        "id": "attributes",
+        "contentComponent": "attributes",
+        "title": "Attributes"
+      },
+      "structure": {
+        "id": "structure",
+        "contentComponent": "structure",
+        "title": "Structure"
+      },
+      "derived": {
+        "id": "derived",
+        "contentComponent": "derived",
+        "title": "Derived · read-only"
+      },
+      "overlays": {
+        "id": "overlays",
+        "contentComponent": "overlays",
+        "title": "Overlays"
+      }
+    },
+    "activeGroup": "group-doc",
+    "floatingGroups": [
+      {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "outline"
+                  ],
+                  "activeView": "outline",
+                  "id": "group-nav-1"
+                },
+                "size": 244
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "bibliography",
+                    "validation"
+                  ],
+                  "activeView": "bibliography",
+                  "id": "group-nav-2"
+                },
+                "size": 132
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "review"
+                  ],
+                  "activeView": "review",
+                  "id": "group-nav-3"
+                },
+                "size": 74
+              }
+            ],
+            "size": 250
+          },
+          "width": 250,
+          "height": 458,
+          "orientation": "VERTICAL"
+        },
+        "position": {
+          "top": 12,
+          "left": 18,
+          "width": 252,
+          "height": 484
+        }
+      },
+      {
+        "data": {
+          "views": [
+            "pinned"
+          ],
+          "activeView": "pinned",
+          "id": "group-pinned"
+        },
+        "position": {
+          "top": 12,
+          "left": 292,
+          "width": 300,
+          "height": 168
+        }
+      },
+      {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "identity"
+                  ],
+                  "activeView": "identity",
+                  "id": "group-insp-1"
+                },
+                "size": 200
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "attributes"
+                  ],
+                  "activeView": "attributes",
+                  "id": "group-insp-2"
+                },
+                "size": 180
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "structure"
+                  ],
+                  "activeView": "structure",
+                  "id": "group-insp-3"
+                },
+                "size": 116
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "derived",
+                    "overlays"
+                  ],
+                  "activeView": "derived",
+                  "id": "group-insp-4"
+                },
+                "size": 100
+              }
+            ],
+            "size": 318
+          },
+          "width": 318,
+          "height": 608,
+          "orientation": "VERTICAL"
+        },
+        "position": {
+          "top": 12,
+          "left": 1050,
+          "width": 320,
+          "height": 634
+        }
+      }
+    ]
+  },
+  "storage": {
+    "mn-dockview7-floats-v1": {
+      "grid": {
+        "root": {
+          "type": "branch",
+          "data": [
+            {
+              "type": "leaf",
+              "data": {
+                "views": [
+                  "doc"
+                ],
+                "activeView": "doc",
+                "id": "group-doc"
+              },
+              "size": 1440
+            }
+          ],
+          "size": 836
+        },
+        "width": 1440,
+        "height": 836,
+        "orientation": "HORIZONTAL"
+      },
+      "panels": {
+        "doc": {
+          "id": "doc",
+          "contentComponent": "document",
+          "title": "24817-1.adoc"
+        },
+        "outline": {
+          "id": "outline",
+          "contentComponent": "outline",
+          "title": "Outline"
+        },
+        "bibliography": {
+          "id": "bibliography",
+          "contentComponent": "bibliography",
+          "title": "Bibliography"
+        },
+        "validation": {
+          "id": "validation",
+          "contentComponent": "validation",
+          "title": "Validation"
+        },
+        "review": {
+          "id": "review",
+          "contentComponent": "review",
+          "title": "Review"
+        },
+        "pinned": {
+          "id": "pinned",
+          "contentComponent": "pinned",
+          "title": "Pinned · #fig-ion-beam"
+        },
+        "identity": {
+          "id": "identity",
+          "contentComponent": "identity",
+          "title": "Identity & References"
+        },
+        "attributes": {
+          "id": "attributes",
+          "contentComponent": "attributes",
+          "title": "Attributes"
+        },
+        "structure": {
+          "id": "structure",
+          "contentComponent": "structure",
+          "title": "Structure"
+        },
+        "derived": {
+          "id": "derived",
+          "contentComponent": "derived",
+          "title": "Derived · read-only"
+        },
+        "overlays": {
+          "id": "overlays",
+          "contentComponent": "overlays",
+          "title": "Overlays"
+        }
+      },
+      "activeGroup": "group-doc",
+      "floatingGroups": [
+        {
+          "grid": {
+            "root": {
+              "type": "branch",
+              "data": [
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "outline"
+                    ],
+                    "activeView": "outline",
+                    "id": "group-nav-1"
+                  },
+                  "size": 257
+                },
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "bibliography",
+                      "validation"
+                    ],
+                    "activeView": "bibliography",
+                    "id": "group-nav-2"
+                  },
+                  "size": 117
+                },
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "review"
+                    ],
+                    "activeView": "review",
+                    "id": "group-nav-3"
+                  },
+                  "size": 100
+                }
+              ],
+              "size": 252
+            },
+            "width": 252,
+            "height": 474,
+            "orientation": "VERTICAL"
+          },
+          "position": {
+            "top": 12,
+            "left": 18,
+            "width": 252,
+            "height": 450
+          }
+        },
+        {
+          "data": {
+            "views": [
+              "pinned"
+            ],
+            "activeView": "pinned",
+            "id": "group-pinned"
+          },
+          "position": {
+            "top": 12,
+            "left": 292,
+            "width": 300,
+            "height": 168
+          }
+        },
+        {
+          "grid": {
+            "root": {
+              "type": "branch",
+              "data": [
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "identity"
+                    ],
+                    "activeView": "identity",
+                    "id": "group-insp-1"
+                  },
+                  "size": 211
+                },
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "attributes"
+                    ],
+                    "activeView": "attributes",
+                    "id": "group-insp-2"
+                  },
+                  "size": 190
+                },
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "structure"
+                    ],
+                    "activeView": "structure",
+                    "id": "group-insp-3"
+                  },
+                  "size": 122
+                },
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "derived",
+                      "overlays"
+                    ],
+                    "activeView": "derived",
+                    "id": "group-insp-4"
+                  },
+                  "size": 105
+                }
+              ],
+              "size": 320
+            },
+            "width": 320,
+            "height": 628,
+            "orientation": "VERTICAL"
+          },
+          "position": {
+            "top": 12,
+            "left": 1050,
+            "width": 320,
+            "height": 602
+          }
+        }
+      ]
+    },
+    "mn-dockview7-heights-v1": null
+  },
+  "floats": [
+    {
+      "rect": {
+        "left": 18,
+        "top": 51,
+        "width": 252,
+        "height": 484
+      },
+      "groupIds": [
+        "group-nav-1",
+        "group-nav-2",
+        "group-nav-3"
+      ],
+      "memberHeights": {
+        "group-nav-1": 244,
+        "group-nav-2": 132,
+        "group-nav-3": 74
+      },
+      "views": [
+        [
+          "outline"
+        ],
+        [
+          "bibliography",
+          "validation"
+        ],
+        [
+          "review"
+        ]
+      ],
+      "activeViews": [
+        null,
+        null,
+        null
+      ],
+      "tabs": [
+        "Outline",
+        "Bibliography",
+        "Validation",
+        "Review"
+      ]
+    },
+    {
+      "rect": {
+        "left": 292,
+        "top": 51,
+        "width": 300,
+        "height": 168
+      },
+      "groupIds": [
+        "group-pinned"
+      ],
+      "memberHeights": {
+        "group-pinned": 142
+      },
+      "views": [
+        [
+          "pinned"
+        ]
+      ],
+      "activeViews": [
+        null
+      ],
+      "tabs": [
+        "Pinned · #fig-ion-beam"
+      ]
+    },
+    {
+      "rect": {
+        "left": 1050,
+        "top": 51,
+        "width": 320,
+        "height": 634
+      },
+      "groupIds": [
+        "group-insp-1",
+        "group-insp-2",
+        "group-insp-3",
+        "group-insp-4"
+      ],
+      "memberHeights": {
+        "group-insp-1": 200,
+        "group-insp-2": 180,
+        "group-insp-3": 116,
+        "group-insp-4": 100
+      },
+      "views": [
+        [
+          "identity"
+        ],
+        [
+          "attributes"
+        ],
+        [
+          "structure"
+        ],
+        [
+          "derived",
+          "overlays"
+        ]
+      ],
+      "activeViews": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "tabs": [
+        "Identity & References",
+        "Attributes",
+        "Structure",
+        "Derived · read-only",
+        "Overlays"
+      ]
+    }
+  ],
+  "_normalized": {
+    "runtimeIdCount": 0,
+    "layout": {
+      "grid": {
+        "root": {
+          "type": "branch",
+          "data": [
+            {
+              "type": "leaf",
+              "data": {
+                "views": [
+                  "doc"
+                ],
+                "activeView": "doc",
+                "id": "group-doc"
+              },
+              "size": 1440
+            }
+          ],
+          "size": 836
+        },
+        "width": 1440,
+        "height": 836,
+        "orientation": "HORIZONTAL"
+      },
+      "panels": {
+        "doc": {
+          "id": "doc",
+          "contentComponent": "document",
+          "title": "24817-1.adoc"
+        },
+        "outline": {
+          "id": "outline",
+          "contentComponent": "outline",
+          "title": "Outline"
+        },
+        "bibliography": {
+          "id": "bibliography",
+          "contentComponent": "bibliography",
+          "title": "Bibliography"
+        },
+        "validation": {
+          "id": "validation",
+          "contentComponent": "validation",
+          "title": "Validation"
+        },
+        "review": {
+          "id": "review",
+          "contentComponent": "review",
+          "title": "Review"
+        },
+        "pinned": {
+          "id": "pinned",
+          "contentComponent": "pinned",
+          "title": "Pinned · #fig-ion-beam"
+        },
+        "identity": {
+          "id": "identity",
+          "contentComponent": "identity",
+          "title": "Identity & References"
+        },
+        "attributes": {
+          "id": "attributes",
+          "contentComponent": "attributes",
+          "title": "Attributes"
+        },
+        "structure": {
+          "id": "structure",
+          "contentComponent": "structure",
+          "title": "Structure"
+        },
+        "derived": {
+          "id": "derived",
+          "contentComponent": "derived",
+          "title": "Derived · read-only"
+        },
+        "overlays": {
+          "id": "overlays",
+          "contentComponent": "overlays",
+          "title": "Overlays"
+        }
+      },
+      "activeGroup": "group-doc",
+      "floatingGroups": [
+        {
+          "grid": {
+            "root": {
+              "type": "branch",
+              "data": [
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "outline"
+                    ],
+                    "activeView": "outline",
+                    "id": "group-nav-1"
+                  },
+                  "size": 244
+                },
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "bibliography",
+                      "validation"
+                    ],
+                    "activeView": "bibliography",
+                    "id": "group-nav-2"
+                  },
+                  "size": 132
+                },
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "review"
+                    ],
+                    "activeView": "review",
+                    "id": "group-nav-3"
+                  },
+                  "size": 74
+                }
+              ],
+              "size": 250
+            },
+            "width": 250,
+            "height": 458,
+            "orientation": "VERTICAL"
+          },
+          "position": {
+            "top": 12,
+            "left": 18,
+            "width": 252,
+            "height": 484
+          }
+        },
+        {
+          "data": {
+            "views": [
+              "pinned"
+            ],
+            "activeView": "pinned",
+            "id": "group-pinned"
+          },
+          "position": {
+            "top": 12,
+            "left": 292,
+            "width": 300,
+            "height": 168
+          }
+        },
+        {
+          "grid": {
+            "root": {
+              "type": "branch",
+              "data": [
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "identity"
+                    ],
+                    "activeView": "identity",
+                    "id": "group-insp-1"
+                  },
+                  "size": 200
+                },
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "attributes"
+                    ],
+                    "activeView": "attributes",
+                    "id": "group-insp-2"
+                  },
+                  "size": 180
+                },
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "structure"
+                    ],
+                    "activeView": "structure",
+                    "id": "group-insp-3"
+                  },
+                  "size": 116
+                },
+                {
+                  "type": "leaf",
+                  "data": {
+                    "views": [
+                      "derived",
+                      "overlays"
+                    ],
+                    "activeView": "derived",
+                    "id": "group-insp-4"
+                  },
+                  "size": 100
+                }
+              ],
+              "size": 318
+            },
+            "width": 318,
+            "height": 608,
+            "orientation": "VERTICAL"
+          },
+          "position": {
+            "top": 12,
+            "left": 1050,
+            "width": 320,
+            "height": 634
+          }
+        }
+      ]
+    },
+    "storage": {
+      "mn-dockview7-floats-v1": {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "doc"
+                  ],
+                  "activeView": "doc",
+                  "id": "group-doc"
+                },
+                "size": 1440
+              }
+            ],
+            "size": 836
+          },
+          "width": 1440,
+          "height": 836,
+          "orientation": "HORIZONTAL"
+        },
+        "panels": {
+          "doc": {
+            "id": "doc",
+            "contentComponent": "document",
+            "title": "24817-1.adoc"
+          },
+          "outline": {
+            "id": "outline",
+            "contentComponent": "outline",
+            "title": "Outline"
+          },
+          "bibliography": {
+            "id": "bibliography",
+            "contentComponent": "bibliography",
+            "title": "Bibliography"
+          },
+          "validation": {
+            "id": "validation",
+            "contentComponent": "validation",
+            "title": "Validation"
+          },
+          "review": {
+            "id": "review",
+            "contentComponent": "review",
+            "title": "Review"
+          },
+          "pinned": {
+            "id": "pinned",
+            "contentComponent": "pinned",
+            "title": "Pinned · #fig-ion-beam"
+          },
+          "identity": {
+            "id": "identity",
+            "contentComponent": "identity",
+            "title": "Identity & References"
+          },
+          "attributes": {
+            "id": "attributes",
+            "contentComponent": "attributes",
+            "title": "Attributes"
+          },
+          "structure": {
+            "id": "structure",
+            "contentComponent": "structure",
+            "title": "Structure"
+          },
+          "derived": {
+            "id": "derived",
+            "contentComponent": "derived",
+            "title": "Derived · read-only"
+          },
+          "overlays": {
+            "id": "overlays",
+            "contentComponent": "overlays",
+            "title": "Overlays"
+          }
+        },
+        "activeGroup": "group-doc",
+        "floatingGroups": [
+          {
+            "grid": {
+              "root": {
+                "type": "branch",
+                "data": [
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": [
+                        "outline"
+                      ],
+                      "activeView": "outline",
+                      "id": "group-nav-1"
+                    },
+                    "size": 257
+                  },
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": [
+                        "bibliography",
+                        "validation"
+                      ],
+                      "activeView": "bibliography",
+                      "id": "group-nav-2"
+                    },
+                    "size": 117
+                  },
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": [
+                        "review"
+                      ],
+                      "activeView": "review",
+                      "id": "group-nav-3"
+                    },
+                    "size": 100
+                  }
+                ],
+                "size": 252
+              },
+              "width": 252,
+              "height": 474,
+              "orientation": "VERTICAL"
+            },
+            "position": {
+              "top": 12,
+              "left": 18,
+              "width": 252,
+              "height": 450
+            }
+          },
+          {
+            "data": {
+              "views": [
+                "pinned"
+              ],
+              "activeView": "pinned",
+              "id": "group-pinned"
+            },
+            "position": {
+              "top": 12,
+              "left": 292,
+              "width": 300,
+              "height": 168
+            }
+          },
+          {
+            "grid": {
+              "root": {
+                "type": "branch",
+                "data": [
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": [
+                        "identity"
+                      ],
+                      "activeView": "identity",
+                      "id": "group-insp-1"
+                    },
+                    "size": 211
+                  },
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": [
+                        "attributes"
+                      ],
+                      "activeView": "attributes",
+                      "id": "group-insp-2"
+                    },
+                    "size": 190
+                  },
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": [
+                        "structure"
+                      ],
+                      "activeView": "structure",
+                      "id": "group-insp-3"
+                    },
+                    "size": 122
+                  },
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": [
+                        "derived",
+                        "overlays"
+                      ],
+                      "activeView": "derived",
+                      "id": "group-insp-4"
+                    },
+                    "size": 105
+                  }
+                ],
+                "size": 320
+              },
+              "width": 320,
+              "height": 628,
+              "orientation": "VERTICAL"
+            },
+            "position": {
+              "top": 12,
+              "left": 1050,
+              "width": 320,
+              "height": 602
+            }
+          }
+        ]
+      },
+      "mn-dockview7-heights-v1": null
+    },
+    "floats": [
+      {
+        "rect": {
+          "left": 18,
+          "top": 51,
+          "width": 252,
+          "height": 484
+        },
+        "groupIds": [
+          "group-nav-1",
+          "group-nav-2",
+          "group-nav-3"
+        ],
+        "memberHeights": {
+          "group-nav-1": 244,
+          "group-nav-2": 132,
+          "group-nav-3": 74
+        },
+        "views": [
+          [
+            "outline"
+          ],
+          [
+            "bibliography",
+            "validation"
+          ],
+          [
+            "review"
+          ]
+        ],
+        "activeViews": [
+          null,
+          null,
+          null
+        ],
+        "tabs": [
+          "Outline",
+          "Bibliography",
+          "Validation",
+          "Review"
+        ]
+      },
+      {
+        "rect": {
+          "left": 292,
+          "top": 51,
+          "width": 300,
+          "height": 168
+        },
+        "groupIds": [
+          "group-pinned"
+        ],
+        "memberHeights": {
+          "group-pinned": 142
+        },
+        "views": [
+          [
+            "pinned"
+          ]
+        ],
+        "activeViews": [
+          null
+        ],
+        "tabs": [
+          "Pinned · #fig-ion-beam"
+        ]
+      },
+      {
+        "rect": {
+          "left": 1050,
+          "top": 51,
+          "width": 320,
+          "height": 634
+        },
+        "groupIds": [
+          "group-insp-1",
+          "group-insp-2",
+          "group-insp-3",
+          "group-insp-4"
+        ],
+        "memberHeights": {
+          "group-insp-1": 200,
+          "group-insp-2": 180,
+          "group-insp-3": 116,
+          "group-insp-4": 100
+        },
+        "views": [
+          [
+            "identity"
+          ],
+          [
+            "attributes"
+          ],
+          [
+            "structure"
+          ],
+          [
+            "derived",
+            "overlays"
+          ]
+        ],
+        "activeViews": [
+          null,
+          null,
+          null,
+          null
+        ],
+        "tabs": [
+          "Identity & References",
+          "Attributes",
+          "Structure",
+          "Derived · read-only",
+          "Overlays"
+        ]
+      }
+    ]
+  }
+}

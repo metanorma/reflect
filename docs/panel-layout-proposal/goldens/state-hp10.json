@@ -1,0 +1,81 @@
+{
+  "_meta": {
+    "flow": "hp10",
+    "viewport": [
+      1440,
+      900
+    ],
+    "deviceScaleFactor": 1,
+    "floatCount": 0,
+    "tabCount": 0,
+    "watermark": true,
+    "notes": [
+      "heightsMap is module-scoped in the mock (not on window) — unreachable from the page;",
+      "the persisted mn-dockview7-heights-v1 is its saved copy and is captured under storage."
+    ],
+    "closeButtonClicks": 11
+  },
+  "layout": {
+    "grid": {
+      "root": {
+        "type": "branch",
+        "data": [],
+        "size": 836
+      },
+      "width": 1440,
+      "height": 836,
+      "orientation": "HORIZONTAL"
+    },
+    "panels": {}
+  },
+  "storage": {
+    "mn-dockview7-floats-v1": {
+      "grid": {
+        "root": {
+          "type": "branch",
+          "data": [],
+          "size": 836
+        },
+        "width": 1440,
+        "height": 836,
+        "orientation": "HORIZONTAL"
+      },
+      "panels": {}
+    },
+    "mn-dockview7-heights-v1": {}
+  },
+  "floats": [],
+  "_normalized": {
+    "runtimeIdCount": 0,
+    "layout": {
+      "grid": {
+        "root": {
+          "type": "branch",
+          "data": [],
+          "size": 836
+        },
+        "width": 1440,
+        "height": 836,
+        "orientation": "HORIZONTAL"
+      },
+      "panels": {}
+    },
+    "storage": {
+      "mn-dockview7-floats-v1": {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [],
+            "size": 836
+          },
+          "width": 1440,
+          "height": 836,
+          "orientation": "HORIZONTAL"
+        },
+        "panels": {}
+      },
+      "mn-dockview7-heights-v1": {}
+    },
+    "floats": []
+  }
+}
