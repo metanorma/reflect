@@ -27,3 +27,6 @@
 
 !.yarn/cache
 #.pnp.*
+
+/mockups
+!/mockups/editor-dockview7-floats.html
