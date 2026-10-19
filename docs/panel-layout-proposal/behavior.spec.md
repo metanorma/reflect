@@ -29,7 +29,110 @@ enters mini windows; window drag is contained top/left/right but free below
 the bottom edge; no edge snapping; Reset restores the preset; layout and
 per-tabset heights persist to localStorage.
 
-## 2. State matrix
+## 2. Happy-path flows (primary flows)
+
+Each flow is numbered steps followed by its **observable outcome** — what is
+in the DOM, in storage, and in the layout serialization. Flows are
+acceptance criteria and future test names. HP rows describe structure and
+behavior only; panel content is opaque input the implementation must accept
+(§1).
+
+**HP1 — Open editor → preset layout renders.**
+1. Load the page with both storage keys absent.
+2. Modules resolve; `#boot` is removed; `fromJSON(presetLayout())` runs
+   (:1325), then the pin pass (:1349).
+*Outcome:* main grid hosts the `doc` group alone; three floating windows
+(Navigation 252×450, Pinned 300×168, Inspector 320×602) each render
+titlebar + grip + stacked tabsets at preset heights (§4); both storage keys
+written immediately (`saveLayout`, :1326). Serialization: one `floatingGroups[]`
+entry per window, all position forms `{left,top,width,height}`.
+
+**HP2 — Drag panel tab out of a tabset → new floating window (auto-wrap).**
+1. Pointer-drag a panel tab (e.g. from Navigation) over the doc grid
+   surface — pasteboard or page, any zone.
+2. `.mn-unwrap-hover` suppresses doc-grid zone overlays; float-window
+   overlays remain (:148–155).
+3. Release on the grid surface.
+*Outcome:* `handleWillDrop` claims the drop (:1233–1314): a new float
+window appears centered on the pointer, sized to the **source tabset's
+rect** (width + content height + 26px chrome), the new group pinned to the
+source height, `heightsMap[newGroupId]` set; the source window shrinks by
+the removed member (or disposes if it was the only one). Storage: layout
+key gains the new `floatingGroups[]` entry; heights key gains the id.
+Serialization: new window uses `{top}` form.
+
+**HP3 — Drop panel on float-window center → merges as sibling tab.**
+1. Drag a panel tab over another float window's content center.
+2. Center zone inks (stock 70ms).
+3. Release.
+*Outcome:* panel appended to the target tabset's `views[]` (stock path —
+not claimed, not vetoed); window height grows by the target group's pinned
+height via reconcile (window := Σ members + chrome); no heights entry
+changes for existing groups. Serialization: target `views[]` includes the
+panel id; source window loses it.
+
+**HP4 — Drag whole tabset (void container) → stack into another window.**
+1. Drag a tabset's empty tab-strip space (void container).
+2. Hover another float window's top or bottom edge zone.
+3. Release.
+*Outcome:* the group moves as a unit into the target window's nested grid
+(vertically stacked), **keeping its height** (pinned min==max travels with
+it); the target window grows by (height + 4px sash); the source window
+shrinks or disposes. Serialization: group id appears in the target's
+`floatingGroups[].grid` leaves with its `size`; heights entry unchanged
+(height follows the group, not the slot).
+
+**HP5 — Move window via titlebar.**
+1. Pointer-drag the (text-free) titlebar grip.
+2. Drag: `windowDragLive` gates the pin pass off (:1335); transform move
+   with top/left containment, bottom free (:1140–1146).
+3. Release anywhere, including below the layout area's bottom edge.
+*Outcome:* window rests at the pointer, top-clamped so the titlebar stays
+reachable; a window parked half-below the bottom edge remains grabbable.
+`normalizeTops` re-anchors any bottom-anchored form to `{top}` (:1149–1158)
+before serialization. Storage: position updated, `{top}` form only.
+
+**HP6 — Resize a tabset via sash / window bottom edge.**
+1. Drag a sash inside a float window (resizes the tabset **above** it), or
+   the window's bottom edge / bottom corners (resize the **last** tabset).
+2. Per pointermove: target group re-pinned to `max(MIN_TS_H, h)`, window
+   height follows (:933–993).
+3. Release.
+*Outcome:* only the target tabset's height changed; siblings byte-stable
+(pin model). Storage: heights key updated on pointerup (`saveHeights`,
+:985); layout key updated on the next structural change (takeover drags
+fire no `onDidLayoutChange`). Corner drags may also change width (min
+120px), shared by all members.
+
+**HP7 — Toggle auto-wrap OFF → drags fall back to vetoes.**
+1. Click "Auto-wrap panels: ON" (button loses `.on`; `autoWrapEnabled=false`).
+2. Drag a panel tab to the doc grid surface and release.
+*Outcome:* no unwrap; grid zone overlays now show (suppression gated on the
+toggle, :1470–1474); center-drop merges the panel as a doc sibling tab
+(stock path unclaimed — see F1); edge drops still vetoed. See §3 F1.
+
+**HP8 — Reload → persisted layout restores.**
+1. Arrange windows/tabsets (HP2–HP6), then reload.
+*Outcome:* storage keys parse; `fromJSON(saved)` + `loadHeights()` restore
+window rects and per-tabset heights; transient 1–2 frame oversubscription
+settles via the pin pass (A4/A5). Serialization: round-trips `{top}` forms.
+
+**HP9 — Reset → preset restored.**
+1. Click Reset.
+*Outcome:* both storage keys removed, `heightsMap={}` cleared,
+`api.clear()` → `fromJSON(presetLayout())` → re-pin (:1505–1513); DOM
+returns to the HP1 state (window identity, group ids, heights all reset).
+Recovery path from B1 (empty editor) and from any corrupted persisted
+state (A6/A7).
+
+**HP10 — Close every panel → empty editor.**
+1. Close each tab via its ✕ (stock `DockviewDefaultTab`).
+*Outcome:* emptying a float window disposes it (last member leaves →
+`floatingGroup.dispose()`); closing the doc tab too leaves the bare
+watermark surface (B1) with toolbar/statusbar intact; layout key reflects
+the emptied state. HP9 restores.
+
+## 3. State matrix
 
 | State | Trigger / data condition | What renders | Notes |
 |---|---|---|---|
@@ -97,7 +200,7 @@ per-tabset heights persist to localStorage.
 `mockups/states/cdn-failure.html`, `mockups/states/empty-editor.html`,
 `mockups/states/narrow-viewport.html` (labeled FUTURE).
 
-## 3. Default / initial values
+## 4. Default / initial values
 
 - **Storage**: `mn-dockview7-floats-v1`, `mn-dockview7-heights-v1`; empty first load; written on layout change + takeover drags; wiped by Reset.
 - **Toolbar**: Bold · Italic | Quote · Note | Xref · Eref | spacer | Auto-wrap panels: **ON** | Reset.
@@ -107,13 +210,13 @@ per-tabset heights persist to localStorage.
 - **Constants**: MIN_TS_H 36, MIN_WIN_H 150, min width 120, sash 4px, titlebar 24px, undock chrome 26, WRAP 260×200 (fallback), dndEdges 160/26.
 - **Dockview options**: themeLight, `floatingGroupDragHandle:'titlebar'`, `dndStrategy:'pointer'`, `floatingGroupBounds` 0/0 (containment via `clampDragBox`: top/left only), `DockviewDefaultTab`. `keyboardNavigation` unset (off).
 
-## 4. Keyboard & focus behavior
+## 5. Keyboard & focus behavior
 
 **Present**: roving tabindex per tab strip (arrows, Home/End, Enter/Space, Delete/Backspace close+refocus); native focus + UA rings on toolbar buttons (panel-internal native inputs remain focusable but are panel territory).
 
 **Missing**: `keyboardNavigation` off → no ctrl+]/[, F6/shift+F6, ctrl+shift+\, ctrl+M docking; no `:focus-visible` styles (group focus outline actively removed); grip `aria-hidden` + unfocusable titlebar → no keyboard move/undock/stack-drag; no Esc-cancel on drags; mouse-close and unwrap both leave DOM focus on body; auto-wrap toggle lacks `aria-pressed`.
 
-## 5. Transitions
+## 6. Transitions
 
 - boot → layout: overlay removed after render; 1–2 frame height settle on floats.
 - corrupted-storage → preset: silent, immediate.
