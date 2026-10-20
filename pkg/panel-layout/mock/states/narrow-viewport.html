@@ -1,13 +1,13 @@
 <!--
 GENERATED FILE — do not edit by hand; regenerate with:
-    node docs/panel-layout-proposal/states/capture.mjs
+    node pkg/panel-layout/mock/states/capture.mjs
 
-State frame: empty-editor.html — behavior.spec.md §3 B1 — all panels closed incl. doc
-Source mock: docs/panel-layout-proposal/editor-dockview7-floats.html
-Mock git SHA at capture: 8656ef8310734926142ac4d4271162e716e29886  (file clean in working tree)
-Capture date (UTC): 2026-10-19T10:01:31Z
-Viewport at capture: 1440x900 (device pixel ratio 1); PNG sibling captured at the same size
-Mechanism: Loaded normally (CDN allowed) in a fresh browser context (fresh storage → preset rendered); all 11 panels closed by clicking each active tab close button in the real UI; waited for float windows to dispose and the empty watermark to settle.
+State frame: narrow-viewport.html — behavior.spec.md §3 I2 — narrow viewport (≤720px)
+Source mock: pkg/panel-layout/mock/editor-dockview7-floats.html
+Mock git SHA at capture:   (working tree DIRTY for this file)
+Capture date (UTC): 2026-10-20T09:51:20Z
+Viewport at capture: 720x900 (device pixel ratio 1); PNG sibling captured at the same size
+Mechanism: Loaded normally (CDN allowed) in a fresh browser context at a fixed 720x900 viewport; waited for settle; captured the degraded reality as-is (floats crowd/hang off the pasteboard, toolbar clips, statusbar hint wraps).
 Post-processing: every script element removed (the frame executes zero JS); the dockview.css link replaced by that stylesheet inlined VERBATIM into a style[data-src] block; the mock own style block is kept verbatim.
 PROPOSED content (not in the mock; pending designer sign-off) is delimited by
 HTML comments "PROPOSED (not in mock; pending designer sign-off)" ... "END PROPOSED"
@@ -15,10 +15,10 @@ plus machine-readable data-proposed attributes / .mn-proposed classes.
 Offline guarantee: zero external references — loads from file:// with no network.
 -->
 <!doctype html>
-<html lang="en"><head>
+<html lang="en" class="mn-frame-doc"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Metanorma editor — state frame B1: empty editor</title>
+<title>Metanorma editor — state frame I2: narrow viewport (captured @720px + PROPOSED FUTURE variant)</title>
 
 <!-- Real dockview stylesheet (theme vars + structural rules) -->
 <style data-src="dockview-core@7.0.4/dist/styles/dockview.css">.dv-scrollable {
@@ -3778,18 +3778,322 @@ Offline guarantee: zero external references — loads from file:// with no netwo
 </style>
 
 
-</head>
-<body>
+<style data-role="mn-frame-scaffolding">
+  /* frame scaffolding (not part of the captured mock, not proposed design):
+     stacks the two labeled sections of this frame and pins each to the exact
+     capture viewport so the file renders identically at any browser size */
+  html.mn-frame-doc, body.mn-frame-body{height:auto;margin:0}
+  body.mn-frame-body{overflow:visible;background:#dfe4e9;padding:26px 14px 60px;
+    display:flex;flex-direction:column;align-items:center;gap:28px}
+  .mn-frame-note{max-width:720px;margin:0 0 2px;text-align:center;
+    font:11px/1.65 var(--mono);color:#5b6672}
+  .mn-frame-section{display:flex;flex-direction:column;gap:7px;max-width:720px}
+  .mn-frame-label{font:700 12px/1.5 var(--sans);letter-spacing:.05em;text-transform:uppercase;
+    color:#33404d;margin:0}
+  .mn-frame-label .mn-frame-tag{font:600 10px/1 var(--sans);letter-spacing:.04em;
+    color:var(--accent-ink);background:var(--accent-bg);border:1px solid #c4d7f7;
+    border-radius:4px;padding:3px 6px;margin-left:8px;vertical-align:1px}
+  .mn-frame-cap{font:11.5px/1.55 var(--sans);color:var(--muted);margin:0}
+  .mn-frame-viewport{width:720px;height:900px;position:relative;overflow:hidden;flex:none;
+    border:1px solid #c3cbd3;border-radius:8px;box-shadow:0 10px 30px rgba(15,25,40,.16);
+    background:#e3e7eb}
+  .mn-frame-viewport .window{width:100%;height:100%;max-width:100%}
+</style></head>
+<body class="mn-frame-body"><p class="mn-frame-note">State frame I2 — captured at 720×900 (PNG sibling: narrow-viewport.png). Fixed-viewport frame: the two boxes below pin that exact size. Best viewed ≥750px wide. Generated file — regenerate with: node pkg/panel-layout/mock/states/capture.mjs</p>
 
-<div id="root"><div class="window"><div class="toolbar"><button class="tb-btn">Bold</button><button class="tb-btn">Italic</button><span class="tb-sep"></span><button class="tb-btn">Quote</button><button class="tb-btn">Note</button><span class="tb-sep"></span><button class="tb-btn">Xref</button><button class="tb-btn">Eref</button><span class="tb-spacer"></span><button class="tb-btn on" title="When ON, dropping a dragged panel tab on empty space pops it into a new floating window (the Document tab itself stays docked)">Auto-wrap panels: ON</button><button class="tb-btn">Reset</button></div><div class="layoutArea"><div style="height: 100%; width: 100%;"><div class="dv-shell dockview-theme-light" style="height: 100%; width: 100%; position: relative;"><div class="dv-popover-anchor" style="position: relative;"></div><div class="dv-split-view-container dv-horizontal dv-separator-border"><div class="dv-sash-container"></div><div class="dv-view-container"><div class="dv-view visible" style="width: 1440px; left: 0px;"><div class="dv-shell-middle-column" style="height: 100%; width: 100%;"><div class="dv-split-view-container dv-vertical dv-separator-border"><div class="dv-sash-container"></div><div class="dv-view-container"><div class="dv-view visible" style="height: 836px; top: 0px;"><div style="height: 100%; width: 100%;"><div class="dv-grid-view dv-dockview" style="height: 836px; width: 1440px;"><div class="dv-branch-node"><div class="dv-split-view-container dv-horizontal dv-separator-border"><div class="dv-sash-container"></div><div class="dv-view-container"></div></div></div><div class="dv-watermark-container" data-testid="watermark-component"><div class="dv-watermark"></div></div></div><div class="dv-live-region" role="status" aria-live="polite" aria-atomic="true" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); clip-path: inset(50%); white-space: nowrap; border: 0px;">24817-1.adoc closed</div><div class="dv-live-region-assertive" role="alert" aria-live="assertive" aria-atomic="true" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); clip-path: inset(50%); white-space: nowrap; border: 0px;"></div></div></div></div></div></div></div></div></div><div class="dv-floating-overlay-host" style="left: 0px; top: 0px; width: 1440px; height: 836px;"></div></div></div><!-- PROPOSED (not in mock; pending designer sign-off): spec §3 B1 faint hint over the empty watermark — the captured mock renders a bare dv-watermark with zero text (see B1 row: "hint itself not implemented"). --><style data-proposed="empty-editor-reset-hint">
-  /* faint hint over the empty watermark — PROPOSED for spec §3 B1 */
-  .mn-empty-hint{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);
-    font:12px var(--sans);color:var(--faint);letter-spacing:.012em;white-space:nowrap;
-    border:1px dashed var(--line-soft);border-radius:8px;padding:10px 16px;
-    background:rgba(255,255,255,.55);pointer-events:none}
-</style><div class="mn-proposed mn-empty-hint" data-proposed="empty-editor-reset-hint">All panels closed — Reset restores the preset</div><!-- END PROPOSED (b1 reset hint) --></div><div class="statusbar"><span><span class="dot"></span>Semantic XML valid · 1 unresolved reference · 1 duplicate docid</span><span class="grow"></span><span class="live">dockview v7 · drag tabs between windows · drop a tab on empty space = new window · drag empty tab-strip space to move a whole stack · layout saved</span><span>1 412 words · saved 12:04</span></div></div></div>
+<div id="root"></div>
 
 
 
 
-</body></html>
+<section class="mn-frame-section" data-frame="captured-720x900"><h2 class="mn-frame-label">Captured — editor-dockview7-floats.html at 720×900 <span class="mn-frame-tag">spec §3 I2 · degraded reality</span></h2><p class="mn-frame-cap">Exactly what the live mock renders at 720×900 with fresh storage, unretouched: Navigation (left:18) and Pinned (left:292) crowd the pasteboard, Inspector (left:1050, w:320) hangs entirely off-canvas, statusbar <code>.live</code> hint wraps three lines tall (49px bar). The no-wrap toolbar just fits at 720px — its buttons measure 718px of the 718px available, so clipping onsets just below this width.</p><div class="mn-frame-viewport" data-viewport="720x900"><div class="window"><div class="toolbar"><button class="tb-btn">Bold</button><button class="tb-btn">Italic</button><span class="tb-sep"></span><button class="tb-btn">Quote</button><button class="tb-btn">Note</button><span class="tb-sep"></span><button class="tb-btn">Xref</button><button class="tb-btn">Eref</button><span class="tb-spacer"></span><button class="tb-btn on" title="When ON, dropping a dragged panel tab on empty space pops it into a new floating window (the Document tab itself stays docked)">Auto-wrap panels: ON</button><button class="tb-btn">Reset</button></div><div class="layoutArea"><div style="height: 100%; width: 100%;"><div class="dv-shell dockview-theme-light" style="height: 100%; width: 100%; position: relative;"><div class="dv-popover-anchor" style="position: relative;"></div><div class="dv-split-view-container dv-horizontal dv-separator-border"><div class="dv-sash-container"></div><div class="dv-view-container"><div class="dv-view visible" style="width: 720px; left: 0px;"><div class="dv-shell-middle-column" style="height: 100%; width: 100%;"><div class="dv-split-view-container dv-vertical dv-separator-border"><div class="dv-sash-container"></div><div class="dv-view-container"><div class="dv-view visible" style="height: 812px; top: 0px;"><div style="height: 100%; width: 100%;"><div class="dv-grid-view dv-dockview" style="height: 812px; width: 720px;"><div class="dv-branch-node"><div class="dv-split-view-container dv-horizontal dv-separator-border"><div class="dv-sash-container"></div><div class="dv-view-container"><div class="dv-view visible" style="width: 720px; left: 0px;"><div tabindex="-1" class="dv-groupview dv-groupview-header-top dv-active-group" role="region" aria-label="24817-1.adoc" style="outline: none; height: 100%; width: 100%; overflow: hidden;"><div class="dv-tabs-and-actions-container dv-single-tab"><div class="dv-pre-actions-container"></div><div class="dv-scrollable"><div class="dv-tabs-container" role="tablist" aria-orientation="horizontal"><div class="dv-tab dv-active-tab" tabindex="0" draggable="false" id="dv-tab-0" role="tab" aria-selected="true" aria-controls="dv-tabpanel-0"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">24817-1.adoc</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div></div><div class="dv-scrollbar dv-scrollbar-horizontal" style="width: 0px; left: 0px;"></div></div><div class="dv-left-actions-container"></div><div class="dv-void-container dv-draggable" draggable="false"></div><div class="dv-right-actions-container"></div></div><div class="dv-content-container" tabindex="-1" id="dv-tabpanel-0" role="tabpanel" aria-labelledby="dv-tab-0"><div class="dv-react-part" style="height: 100%; width: 100%;"><div class="panelwrap docwrap">
+      <div class="page">
+        <div class="row"><div class="rail"></div><div class="cell">
+          <div class="bibdata-strip">
+            <span class="tag">bibdata</span>
+            <div>
+              <div class="id">ISO/CD 24817-1</div>
+              <div class="sub">Aerospace alloys — Determination of Mg and Zn by FAAS · stage CD · 2026-03 · click to edit metadata</div>
+            </div>
+            <div class="grow"></div>
+            <span class="ptr">Edit metadata <span class="arr">▸</span></span>
+          </div>
+        </div></div>
+        <div class="row"><div class="rail"></div><div class="cell">
+          <div class="tds-row">
+            <span class="tag">termdocsource</span> terminology sources:
+            <span class="ptr">ISO 1087-1 <span class="arr">↗</span></span>
+            <span class="ptr">ISO 5127 <span class="arr">↗</span></span>
+          </div>
+        </div></div>
+        <div class="row"><div class="rail"></div><div class="cell">
+          <div class="doc-title">Determination of magnesium and zinc in aerospace alloys — Flame atomic absorption spectrometric method</div>
+          <div class="doc-id">ISO/CD 24817-1:2026(E)</div>
+        </div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">1&nbsp;&nbsp;Scope</h2></div></div>
+        <div class="row"><div class="rail"></div><div class="cell">
+          <p class="body">This document specifies a flame atomic absorption spectrometric method
+          for the determination of the mass fractions of magnesium and zinc in the aerospace
+          alloys listed in <span class="xref">Table 2</span>. Quantities and units are expressed
+          in accordance with <span class="eref">ISO 80000-1</span>. The method is applicable to
+          mass fractions from 0,005&nbsp;% to 1,5&nbsp;%. Calibration
+          shall follow the procedure given in <span class="broken">Clause 9</span>.</p>
+          <p class="footnote"><span class="fnline"></span>1&nbsp; Formerly designated “series AA alloys”.</p>
+        </div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">2&nbsp;&nbsp;Normative references</h2></div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><p class="body">There are no normative references in this document.</p></div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">3&nbsp;&nbsp;Terms and definitions</h2></div></div>
+        <div class="row"><div class="rail"><span class="mk dot">term-alloy</span></div><div class="cell">
+          <p class="body"><b>3.1</b>&nbsp; <span class="term-word">aerospace alloy</span></p>
+          <p class="body">metallic material, alloyed for use in load-bearing aerospace structures</p>
+          <p class="tsrc">[SOURCE: ISO 11348-1:2007, 3.2, modified — “aircraft” replaced by “aerospace”]
+            &nbsp;<span class="ptr">→ bibitem [2] <span class="arr">↗</span></span></p>
+        </div></div>
+        <div class="row"><div class="rail"><span class="mk"><b>#sec-5</b>·2</span></div>
+          <div class="cell"><h2 class="cl">5&nbsp;&nbsp;Requirements</h2></div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h3 class="scl">5.1&nbsp;&nbsp;General</h3></div></div>
+        <div class="row"><div class="rail"></div><div class="cell">
+          <p class="body">The determination shall be carried out on the test portion prepared
+          in accordance with <span class="xref">6.2</span>, using the nebulizer geometry shown
+          in <span class="xref">Figure 1</span>. Results shall be reported as specified
+          in <span class="xref">Table 2</span>.</p>
+        </div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h3 class="scl">5.2&nbsp;&nbsp;Determination</h3></div></div>
+        <div class="row"><div class="rail"><span class="mk hot selmark"><b>#req-5-2-1</b>·2</span></div>
+          <div class="cell"><div class="req selq">
+            <div class="req-head">
+              <span class="req-kind">Requirement</span>
+              <span class="req-id">R-5.2-1</span>
+              <span class="badge b-shall">shall · obligation: requirement</span>
+              <span class="badge b-meta">classification · 3 ▸</span>
+            </div>
+            <p>The test portion shall be dissolved in 20&nbsp;ml of hydrochloric acid
+            (1+1) and 2&nbsp;ml of hydrogen peroxide, then diluted to 100,0&nbsp;ml.</p>
+            <div class="req-meta-row">
+              <span class="k">Inherits:</span>
+              <span class="ptr">ISO 24817-1:2016 · Req 5.2-1 <span class="arr">↗</span></span>
+              <span class="chip-d">citeas on export: “ISO 24817-1”</span>
+            </div>
+          </div></div></div>
+        <div class="row"><div class="rail"><span class="mk dot">#req-5-2-2</span></div>
+          <div class="cell"><div class="req rec">
+            <div class="req-head">
+              <span class="req-kind">Recommendation</span>
+              <span class="req-id">R-5.2-2</span>
+              <span class="badge b-should">should · obligation: recommendation</span>
+            </div>
+            <p>A reagent blank should be carried through the complete procedure with each batch.</p>
+          </div></div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">6&nbsp;&nbsp;Expression of results</h2></div></div>
+        <div class="row"><div class="rail"><span class="mk"><b>#eq-1</b>·2</span></div>
+          <div class="cell">
+            <div class="formula">w = (ρ₁ − ρ₀) · V / (m · f)</div>
+            <div class="figtools"><span class="badge b-meta">stem · asciimath</span><span class="badge b-meta">block</span></div>
+          </div></div>
+        <div class="row"><div class="rail"><span class="mk hot"><b>#fig-ion-beam</b>·3</span></div>
+          <div class="cell"><div class="figure">
+            <div class="figbox">image · ion-beam-geometry.svg</div>
+            <div class="figcap"><b>Figure 1</b> — Nebulizer flow geometry</div>
+          </div></div></div>
+        <div class="row"><div class="rail"><span class="mk dot weak">fig-torch</span></div>
+          <div class="cell"><div class="figure small">
+            <div class="figbox">image · torch-detail.png</div>
+            <div class="figcap"><b>Figure 2</b> — Torch detail</div>
+            <div class="figtools"><span class="badge b-warn">⚠ mimetype missing — see Validation ▸</span></div>
+          </div></div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">7&nbsp;&nbsp;Test report</h2></div></div>
+        <div class="row"><div class="rail"><span class="mk"><b>#tbl-2</b>·1</span></div>
+          <div class="cell">
+            <div class="tblcap"><b>Table 2</b> — Measured mass fractions</div>
+            <table class="mn">
+              <tbody><tr><th>Element</th><th>Mass fraction&nbsp;%</th><th>Wavelength&nbsp;nm</th></tr>
+              <tr><td>Mg</td><td>0,45</td><td>285,2</td></tr>
+              <tr><td>Zn</td><td>1,12</td><td>213,9</td></tr>
+            </tbody></table>
+          </div></div>
+        <div class="row"><div class="rail"></div><div class="cell">
+          <div class="note"><b>NOTE</b>&nbsp; The result is reported to four significant digits.</div>
+        </div></div>
+        <div class="row"><div class="rail"><span class="mk dot weak">notes</span></div>
+          <div class="cell">
+            <h3 class="floating">Experimental notes</h3>
+            <p class="body"><span class="badge b-meta">floating title · depth 2 · unnumbered</span></p>
+            <p class="body">Working notes retained for the committee; excluded from numbering.</p>
+          </div></div>
+        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">Bibliography</h2></div></div>
+        <div class="row">
+          <div class="rail"><div class="mk-region">▸ 14 anchors<br>collapsed (density)</div></div>
+          <div class="cell">
+            <div class="bib-item"><span class="n">[1]</span>
+              <span class="t">ISO 80000-1:2022, <em>Quantities and units — Part 1: General</em>. Geneva: ISO.</span>
+              <span class="bib-side"><span class="chip-d">cited ×2</span></span></div>
+            <div class="bib-item"><span class="n">[2]</span>
+              <span class="t">ISO 11348-1:2007, <em>Water quality — Luminescence… Part 1</em>. Geneva: ISO.</span>
+              <span class="bib-side"><span class="chip-d">cited ×3</span></span></div>
+            <div class="bib-item"><span class="n">[3]</span>
+              <span class="t">ISO 1087-1:2000, <em>Terminology work — Vocabulary — Part 1</em>. Geneva: ISO.</span>
+              <span class="bib-side"><span class="chip-d">non-referenced</span></span></div>
+            <div class="bib-item"><span class="n">[4]</span>
+              <span class="t">ISO 80000-1:2022 (draft revision), <em>Quantities and units</em>.</span>
+              <span class="bib-side"><span class="badge b-warn">duplicate docid ↗ [1]</span></span></div>
+          </div>
+        </div>
+      </div></div></div></div></div></div></div></div></div></div><div class="dv-live-region" role="status" aria-live="polite" aria-atomic="true" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); clip-path: inset(50%); white-space: nowrap; border: 0px;"></div><div class="dv-live-region-assertive" role="alert" aria-live="assertive" aria-atomic="true" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); clip-path: inset(50%); white-space: nowrap; border: 0px;"></div></div></div></div></div></div></div></div></div><div class="dv-floating-overlay-host" style="left: 0px; top: 0px; width: 720px; height: 812px;"><div class="dv-resize-container dv-resize-container-with-titlebar" role="dialog" aria-modal="false" aria-level="0" aria-label="Outline" style="height: 484px; width: 252px; inset: 12px auto auto 18px; z-index: calc(var(--dv-overlay-z-index, 999) + 0);"><div class="dv-resize-handle-top"></div><div class="dv-resize-handle-bottom"></div><div class="dv-resize-handle-left"></div><div class="dv-resize-handle-right"></div><div class="dv-resize-handle-topleft"></div><div class="dv-resize-handle-topright"></div><div class="dv-resize-handle-bottomleft"></div><div class="dv-resize-handle-bottomright"></div><div class="dv-floating-titlebar dv-draggable" draggable="false"><span class="mn-drag-grip" aria-hidden="true"></span></div><div class="dv-grid-view"><div class="dv-branch-node"><div class="dv-split-view-container dv-vertical dv-separator-border"><div class="dv-sash-container"><div class="dv-sash dv-disabled" style="left: 0px; top: 242px;"></div><div class="dv-sash dv-disabled" style="left: 0px; top: 374px;"></div></div><div class="dv-view-container"><div class="dv-view visible" style="height: 244px; top: 0px;"><div tabindex="-1" class="dv-groupview dv-groupview-header-top dv-groupview-floating dv-inactive-group" role="region" aria-label="Outline" style="outline: none; height: 100%; width: 100%; overflow: hidden;"><div class="dv-tabs-and-actions-container dv-single-tab"><div class="dv-pre-actions-container"></div><div class="dv-scrollable"><div class="dv-tabs-container" role="tablist" aria-orientation="horizontal"><div class="dv-tab dv-active-tab" tabindex="0" draggable="false" id="dv-tab-1" role="tab" aria-selected="true" aria-controls="dv-tabpanel-1"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">Outline</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div></div><div class="dv-scrollbar dv-scrollbar-horizontal" style="width: 0px; left: 0px;"></div></div><div class="dv-left-actions-container"></div><div class="dv-void-container dv-draggable" draggable="false"></div><div class="dv-right-actions-container"></div></div><div class="dv-content-container" tabindex="-1" id="dv-tabpanel-1" role="tabpanel" aria-labelledby="dv-tab-1"><div class="dv-react-part" style="height: 100%; width: 100%;"><div class="panelwrap">
+      <input class="osearch" placeholder="Find in outline…" style="">
+      <span class="o-node">◱ Document <span class="otag">bibdata</span></span>
+      <span class="o-node">1&nbsp;&nbsp;Scope</span>
+      <span class="o-node">2&nbsp;&nbsp;Normative references</span>
+      <span class="o-node">3&nbsp;&nbsp;Terms and definitions</span>
+      <span class="o-node">5&nbsp;&nbsp;Requirements</span>
+      <span class="o-node sub">5.1&nbsp;&nbsp;General</span>
+      <span class="o-node sub sel">5.2&nbsp;&nbsp;Determination</span>
+      <span class="o-node sub">5.3&nbsp;&nbsp;Calculation</span>
+      <span class="o-node">6&nbsp;&nbsp;Expression of results</span>
+      <span class="o-node">7&nbsp;&nbsp;Test report</span>
+      <span class="o-node floating">Experimental notes <span class="otag">floating</span></span>
+      <span class="o-node">Bibliography</span></div></div></div></div></div><div class="dv-view visible" style="height: 132px; top: 244px;"><div tabindex="-1" class="dv-groupview dv-groupview-header-top dv-inactive-group dv-groupview-floating" role="region" aria-label="Bibliography" style="outline: none; height: 100%; width: 100%; overflow: hidden;"><div class="dv-tabs-and-actions-container"><div class="dv-pre-actions-container"></div><div class="dv-scrollable"><div class="dv-tabs-container" role="tablist" aria-orientation="horizontal"><div class="dv-tab dv-active-tab" tabindex="0" draggable="false" id="dv-tab-2" role="tab" aria-selected="true" aria-controls="dv-tabpanel-2"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">Bibliography</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div><div class="dv-tab dv-inactive-tab" tabindex="-1" draggable="false" id="dv-tab-3" role="tab" aria-selected="false" aria-controls="dv-tabpanel-2"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">Validation</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div></div><div class="dv-scrollbar dv-scrollbar-horizontal" style="width: 0px; left: 0px;"></div></div><div class="dv-left-actions-container"></div><div class="dv-void-container dv-draggable" draggable="false"></div><div class="dv-right-actions-container"></div></div><div class="dv-content-container" tabindex="-1" id="dv-tabpanel-2" role="tabpanel" aria-labelledby="dv-tab-2"><div class="dv-react-part" style="height: 100%; width: 100%;"><div class="panelwrap">
+      <input class="pfilter" placeholder="Filter — docid · title · contributor" style="">
+      <div class="bib-row"><span class="docid">ISO 80000-1:2022</span><span class="bt">Quantities and units — General</span><span class="chip-d">cited ×2</span></div>
+      <div class="bib-row"><span class="docid">ISO 11348-1:2007</span><span class="bt">Water quality — Luminescence…</span><span class="chip-d">cited ×3</span></div>
+      <div class="bib-row"><span class="docid">ISO 1087-1:2000</span><span class="bt">Terminology work — Vocabulary</span><span class="chip-d">non-ref.</span></div>
+      <div class="bib-row"><span class="docid">ISO 80000-1:2022*</span><span class="bt">draft revision</span><span class="badge b-warn">dup ↗</span></div>
+      <div class="pfoot">index over bibdata · termdocsource · bibitem · origins</div></div></div></div></div></div><div class="dv-view visible" style="height: 74px; top: 376px;"><div tabindex="-1" class="dv-groupview dv-groupview-header-top dv-inactive-group dv-groupview-floating" role="region" aria-label="Review" style="outline: none; height: 100%; width: 100%; overflow: hidden;"><div class="dv-tabs-and-actions-container dv-single-tab"><div class="dv-pre-actions-container"></div><div class="dv-scrollable"><div class="dv-tabs-container" role="tablist" aria-orientation="horizontal"><div class="dv-tab dv-active-tab" tabindex="0" draggable="false" id="dv-tab-4" role="tab" aria-selected="true" aria-controls="dv-tabpanel-3"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">Review</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div></div><div class="dv-scrollbar dv-scrollbar-horizontal" style="width: 0px; left: 0px;"></div></div><div class="dv-left-actions-container"></div><div class="dv-void-container dv-draggable" draggable="false"></div><div class="dv-right-actions-container"></div></div><div class="dv-content-container" tabindex="-1" id="dv-tabpanel-3" role="tabpanel" aria-labelledby="dv-tab-4"><div class="dv-react-part" style="height: 100%; width: 100%;"><div class="panelwrap">
+      <div class="iss"><span class="sev warn"></span><span class="txt"><b>Committee comment</b> — 5.2: confirm acid volume for high-alloy grades <span class="mono10">(A. Ricci · Tue)</span></span></div>
+      <div class="iss"><span class="sev warn"></span><span class="txt"><b>Suggestion</b> — 7: add precision row to Table 2 <span class="mono10">(M. Okafor · Mon)</span></span></div>
+      <div class="pfoot">2 open · resolved hidden</div></div></div></div></div></div></div></div></div></div></div><div class="dv-resize-container dv-resize-container-with-titlebar" role="dialog" aria-modal="false" aria-level="1" aria-label="Pinned · #fig-ion-beam" style="height: 168px; width: 300px; inset: 12px auto auto 292px; z-index: calc(var(--dv-overlay-z-index, 999) + 2);"><div class="dv-resize-handle-top"></div><div class="dv-resize-handle-bottom"></div><div class="dv-resize-handle-left"></div><div class="dv-resize-handle-right"></div><div class="dv-resize-handle-topleft"></div><div class="dv-resize-handle-topright"></div><div class="dv-resize-handle-bottomleft"></div><div class="dv-resize-handle-bottomright"></div><div class="dv-floating-titlebar dv-draggable" draggable="false"><span class="mn-drag-grip" aria-hidden="true"></span></div><div class="dv-grid-view"><div class="dv-branch-node"><div class="dv-split-view-container dv-vertical dv-separator-border"><div class="dv-sash-container"></div><div class="dv-view-container"><div class="dv-view visible" style="height: 142px; top: 0px;"><div tabindex="-1" class="dv-groupview dv-groupview-header-top dv-groupview-floating dv-inactive-group" role="region" aria-label="Pinned · #fig-ion-beam" style="outline: none; height: 100%; width: 100%; overflow: hidden;"><div class="dv-tabs-and-actions-container dv-single-tab"><div class="dv-pre-actions-container"></div><div class="dv-scrollable"><div class="dv-tabs-container" role="tablist" aria-orientation="horizontal"><div class="dv-tab dv-active-tab" tabindex="0" draggable="false" id="dv-tab-5" role="tab" aria-selected="true" aria-controls="dv-tabpanel-4"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">Pinned · #fig-ion-beam</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div></div><div class="dv-scrollbar dv-scrollbar-horizontal" style="width: 0px; left: 0px;"></div></div><div class="dv-left-actions-container"></div><div class="dv-void-container dv-draggable" draggable="false"></div><div class="dv-right-actions-container"></div></div><div class="dv-content-container" tabindex="-1" id="dv-tabpanel-4" role="tabpanel" aria-labelledby="dv-tab-5"><div class="dv-react-part" style="height: 100%; width: 100%;"><div class="panelwrap">
+      <div style="margin-bottom:6px"><span class="node-pill">figure</span><span class="anchor-ref">@ fig-ion-beam</span></div>
+      <ul class="blink-list">
+        <li><span class="src">5.1</span> xref <span class="jump">go ↸</span></li>
+        <li><span class="src">6.2</span> xref <span class="jump">go ↸</span></li>
+        <li><span class="src">bib[2]</span> eref · ISO 11348-1 <span class="jump">go ↸</span></li>
+      </ul>
+      <div class="fnote">stays on this figure while selection roams — drag the window titlebar to move it, or drag the tab onto another group</div></div></div></div></div></div></div></div></div></div></div><div class="dv-resize-container dv-resize-container-with-titlebar" role="dialog" aria-modal="false" aria-level="2" aria-label="Identity &amp; References" style="height: 634px; width: 320px; inset: 12px auto auto 720px; z-index: calc(var(--dv-overlay-z-index, 999) + 4);"><div class="dv-resize-handle-top"></div><div class="dv-resize-handle-bottom"></div><div class="dv-resize-handle-left"></div><div class="dv-resize-handle-right"></div><div class="dv-resize-handle-topleft"></div><div class="dv-resize-handle-topright"></div><div class="dv-resize-handle-bottomleft"></div><div class="dv-resize-handle-bottomright"></div><div class="dv-floating-titlebar dv-draggable" draggable="false"><span class="mn-drag-grip" aria-hidden="true"></span></div><div class="dv-grid-view"><div class="dv-branch-node"><div class="dv-split-view-container dv-vertical dv-separator-border"><div class="dv-sash-container"><div class="dv-sash dv-disabled" style="left: 0px; top: 198px;"></div><div class="dv-sash dv-disabled" style="left: 0px; top: 378px;"></div><div class="dv-sash dv-disabled" style="left: 0px; top: 494px;"></div></div><div class="dv-view-container"><div class="dv-view visible" style="height: 200px; top: 0px;"><div tabindex="-1" class="dv-groupview dv-groupview-header-top dv-groupview-floating dv-inactive-group" role="region" aria-label="Identity &amp; References" style="outline: none; height: 100%; width: 100%; overflow: hidden;"><div class="dv-tabs-and-actions-container dv-single-tab"><div class="dv-pre-actions-container"></div><div class="dv-scrollable"><div class="dv-tabs-container" role="tablist" aria-orientation="horizontal"><div class="dv-tab dv-active-tab" tabindex="0" draggable="false" id="dv-tab-6" role="tab" aria-selected="true" aria-controls="dv-tabpanel-5"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">Identity &amp; References</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div></div><div class="dv-scrollbar dv-scrollbar-horizontal" style="width: 0px; left: 0px;"></div></div><div class="dv-left-actions-container"></div><div class="dv-void-container dv-draggable" draggable="false"></div><div class="dv-right-actions-container"></div></div><div class="dv-content-container" tabindex="-1" id="dv-tabpanel-5" role="tabpanel" aria-labelledby="dv-tab-6"><div class="dv-react-part" style="height: 100%; width: 100%;"><div class="panelwrap">
+      <div style="margin-bottom:7px"><span class="node-pill">requirement</span><span class="anchor-ref">@ req-5-2-1</span></div>
+      <div class="field"><label>anchor</label>
+        <div class="ctl"><input type="text" value="req-5-2-1" style="">
+        <div class="fnote">3 references rewrite on rename (xref, eref, inherit)</div></div></div>
+      <div class="field"><label>id · generated</label>
+        <div class="ctl"><input type="text" readonly="" value="7f3a91c4…e21" style="">
+        <div class="fnote">content-hash — pipeline-owned, never edit</div></div></div>
+      <div class="field"><label>backlinks</label>
+        <div class="ctl"><ul class="blink-list">
+          <li><span class="src">5.1</span> xref “R-5.2-1” <span class="jump">go ↸</span></li>
+          <li><span class="src">7 NOTE</span> xref <span class="jump">go ↸</span></li>
+          <li><span class="src">bib[1]</span> eref · ISO 24817-1 <span class="jump">go ↸</span></li>
+        </ul></div></div>
+      <div class="field"><label>inherit</label>
+        <div class="ctl"><div class="prow">
+          <span class="pick">ISO 24817-1:2016 · Req 5.2-1 ↗</span><span class="linklike">Pick…</span>
+        </div></div></div></div></div></div></div></div><div class="dv-view visible" style="height: 180px; top: 200px;"><div tabindex="-1" class="dv-groupview dv-groupview-header-top dv-inactive-group dv-groupview-floating" role="region" aria-label="Attributes" style="outline: none; height: 100%; width: 100%; overflow: hidden;"><div class="dv-tabs-and-actions-container dv-single-tab"><div class="dv-pre-actions-container"></div><div class="dv-scrollable"><div class="dv-tabs-container" role="tablist" aria-orientation="horizontal"><div class="dv-tab dv-active-tab" tabindex="0" draggable="false" id="dv-tab-7" role="tab" aria-selected="true" aria-controls="dv-tabpanel-6"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">Attributes</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div></div><div class="dv-scrollbar dv-scrollbar-horizontal" style="width: 0px; left: 0px;"></div></div><div class="dv-left-actions-container"></div><div class="dv-void-container dv-draggable" draggable="false"></div><div class="dv-right-actions-container"></div></div><div class="dv-content-container" tabindex="-1" id="dv-tabpanel-6" role="tabpanel" aria-labelledby="dv-tab-7"><div class="dv-react-part" style="height: 100%; width: 100%;"><div class="panelwrap">
+      <div class="ftoggles"><span class="ft">Modified only</span><span class="ft">Non-default</span></div>
+      <div class="field"><label>obligation</label>
+        <div class="ctl"><div class="selbox">requirement — “shall”</div></div></div>
+      <div class="field"><label>classification</label>
+        <div class="ctl"><div class="prow">
+          <span class="pick">safety · test · verification (3)</span><span class="linklike">Edit…</span>
+        </div><div class="fnote">same edit state as the badge on the block</div></div></div>
+      <div class="field"><label>label</label>
+        <div class="ctl"><input type="text" value="R-5.2-1" style=""></div></div>
+      <div class="field"><label>unnumbered</label>
+        <div class="ctl"><input type="checkbox" style="accent-color: var(--accent);"> off — inherits auto-numbering</div></div></div></div></div></div></div><div class="dv-view visible" style="height: 116px; top: 380px;"><div tabindex="-1" class="dv-groupview dv-groupview-header-top dv-inactive-group dv-groupview-floating" role="region" aria-label="Structure" style="outline: none; height: 100%; width: 100%; overflow: hidden;"><div class="dv-tabs-and-actions-container dv-single-tab"><div class="dv-pre-actions-container"></div><div class="dv-scrollable"><div class="dv-tabs-container" role="tablist" aria-orientation="horizontal"><div class="dv-tab dv-active-tab" tabindex="0" draggable="false" id="dv-tab-8" role="tab" aria-selected="true" aria-controls="dv-tabpanel-7"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">Structure</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div></div><div class="dv-scrollbar dv-scrollbar-horizontal" style="width: 0px; left: 0px;"></div></div><div class="dv-left-actions-container"></div><div class="dv-void-container dv-draggable" draggable="false"></div><div class="dv-right-actions-container"></div></div><div class="dv-content-container" tabindex="-1" id="dv-tabpanel-7" role="tabpanel" aria-labelledby="dv-tab-8"><div class="dv-react-part" style="height: 100%; width: 100%;"><div class="panelwrap">
+      <div class="kv"><span class="k">parent</span><span class="v" style="color:var(--accent-ink)">Document ▸ 5 Requirements ▸ 5.2 Determination</span></div>
+      <div class="kv"><span class="k">cohort</span><span class="v">section_body · sibling 2 of 3</span></div>
+      <div class="kv"><span class="k">content</span><span class="v">statement+, prov*</span></div>
+      <div class="fnote">tabsets in this window share one width; each has its own height — sashes and the window’s bottom edge resize one tabset at a time</div></div></div></div></div></div><div class="dv-view visible" style="height: 100px; top: 496px;"><div tabindex="-1" class="dv-groupview dv-groupview-header-top dv-inactive-group dv-groupview-floating" role="region" aria-label="Derived · read-only" style="outline: none; height: 100%; width: 100%; overflow: hidden;"><div class="dv-tabs-and-actions-container"><div class="dv-pre-actions-container"></div><div class="dv-scrollable"><div class="dv-tabs-container" role="tablist" aria-orientation="horizontal"><div class="dv-tab dv-active-tab" tabindex="0" draggable="false" id="dv-tab-9" role="tab" aria-selected="true" aria-controls="dv-tabpanel-8"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">Derived · read-only</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div><div class="dv-tab dv-inactive-tab" tabindex="-1" draggable="false" id="dv-tab-10" role="tab" aria-selected="false" aria-controls="dv-tabpanel-8"><div class="dv-react-part" style="height: 100%; width: 100%;"><div data-testid="dockview-dv-default-tab" class="dv-default-tab"><span class="dv-default-tab-content">Overlays</span><div class="dv-default-tab-action"><svg height="11" width="11" viewBox="0 0 28 28" aria-hidden="false" focusable="false" class="dv-svg"><path d="M2.1 27.3L0 25.2L11.55 13.65L0 2.1L2.1 0L13.65 11.55L25.2 0L27.3 2.1L15.75 13.65L27.3 25.2L25.2 27.3L13.65 15.75L2.1 27.3Z"></path></svg></div></div></div></div></div><div class="dv-scrollbar dv-scrollbar-horizontal" style="width: 0px; left: 0px;"></div></div><div class="dv-left-actions-container"></div><div class="dv-void-container dv-draggable" draggable="false"></div><div class="dv-right-actions-container"></div></div><div class="dv-content-container" tabindex="-1" id="dv-tabpanel-8" role="tabpanel" aria-labelledby="dv-tab-9"><div class="dv-react-part" style="height: 100%; width: 100%;"><div class="panelwrap">
+      <div class="hatched" style="padding:9px 10px;border-radius:6px">
+        <div class="kv"><span class="k">label (computed)</span><span class="v" style="color:var(--derive-ink);font-style:italic">Req 5.2.1 — from §5 numbering chain</span></div>
+        <div class="kv"><span class="k">renders as</span><span class="v" style="color:var(--derive-ink);font-style:italic">“shall” statement</span></div>
+        <div class="kv"><span class="k">citeas on export</span><span class="v" style="color:var(--derive-ink);font-style:italic">ISO 24817-1</span></div>
+        <div class="derived-note">Computed by the presentation pipeline — edit the semantic panels; derived values change on export.</div>
+      </div></div></div></div></div></div></div></div></div></div></div></div></div></div></div><div class="statusbar"><span><span class="dot"></span>Semantic XML valid · 1 unresolved reference · 1 duplicate docid</span><span class="grow"></span><span class="live">dockview v7 · drag tabs between windows · drop a tab on empty space = new window · drag empty tab-strip space to move a whole stack · layout saved</span><span>1 412 words · saved 12:04</span></div></div></div></section><!-- PROPOSED (not in mock; pending designer sign-off): FUTURE ≤720px collapsed single-window/tabbed variant for spec §3 I2 — icon-only toolbar, panels as one tabbed drawer instead of floating mini-windows, statusbar live-hint hidden. Built only from the captured mock’s own design tokens; nothing of it is implemented in the mock. -->
+<section class="mn-frame-section mn-proposed" data-proposed="narrow-viewport-future-variant" aria-label="Proposed FUTURE narrow-viewport variant (not in mock)">
+<style data-proposed="narrow-viewport-future-variant">
+  /* PROPOSED FUTURE variant — built only from the captured mock's own tokens
+     (var(--chrome/--line/--accent/--accent-bg/--accent-ink/--muted/--faint),
+     .toolbar/.tb-btn/.statusbar/.page/.req/... classes from the mock's style
+     block). Nothing here is implemented in the mock. */
+  .mn-narrow .toolbar{padding:6px 10px;gap:3px}
+  .mn-narrow .toolbar .tb-btn{min-width:34px;padding:4px 0;text-align:center;font-size:13px}
+  .mn-narrow .toolbar .tb-btn b{font-weight:700}
+  .mn-narrow .toolbar .tb-btn i{font-style:italic}
+  .mn-narrow .layoutArea{display:flex;align-items:stretch}
+  .mn-narrow-stack{flex:1;display:flex;flex-direction:column;min-width:0;background:#fff;
+    border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  .mn-narrow-tabs{display:flex;align-items:flex-end;gap:2px;padding:6px 8px 0;
+    background:var(--chrome);border-bottom:1px solid var(--line);overflow-x:auto}
+  .mn-ntab{font:11.5px var(--sans);color:var(--muted);background:#f4f6f8;
+    border:1px solid var(--line);border-bottom:none;border-radius:6px 6px 0 0;
+    padding:5px 10px;white-space:nowrap;flex:none}
+  .mn-ntab.on{background:#fff;color:var(--ink);font-weight:600}
+  .mn-ntab-drawer{margin-left:auto;font:10px var(--mono);color:var(--faint);padding:6px 4px 5px 10px;flex:none}
+  .mn-narrow-doc{flex:1;min-height:0;overflow:auto;background:#e3e7eb;padding:12px 10px 30px}
+  .mn-narrow-doc .page{width:auto;max-width:640px;margin:0 auto;padding:22px 24px 36px 16px;font-size:12.5px}
+  .mn-narrow .statusbar .live{display:none} /* hint hidden per spec I2 */
+</style>
+<h2 class="mn-frame-label">Proposed — future (not in mock; pending designer sign-off) <span class="mn-frame-tag">≤720px collapsed variant</span></h2>
+<p class="mn-frame-cap">Single window replaces the floating mini-windows: panels collapse into one tabbed drawer (Document stays the default tab), toolbar becomes icon-only, statusbar drops the <code>.live</code> hint (spec §3 I2). Zero JS, system fonts, same tokens as the captured mock above.</p>
+<div class="mn-frame-viewport" data-viewport="720x900-proposed">
+  <div class="window mn-narrow">
+    <div class="toolbar" role="toolbar" aria-label="Formatting (icon-only at ≤720px)">
+      <button type="button" class="tb-btn" title="Bold" aria-label="Bold"><b>B</b></button>
+      <button type="button" class="tb-btn" title="Italic" aria-label="Italic"><i>I</i></button>
+      <span class="tb-sep"></span>
+      <button type="button" class="tb-btn" title="Quote" aria-label="Quote">”</button>
+      <button type="button" class="tb-btn" title="Note" aria-label="Note">N</button>
+      <span class="tb-sep"></span>
+      <button type="button" class="tb-btn" title="Xref" aria-label="Xref">X↗</button>
+      <button type="button" class="tb-btn" title="Eref" aria-label="Eref">E↗</button>
+      <span class="tb-spacer"></span>
+      <button type="button" class="tb-btn" title="Reset layout" aria-label="Reset layout">↻</button>
+    </div>
+    <div class="layoutArea">
+      <div class="mn-narrow-stack">
+        <div class="mn-narrow-tabs" role="tablist" aria-label="Panels — single tabbed drawer replaces the floating windows">
+          <span class="mn-ntab on" role="tab" aria-selected="true">Document</span>
+          <span class="mn-ntab" role="tab">Outline</span>
+          <span class="mn-ntab" role="tab">Pinned</span>
+          <span class="mn-ntab" role="tab">Inspector</span>
+          <span class="mn-ntab" role="tab">Validation</span>
+          <span class="mn-ntab" role="tab">Review</span>
+          <span class="mn-ntab-drawer">▾ drawer</span>
+        </div>
+        <div class="mn-narrow-doc">
+          <div class="page">
+            <div class="bibdata-strip">
+              <span class="tag">bibdata</span>
+              <span class="id">ISO 24817-1</span>
+              <span class="sub">Petroleum, petrochemical and natural gas industries — Corrosion-resistant alloy clad steel pipe</span>
+              <span class="grow"></span>
+              <span class="sub">rev 4 · committee draft</span>
+            </div>
+            <div class="tds-row"><span class="tag">termdocsource</span> ISO 1087-1:2000 · 2 terms derived · <span class="linklike">edit…</span></div>
+            <div class="row">
+              <div class="rail"><span class="mk"><b>5.2</b> req</span></div>
+              <div class="cell">
+                <div class="req">
+                  <div class="req-head"><span class="req-kind">Requirement</span>
+                    <span class="req-id">R-5.2-1</span></div>
+                  <p>The acid volume V shall be determined at temperature T per Table 2
+                    <span class="badge b-shall">shall</span>.</p>
+                  <div class="req-meta-row"><span class="k">subject</span> test · verification
+                    <span class="k">inherits</span> ISO 24817-1:2016 · Req 5.2-1</div>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="rail"><span class="mk hot"><b>5.2.1</b> note</span></div>
+              <div class="cell"><div class="note">Volumes are reported in millilitres (mL) to one decimal place.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="statusbar">
+      <span><span class="dot"></span>Semantic XML valid · 1 unresolved reference · 1 duplicate docid</span>
+      <span class="grow"></span>
+      <span class="live" data-proposed-note="hidden by the ≤720px rule above">dockview v7 · layout saved</span>
+      <span>1 412 words · saved 12:04</span>
+    </div>
+  </div>
+</div>
+</section><!-- END PROPOSED (narrow-viewport FUTURE variant) --></body></html>

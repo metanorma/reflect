@@ -1,0 +1,20 @@
+{
+  "name": "@metanorma/panel-layout",
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "yarn@4.17.0",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./mock": "./mock/editor-dockview7-floats.html"
+  },
+  "scripts": {
+    "compile": "tsc --outdir compiled",
+    "tokens:extract": "node mock/extract-design-tokens.mjs",
+    "capture:states": "node mock/states/capture.mjs",
+    "capture:goldens": "node mock/goldens/capture-goldens.mjs"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,11 +1,11 @@
 {
   "_provenance": {
-    "source": "docs/panel-layout-proposal/editor-dockview7-floats.html",
-    "commit": "8656ef8310734926142ac4d4271162e716e29886",
-    "commitDate": "2026-10-19T17:19:27+08:00",
-    "workingTreeDirtyAtExtraction": false,
-    "extractedAtUTC": "2026-10-19T11:48:23.881Z",
-    "regenerate": "node docs/panel-layout-proposal/extract-design-tokens.mjs",
+    "source": "pkg/panel-layout/mock/editor-dockview7-floats.html",
+    "commit": "(uncommitted)",
+    "commitDate": null,
+    "workingTreeDirtyAtExtraction": true,
+    "extractedAtUTC": "2026-10-20T10:29:05.785Z",
+    "regenerate": "node pkg/panel-layout/mock/extract-design-tokens.mjs",
     "note": "GENERATED FILE — do not edit by hand; the mock is the source of truth. Change the mock, re-run the command above."
   },
   "tokens": {

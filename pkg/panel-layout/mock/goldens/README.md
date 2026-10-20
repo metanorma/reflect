@@ -9,9 +9,9 @@ degenerate states; these are the happy-path flows HP1–HP10 from
 
 ## Commands
 
-- Regenerate everything: `node docs/panel-layout-proposal/goldens/capture-goldens.mjs`
+- Regenerate everything: `node pkg/panel-layout/mock/goldens/capture-goldens.mjs`
 - Diff against checked-in baselines:
-  `node docs/panel-layout-proposal/goldens/capture-goldens.mjs --check-only`
+  `node pkg/panel-layout/mock/goldens/capture-goldens.mjs --check-only`
 
 Needs network at page load (esm.sh/unpkg CDN); Playwright is auto-probed
 (`/root/mn-capture-deps`, `MN_CAPTURE_PLAYWRIGHT`, npx caches, or repo-local).

@@ -3,8 +3,8 @@
 // capture.mjs — regenerate the three static state frames (+ PNG siblings)
 // referenced by ../behavior.spec.md §3 (rows A3, B1, I2).
 //
-//   node docs/panel-layout-proposal/states/capture.mjs              # capture + verify
-//   node docs/panel-layout-proposal/states/capture.mjs --check-only # verify only
+//   node pkg/panel-layout/mock/states/capture.mjs              # capture + verify
+//   node pkg/panel-layout/mock/states/capture.mjs --check-only # verify only
 //
 // Frames are BUILD OUTPUTS — do not edit them by hand; edit the mock and rerun.
 //
@@ -52,14 +52,14 @@ import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const PROP_DIR = resolve(SCRIPT_DIR, '..');                 // docs/panel-layout-proposal
-const REPO_ROOT = resolve(PROP_DIR, '..', '..');
-const MOCK_REL = 'docs/panel-layout-proposal/editor-dockview7-floats.html';
-const MOCK_ABS = join(REPO_ROOT, MOCK_REL);
-const SPEC_ABS = join(PROP_DIR, 'behavior.spec.md');
+const PROP_DIR = resolve(SCRIPT_DIR, '..');                 // pkg/panel-layout/mock (parent of states/)
+const REPO_ROOT = resolve(PROP_DIR, '..', '..', '..');  // repo root (pkg/panel-layout/mock → pkg → repo)
+const MOCK_REL = 'pkg/panel-layout/mock/editor-dockview7-floats.html';
+const MOCK_ABS = join(PROP_DIR, 'editor-dockview7-floats.html');
+const SPEC_ABS = join(REPO_ROOT, 'docs/panel-layout-proposal/behavior.spec.md');
 const DOCKVIEW_CSS_URL = 'https://unpkg.com/dockview-core@7.0.4/dist/styles/dockview.css';
 const DOCKVIEW_CSS_SRC = 'dockview-core@7.0.4/dist/styles/dockview.css';
-const REGEN_CMD = 'node docs/panel-layout-proposal/states/capture.mjs';
+const REGEN_CMD = 'node pkg/panel-layout/mock/states/capture.mjs';
 
 // --------------------------------------------------------------------------
 // Playwright resolution
@@ -383,7 +383,7 @@ async function postprocess(page, { dockviewCss, frame }) {
       scaffoldingCss: I2_SCAFFOLDING_CSS,
       noteText: 'State frame I2 \u2014 captured at 720\u00d7900 (PNG sibling: narrow-viewport.png). ' +
         'Fixed-viewport frame: the two boxes below pin that exact size. Best viewed \u2265750px wide. ' +
-        'Generated file \u2014 regenerate with: ' + 'node docs/panel-layout-proposal/states/capture.mjs',
+        'Generated file \u2014 regenerate with: ' + 'node pkg/panel-layout/mock/states/capture.mjs',
       propOpen: I2_PROPOSED_OPEN_COMMENT,
       proposedHtml: I2_PROPOSED_HTML,
     } : null,

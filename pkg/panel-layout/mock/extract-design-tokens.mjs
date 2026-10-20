@@ -3,13 +3,13 @@
  * extract-design-tokens.mjs — lift the mock's design constants into a
  * generated JSON that the real implementation consumes.
  *
- * The mock (docs/panel-layout-proposal/editor-dockview7-floats.html) is the
+ * The mock (pkg/panel-layout/mock/editor-dockview7-floats.html) is the
  * SOURCE OF TRUTH; this script extracts, it does not define. Nothing here
  * should be edited by hand to change a value — change the mock and re-run:
  *
- *   node docs/panel-layout-proposal/extract-design-tokens.mjs
+ *   node pkg/panel-layout/mock/extract-design-tokens.mjs
  *
- * Output: docs/panel-layout-proposal/design-tokens.json (pure JSON; the
+ * Output: pkg/panel-layout/mock/design-tokens.json (pure JSON; the
  * provenance "comment" lives in its first key, _provenance).
  *
  * Why generated-JSON rather than a module both mock and implementation
@@ -143,12 +143,12 @@ const importMap = JSON.parse(
 
 const out = {
   _provenance: {
-    source: 'docs/panel-layout-proposal/editor-dockview7-floats.html',
+    source: 'pkg/panel-layout/mock/editor-dockview7-floats.html',
     commit: sha,
     commitDate: shaDate || null,
     workingTreeDirtyAtExtraction: dirty,
     extractedAtUTC: new Date().toISOString(),
-    regenerate: 'node docs/panel-layout-proposal/extract-design-tokens.mjs',
+    regenerate: 'node pkg/panel-layout/mock/extract-design-tokens.mjs',
     note: 'GENERATED FILE — do not edit by hand; the mock is the source of truth. '
       + 'Change the mock, re-run the command above.',
   },

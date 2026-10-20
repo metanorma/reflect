@@ -5,8 +5,10 @@
 This document specifies the **behavior states of the panel layout GUI** —
 window chrome, tabsets, tabs, sashes, drop zones, drag/drop semantics,
 persistence, focus, and viewport behavior — as realized in the live mock
-[`editor-dockview7-floats.html`](./editor-dockview7-floats.html)
-(dockview v7.0.4, floating "tabset group" mini-windows). The older
+[`editor-dockview7-floats.html`](../../pkg/panel-layout/mock/editor-dockview7-floats.html)
+(dockview v7.0.4, floating "tabset group" mini-windows), the reference
+artifact of the [`@metanorma/panel-layout`](../../pkg/panel-layout/index.ts)
+package. The older
 [`mockups/editor-flexlayout-floats.html`](../../mockups/editor-flexlayout-floats.html)
 is the visual-language reference and is cited where both mocks share an
 artifact.
@@ -198,22 +200,25 @@ the emptied state. HP9 restores.
 
 **Frames** (3, static state frames captured from the live mock; build outputs
 — regenerate all three plus their PNG siblings with
-`node docs/panel-layout-proposal/states/capture.mjs`):
-[`states/cdn-failure.html`](./states/cdn-failure.html) (A3),
-[`states/empty-editor.html`](./states/empty-editor.html) (B1),
-[`states/narrow-viewport.html`](./states/narrow-viewport.html) (I2 — captured
+`yarn workspace @metanorma/panel-layout capture:states`):
+[`cdn-failure.html`](../../pkg/panel-layout/mock/states/cdn-failure.html) (A3),
+[`empty-editor.html`](../../pkg/panel-layout/mock/states/empty-editor.html) (B1),
+[`narrow-viewport.html`](../../pkg/panel-layout/mock/states/narrow-viewport.html) (I2 — captured
 720×900 degraded reality, plus the PROPOSED FUTURE collapsed variant). The B1
 "Reset restores the preset" hint and the I2 collapsed variant are PROPOSED
 content pending designer sign-off (delimited in the frames by PROPOSED / END
 PROPOSED comments and `data-proposed` attributes); neither is implemented in
-the mock.
+the mock. Happy-path baselines (screens, serialized state, traces) live in
+[`pkg/panel-layout/mock/goldens/`](../../pkg/panel-layout/mock/goldens/README.md)
+— regenerate with `yarn workspace @metanorma/panel-layout capture:goldens`.
 
 ## 4. Default / initial values
 
 The canonical values live in
-[`design-tokens.json`](./design-tokens.json) — machine-extracted verbatim
-from the mock by [`extract-design-tokens.mjs`](./extract-design-tokens.mjs)
-(regenerate: `node docs/panel-layout-proposal/extract-design-tokens.mjs`;
+[`design-tokens.json`](../../pkg/panel-layout/mock/design-tokens.json) —
+machine-extracted verbatim from the mock by
+[`extract-design-tokens.mjs`](../../pkg/panel-layout/mock/extract-design-tokens.mjs)
+(regenerate: `yarn workspace @metanorma/panel-layout tokens:extract`;
 provenance recorded in its `_provenance` key). What follows is the same
 information as prose, for reading; the JSON is the shared source that both
 the mock (as origin) and any implementation (as consumer) agree on.

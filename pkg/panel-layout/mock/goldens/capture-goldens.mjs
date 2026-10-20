@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // ============================================================================
 // capture-goldens.mjs — one-off golden-capture harness against the LIVE mock
-// (../editor-dockview7-floats.html, dockview v7.0.4 floating tabset groups).
+// (editor-dockview7-floats.html, dockview v7.0.4 floating tabset groups).
 //
-//   node docs/panel-layout-proposal/goldens/capture-goldens.mjs              # capture all goldens
-//   node docs/panel-layout-proposal/goldens/capture-goldens.mjs --check-only # re-capture + diff vs baselines
+//   node pkg/panel-layout/mock/goldens/capture-goldens.mjs              # capture all goldens
+//   node pkg/panel-layout/mock/goldens/capture-goldens.mjs --check-only # re-capture + diff vs baselines
 //
 // Produces three artifact families in THIS directory (see README.md):
 //   hp*.png        key screens of the spec §2 happy paths, reached ONLY through
@@ -45,11 +45,12 @@ import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const PROP_DIR = resolve(SCRIPT_DIR, '..');                  // docs/panel-layout-proposal
+const PROP_DIR = resolve(SCRIPT_DIR, '..');                  // pkg/panel-layout/mock (parent of goldens/)
+const SERVE_ROOT = resolve(PROP_DIR, '..');                  // pkg/panel-layout (server root: /mock/… paths)
 const GOLDENS_DIR = SCRIPT_DIR;
 const LS_LAYOUT_KEY = 'mn-dockview7-floats-v1';
 const LS_HEIGHTS_KEY = 'mn-dockview7-heights-v1';
-const REGEN_CMD = 'node docs/panel-layout-proposal/goldens/capture-goldens.mjs';
+const REGEN_CMD = 'node pkg/panel-layout/mock/goldens/capture-goldens.mjs';
 
 // ---------------------------------------------------------------------------
 // Scripted-input constants (determinism: fixed coordinates, fixed step counts)
@@ -128,8 +129,8 @@ function startServer() {
     const srv = createServer(async (req, resp) => {
       try {
         const urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-        const file = resolve(PROP_DIR, '.' + urlPath);
-        if (!file.startsWith(PROP_DIR)) { resp.writeHead(403); resp.end(); return; }
+        const file = resolve(SERVE_ROOT, '.' + urlPath);
+        if (!file.startsWith(SERVE_ROOT)) { resp.writeHead(403); resp.end(); return; }
         const body = await readFile(file);
         resp.writeHead(200, { 'content-type': MIME[extname(file)] || 'application/octet-stream' });
         resp.end(body);
@@ -1201,7 +1202,7 @@ async function main() {
   const browser = await pw.chromium.launch();
   try {
     const { srv, port } = await startServer();
-    const url = `http://127.0.0.1:${port}/editor-dockview7-floats.html`;
+    const url = `http://127.0.0.1:${port}/mock/editor-dockview7-floats.html`;
     if (!checkOnly) {
       await mkdir(GOLDENS_DIR, { recursive: true });
       log(`regenerating goldens into ${GOLDENS_DIR} (regen: ${REGEN_CMD})`);
