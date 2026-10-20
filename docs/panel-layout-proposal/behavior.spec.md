@@ -139,9 +139,6 @@ the emptied state. HP9 restores.
 | State | Trigger / data condition | What renders | Notes |
 |---|---|---|---|
 | **A. Loading** | | | |
-| A1 Boot pending | Page open, modules unresolved | `#boot` full-viewport #22262c overlay, centered gray text "Loading React + dockview v7 from CDN (esm.sh/unpkg)…" (:47, :345) | Same artifact in both mocks; no spinner; removed only after render (:1564) |
-| A2 Slow CDN | Import latency | Same overlay, indefinite; `#root` empty behind | No timeout/retry |
-| A3 CDN failure | Any `await import` throws | Overlay text → `Failed to load from CDN: <msg>` + instructions (:1566–1568) | **Frame: `states/cdn-failure.html`** — dark overlay + real copy, no other chrome |
 | A4 First hydration | No layout in storage | Preset; members 1–2 frames oversubscribed ([257,117,100] vs pins [244,132,74], :904) then pin pass settles | Grips may appear ≤500ms late (interval net, :1496) |
 | A5 Reload, persisted layout | Valid storage keys | Saved window rects + saved per-tabset heights (`loadHeights` → pin pass) | `normalizeTops` keeps serialization `{top}`-only (:1133) |
 | A6 Corrupted layout JSON | Parse throws / `j.grid` falsy | Silent fallback to preset (:665–672) | min: statusbar flash "layout restored to preset" |
@@ -156,7 +153,6 @@ the emptied state. HP9 restores.
 | B5 Window at MIN_WIN_H | Drag to 150px (:759) | Members clamp at 36px each; overflow absorbed | Corner drag clamps width ≥120px (:974) |
 | B6 Degenerate sash | Oversubscribed pins | 4px sashes; members overflow past window bottom | Only via corrupted persisted heights |
 | **C. Error** | | | |
-| C1 CDN failure | = A3 | = A3 | — |
 | C2 localStorage throws | Quota/private mode | All 4 calls swallowed → persistence silently off; session runs preset + memory | Statusbar "layout saved" claim is then false; min: swap that text |
 | C3 Panel component throws in render | Component exception | **not implemented** — no error boundary in dockview-react v7.0.4; tree unmounts → blank page | min: per-panel boundary rendering "Panel failed: <id>" |
 | C4 toJSON fails | Bad structure | Swallowed → stale layout kept | Invisible |
@@ -186,8 +182,6 @@ the emptied state. HP9 restores.
 | **H. RTL** | | | |
 | H1 `dir=rtl` | Hypothetical | **not supported.** Tab strip order, `clampDragBox` physical left/top (:1140), float overlay positioning, gradient directions (:203, :310) all LTR | Bidirectional build: logical properties, direction-aware clamp, mirrored gradients, dockview RTL verification |
 | **I. Narrow viewport** | | | |
-| I1 <~1400px | Narrow browser | Inspector (left:1050,w:320) hangs off-right; stock clamp disabled by 0-minimums (:1543) | min: clamp saved `left` on load |
-| I2 <~800px | Phone-class | Floats overlap on tiny pasteboard; toolbar flex no-wrap (:57) → buttons clip; statusbar `.live` wraps tall | **Frame (FUTURE): `states/narrow-viewport.html`** — ≤720px single-window/tabbed collapsed variant, icon toolbar, hint hidden |
 | I3 Touch | Touch device | Pointer DnD works; 24px titlebar under-tuned | Out of scope |
 | **J. Motion** | | | |
 | J1 Drag ghost | Any tab drag | Stock pointer-DnD ghost, unthemed | — |
@@ -198,19 +192,23 @@ the emptied state. HP9 restores.
 | J6 Maximize | — | Unused; no affordance | N/A |
 | J7 Reduced motion | `prefers-reduced-motion` | **not implemented** — no media query anywhere | min: kill J4/J5 transitions under the query |
 
-**Frames** (3, static state frames captured from the live mock; build outputs
-— regenerate all three plus their PNG siblings with
+**Frames** (2 state frames of this spec captured from the live mock; build
+outputs — regenerate plus PNG siblings with
 `yarn workspace @metanorma/panel-layout capture:states`):
-[`cdn-failure.html`](../../pkg/panel-layout/mock/states/cdn-failure.html) (A3),
-[`empty-editor.html`](../../pkg/panel-layout/mock/states/empty-editor.html) (B1),
-[`narrow-viewport.html`](../../pkg/panel-layout/mock/states/narrow-viewport.html) (I2 — captured
-720×900 degraded reality, plus the PROPOSED FUTURE collapsed variant). The B1
-"Reset restores the preset" hint and the I2 collapsed variant are PROPOSED
-content pending designer sign-off (delimited in the frames by PROPOSED / END
-PROPOSED comments and `data-proposed` attributes); neither is implemented in
-the mock. Happy-path baselines (screens, serialized state, traces) live in
+[`empty-editor.html`](../../pkg/panel-layout/mock/states/empty-editor.html) (B1).
+The "Reset restores the preset" hint inside it is PROPOSED content pending
+designer sign-off (delimited by PROPOSED / END PROPOSED comments and
+`data-proposed` attributes); it is not implemented in the mock. Happy-path
+baselines (screens, serialized state, traces) live in
 [`pkg/panel-layout/mock/goldens/`](../../pkg/panel-layout/mock/goldens/README.md)
 — regenerate with `yarn workspace @metanorma/panel-layout capture:goldens`.
+
+Boot/CDN-loading states and the narrow-viewport states (former rows A1–A3,
+C1, I1–I2) belong to the demo consumer, not this library — they are
+specified in [`demo.spec.md`](./demo.spec.md); their frames
+(`cdn-failure.html`, `narrow-viewport.html`) remain in
+[`pkg/panel-layout/mock/states/`](../../pkg/panel-layout/mock/states/) and
+are referenced from that spec.
 
 ## 4. Default / initial values
 
@@ -230,7 +228,7 @@ the mock (as origin) and any implementation (as consumer) agree on.
 - **Floats** (`presetLayout.floatingGroups`): Navigation `{18,12} 252×450` — tabsets 244/132/74. Pinned `{292,12} 300×168` — 142. Inspector `{1050,12} 320×602` — 200/180/116/100. Panel tab titles per `panelTitles` (11 entries).
 - **Constants** (`constants`): MIN_TS_H 36, MIN_WIN_H 150, windowMinWidth 120, sashSize 4, titlebar 24px (`dvTokens['--dv-floating-titlebar-height']`), undockChrome 26, WRAP 260×200 (fallback).
 - **Design tokens** (`tokens`, `dvTokens`): mock `:root` custom properties (18) and the dockview theme overrides (20), including the tab strip height 30px, `--dv-border-radius` 8px, float shadow/border, and the sash transition vars (`0.1s`/`0.5s`, §3 J5).
-- **Dockview options** (`dndEdges`, `floatingGroupBounds`, plus verbatim in the mock): themeLight, `floatingGroupDragHandle:'titlebar'`, `dndStrategy:'pointer'`, `floatingGroupBounds` 0/0 (containment via `clampDragBox`: top/left only), dndEdges 160/26, `DockviewDefaultTab`. `keyboardNavigation` unset (off). Pinned CDN dep URLs in `importMap`.
+- **Dockview options** (`dndEdges`, `floatingGroupBounds`, plus verbatim in the mock): themeLight, `floatingGroupDragHandle:'titlebar'`, `dndStrategy:'pointer'`, `floatingGroupBounds` 0/0 (containment via `clampDragBox`: top/left only), dndEdges 160/26, `DockviewDefaultTab`. `keyboardNavigation` unset (off).
 
 ## 5. Keyboard & focus behavior
 
