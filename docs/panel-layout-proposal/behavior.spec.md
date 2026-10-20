@@ -210,13 +210,22 @@ the mock.
 
 ## 4. Default / initial values
 
-- **Storage**: `mn-dockview7-floats-v1`, `mn-dockview7-heights-v1`; empty first load; written on layout change + takeover drags; wiped by Reset.
+The canonical values live in
+[`design-tokens.json`](./design-tokens.json) — machine-extracted verbatim
+from the mock by [`extract-design-tokens.mjs`](./extract-design-tokens.mjs)
+(regenerate: `node docs/panel-layout-proposal/extract-design-tokens.mjs`;
+provenance recorded in its `_provenance` key). What follows is the same
+information as prose, for reading; the JSON is the shared source that both
+the mock (as origin) and any implementation (as consumer) agree on.
+
+- **Storage** (`storageKeys`): `mn-dockview7-floats-v1`, `mn-dockview7-heights-v1`; empty first load; written on layout change + takeover drags; wiped by Reset.
 - **Toolbar**: Bold · Italic | Quote · Note | Xref · Eref | spacer | Auto-wrap panels: **ON** | Reset.
 - **Statusbar**: amber dot + status text | grow | `.live` hint | word count/saved line.
-- **Grid**: HORIZONTAL 1200×800; `group-doc` / panel `doc`; `activeGroup:'group-doc'`; doc never floats.
-- **Floats**: Navigation `{18,12} 252×450` — tabsets 244/132/74. Pinned `{292,12} 300×168` — 142. Inspector `{1050,12} 320×602` — 200/180/116/100. (Per-tabset active panels and titles per `TITLES`/preset, :595–659.)
-- **Constants**: MIN_TS_H 36, MIN_WIN_H 150, min width 120, sash 4px, titlebar 24px, undock chrome 26, WRAP 260×200 (fallback), dndEdges 160/26.
-- **Dockview options**: themeLight, `floatingGroupDragHandle:'titlebar'`, `dndStrategy:'pointer'`, `floatingGroupBounds` 0/0 (containment via `clampDragBox`: top/left only), `DockviewDefaultTab`. `keyboardNavigation` unset (off).
+- **Grid** (`presetLayout.grid`): HORIZONTAL 1200×800; `group-doc` / panel `doc`; `activeGroup:'group-doc'`; doc never floats.
+- **Floats** (`presetLayout.floatingGroups`): Navigation `{18,12} 252×450` — tabsets 244/132/74. Pinned `{292,12} 300×168` — 142. Inspector `{1050,12} 320×602` — 200/180/116/100. Panel tab titles per `panelTitles` (11 entries).
+- **Constants** (`constants`): MIN_TS_H 36, MIN_WIN_H 150, windowMinWidth 120, sashSize 4, titlebar 24px (`dvTokens['--dv-floating-titlebar-height']`), undockChrome 26, WRAP 260×200 (fallback).
+- **Design tokens** (`tokens`, `dvTokens`): mock `:root` custom properties (18) and the dockview theme overrides (20), including the tab strip height 30px, `--dv-border-radius` 8px, float shadow/border, and the sash transition vars (`0.1s`/`0.5s`, §3 J5).
+- **Dockview options** (`dndEdges`, `floatingGroupBounds`, plus verbatim in the mock): themeLight, `floatingGroupDragHandle:'titlebar'`, `dndStrategy:'pointer'`, `floatingGroupBounds` 0/0 (containment via `clampDragBox`: top/left only), dndEdges 160/26, `DockviewDefaultTab`. `keyboardNavigation` unset (off). Pinned CDN dep URLs in `importMap`.
 
 ## 5. Keyboard & focus behavior
 

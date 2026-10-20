@@ -1,0 +1,346 @@
+{
+  "_provenance": {
+    "source": "docs/panel-layout-proposal/editor-dockview7-floats.html",
+    "commit": "8656ef8310734926142ac4d4271162e716e29886",
+    "commitDate": "2026-10-19T17:19:27+08:00",
+    "workingTreeDirtyAtExtraction": false,
+    "extractedAtUTC": "2026-10-19T11:48:23.881Z",
+    "regenerate": "node docs/panel-layout-proposal/extract-design-tokens.mjs",
+    "note": "GENERATED FILE — do not edit by hand; the mock is the source of truth. Change the mock, re-run the command above."
+  },
+  "tokens": {
+    "--ink": "#1c2733",
+    "--muted": "#66707d",
+    "--faint": "#9aa3ad",
+    "--chrome": "#eef1f4",
+    "--line": "#d7dde3",
+    "--line-soft": "#e6ebef",
+    "--accent": "#2f6fdb",
+    "--accent-ink": "#1d4fa8",
+    "--accent-bg": "#e8f0fe",
+    "--err": "#c4392f",
+    "--warn-ink": "#8a6100",
+    "--warn-bg": "#fff3d6",
+    "--warn-line": "#e3c565",
+    "--derive-ink": "#7c8692",
+    "--rail-w": "128px",
+    "--mono": "ui-monospace,\"SF Mono\",Menlo,Consolas,monospace",
+    "--sans": "-apple-system,\"Segoe UI\",\"Helvetica Neue\",Arial,sans-serif",
+    "--doc": "\"Helvetica Neue\",Arial,\"Liberation Sans\",sans-serif"
+  },
+  "dvTokens": {
+    "--dv-group-view-background-color": "#fff",
+    "--dv-tabs-and-actions-container-background-color": "#eef1f5",
+    "--dv-tabs-and-actions-container-height": "30px",
+    "--dv-tabs-and-actions-container-font-size": "11.5px",
+    "--dv-separator-border": "#ccd3da",
+    "--dv-activegroup-visiblepanel-tab-background-color": "#fff",
+    "--dv-inactivegroup-visiblepanel-tab-background-color": "#f4f6f8",
+    "--dv-activegroup-visiblepanel-tab-color": "#1c2733",
+    "--dv-inactivegroup-visiblepanel-tab-color": "#66707d",
+    "--dv-activegroup-hiddenpanel-tab-color": "#8b95a0",
+    "--dv-inactivegroup-hiddenpanel-tab-color": "#9aa3ad",
+    "--dv-drag-over-background-color": "rgba(47,111,219,.10)",
+    "--dv-drag-over-border-color": "#7ea6ea",
+    "--dv-icon-hover-background-color": "rgba(47,111,219,.10)",
+    "--dv-floating-box-shadow": "0 14px 40px rgba(15,25,40,.30),0 2px 8px rgba(15,25,40,.18)",
+    "--dv-floating-border": "1px solid #c6cdd4",
+    "--dv-floating-titlebar-height": "24px",
+    "--dv-floating-titlebar-background-color": "linear-gradient(#f8fafc,#e8edf2)",
+    "--dv-floating-titlebar-border-bottom": "1px solid #d6dce2",
+    "--dv-border-radius": "8px"
+  },
+  "constants": {
+    "MIN_TS_H": 36,
+    "MIN_WIN_H": 150,
+    "windowMinWidth": 120,
+    "undockChrome": 26,
+    "sashSize": 4,
+    "WRAP_W": 260,
+    "WRAP_H": 200
+  },
+  "dndEdges": {
+    "size": {
+      "value": 160,
+      "type": "pixels"
+    },
+    "activationSize": {
+      "value": 26,
+      "type": "pixels"
+    }
+  },
+  "floatingGroupBounds": {
+    "minimumHeightWithinViewport": 0,
+    "minimumWidthWithinViewport": 0
+  },
+  "storageKeys": {
+    "layout": "mn-dockview7-floats-v1",
+    "heights": "mn-dockview7-heights-v1"
+  },
+  "panelTitles": {
+    "doc": "24817-1.adoc",
+    "outline": "Outline",
+    "bibliography": "Bibliography",
+    "validation": "Validation",
+    "review": "Review",
+    "pinned": "Pinned · #fig-ion-beam",
+    "identity": "Identity & References",
+    "attributes": "Attributes",
+    "structure": "Structure",
+    "derived": "Derived · read-only",
+    "overlays": "Overlays"
+  },
+  "presetLayout": {
+    "grid": {
+      "root": {
+        "type": "branch",
+        "data": [
+          {
+            "type": "leaf",
+            "data": {
+              "id": "group-doc",
+              "views": [
+                "doc"
+              ],
+              "activeView": "doc"
+            },
+            "size": 1200
+          }
+        ],
+        "size": 800
+      },
+      "height": 800,
+      "width": 1200,
+      "orientation": "HORIZONTAL"
+    },
+    "panels": {
+      "doc": {
+        "id": "doc",
+        "contentComponent": "document",
+        "title": "24817-1.adoc",
+        "params": {}
+      },
+      "outline": {
+        "id": "outline",
+        "contentComponent": "outline",
+        "title": "Outline",
+        "params": {}
+      },
+      "bibliography": {
+        "id": "bibliography",
+        "contentComponent": "bibliography",
+        "title": "Bibliography",
+        "params": {}
+      },
+      "validation": {
+        "id": "validation",
+        "contentComponent": "validation",
+        "title": "Validation",
+        "params": {}
+      },
+      "review": {
+        "id": "review",
+        "contentComponent": "review",
+        "title": "Review",
+        "params": {}
+      },
+      "pinned": {
+        "id": "pinned",
+        "contentComponent": "pinned",
+        "title": "Pinned · #fig-ion-beam",
+        "params": {}
+      },
+      "identity": {
+        "id": "identity",
+        "contentComponent": "identity",
+        "title": "Identity & References",
+        "params": {}
+      },
+      "attributes": {
+        "id": "attributes",
+        "contentComponent": "attributes",
+        "title": "Attributes",
+        "params": {}
+      },
+      "structure": {
+        "id": "structure",
+        "contentComponent": "structure",
+        "title": "Structure",
+        "params": {}
+      },
+      "derived": {
+        "id": "derived",
+        "contentComponent": "derived",
+        "title": "Derived · read-only",
+        "params": {}
+      },
+      "overlays": {
+        "id": "overlays",
+        "contentComponent": "overlays",
+        "title": "Overlays",
+        "params": {}
+      }
+    },
+    "activeGroup": "group-doc",
+    "floatingGroups": [
+      {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "group-nav-1",
+                  "views": [
+                    "outline"
+                  ],
+                  "activeView": "outline"
+                },
+                "size": 244
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "group-nav-2",
+                  "views": [
+                    "bibliography",
+                    "validation"
+                  ],
+                  "activeView": "bibliography"
+                },
+                "size": 132
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "group-nav-3",
+                  "views": [
+                    "review"
+                  ],
+                  "activeView": "review"
+                },
+                "size": 74
+              }
+            ],
+            "size": 252
+          },
+          "width": 252,
+          "height": 474,
+          "orientation": "VERTICAL"
+        },
+        "position": {
+          "left": 18,
+          "top": 12,
+          "width": 252,
+          "height": 450
+        }
+      },
+      {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "group-pinned",
+                  "views": [
+                    "pinned"
+                  ],
+                  "activeView": "pinned"
+                },
+                "size": 142
+              }
+            ],
+            "size": 300
+          },
+          "width": 300,
+          "height": 168,
+          "orientation": "VERTICAL"
+        },
+        "position": {
+          "left": 292,
+          "top": 12,
+          "width": 300,
+          "height": 168
+        }
+      },
+      {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "group-insp-1",
+                  "views": [
+                    "identity"
+                  ],
+                  "activeView": "identity"
+                },
+                "size": 200
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "group-insp-2",
+                  "views": [
+                    "attributes"
+                  ],
+                  "activeView": "attributes"
+                },
+                "size": 180
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "group-insp-3",
+                  "views": [
+                    "structure"
+                  ],
+                  "activeView": "structure"
+                },
+                "size": 116
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "group-insp-4",
+                  "views": [
+                    "derived",
+                    "overlays"
+                  ],
+                  "activeView": "derived"
+                },
+                "size": 100
+              }
+            ],
+            "size": 320
+          },
+          "width": 320,
+          "height": 628,
+          "orientation": "VERTICAL"
+        },
+        "position": {
+          "left": 1050,
+          "top": 12,
+          "width": 320,
+          "height": 602
+        }
+      }
+    ]
+  },
+  "importMap": {
+    "imports": {
+      "react": "https://esm.sh/react@19.2.8?target=es2022",
+      "react/jsx-runtime": "https://esm.sh/react@19.2.8/jsx-runtime?target=es2022",
+      "react-dom": "https://esm.sh/react-dom@19.2.8?target=es2022&deps=scheduler@0.27.0",
+      "react-dom/client": "https://esm.sh/react-dom@19.2.8/client?target=es2022&deps=scheduler@0.27.0",
+      "dockview-core": "https://esm.sh/dockview-core@7.0.4?target=es2022",
+      "dockview": "https://esm.sh/dockview@7.0.4?bundle&external=react,react-dom&target=es2022",
+      "dockview-react": "https://esm.sh/dockview-react@7.0.4?bundle&external=react,react-dom&target=es2022"
+    }
+  }
+}
