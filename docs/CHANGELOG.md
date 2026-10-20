@@ -7,6 +7,45 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-10-16 — schema §12.1 implemented: unknown JSON attrs captured into `data` via `MetanormaSchema`
+
+`prosemirror-schema` + `docs/schema.spec.md` errata; no other package touched
+(`prosemirror-editor`/`editor-gui` load through `metanormaSchema.nodeFromJSON`
+and gain the fix unchanged); **Commits: *(pending)***.
+
+- **Change** — `metanormaSchema` is now a `MetanormaSchema` instance (new
+  `loading.ts`) instead of a plain `Schema`. Its `nodeFromJSON` /
+  `markFromJSON` partition each node's/mark's attrs before the stock parse:
+  unknown top-level keys are captured into the `data` catch-all, so loading a
+  `MetanormaDocument` no longer silently drops them (schema §12.1). Nested
+  nodes and marks are captured too — not by walking the tree, but
+  **emergently**: the stock parse recurses through the schema's
+  `nodeFromJSON`/`markFromJSON` at call time, and the class reassigns those
+  instance properties in its constructor (they are constructor-assigned own
+  arrows upstream — a prototype-method override would never run).
+- **Merge rules** — an explicit `data` key wins a collision with an unknown
+  key; attrs with no unknown keys pass through **untouched** (byte-identical
+  stock behavior, so a non-object `data` round-trips verbatim); unknown keys
+  plus a non-object explicit `data` (string/number/boolean/array) throw a
+  `RangeError` naming the type, since merging would produce indexed-property
+  garbage and dropping them is what §12.1 forbids.
+- **Error contracts preserved** — non-object input (`null`, or a `null` entry
+  inside `content`/`marks`) and unknown node/mark types still throw the stock
+  `RangeError`s, not `TypeError`s; the GUI's `loadDocFromJson`
+  invalid-document classification is unaffected.
+- **Spec errata** — §12's premise that the round-trip "reduces to stock
+  `nodeFromJSON`/`toJSON`" was wrong (it is why the capture was missed);
+  §12 now states the load-side partition rules and the untouched output
+  contract. §2/§11/§14.4 updated (`loading.ts`, `MetanormaSchema` export,
+  extended acceptance criteria).
+- **Tests** — new `pkg/prosemirror-schema/roundtrip.test.mjs` (18 tests:
+  capture incl. deep nesting and nested marks, merge/passthrough rules,
+  stock error contracts, non-object-`data` policy) with `pretest`/`test`
+  scripts; the package now runs under root `yarn test` (172 tests green
+  across workspaces).
+
+---
+
 ## 2026-10-16 — figures become two-stage: Figure button + single-mode Image button
 
 `editor-commands` + `toolbar` + `prosemirror-editor` + `editor-gui` ripples;

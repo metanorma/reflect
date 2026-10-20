@@ -17,17 +17,27 @@ import { Schema } from 'prosemirror-model';
 
 import { metanormaNodes } from './nodes.js';
 import { metanormaMarks } from './marks.js';
+import { MetanormaSchema } from './loading.js';
 
 
 // ---------------------------------------------------------------------------
 // Assembled schema (§10)
 // ---------------------------------------------------------------------------
 
-/** The assembled Metanorma ProseMirror schema. */
-export const metanormaSchema: Schema = new Schema({
+/**
+ * The assembled Metanorma ProseMirror schema.
+ *
+ * A `MetanormaSchema` instance, not a plain `Schema`: its
+ * `nodeFromJSON`/`markFromJSON` partition unknown attribute keys into the
+ * `data` catch-all (§12.1). Typed as the base class so consumers depend on
+ * the stock interface only.
+ */
+export const metanormaSchema: Schema = new MetanormaSchema({
   nodes: metanormaNodes,
   marks: metanormaMarks,
 });
+
+export { MetanormaSchema } from './loading.js';
 
 // ---------------------------------------------------------------------------
 // Raw spec maps — for consumers that compose a modified schema.

@@ -14,7 +14,14 @@
 import type { AttributeSpec } from 'prosemirror-model';
 
 
-/** A `data: { default: {} }` attribute spec — the universal catch-all. */
+/**
+ * A `data: { default: {} }` attribute spec — the universal catch-all.
+ *
+ * HAZARD: ProseMirror attr defaults are shared values, not per-node — every
+ * node taking the default receives the SAME `{}` reference. Nothing may
+ * mutate `node.attrs.data` in place. Loading-side code (`loading.ts`)
+ * therefore always builds fresh `data` objects.
+ */
 export const DATA_ATTR = { data: { default: {} } } as const;
 
 /**

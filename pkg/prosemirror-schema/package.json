@@ -5,7 +5,9 @@
   "packageManager": "yarn@4.17.0",
   "main": "index.ts",
   "scripts": {
-    "compile": "tsc --outdir compiled"
+    "compile": "tsc --outdir compiled",
+    "pretest": "yarn compile",
+    "test": "yarn node --test roundtrip.test.mjs"
   },
   "dependencies": {
     "prosemirror-model": "^1.22.0"

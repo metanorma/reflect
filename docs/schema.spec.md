@@ -76,6 +76,7 @@ pkg/prosemirror-schema/
 ├── nodes.ts              ← nodeSpec map (§8)
 ├── marks.ts              ← markSpec map (§9)
 ├── attrs.ts              ← shared attribute helpers (§6)
+├── loading.ts            ← `MetanormaSchema` — §12.1 unknown-attr capture (§12)
 ├── classes.ts            ← `CLASS` const for toDOM/parseDOM (§8.0)
 ├── cohorts.ts            ← section cohort metadata (§8.0a)
 └── groups.ts             ← group-name constants
@@ -693,8 +694,14 @@ in §3 for readability.
 ```ts
 import type { Schema, NodeSpec, MarkSpec } from 'prosemirror-model';
 
-/** The assembled schema. */
+/**
+ * The assembled schema — a `MetanormaSchema` instance, typed as `Schema`.
+ * Its `nodeFromJSON`/`markFromJSON` partition unknown attribute keys into
+ * the `data` catch-all (§12.1); every other behavior is stock.
+ */
 export const metanormaSchema: Schema;
+/** The schema subclass implementing §12.1 (compose raw spec maps with it). */
+export { MetanormaSchema };
 
 /** Raw spec maps, for consumers that compose a modified schema. */
 export const metanormaNodes: Record<string, NodeSpec>;
@@ -730,26 +737,55 @@ export function assertValidImageAttrs(attrs: { src?: unknown }): asserts attrs i
 
 A document is the JSON tree `{ type, attrs?, content?, marks?, text? }` (the
 `MetanormaDocument` / `MetanormaMark` types,
-`pkg/prosemirror-editor/types.ts`), with open `attrs` records. ProseMirror's
-`Node.toJSON()` / `Mark.toJSON()` already emit exactly these fields, so the
-round-trip contract reduces to:
+`pkg/prosemirror-editor/types.ts`), with open `attrs` records.
 
-1. **`nodeFromJSON`** accepts any well-formed `MetanormaDocument`. Unknown
-   attributes on a node/mark are stored into that node/mark's `data` attribute
-   (§6) so nothing is silently dropped.
-2. **`toJSON`** of a node loaded from a `MetanormaDocument` reproduces the same
-   `type`, the same typed attribute values, and the same extra keys (via
-   `data`). `marks`, `content`, and `text` round-trip identically.
-3. The 48 node names and 14 mark names in the schema are the editor-side
-   vocabulary (§3). They are the editor's own naming of the covered
-   document-model constructs — the `footnote` mark is absent in favour of the
-   `footnote_marker` node (§3.2), and `stem` is an inline node rather than a
-   mark (§3.1).
+**Load side (`nodeFromJSON`/`markFromJSON`).** Stock ProseMirror **drops**
+any attribute key not declared on the node/mark type — `computeAttrs`
+iterates declared attrs only. Capturing the open keys therefore does **not**
+reduce to the stock methods: `metanormaSchema` is a `MetanormaSchema`
+instance (§11, `loading.ts`) whose `nodeFromJSON`/`markFromJSON` partition
+each node's/mark's `attrs` before delegating to the stock parse:
 
-**Note.** Because `data` is itself a JSON object, deeply nested extra
-attributes survive the round-trip. The module **must not** flatten `data` into
-top-level attrs on output — `toJSON` emits typed attrs at the top level and
-everything else under `data`, preserving the open-attribute shape.
+1. **Capture.** Unknown attributes on a node/mark are stored into that
+   node/mark's `data` attribute (§6) so nothing is silently dropped. The
+   partition is shallow per node/mark; nested content and nested marks are
+   captured too, because the stock parse recurses through the schema's
+   (wrapped) methods.
+2. **Untouched passthrough.** When an attrs record carries no unknown keys,
+   it is passed through unchanged — byte-identical stock behavior,
+   including a non-object `data` value, which stock passes through
+   unvalidated and `toJSON` re-emits verbatim.
+3. **Collisions.** When an unknown key collides with a key already inside
+   an explicit `data` object, the explicit `data` wins. An absent or `null`
+   explicit `data` merges as empty.
+4. **Malformed corner.** Unknown keys **plus** an explicit `data` that is a
+   string / number / boolean / array throw a `RangeError` naming the
+   node/mark type — merging would produce indexed-property garbage, and
+   silently dropping the keys is what §12.1 forbids. Valid `toJSON` output
+   always carries an object `data`, so this fires only on malformed input.
+5. **Error contracts.** Unknown node/mark types and non-object input still
+   throw the stock `RangeError`s (`"Unknown node type: …"`,
+   `"Invalid input for Node.fromJSON"`, …), so the GUI's invalid-document
+   classification (`loadDocFromJson`) is unaffected. The wrappers route
+   non-object input to the stock path before any type lookup.
+
+**Output side (`toJSON`).** ProseMirror's `Node.toJSON()` / `Mark.toJSON()`
+already emit exactly these fields: `toJSON` of a node loaded from a
+`MetanormaDocument` reproduces the same `type`, the same typed attribute
+values, and the same extra keys (via `data`). `marks`, `content`, and
+`text` round-trip identically. Because `data` is itself a JSON object,
+deeply nested extra attributes survive the round-trip. The module **must
+not** flatten `data` into top-level attrs on output — `toJSON` emits typed
+attrs at the top level and everything else under `data`, preserving the
+open-attribute shape.
+
+The 48 node names and 14 mark names in the schema are the editor-side
+vocabulary (§3). They are the editor's own naming of the covered
+document-model constructs — the `footnote` mark is absent in favour of the
+`footnote_marker` node (§3.2), and `stem` is an inline node rather than a
+mark (§3.1). Composing the raw spec maps (`metanormaNodes`/`metanormaMarks`)
+into a plain `Schema` yields stock load behavior — the partitioning lives on
+`MetanormaSchema`, not on the spec maps.
 
 ---
 
@@ -781,7 +817,14 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
    and calling `.toJSON()` reproduces each typed field value unchanged.
 4. A representative `MetanormaDocument` containing one example of **each** node
    group and **each** mark round-trips through `nodeFromJSON` → `toJSON` with
-   no loss of typed attributes and no loss of keys carried in `data`.
+   no loss of typed attributes and no loss of keys carried in `data`. This
+   includes §12's partition rules: unknown keys on **deeply nested** nodes and
+   on marks inside text `marks` arrays are captured; an explicit-`data` key
+   wins a collision with an unknown key; attrs with no unknown keys pass
+   through untouched (a non-object `data` round-trips verbatim); unknown keys
+   plus a non-object explicit `data` throw `RangeError`; non-object input and
+   unknown types throw the stock `RangeError`s — all covered by the
+   package's round-trip suite.
 5. `metanormaSchema.nodeFromJSON(defaultDoc)` (§15) does not throw.
 6. For each node and mark, `toDOM` then `parseDOM` recovers the stored
    attributes (render a node to a DOM node, parse it back, compare relevant
