@@ -29,6 +29,10 @@ history) stay resolvable.
 | **I. Narrow viewport (demo preset + app chrome)** | | | |
 | I1 <~1400px | Narrow browser | Inspector (left:1050,w:320) hangs off-right; stock clamp disabled by 0-minimums (:1543) | min: clamp saved `left` on load |
 | I2 <~800px | Phone-class | Floats overlap on tiny pasteboard; toolbar flex no-wrap (:57) → buttons clip (measured onset below ~718px); statusbar `.live` wraps tall | **Frame: `narrow-viewport.html`** — captured 720×900 degraded reality, plus the PROPOSED FUTURE ≤720px single-window/tabbed collapsed variant (icon toolbar, hint hidden) pending designer sign-off |
+| **G. Keyboard & focus (app chrome)** | | | |
+| G4 Toolbar buttons | Tab key | Native UA focus rings on demo toolbar buttons, not suppressed | Library owns no toolbar; focus styles for library-owned controls (tabs/grips/sashes) are behavior.spec.md G3 |
+| **F. App chrome defects** | | | |
+| F1n Auto-wrap toggle a11y | Inspect toggle markup | Toggle state conveyed only by class + label suffix ("…: ON"/"…: OFF") | Gap: lacks `aria-pressed`; source of behavior.spec.md F1/HP7 |
 
 All `:NNN` line references point into
 `pkg/panel-layout/mock/editor-dockview7-floats.html`.

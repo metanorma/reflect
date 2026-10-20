@@ -40,14 +40,14 @@ behavior only; panel content is opaque input the implementation must accept
 (§1).
 
 **HP1 — Open editor → preset layout renders.**
-1. Load the page with both storage keys absent.
-2. Modules resolve; `#boot` is removed; `fromJSON(presetLayout())` runs
-   (:1325), then the pin pass (:1349).
-*Outcome:* main grid hosts the `doc` group alone; three floating windows
-(Navigation 252×450, Pinned 300×168, Inspector 320×602) each render
-titlebar + grip + stacked tabsets at preset heights (§4); both storage keys
-written immediately (`saveLayout`, :1326). Serialization: one `floatingGroups[]`
-entry per window, all position forms `{left,top,width,height}`.
+1. Load with both storage keys absent and a default layout (consumer-supplied;
+   demo: the 11-panel preset, §4).
+2. `fromJSON(default)` runs (:1325), then the pin pass (:1349).
+*Outcome:* the main grid hosts the consumer's grid panels; every default
+floating window renders titlebar + grip + stacked tabsets at default heights
+(§4); both storage keys written immediately (`saveLayout`, :1326).
+Serialization: one `floatingGroups[]` entry per window, all position forms
+`{left,top,width,height}`.
 
 **HP2 — Drag panel tab out of a tabset → new floating window (auto-wrap).**
 1. Pointer-drag a panel tab (e.g. from Navigation) over the doc grid
@@ -107,7 +107,8 @@ fire no `onDidLayoutChange`). Corner drags may also change width (min
 120px), shared by all members.
 
 **HP7 — Toggle auto-wrap OFF → drags fall back to vetoes.**
-1. Click "Auto-wrap panels: ON" (button loses `.on`; `autoWrapEnabled=false`).
+1. Turn the auto-wrap option off (library option; demo: the toolbar button,
+   "Auto-wrap panels: ON" → loses `.on`, `autoWrapEnabled=false`).
 2. Drag a panel tab to the doc grid surface and release.
 *Outcome:* no unwrap; grid zone overlays now show (suppression gated on the
 toggle, :1470–1474); center-drop merges the panel as a doc sibling tab
@@ -119,20 +120,21 @@ toggle, :1470–1474); center-drop merges the panel as a doc sibling tab
 window rects and per-tabset heights; transient 1–2 frame oversubscription
 settles via the pin pass (A4/A5). Serialization: round-trips `{top}` forms.
 
-**HP9 — Reset → preset restored.**
-1. Click Reset.
+**HP9 — Restore-to-default → default layout restored.**
+1. Invoke the restore-to-default operation (library capability; demo: the
+   Reset button).
 *Outcome:* both storage keys removed, `heightsMap={}` cleared,
-`api.clear()` → `fromJSON(presetLayout())` → re-pin (:1505–1513); DOM
-returns to the HP1 state (window identity, group ids, heights all reset).
-Recovery path from B1 (empty editor) and from any corrupted persisted
-state (A6/A7).
+`api.clear()` → `fromJSON(default)` → re-pin (:1505–1513); DOM returns to
+the HP1 state (window identity, group ids, heights all reset). Recovery
+path from B1 (empty editor) and from any corrupted persisted state
+(A6/A7).
 
 **HP10 — Close every panel → empty editor.**
 1. Close each tab via its ✕ (stock `DockviewDefaultTab`).
 *Outcome:* emptying a float window disposes it (last member leaves →
-`floatingGroup.dispose()`); closing the doc tab too leaves the bare
-watermark surface (B1) with toolbar/statusbar intact; layout key reflects
-the emptied state. HP9 restores.
+`floatingGroup.dispose()`); closing the grid panels too leaves the bare
+watermark surface (B1) with the surrounding app chrome (demo: toolbar/
+statusbar) intact; layout key reflects the emptied state. HP9 restores.
 
 ## 3. State matrix
 
@@ -141,19 +143,19 @@ the emptied state. HP9 restores.
 | **A. Loading** | | | |
 | A4 First hydration | No layout in storage | Preset; members 1–2 frames oversubscribed ([257,117,100] vs pins [244,132,74], :904) then pin pass settles | Grips may appear ≤500ms late (interval net, :1496) |
 | A5 Reload, persisted layout | Valid storage keys | Saved window rects + saved per-tabset heights (`loadHeights` → pin pass) | `normalizeTops` keeps serialization `{top}`-only (:1133) |
-| A6 Corrupted layout JSON | Parse throws / `j.grid` falsy | Silent fallback to preset (:665–672) | min: statusbar flash "layout restored to preset" |
+| A6 Corrupted layout JSON | Parse throws / `j.grid` falsy | Silent fallback to default (:665–672) | min: notify the consumer of the fallback (demo: statusbar flash "layout restored to default") |
 | A7 Corrupted heights JSON | Heights key unparseable | `heightsMap={}` → preset heights (:920–922) | Same as A6 |
 | A8 Stale group ids in heights | Windows closed since save | Ignored; map rebuilt from live members (:898) | Cosmetic only |
 | A9 fromJSON throws mid-restore | Structurally bad saved JSON | **not implemented** — dockview logs 'failed to deserialize layout. Reverting changes', clears, rethrows → React unmounts → blank page | min: try/catch → `fromJSON(presetLayout())` |
 | **B. Empty** | | | |
-| B1 All panels closed incl. doc | Every tab ✕'d | Floats dispose as they empty; grid shows stock watermark = bare `div.dv-watermark`, zero text; toolbar/statusbar remain | **Frame: `states/empty-editor.html`** — existing chrome + pasteboard + faint "Reset restores the preset" hint (hint itself not implemented) |
+| B1 All panels closed | Every tab ✕'d | Floats dispose as they empty; grid shows stock watermark = bare `div.dv-watermark`, zero text; app chrome (demo) remains | **Frame: `states/empty-editor.html`** — demo chrome + pasteboard + faint "Reset restores the preset" hint (hint itself not implemented) |
 | B2 Last float window closes | Last tab of a window | Window vanishes; layout auto-saves | No animation |
 | B3 Tabset just before disposal | Second-to-last tab closed | Normal tabset at pinned height; last close removes row + its sash | No intermediate state exists |
 | B4 Tabset at MIN_TS_H | Drag to 36px floor (:758) | 24px titlebar + 30px tab strip + ~6px content sliver | Sash hover accent is the only expand cue |
 | B5 Window at MIN_WIN_H | Drag to 150px (:759) | Members clamp at 36px each; overflow absorbed | Corner drag clamps width ≥120px (:974) |
 | B6 Degenerate sash | Oversubscribed pins | 4px sashes; members overflow past window bottom | Only via corrupted persisted heights |
 | **C. Error** | | | |
-| C2 localStorage throws | Quota/private mode | All 4 calls swallowed → persistence silently off; session runs preset + memory | Statusbar "layout saved" claim is then false; min: swap that text |
+| C2 localStorage throws | Quota/private mode | All 4 calls swallowed → persistence silently off; session runs default + memory | Consumer should surface it (demo: statusbar "layout saved" claim is then false — swap that text) |
 | C3 Panel component throws in render | Component exception | **not implemented** — no error boundary in dockview-react v7.0.4; tree unmounts → blank page | min: per-panel boundary rendering "Panel failed: <id>" |
 | C4 toJSON fails | Bad structure | Swallowed → stale layout kept | Invisible |
 | **D. Content vs container** (container behavior only) | | | |
@@ -167,14 +169,13 @@ the emptied state. HP9 restores.
 | **F. Disabled/read-only** | | | |
 | F1 Auto-wrap OFF | Toolbar toggle | No hint change; `.mn-unwrap-hover` no longer applied → doc-grid zone overlays reappear; panel center-drop on grid merges as doc sibling tab (unclaimed stock path); edge drops still vetoed | Toggle lacks `aria-pressed`; OFF leaks the merge-into-doc layout |
 | F2 Titlebar move-only | Always (T6, :720) | `grab`/`grabbing` cursors, grip darkens on hover; no redock from titlebar | Grip is decorative (`aria-hidden`, pointer-events:none) |
-| F3 Doc tab dragged | Drag toward a float | Ghost follows, all float targets vetoed (`docIntoFloat`), snaps back | Affordance mismatch; min: default cursor on doc tab |
+| F3 Float-excluded panel dragged | Drag a float-excluded panel (demo: `doc`) toward a float | Ghost follows, all float targets vetoed (`docIntoFloat`), snaps back | Affordance mismatch; min: default cursor on excluded panel's tab |
 | F4 Window drag live | Titlebar pointerdown | Pin pass gated off (:1335); transform move; top/left contained, bottom free (:1140) | Drawer park below bottom edge |
 | F5 Panel/group drag over grid | Drag over doc surface | `.mn-unwrap-hover` hides grid zone overlays, re-shows float ones (:148–155) | — |
 | **G. Keyboard & focus** | | | |
 | G1 Tab-strip roving tabindex | Focus tab, arrows | Inherited, always on: arrows/Home/End move, Enter/Space activate, Delete/Backspace close+refocus | WAI-ARIA tabs, dockview `tabs.ts` |
 | G2 ctrl+] / ctrl+[ / F6 | Anytime | **not active** — needs `keyboardNavigation: true`, not passed (:1533–1552) | min: add the prop |
 | G3 Focus ring on tabs | Keyboard focus | None — no `:focus-visible` in mock or dockview.css; `.dv-groupview:focus{outline:none}` | min: `.dv-tab:focus-visible` accent outline |
-| G4 Toolbar buttons | Tab key | Native UA rings, not suppressed | — |
 | G5 Focus after mouse-close | Click tab ✕ | MRU successor activates; DOM focus drops to body | Only keyboard-close path refocuses |
 | G6 Focus after unwrap | Drop on empty space | New window activates; focus not moved | — |
 | G7 Keyboard drag/undock | Any | **not implemented** — grip hidden, titlebar unfocusable, keyboard docking off (same option as G2) | — |
@@ -221,7 +222,7 @@ provenance recorded in its `_provenance` key). What follows is the same
 information as prose, for reading; the JSON is the shared source that both
 the mock (as origin) and any implementation (as consumer) agree on.
 
-- **Storage** (`storageKeys`): `mn-dockview7-floats-v1`, `mn-dockview7-heights-v1`; empty first load; written on layout change + takeover drags; wiped by Reset.
+- **Storage** (`storageKeys`): the serialization model — heights map keyed by group id, `{top}`-only window forms, layout JSON shape — is library contract. The storage medium and key names are consumer configuration (demo: localStorage, `mn-dockview7-floats-v1` / `mn-dockview7-heights-v1`); empty first load; written on layout change + takeover drags; wiped by restore-to-default.
 - **Toolbar**: Bold · Italic | Quote · Note | Xref · Eref | spacer | Auto-wrap panels: **ON** | Reset.
 - **Statusbar**: amber dot + status text | grow | `.live` hint | word count/saved line.
 - **Grid** (`presetLayout.grid`): HORIZONTAL 1200×800; `group-doc` / panel `doc`; `activeGroup:'group-doc'`; doc never floats.
@@ -232,7 +233,7 @@ the mock (as origin) and any implementation (as consumer) agree on.
 
 ## 5. Keyboard & focus behavior
 
-**Present**: roving tabindex per tab strip (arrows, Home/End, Enter/Space, Delete/Backspace close+refocus); native focus + UA rings on toolbar buttons (panel-internal native inputs remain focusable but are panel territory).
+**Present**: roving tabindex per tab strip (arrows, Home/End, Enter/Space, Delete/Backspace close+refocus); native focusability of library-hosted controls (panel-internal native inputs remain focusable but are panel territory). Focus styles for library-owned controls (tabs, grips, sashes) are the G3 gap; app-chrome focus (toolbar buttons) is the consumer's — see [`demo.spec.md`](./demo.spec.md) G4.
 
 **Missing**: `keyboardNavigation` off → no ctrl+]/[, F6/shift+F6, ctrl+shift+\, ctrl+M docking; no `:focus-visible` styles (group focus outline actively removed); grip `aria-hidden` + unfocusable titlebar → no keyboard move/undock/stack-drag; no Esc-cancel on drags; mouse-close and unwrap both leave DOM focus on body; auto-wrap toggle lacks `aria-pressed`.
 
