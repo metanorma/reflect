@@ -168,16 +168,27 @@ export async function selectAllInEditor(page: Page): Promise<void> {
  * `serializeForClipboard` → any plugin `clipboardSerializer` prop. Call
  * {@link selectAllInEditor} (or otherwise set a PM-visible selection)
  * first — the handler serializes from PM state, not the DOM selection.
+ *
+ * ## Engine divergence (read before "simplifying" this)
+ *
+ * The `clipboardData` member of `ClipboardEventInit` is normative
+ * (w3c/clipboard-apis §5.1), but Firefox's constructor ignores it
+ * (bugzilla 2027025; w3c/clipboard-apis#64): the event carries its OWN
+ * fresh `DataTransfer` instead, and that is what PM's listener writes
+ * into. Chromium honors the init dict — the passed `dt` IS the store
+ * listeners see. So the payload is read back from whichever store exists
+ * (`ev.clipboardData` post-dispatch; identical to `dt` on Chromium).
  */
 export async function dispatchCopy(page: Page): Promise<string> {
   return page.evaluate(() => {
     const dt = new DataTransfer();
     const target = document.querySelector('.mn-prosemirror .ProseMirror');
     if (target === null) throw new Error('dispatchCopy: editor root not found');
-    target.dispatchEvent(
-      new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }),
-    );
-    return dt.getData('text/html');
+    const ev = new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true });
+    target.dispatchEvent(ev);
+    // Firefox: PM wrote into the event's own store; Chromium: into `dt`
+    // (the same object as `ev.clipboardData`).
+    return (ev.clipboardData ?? dt).getData('text/html');
   });
 }
 
@@ -190,15 +201,23 @@ export async function dispatchCopy(page: Page): Promise<string> {
  * `getAttrs`). No clipboard permissions needed. The caret/selection in PM
  * state determines the paste location — see the interaction rules in the
  * module docblock.
+ *
+ * ## Engine divergence (see {@link dispatchCopy})
+ *
+ * Firefox ignores the init-dict `clipboardData` and gives the event its
+ * own fresh store — the ONLY one PM's handler can read — so the payload
+ * is written into `ev.clipboardData ?? dt` before dispatch (identical to
+ * writing `dt` directly on Chromium).
  */
 export async function dispatchPasteHtml(page: Page, html: string): Promise<void> {
   await page.evaluate((payload: string) => {
     const dt = new DataTransfer();
-    dt.setData('text/html', payload);
     const target = document.querySelector('.mn-prosemirror .ProseMirror');
     if (target === null) throw new Error('dispatchPasteHtml: editor root not found');
-    target.dispatchEvent(
-      new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }),
-    );
+    const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+    // Firefox: the event's own store (the init-dict dt is discarded);
+    // Chromium: same object as dt.
+    (ev.clipboardData ?? dt).setData('text/html', payload);
+    target.dispatchEvent(ev);
   }, html);
 }

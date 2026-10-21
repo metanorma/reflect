@@ -328,28 +328,50 @@ test.describe('clipboard', () => {
     expect(tables[1].attrs.colwidths).toEqual(tables[0].attrs.colwidths);
   });
 
-  test('partial (row-level) copy inside a resized table pastes rows without widths; no crash', async ({ page }) => {
+  test('row-level copy serializes rows without widths; paste leaves the resized table intact', async ({ page }) => {
     await openEditor(page);
     await clickBodyParagraph(page);
     await insertTable(page, 2, 2);
     await page.locator('table > caption').click({ force: true });
     await page.keyboard.press('Enter');
     await toolbarButton(page, 'Distribute evenly').click();
+    await page.waitForTimeout(250); // toolbar focus dance → PM selection settle
 
-    // Select the first row's cells via triple-click (row-level selection
-    // opens inside the table — the documented partial-copy case).
-    const firstCell = page.locator('tbody tr td').first();
-    await firstCell.click({ clickCount: 3 });
-    const html = await dispatchCopy(page);
-    // The serialized fragment carries no table-level widths (rows only).
+    // Drag across the row's cells → a real row-level (Cell) selection.
+    // Triple-click does NOT give one: on an empty cell it collapses to a
+    // caret (copy serializes ""), and on a text-bearing cell it selects
+    // only the cell's paragraph. This drag is the documented partial-copy
+    // case (tables.md §8.6: rows serialize as top-level tr, widths drop).
+    const cell1 = page.locator('tbody tr td').first();
+    const cell2 = page.locator('tbody tr').first().locator('td').nth(1);
+    const b1 = (await cell1.boundingBox()) as { x: number; y: number; width: number; height: number };
+    const b2 = (await cell2.boundingBox()) as { x: number; y: number; width: number; height: number };
+    await page.mouse.move(b1.x + b1.width / 2, b1.y + b1.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b2.x + b2.width / 2, b2.y + b2.height / 2, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForTimeout(200); // PM selection observer settle
+
+    // Copy, retried while the selection settles (see round-trip test).
+    let html = '';
+    for (let attempt = 0; attempt < 3 && !html.includes('<tr'); attempt++) {
+      html = await dispatchCopy(page);
+    }
+    // Positive marker first — a dead "" serialization must fail loudly.
+    expect(html).toContain('<tr');
+    // The serialized fragment carries no table-level widths (by design).
     expect(html).not.toContain('data-colwidths');
 
-    // Paste after the table: no crash, original table keeps its widths,
-    // exactly one colgroup in the DOM.
-    await page.locator('table > caption').click({ force: true });
-    await page.keyboard.press('Control+End');
+    // Paste at a cell caret. Current product behavior: the row is NOT
+    // re-materialized (Chromium swallows the fragment; Firefox drops only
+    // the cell text in) — tables.md §8.6 guarantees only "no widths, no
+    // crash"; row re-materialization is an open product question. What is
+    // asserted is that guarantee: table intact, widths kept, one colgroup.
+    await page.locator('tbody tr').last().locator('td').last().click();
+    await page.keyboard.press('End');
     await dispatchPasteHtml(page, html);
 
+    await expect(page.locator('table')).toHaveCount(1);
     const w = await tableWidths(page);
     expect(w).toEqual(['50.00%', '50.00%']);
     await expect(page.locator('table colgroup.mn-col-resize-colgroup')).toHaveCount(1);
