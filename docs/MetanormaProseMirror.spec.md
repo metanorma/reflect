@@ -220,8 +220,10 @@ this package; they are **not** imported from
 
 `MetanormaDocument` is the JSON-serializable document tree shape accepted by
 `prosemirror-model`'s `Schema.nodeFromJSON(...)`. It mirrors the open-attribute
-model of the schema: every node carries an optional `attrs` record, and unknown
-keys round-trip through the schema's catch-all `data` attribute (schema §6).
+model of the schema: every node carries an optional `attrs` record, unknown
+keys round-trip through the schema's catch-all `data` attribute, and
+editor-only `x-`-prefixed keys are dropped at load when undeclared
+(schema §6 rule 5, §12).
 
 ```ts
 /**

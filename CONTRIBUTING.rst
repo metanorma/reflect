@@ -78,29 +78,6 @@ Types & schema
   For data constructed by the code directly at runtime, we make sure
   the interface or type is clearly defined somewhere.
 
-- For data that can arrive from an external source
-  (including storage, such as JSON configuration, LocalStorage, IndexedDB),
-  do not define or annotate types by hand.
-
-  - Instead of defining types by hand, declare
-    an `Effect schema <https://effect.website/docs/guides/schema/basic-usage>`_
-    and derive the typings from that.
-
-    - For consistency, the schema for a type ``Something`` must be called
-      ``SomethingSchema``, and the following pattern is OK::
-
-          import * as S from 'effect/Schema';
-
-          export const SomethingSchema = S.Something({...});
-
-          // If type needs to be manually annotated somewhere,
-          // this can be defined:
-          export type Something = S.Schema.Type<typeof SomethingSchema>;
-
-  - Instead of using type guards and ad-hoc checking, or annotating types without
-    actual validation, decode incoming structure with the schema
-    (even with simple ``S.decodeUnknownSync()``) and handle parsing errors.
-
 - If constant type was defined and can obviously be inferred by TSC
   *and* by a human without explicit annotation, avoid manually annotating
   the constant.

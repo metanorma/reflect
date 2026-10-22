@@ -53,6 +53,9 @@ export {
 export { CLASS } from './classes.js';
 export type { ClassName } from './classes.js';
 export {
+  EDITOR_ONLY_ATTR_PREFIX, isEditorOnlyAttr, stripEditorOnlyAttrs,
+} from './attrs.js';
+export {
   SECTION_COHORT, COHORT_CONTAINER, DOC_CHILD_ORDER,
   FRONT_TYPES, BODY_TYPES, ANNEX_TYPES, BACK_TYPES,
   sameCohort,

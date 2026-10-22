@@ -6,7 +6,10 @@
  * an unknown top-level key in the input JSON never reaches the node. The
  * open-attribute model (§6 rule 2, §12.1) instead requires unknown keys to be
  * captured into the catch-all `data` attribute so nothing is silently
- * dropped. Output is untouched: `Node.toJSON()` / `Mark.toJSON()` already
+ * dropped — with one exception: `x-` editor-only keys (§6 rule 5) are
+ * dropped at load, never captured, so editor-private values cannot leak into
+ * `data` (the interchange passthrough) when a build no longer declares the
+ * attr. Output is untouched: `Node.toJSON()` / `Mark.toJSON()` already
  * emit typed attrs at the top level and everything else under `data` (§12).
  *
  * `MetanormaSchema` closes the load-side gap by wrapping the schema
@@ -34,17 +37,26 @@
 import { Schema } from 'prosemirror-model';
 import type { AttributeSpec, Mark, Node } from 'prosemirror-model';
 
+import { isEditorOnlyAttr } from './attrs.js';
+
 
 /** The name of the catch-all attribute (§6 rule 2). */
 const DATA_KEY = 'data';
 
 /**
  * Partition ONE attrs record for a type that declares the `data` catch-all:
- * declared keys are kept as-is; unknown keys are captured into `data`.
+ * declared keys are kept as-is; unknown keys are captured into `data`, except
+ * `x-` editor-only keys (§6 rule 5), which are dropped (see below).
  *
  * Policy — touch nothing unless there is something to capture:
  * - Non-object / absent / array `attrs` is returned **untouched** (stock
  *   defaults and error paths own it).
+ * - `x-` unknown keys (§6 rule 5) are **filtered out first** — they are never
+ *   captured, and they do not count as unknowns for the checks below. With
+ *   only `x-` unknowns present, the record takes the untouched-passthrough
+ *   branch, so `{x-…, data: 'str'}` passes through stock-style — the
+ *   refuse-to-silently-drop rationale does not apply to keys the load side
+ *   drops by design (§12 item 4).
  * - No unknown keys → the **original** record is returned, so behavior is
  *   byte-identical to stock — including a non-object `data` value, which
  *   stock passes through unvalidated (`computeAttrs` does not type-check
@@ -54,13 +66,16 @@ const DATA_KEY = 'data';
  *   `data` wins. Fresh objects are always built — `DATA_ATTR`'s default
  *   `{}` is a single shared reference (see `attrs.ts`), so mutation here
  *   would leak across nodes.
- * - Unknown keys + explicit `data` that is a string / number / boolean /
- *   array → `RangeError` naming the type. Spreading such a value produces
- *   indexed-property garbage, and silently dropping the unknown keys (what
- *   stock does) is precisely what §12.1 forbids. The input was already
- *   malformed — valid `toJSON` output always carries an object `data` — and
- *   staying in the `RangeError` family keeps the GUI's invalid-document
- *   classification (`loadDocFromJson`) working.
+ * - Non-`x-` unknown keys + explicit `data` that is a string / number /
+ *   boolean / array → `RangeError` naming the type. Spreading such a value
+ *   produces indexed-property garbage, and silently dropping these keys
+ *   (what stock does) is precisely what §12.1 forbids. The input was
+ *   already malformed — valid `toJSON` output always carries an object
+ *   `data` — and staying in the `RangeError` family keeps the GUI's
+ *   invalid-document classification (`loadDocFromJson`) working.
+ *
+ * An `x-` key **inside** an explicit `data` object is never touched —
+ * data-interior contents are untouched Metanorma payload (§6 rule 5, §17.7).
  *
  * Returns the original reference when nothing changes, so callers can skip
  * rebuilding the enclosing JSON object.
@@ -79,10 +94,17 @@ function partitionAttrs(
 
   const src = attrs as Readonly<Record<string, unknown>>;
 
+  // Filter-first (§12 item 1): `x-` editor-only keys are dropped before the
+  // unknown set is built — they are neither captured into `data` nor counted
+  // as unknowns by the malformed-corner check below (§12 item 4).
   let hasUnknown = false;
   const unknowns: Record<string, unknown> = {};
   for (const key of Object.keys(src)) {
-    if (key !== DATA_KEY && !(key in declared)) {
+    if (
+      key !== DATA_KEY &&
+      !(key in declared) &&
+      !isEditorOnlyAttr(key)
+    ) {
       unknowns[key] = src[key];
       hasUnknown = true;
     }

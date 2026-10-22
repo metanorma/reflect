@@ -4,8 +4,9 @@
  * `MetanormaDocument` is the JSON-serializable document tree shape accepted by
  * `prosemirror-model`'s `Schema.nodeFromJSON(...)`. It matches the open
  * attribute model of the Metanorma schema: every node carries an optional
- * `attrs` record, and unknown keys round-trip through the schema's catch-all
- * `data` attribute (schema §6).
+ * `attrs` record, unknown keys round-trip through the schema's catch-all
+ * `data` attribute, and editor-only `x-`-prefixed keys are dropped at load
+ * when undeclared (schema §6 rule 5, §12).
  *
  * This type is intentionally loose so callers can supply partial or
  * hand-authored documents without satisfying a per-node-type attribute type.

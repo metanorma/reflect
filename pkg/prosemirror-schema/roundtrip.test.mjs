@@ -14,7 +14,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { metanormaSchema } from './compiled/index.js';
+import {
+  metanormaSchema,
+  MetanormaSchema,
+  isEditorOnlyAttr,
+  stripEditorOnlyAttrs,
+} from './compiled/index.js';
 
 /** nodeFromJSON → toJSON, stringified for exact-shape assertions. */
 const roundTrip = (json) =>
@@ -302,6 +307,124 @@ describe('non-object data policy', () => {
     assert.equal(
       roundTrip({ type: 'paragraph', attrs: { zz: 1, data: null } }),
       JSON.stringify({ type: 'paragraph', attrs: { data: { zz: 1 } } }),
+    );
+  });
+});
+
+describe('§14.12 x- editor-only attr helpers', () => {
+  it('isEditorOnlyAttr: prefix match only (a)-(b)', () => {
+    // true: starts with x-
+    assert.equal(isEditorOnlyAttr('x-natural-width'), true);
+    assert.equal(isEditorOnlyAttr('x-'), true); // bare prefix is editor-only
+    // false: no x- prefix
+    for (const name of ['src', 'data', 'x', 'xref', 'xmin']) {
+      assert.equal(isEditorOnlyAttr(name), false, name);
+    }
+  });
+
+  it('stripEditorOnlyAttrs: removes only top-level x- keys, keeps data verbatim (b)', () => {
+    const input = {
+      src: 'a.png',
+      'x-stale': 1,
+      data: { 'x-inside': 1, keep: 2 },
+    };
+    const snapshot = structuredClone(input);
+    const out = stripEditorOnlyAttrs(input);
+    // fresh object, input untouched
+    assert.notEqual(out, input);
+    assert.deepEqual(input, snapshot);
+    // top-level x- removed; everything else kept
+    assert.deepEqual(out, { src: 'a.png', data: { 'x-inside': 1, keep: 2 } });
+    assert.ok(!('x-stale' in out));
+    // data-interior x- keys preserved — the helper is top-level-only
+    assert.deepEqual(out.data, { 'x-inside': 1, keep: 2 });
+  });
+});
+
+describe('§14.12 x- load-side behavior', () => {
+  it('drops undeclared top-level x- keys, still captures non-x- unknowns (c)', () => {
+    assert.equal(
+      roundTrip({
+        type: 'paragraph',
+        attrs: { 'x-stale': 1, 'untyped-key': 2 },
+        content: [{ type: 'text', text: 'hi' }],
+      }),
+      JSON.stringify({
+        type: 'paragraph',
+        attrs: { data: { 'untyped-key': 2 } },
+        content: [{ type: 'text', text: 'hi' }],
+      }),
+    );
+  });
+
+  it('keeps a DECLARED x- attr top-level through round-trip (d)', () => {
+    // A custom MetanormaSchema whose paragraph declares an x- attr — the
+    // happy path every future x- adoption follows (§6 rule 5).
+    const schema = new MetanormaSchema({
+      nodes: {
+        doc: { content: 'p+' },
+        p: {
+          content: 'text*',
+          // Declaration order matters for toJSON key order — the repo
+          // convention spreads DATA_ATTR last (typed attrs first).
+          attrs: { 'x-foobar': { default: null }, data: { default: {} } },
+        },
+        text: {},
+      },
+    });
+    const node = schema.nodeFromJSON({
+      type: 'p',
+      attrs: { 'x-foobar': 42 },
+      content: [{ type: 'text', text: 'hi' }],
+    });
+    assert.equal(node.attrs['x-foobar'], 42); // typed, top-level
+    // Stringified comparison — the suite's pattern; computeAttrs builds
+    // null-prototype attrs, which strict deepEqual would reject on prototype.
+    assert.equal(
+      JSON.stringify(node.toJSON()),
+      JSON.stringify({
+        type: 'p',
+        attrs: { 'x-foobar': 42, data: {} },
+        content: [{ type: 'text', text: 'hi' }],
+      }),
+    );
+  });
+
+  it('keeps a data-interior x- key verbatim (e)', () => {
+    assert.equal(
+      roundTrip({
+        type: 'paragraph',
+        attrs: { data: { 'x-inside': 1 } },
+        content: [{ type: 'text', text: 'hi' }],
+      }),
+      JSON.stringify({
+        type: 'paragraph',
+        attrs: { data: { 'x-inside': 1 } },
+        content: [{ type: 'text', text: 'hi' }],
+      }),
+    );
+  });
+
+  it('passes through x-only unknowns + non-object data (f, §12 item 4 softening)', () => {
+    // The x- key is dropped by design, so the refuse-to-silently-drop
+    // RangeError no longer applies — stock passthrough, verbatim re-emit.
+    assert.equal(
+      roundTrip({ type: 'paragraph', attrs: { 'x-stale': 1, data: 'str' } }),
+      JSON.stringify({ type: 'paragraph', attrs: { data: 'str' } }),
+    );
+  });
+
+  it('still throws for non-x- unknowns + non-object data, alone or mixed with x- (f)', () => {
+    assert.throws(
+      () => metanormaSchema.nodeFromJSON({ type: 'paragraph', attrs: { 'zz': 2, data: 'str' } }),
+      (e) => e instanceof RangeError && /non-object 'data'/i.test(e.message),
+    );
+    assert.throws(
+      () => metanormaSchema.nodeFromJSON({
+        type: 'paragraph',
+        attrs: { 'x-stale': 1, 'zz': 2, data: 'str' },
+      }),
+      (e) => e instanceof RangeError && /non-object 'data'/i.test(e.message),
     );
   });
 });

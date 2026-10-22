@@ -277,6 +277,29 @@ following rules:
 4. **`null` vs `undefined`.** All optional attrs use `default: null`. Under the
    repo's `exactOptionalPropertyTypes`, JSON produced by `toJSON()` uses `null`,
    never `undefined`.
+5. **Editor-only `x-` attributes.** An attribute whose name starts with `x-`
+   (kebab-case, e.g. `x-natural-width`) is editor-private state — caches,
+   hints, or UI metadata — never interchange data. Such attrs are declared as
+   typed attributes (`default: null` unless rule 3 applies), persist in
+   `.mn.json` like any typed attr, and are never named in `toDOM`/`parseDOM`,
+   so they never reach any DOM channel. The convention guarantees neither
+   derivability nor channel survival: each `x-` attr may or may not be
+   re-derivable — the feature that declares it states which. Because the DOM
+   layer is also the clipboard's serialization format, copy/paste silently
+   drops `x-` attrs; a feature that must keep them across copy/paste either
+   re-derives them on paste or adds explicit clipboard handling (the mechanism
+   `colwidths` uses — the schema's `toDOM` omits it and the editor's clipboard
+   serializer re-encodes it as `data-colwidths`, §8.5). Rule 5 is distinct
+   from `data` (rule 2): `data` carries open Metanorma attribute keys that
+   conversion passes through; `x-*` is never interchange data (§17.7). The
+   load side is asymmetric: an **undeclared** top-level `x-` key is dropped by
+   `nodeFromJSON`/`markFromJSON` (§12 item 1), while an `x-` key **inside**
+   `data` is kept verbatim — data-interior contents are untouched Metanorma
+   payload. The converter ignores `x-` keys in both positions (§17.7).
+
+The §6.1/§6.2 tables enumerate interchange attributes only; no `x-` attribute
+is adopted yet. When one is declared, its node's or mark's table row gains the
+entry with an explicit "editor-only (§6 rule 5)" marker.
 
 ### 6.1 Attribute map by node
 
@@ -697,7 +720,8 @@ import type { Schema, NodeSpec, MarkSpec } from 'prosemirror-model';
 /**
  * The assembled schema — a `MetanormaSchema` instance, typed as `Schema`.
  * Its `nodeFromJSON`/`markFromJSON` partition unknown attribute keys into
- * the `data` catch-all (§12.1); every other behavior is stock.
+ * the `data` catch-all (§12.1; `x-` editor-only keys are dropped at load,
+ * §6 rule 5); every other behavior is stock.
  */
 export const metanormaSchema: Schema;
 /** The schema subclass implementing §12.1 (compose raw spec maps with it). */
@@ -729,6 +753,16 @@ export function sameCohort(a: string, b: string): boolean;
 
 /** Runtime guard for image insertion (§6.1). */
 export function assertValidImageAttrs(attrs: { src?: unknown }): asserts attrs is { src: string };
+
+/** Editor-only `x-` attribute convention (§6 rule 5). */
+export const EDITOR_ONLY_ATTR_PREFIX: 'x-';
+export function isEditorOnlyAttr(name: string): boolean;
+/**
+ * Shallow copy of `attrs` minus every top-level `x-` key. Does NOT recurse
+ * into `data` — callers converting `data` contents apply it there separately
+ * (§17.7). Input is never mutated.
+ */
+export function stripEditorOnlyAttrs(attrs: Record<string, unknown>): Record<string, unknown>;
 ```
 
 ---
@@ -750,7 +784,12 @@ each node's/mark's `attrs` before delegating to the stock parse:
    node/mark's `data` attribute (§6) so nothing is silently dropped. The
    partition is shallow per node/mark; nested content and nested marks are
    captured too, because the stock parse recurses through the schema's
-   (wrapped) methods.
+   (wrapped) methods. **`x-` exception (§6 rule 5):** unknown keys starting
+   with `x-` are **not** captured — they are dropped at load, the sole
+   exception to "nothing silently dropped". This is what keeps editor-private
+   keys out of `data` when a build no longer declares the attr, since `data`
+   is the interchange passthrough channel. An `x-` key **inside** an explicit
+   `data` object is not affected: data-interior contents are kept verbatim.
 2. **Untouched passthrough.** When an attrs record carries no unknown keys,
    it is passed through unchanged — byte-identical stock behavior,
    including a non-object `data` value, which stock passes through
@@ -758,10 +797,17 @@ each node's/mark's `attrs` before delegating to the stock parse:
 3. **Collisions.** When an unknown key collides with a key already inside
    an explicit `data` object, the explicit `data` wins. An absent or `null`
    explicit `data` merges as empty.
-4. **Malformed corner.** Unknown keys **plus** an explicit `data` that is a
-   string / number / boolean / array throw a `RangeError` naming the
+4. **Malformed corner.** Non-`x-` unknown keys **plus** an explicit `data`
+   that is a string / number / boolean / array throw a `RangeError` naming the
    node/mark type — merging would produce indexed-property garbage, and
-   silently dropping the keys is what §12.1 forbids. Valid `toJSON` output
+   silently dropping the keys is what §12.1 forbids. The check evaluates the
+   unknowns **remaining after the `x-` drop** (item 1): input whose unknown
+   keys are all `x-` plus a non-object `data` passes through untouched — the
+   refuse-to-silently-drop rationale does not apply to keys the load side
+   drops by design. This **narrows** the error contract the GUI's
+   `loadDocFromJson` classification consumes: the softened input is never
+   valid `toJSON` output (which always carries an object `data`), so
+   classification of real documents is unaffected. Valid `toJSON` output
    always carries an object `data`, so this fires only on malformed input.
 5. **Error contracts.** Unknown node/mark types and non-object input still
    throw the stock `RangeError`s (`"Unknown node type: …"`,
@@ -843,6 +889,18 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
    foster-parented caption node appearing **before** the `<table>`. (This locks
    in the empirical parser facts that motivate the two parent-scoped caption
    node types, §3.1.)
+12. The `x-` editor-only attribute convention (§6 rule 5) holds, covered by the
+    package's round-trip suite: `isEditorOnlyAttr` classifies `x-natural-width`
+    (and bare `x-`) as editor-only and `src`/`data`/`x`/`xref`/`xmin` as not;
+    `stripEditorOnlyAttrs` removes only top-level `x-` keys, preserves `data`
+    and its interior keys, and never mutates its input; a **declared** `x-`
+    attr round-trips top-level through `nodeFromJSON` → `toJSON` on a schema
+    that declares it; an **undeclared** top-level `x-` key is dropped at load
+    while non-`x-` unknown keys in the same attrs record are still captured
+    into `data`; a `data`-interior `x-` key round-trips verbatim; unknown keys
+    that are all `x-` plus a non-object `data` pass through untouched (the
+    §12 item 4 softening) while non-`x-` unknowns — alone or mixed with `x-`
+    keys — plus a non-object `data` still throw `RangeError`.
 
 ---
 
@@ -1023,4 +1081,14 @@ coercion, not ambiguity — there is a single valid target):
 textblock whose legal positions (§8.3) — `sections` top level and the subclause
 branches of `clause` and `annex` — match Standoc exactly, so no positional
 coercion applies on export.
+
+### 17.7 Editor-only `x-` attributes
+
+Attributes named with the `x-` prefix (§6 rule 5) are editor-private state and
+never interchange data, wherever they sit. The converter ignores every
+`x-`-prefixed key it encounters in both positions — declared typed attrs at
+the top level of an attrs record, and keys inside the `data` catch-all — by
+applying `stripEditorOnlyAttrs` (§11) to each channel. The helper is
+**top-level-only**: scrubbing `data` contents is the converter's explicit
+per-channel step, not something the helper does recursively.
 
