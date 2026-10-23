@@ -2,24 +2,30 @@
  * Public API for `@metanorma/panel-layout`.
  *
  * Implements `docs/panel-layout-proposal/behavior.spec.md` — the
- * panel-based editor layout: a Document main-grid panel plus floating
+ * panel-based editor layout: a main-grid document area plus floating
  * "tabset group" mini-windows (dockview v7), with per-tabset pinned
- * heights, auto-wrap undocking, and layout persistence.
+ * heights, auto-wrap undocking, and layout persistence. The library-scope
+ * module inventory that this package will export is specified in
+ * `docs/panel-layout-proposal/api.spec.md`.
  *
- * Status: pre-implementation. This package currently ships the proposal's
- * machine artifacts as its contract inputs:
+ * Status: scaffolding. The behavior modules are ported internals
+ * (see api.spec.md §2 for the module map; each carries a provenance header
+ * pointing at the mock commit it was extracted from):
  *
- * - `mock/editor-dockview7-floats.html` — the single-file live mock that is
- *   the reference implementation of the interaction contract (§1 of the
- *   spec; also the extraction source for design tokens).
- * - `mock/design-tokens.json` — machine-extracted constants, preset
- *   layout, panel titles, CSS custom properties, and dockview options;
- *   consumed by any implementation instead of re-declaring them.
- * - `mock/states/`, `mock/goldens/` — captured static state frames and
- *   happy-path baselines (PNG + serialized state + traces) that serve as
- *   acceptance references for the implementation.
+ * - `tokens.ts` — typed views over the generated design tokens.
+ * - `persistence.ts` — layout/heights save-load over an injected
+ *   `LayoutStorage` adapter, corrupted-storage fallback (A6/A7).
+ * - `pinHeights.ts` — the per-tabset pinned-heights model (T7).
+ * - `dragTakeover.ts` — sash/bottom-edge gesture takeover (HP6).
+ * - `windowDrag.ts` — window-drag containment + {top} normalization (HP5).
+ * - `unwrap.ts` — auto-wrap claim + drop-veto engine (HP2–HP4, HP7, F3, F5).
+ * - `titlebar.ts` — float titlebar grip chrome + move-only enforcement (T6).
+ * - `panel-layout.css` — library chrome styles (regenerate + drift-check:
+ *   `yarn workspace @metanorma/panel-layout tokens:extract [--check]`).
  *
- * TypeScript source lands here as implementation work begins; the mock and
- * its capture tooling are build inputs, not shipped code.
+ * The mock and its capture tooling under `mock/` are build inputs and
+ * acceptance references (state frames, goldens), not shipped code; the 11
+ * demo panels are demo registrations and will never be exported.
  */
+
 export {};

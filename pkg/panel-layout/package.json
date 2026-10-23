@@ -10,11 +10,26 @@
   },
   "scripts": {
     "compile": "tsc --outdir compiled",
-    "tokens:extract": "node mock/extract-design-tokens.mjs",
+    "tokens:extract": "node mock/extract-design-tokens.mjs && node extract-css.mjs",
+    "tokens:check": "node mock/extract-design-tokens.mjs --check && node extract-css.mjs --check",
     "capture:states": "node mock/states/capture.mjs",
     "capture:goldens": "node mock/goldens/capture-goldens.mjs"
   },
+  "peerDependencies": {
+    "dockview": "7.0.4",
+    "dockview-core": "7.0.4",
+    "dockview-react": "7.0.4",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
   "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dockview": "7.0.4",
+    "dockview-core": "7.0.4",
+    "dockview-react": "7.0.4",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "typescript": "~6.0.3"
   }
 }

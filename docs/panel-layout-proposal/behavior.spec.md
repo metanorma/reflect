@@ -8,7 +8,8 @@ persistence, focus, and viewport behavior — as realized in the live mock
 [`editor-dockview7-floats.html`](../../pkg/panel-layout/mock/editor-dockview7-floats.html)
 (dockview v7.0.4, floating "tabset group" mini-windows), the reference
 artifact of the [`@metanorma/panel-layout`](../../pkg/panel-layout/index.ts)
-package. The older
+package. The module inventory implementing this contract is specified in
+[`api.spec.md`](./api.spec.md). The older
 [`mockups/editor-flexlayout-floats.html`](../../mockups/editor-flexlayout-floats.html)
 is the visual-language reference and is cited where both mocks share an
 artifact.

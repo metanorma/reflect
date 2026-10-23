@@ -163,8 +163,33 @@ const out = {
   importMap,             // pinned CDN dependency URLs (verbatim)
 };
 
-writeFileSync(OUT, JSON.stringify(out, null, 2) + '\n');
-console.log(`wrote ${OUT}`);
-console.log(`  tokens=${Object.keys(tokens).length} dvTokens=${Object.keys(dvTokens).length} `
-  + `constants=${Object.keys(constants).length} panels=${Object.keys(titles).length} `
-  + `floats=${presetLayout.floatingGroups.length} @ ${sha.slice(0, 8)}${dirty ? ' (dirty)' : ''}`);
+const jsonText = JSON.stringify(out, null, 2) + '\n';
+const CHECK = process.argv.includes('--check');
+
+if (CHECK) {
+  let ok = true;
+  try {
+    const current = readFileSync(OUT, 'utf8');
+    // extractedAtUTC is per-run; compare the rest.
+    const strip = (s) => s.replace(/"extractedAtUTC":[^,]+/, '');
+    if (strip(current) !== strip(jsonText)) {
+      console.error('design-tokens.json is stale — regenerate with '
+        + 'yarn workspace @metanorma/panel-layout tokens:extract');
+      ok = false;
+    } else {
+      console.log('design-tokens.json up to date');
+    }
+  } catch {
+    console.error('design-tokens.json missing — run tokens:extract');
+    ok = false;
+  }
+  if (!ok) {
+    process.exit(1);
+  }
+} else {
+  writeFileSync(OUT, jsonText);
+  console.log(`wrote ${OUT}`);
+  console.log(`  tokens=${Object.keys(tokens).length} dvTokens=${Object.keys(dvTokens).length} `
+    + `constants=${Object.keys(constants).length} panels=${Object.keys(titles).length} `
+    + `floats=${presetLayout.floatingGroups.length} @ ${sha.slice(0, 8)}${dirty ? ' (dirty)' : ''}`);
+}

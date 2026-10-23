@@ -275,6 +275,18 @@ const RAW_RUNTIME_STATE =
       "npm:3.2.3"\
     ],\
     [\
+      "dockview",\
+      "npm:7.0.4"\
+    ],\
+    [\
+      "dockview-core",\
+      "npm:7.0.4"\
+    ],\
+    [\
+      "dockview-react",\
+      "virtual:e676b03fa02430453a868a7e88d227544463cd440264cafff8eeb0355fa067f374ec21f7b247cb7761ecf5d67f1b20d9ea7c4b0be6ca0f23215457abbb59ba6f#npm:7.0.4"\
+    ],\
+    [\
       "editor-gui",\
       "workspace:pkg/editor-gui"\
     ],\
@@ -837,6 +849,13 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./pkg/panel-layout/",\
         "packageDependencies": [\
           ["@metanorma/panel-layout", "workspace:pkg/panel-layout"],\
+          ["@types/react", "npm:19.2.14"],\
+          ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
+          ["dockview", "npm:7.0.4"],\
+          ["dockview-core", "npm:7.0.4"],\
+          ["dockview-react", "virtual:e676b03fa02430453a868a7e88d227544463cd440264cafff8eeb0355fa067f374ec21f7b247cb7761ecf5d67f1b20d9ea7c4b0be6ca0f23215457abbb59ba6f#npm:7.0.4"],\
+          ["react", "npm:19.2.7"],\
+          ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
         ],\
         "linkType": "SOFT"\
@@ -1137,6 +1156,52 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./.yarn/cache/csstype-npm-3.2.3-741053244e-cd29c51e70.zip/node_modules/csstype/",\
         "packageDependencies": [\
           ["csstype", "npm:3.2.3"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["dockview", [\
+      ["npm:7.0.4", {\
+        "packageLocation": "./.yarn/cache/dockview-npm-7.0.4-e4af09655e-3fef810a24.zip/node_modules/dockview/",\
+        "packageDependencies": [\
+          ["dockview", "npm:7.0.4"],\
+          ["dockview-core", "npm:7.0.4"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["dockview-core", [\
+      ["npm:7.0.4", {\
+        "packageLocation": "./.yarn/cache/dockview-core-npm-7.0.4-95609f03fd-c22b40e41e.zip/node_modules/dockview-core/",\
+        "packageDependencies": [\
+          ["dockview-core", "npm:7.0.4"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["dockview-react", [\
+      ["npm:7.0.4", {\
+        "packageLocation": "./.yarn/cache/dockview-react-npm-7.0.4-766f58f77e-3ea0180d02.zip/node_modules/dockview-react/",\
+        "packageDependencies": [\
+          ["dockview-react", "npm:7.0.4"]\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["virtual:e676b03fa02430453a868a7e88d227544463cd440264cafff8eeb0355fa067f374ec21f7b247cb7761ecf5d67f1b20d9ea7c4b0be6ca0f23215457abbb59ba6f#npm:7.0.4", {\
+        "packageLocation": "./.yarn/__virtual__/dockview-react-virtual-354b3d18f0/0/cache/dockview-react-npm-7.0.4-766f58f77e-3ea0180d02.zip/node_modules/dockview-react/",\
+        "packageDependencies": [\
+          ["@types/react", "npm:19.2.14"],\
+          ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
+          ["dockview", "npm:7.0.4"],\
+          ["dockview-react", "virtual:e676b03fa02430453a868a7e88d227544463cd440264cafff8eeb0355fa067f374ec21f7b247cb7761ecf5d67f1b20d9ea7c4b0be6ca0f23215457abbb59ba6f#npm:7.0.4"],\
+          ["react", "npm:19.2.7"],\
+          ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"]\
+        ],\
+        "packagePeers": [\
+          "@types/react-dom",\
+          "@types/react",\
+          "react-dom",\
+          "react"\
         ],\
         "linkType": "HARD"\
       }]\

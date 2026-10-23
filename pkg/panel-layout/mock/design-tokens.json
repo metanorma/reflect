@@ -1,10 +1,10 @@
 {
   "_provenance": {
     "source": "pkg/panel-layout/mock/editor-dockview7-floats.html",
-    "commit": "(uncommitted)",
-    "commitDate": null,
-    "workingTreeDirtyAtExtraction": true,
-    "extractedAtUTC": "2026-10-20T10:29:05.785Z",
+    "commit": "94d4b8307e5f0db2a1b32e14ceb8754207a51f27",
+    "commitDate": "2026-10-20T18:45:10+08:00",
+    "workingTreeDirtyAtExtraction": false,
+    "extractedAtUTC": "2026-10-22T10:04:23.403Z",
     "regenerate": "node pkg/panel-layout/mock/extract-design-tokens.mjs",
     "note": "GENERATED FILE — do not edit by hand; the mock is the source of truth. Change the mock, re-run the command above."
   },

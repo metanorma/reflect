@@ -10,7 +10,8 @@ its CDN bootstrap, its demo preset geometry at narrow viewports, and the app
 chrome (toolbar/statusbar) it contributes around the library's layout
 surface. Layout behavior itself — windows, tabsets, tabs, sashes, zones,
 drag/drop, persistence, focus — is the library's contract and lives in
-[`behavior.spec.md`](./behavior.spec.md); nothing here overrides it.
+[`behavior.spec.md`](./behavior.spec.md); the module inventory implementing
+it is [`api.spec.md`](./api.spec.md); nothing here overrides either.
 
 Row IDs below reuse the numbering those rows carried in `behavior.spec.md`
 before they moved here, so cross-references (frames, goldens, commit

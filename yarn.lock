@@ -268,7 +268,20 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metanorma/panel-layout@workspace:pkg/panel-layout"
   dependencies:
+    "@types/react": "npm:^19"
+    "@types/react-dom": "npm:^19"
+    dockview: "npm:7.0.4"
+    dockview-core: "npm:7.0.4"
+    dockview-react: "npm:7.0.4"
+    react: "npm:^19.2.7"
+    react-dom: "npm:^19.2.7"
     typescript: "npm:~6.0.3"
+  peerDependencies:
+    dockview: 7.0.4
+    dockview-core: 7.0.4
+    dockview-react: 7.0.4
+    react: ^19.2.7
+    react-dom: ^19.2.7
   languageName: unknown
   linkType: soft
 
@@ -484,6 +497,34 @@ __metadata:
   version: 3.2.3
   resolution: "csstype@npm:3.2.3"
   checksum: 10c0/cd29c51e70fa822f1cecd8641a1445bed7063697469d35633b516e60fe8c1bde04b08f6c5b6022136bb669b64c63d4173af54864510fbb4ee23281801841a3ce
+  languageName: node
+  linkType: hard
+
+"dockview-core@npm:7.0.4, dockview-core@npm:^7.0.4":
+  version: 7.0.4
+  resolution: "dockview-core@npm:7.0.4"
+  checksum: 10c0/c22b40e41e148a32ef45fd18566f94a2f2195ec94663d7e9b2e5f28f5c35299372ae23665a59a1815a45fad2c96c5da28591101ccfcbc2734466ec582c0008a8
+  languageName: node
+  linkType: hard
+
+"dockview-react@npm:7.0.4":
+  version: 7.0.4
+  resolution: "dockview-react@npm:7.0.4"
+  dependencies:
+    dockview: "npm:^7.0.4"
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 10c0/3ea0180d02b009743d6fc642d750e11fbd7e1e2596782700e2d4d5a4789302806a3caae11936120d7cb07069dbf1dcfc46fb836ac8d7193747f4dd5519545309
+  languageName: node
+  linkType: hard
+
+"dockview@npm:7.0.4, dockview@npm:^7.0.4":
+  version: 7.0.4
+  resolution: "dockview@npm:7.0.4"
+  dependencies:
+    dockview-core: "npm:^7.0.4"
+  checksum: 10c0/3fef810a24b59d86a1ed5c8ba31da8507fa571319332ff8cb8e541ab2ac7e73d5af0662e0b54731e42c01019019f9d6cc71b4c60bb108cd5bbac13bbe70ac5b7
   languageName: node
   linkType: hard
 
