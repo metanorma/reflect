@@ -268,6 +268,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metanorma/panel-layout@workspace:pkg/panel-layout"
   dependencies:
+    "@playwright/test": "npm:^1.49.0"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
     dockview: "npm:7.0.4"

@@ -13,7 +13,10 @@
     "tokens:extract": "node mock/extract-design-tokens.mjs && node extract-css.mjs",
     "tokens:check": "node mock/extract-design-tokens.mjs --check && node extract-css.mjs --check",
     "capture:states": "node mock/states/capture.mjs",
-    "capture:goldens": "node mock/goldens/capture-goldens.mjs"
+    "capture:goldens": "node mock/goldens/capture-goldens.mjs",
+    "parity": "playwright test --config=tests/parity/playwright.config.ts",
+    "parity:install": "playwright install chromium",
+    "parity:install-deps": "playwright install-deps chromium"
   },
   "peerDependencies": {
     "dockview": "7.0.4",
@@ -23,6 +26,7 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dockview": "7.0.4",

@@ -849,6 +849,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./pkg/panel-layout/",\
         "packageDependencies": [\
           ["@metanorma/panel-layout", "workspace:pkg/panel-layout"],\
+          ["@playwright/test", "npm:1.62.1"],\
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
           ["dockview", "npm:7.0.4"],\
