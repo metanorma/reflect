@@ -9,10 +9,7 @@ persistence, focus, and viewport behavior — as realized in the live mock
 (dockview v7.0.4, floating "tabset group" mini-windows), the reference
 artifact of the [`@metanorma/panel-layout`](../../pkg/panel-layout/index.ts)
 package. The module inventory implementing this contract is specified in
-[`api.spec.md`](./api.spec.md). The older
-[`mockups/editor-flexlayout-floats.html`](../../mockups/editor-flexlayout-floats.html)
-is the visual-language reference and is cited where both mocks share an
-artifact.
+[`api.spec.md`](./api.spec.md).
 
 All `:NNN` line references point into
 `editor-dockview7-floats.html`.
@@ -46,9 +43,10 @@ behavior only; panel content is opaque input the implementation must accept
 2. `fromJSON(default)` runs (:1325), then the pin pass (:1349).
 *Outcome:* the main grid hosts the consumer's grid panels; every default
 floating window renders titlebar + grip + stacked tabsets at default heights
-(§4); both storage keys written immediately (`saveLayout`, :1326).
-Serialization: one `floatingGroups[]` entry per window, all position forms
-`{left,top,width,height}`.
+(§4); the layout key is written immediately (`saveLayout`, :1326); the
+heights key stays empty on first load until the first layout change or
+takeover drag (§4). Serialization: one `floatingGroups[]` entry per window,
+all position forms `{left,top,width,height}`.
 
 **HP2 — Drag panel tab out of a tabset → new floating window (auto-wrap).**
 1. Pointer-drag a panel tab (e.g. from Navigation) over the doc grid
@@ -160,7 +158,7 @@ statusbar) intact; layout key reflects the emptied state. HP9 restores.
 | C3 Panel component throws in render | Component exception | **not implemented** — no error boundary in dockview-react v7.0.4; tree unmounts → blank page | min: per-panel boundary rendering "Panel failed: <id>" |
 | C4 toJSON fails | Bad structure | Swallowed → stale layout kept | Invisible |
 | **D. Content vs container** (container behavior only) | | | |
-| D1 Content taller than tabset | Any panel above its pinned height | Internal scrollbar in `.panelwrap` (`overflow:auto`, :158) — stock, both mocks | The contract panel content must expect: render into a fixed-height box |
+| D1 Content taller than tabset | Any panel above its pinned height | Internal scrollbar in `.panelwrap` (`overflow:auto`, :158) — stock | The contract panel content must expect: render into a fixed-height box |
 | D2 Content shorter than tabset | Any panel below its pinned height | White whitespace below (`.panelwrap` bg fills) | Panels own their empty space; no stretch/fill affordance |
 | (Panel-data states — empty lists, long strings, filtering results — out of scope for this spec) | | | |
 | **E. Long/short/missing chrome text** | | | |

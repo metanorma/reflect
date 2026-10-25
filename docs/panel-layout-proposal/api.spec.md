@@ -42,8 +42,7 @@ import of `dockview` resolves to the unbundled copy and instantiates a
 second `dockview-core` beside the one inlined in the react bundle —
 duplicated drag/event systems. The rule is enforced mechanically by
 `yarn workspace @metanorma/panel-layout imports:check`
-(`pkg/panel-layout/check-imports.mjs`), which runs as part of every
-`build`.
+(`scripts/check-imports.mjs`), which runs as part of every `build`.
 
 ## 2. Public surface
 

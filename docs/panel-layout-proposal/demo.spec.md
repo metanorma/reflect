@@ -22,7 +22,7 @@ history) stay resolvable.
 | State | Trigger / data condition | What renders | Notes |
 |---|---|---|---|
 | **A. Loading (mock bootstrap)** | | | |
-| A1 Boot pending | Page open, modules unresolved | `#boot` full-viewport #22262c overlay, centered gray text "Loading React + dockview v7 from CDN (esm.sh/unpkg)…" (:47, :345) | Same artifact in both mocks; no spinner; removed only after render (:1564) |
+| A1 Boot pending | Page open, modules unresolved | `#boot` full-viewport #22262c overlay, centered gray text "Loading React + dockview v7 from CDN (esm.sh/unpkg)…" (:47, :345) | No spinner; removed only after render (:1564) |
 | A2 Slow CDN | Import latency | Same overlay, indefinite; `#root` empty behind | No timeout/retry |
 | A3 CDN failure | Any `await import` throws | Overlay text → `Failed to load from CDN: <msg>` + instructions (:1566–1568) | **Frame: `cdn-failure.html`** — dark overlay + real copy, no other chrome |
 | **C. Error (bootstrap)** | | | |

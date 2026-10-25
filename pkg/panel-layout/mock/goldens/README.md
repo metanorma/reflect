@@ -5,7 +5,8 @@ Authoritative baselines captured from the live mock
 scripted real-input Playwright sessions (no DOM mutation). Companion to the
 static state frames in [`../states/`](../states/): those are hand-reachable
 degenerate states; these are the happy-path flows HP1–HP10 from
-[`../behavior.spec.md`](../behavior.spec.md) §2.
+[`behavior.spec.md`](../../../../docs/panel-layout-proposal/behavior.spec.md)
+§2.
 
 ## Commands
 
@@ -62,4 +63,6 @@ asserts mock and twin against the same baselines.
 
 When the mock changes legitimately, re-run the capture to refresh captured
 reality; anything beyond pure regeneration (new screens, changed flows) is a
-spec question first — the flows live in `behavior.spec.md` §2.
+spec question first — the flows live in
+[`behavior.spec.md`](../../../../docs/panel-layout-proposal/behavior.spec.md)
+§2.
