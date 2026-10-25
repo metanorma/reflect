@@ -14,7 +14,7 @@
  * Every symbol is named explicitly (no `export *`) so an accidental export
  * added to a module cannot silently leak onto this surface; a symbol that
  * belongs on both surfaces is re-exported from one place. Engine types are
- * not re-exported here (api.spec.md §5.3) — the type-only import chain
+ * not re-exported here (api.spec.md §2.4) — the type-only import chain
  * through the modules below erases at emit.
  *
  * Value and type symbols are re-exported in separate clauses: the root
