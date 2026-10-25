@@ -16,6 +16,21 @@ degenerate states; these are the happy-path flows HP1–HP10 from
 Needs network at page load (esm.sh/unpkg CDN); Playwright is auto-probed
 (`/root/mn-capture-deps`, `MN_CAPTURE_PLAYWRIGHT`, npx caches, or repo-local).
 
+## Generator vs enforcer
+
+This directory's script is the **generator**: it produces artifacts (and owns
+the standalone PNG decoder for its quick `--check-only` tripwire). The
+**enforcer** is the parity suite at
+[`../../tests/parity/`](../../tests/parity/) (`yarn workspace
+@metanorma/panel-layout parity`): a Playwright-test characterization suite
+that drives the SAME flows (shared drivers in `tests/parity/flows.mjs`) and
+asserts the mock against these checked-in goldens — semantic-first
+(`state-hp*.json` `_normalized` diffs, ±1px) plus a pixel layer with shared
+snapshot names. Until the library twin exists the two overlap by design;
+the parity suite is the one that survives and gains the second target
+(`twin` project placeholder in its config), at which point the same run
+asserts mock and twin against the same baselines.
+
 ## Artifacts
 
 - `hp*.png` — key screens at 1440×900 @1x: default layout, mid-drag

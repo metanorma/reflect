@@ -101,6 +101,9 @@ test('HP1 preset + HP2 unwrap + HP3 merge', async ({ page }) => {
   await settle(page);
   const st1 = attachNormalized(await dumpState(page, 'hp1'));
   expectParity('hp1', st1);
+  // Pixel layer — shared snapshot name across targets (mock now, twin
+  // later); tolerance lives in playwright.config.ts expect settings.
+  await expect(page).toHaveScreenshot('panel-layout-hp1.png');
 
   // HP2: drag Outline tab to verified pasteboard → unwrap
   const pb = await findPasteboardPoint(page);
@@ -136,6 +139,7 @@ test('HP1 preset + HP2 unwrap + HP3 merge', async ({ page }) => {
   await page.mouse.up();
   await settle(page);
   expectParity('hp3', attachNormalized(await dumpState(page, 'hp3')));
+  await expect(page).toHaveScreenshot('panel-layout-hp3.png');
 });
 
 test('HP4 stack + HP5 park + HP6 resize', async ({ page }) => {
@@ -194,22 +198,46 @@ test('HP4 stack + HP5 park + HP6 resize', async ({ page }) => {
   await settle(page);
   expectParity('hp4', attachNormalized(await dumpState(page, 'hp4')));
 
-  // HP5: titlebar drag → drawer park below the layout area bottom
-  const bar = await titlebarPointForWindowWithTab(page, 'Identity');
-  expect(bar.error, `titlebar: ${bar.error ?? ''}`).toBeFalsy();
-  const area = await page.evaluate(() => {
-    const r = document.querySelector('.layoutArea')
-      ?.getBoundingClientRect();
-    return r ? { bottom: r.bottom } : null;
-  });
-  expect(area, 'layout area').toBeTruthy();
-  await page.mouse.move(bar.x, bar.y);
-  await page.waitForTimeout(120);
-  await page.mouse.down();
-  await page.mouse.move(
-    bar.x, area.bottom - 30 + 200 * HP5_PARK, { steps: DRAG_STEPS });
-  await page.mouse.up();
-  await settle(page);
+  // HP5: titlebar drag → drawer park below the layout area bottom.
+  // Mirrors the generator: drag by the computed delta that parks
+  // HP5_PARK of the window height below the area's bottom edge.
+  {
+    const park = await page.evaluate(({ txt, frac }) => {
+      const api = window.__api;
+      const comp = api.component ?? api;
+      const area = document.querySelector('.layoutArea');
+      const ar = area.getBoundingClientRect();
+      for (const fpRaw of comp.floatingGroups ?? []) {
+        const fp = fpRaw;
+        const winEl = fp.overlay.element;
+        const tabs = [...winEl.querySelectorAll('.dv-tab')]
+          .map((t) => (t.textContent || '').trim());
+        if (!tabs.some((t) => t.includes(txt))) continue;
+        const bar = winEl.querySelector('.dv-floating-titlebar');
+        const wr = winEl.getBoundingClientRect();
+        const br = bar.getBoundingClientRect();
+        const newTop = Math.round(ar.height - wr.height * frac);
+        const curTop = Math.round(wr.top - ar.top);
+        return {
+          grab: {
+            x: Math.round(br.left + br.width / 2),
+            y: Math.round(br.top + br.height / 2),
+          },
+          delta: newTop - curTop,
+        };
+      }
+      return { error: 'no window for ' + txt };
+    }, { txt: 'Identity', frac: HP5_PARK });
+    expect(park.error, `park: ${park.error ?? ''}`).toBeFalsy();
+    await page.mouse.move(park.grab.x, park.grab.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(park.grab.x, park.grab.y + park.delta,
+      { steps: DRAG_STEPS + 4 });
+    await page.waitForTimeout(350);
+    await page.mouse.up();
+    await settle(page);
+  }
   expectParity('hp5', attachNormalized(await dumpState(page, 'hp5')));
 
   // HP6: bottom-edge resize of the Pinned window (+40px on last tabset)
@@ -224,28 +252,107 @@ test('HP4 stack + HP5 park + HP6 resize', async ({ page }) => {
   await page.mouse.up();
   await settle(page);
   expectParity('hp6', attachNormalized(await dumpState(page, 'hp6')));
+  await expect(page).toHaveScreenshot('panel-layout-hp6.png');
 });
 
 test('HP8 reload round-trip', async ({ page }) => {
-  // Rebuild the HP6 end-state, then reload in the same context.
   await gotoLoaded(page, BASE_URL);
   await settle(page);
-  const rev = await tabInfo(page, 'Review');
-  const pinned = await groupDropPoint(page, 'Pinned', 'center');
-  await page.mouse.move(rev.x, rev.y);
-  await page.waitForTimeout(120);
-  await page.mouse.down();
-  await page.mouse.move(pinned.x, pinned.y, { steps: DRAG_STEPS });
-  await waitZone(page, 'Pinned', 'center', 6000);
-  await page.mouse.up();
-  await settle(page);
-  const handle = await resizeHandlePoint(
-    page, 'Pinned', '.dv-resize-handle-bottom');
-  await page.mouse.move(handle.x, handle.y);
-  await page.mouse.down();
-  await page.mouse.move(handle.x, handle.y + HP6_RESIZE_DELTA, { steps: 8 });
-  await page.mouse.up();
-  await settle(page);
+
+  // Rebuild the full chained prefix (HP2→HP6) that the goldens captured,
+  // then reload in the same context.
+  {
+    // HP2: Outline → pasteboard (unwrap)
+    const pb = await findPasteboardPoint(page);
+    const src = await tabInfo(page, 'Outline');
+    await page.mouse.move(src.x, src.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(pb.x, pb.y, { steps: DRAG_STEPS });
+    await page.waitForFunction(() => document
+      .querySelector('.layoutArea')
+      ?.classList.contains('mn-unwrap-hover'));
+    await page.waitForTimeout(ZONE_SETTLE_MS);
+    await page.mouse.up();
+    await settle(page);
+  }
+  {
+    // HP3: Review → Pinned center (merge)
+    const rev = await tabInfo(page, 'Review');
+    const pinned = await groupDropPoint(page, 'Pinned', 'center');
+    await page.mouse.move(rev.x, rev.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(pinned.x, pinned.y, { steps: DRAG_STEPS });
+    await waitZone(page, 'Pinned', 'center', 6000);
+    await page.waitForTimeout(ZONE_SETTLE_MS);
+    await page.mouse.up();
+    await settle(page);
+  }
+  {
+    // HP4: Bibliography void → Outline window bottom band (stack)
+    const void0 = await voidPointForGroupWithTab(page, 'Bibliography');
+    const outlineBottom = await groupDropPoint(
+      page, 'Outline', 'bottomBand');
+    await page.mouse.move(void0.x, void0.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(outlineBottom.x, outlineBottom.y,
+      { steps: DRAG_STEPS });
+    await waitZone(page, 'Outline', 'bottom', 6000);
+    await page.waitForTimeout(ZONE_SETTLE_MS);
+    await page.mouse.up();
+    await settle(page);
+  }
+  {
+    // HP5: Identity titlebar → drawer park (HP5_PARK below bottom)
+    const park = await page.evaluate(({ txt, frac }) => {
+      const api = window.__api;
+      const comp = api.component ?? api;
+      const area = document.querySelector('.layoutArea');
+      const ar = area.getBoundingClientRect();
+      for (const fpRaw of comp.floatingGroups ?? []) {
+        const fp = fpRaw;
+        const winEl = fp.overlay.element;
+        const tabs = [...winEl.querySelectorAll('.dv-tab')]
+          .map((t) => (t.textContent || '').trim());
+        if (!tabs.some((t) => t.includes(txt))) continue;
+        const bar = winEl.querySelector('.dv-floating-titlebar');
+        const wr = winEl.getBoundingClientRect();
+        const br = bar.getBoundingClientRect();
+        const newTop = Math.round(ar.height - wr.height * frac);
+        const curTop = Math.round(wr.top - ar.top);
+        return {
+          grab: {
+            x: Math.round(br.left + br.width / 2),
+            y: Math.round(br.top + br.height / 2),
+          },
+          delta: newTop - curTop,
+        };
+      }
+      return { error: 'no window for ' + txt };
+    }, { txt: 'Identity', frac: HP5_PARK });
+    await page.mouse.move(park.grab.x, park.grab.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(park.grab.x, park.grab.y + park.delta,
+      { steps: DRAG_STEPS + 4 });
+    await page.waitForTimeout(350);
+    await page.mouse.up();
+    await settle(page);
+  }
+  {
+    // HP6: Pinned bottom-edge resize (+40px)
+    const handle = await resizeHandlePoint(
+      page, 'Pinned', '.dv-resize-handle-bottom');
+    await page.mouse.move(handle.x, handle.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(handle.x, handle.y + HP6_RESIZE_DELTA,
+      { steps: 8 });
+    await page.mouse.up();
+    await settle(page);
+  }
 
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('#boot', { state: 'detached' });
@@ -265,4 +372,5 @@ test('HP9 reset + HP10 empty', async ({ page }) => {
   await closeAllPanels(page);
   await settle(page);
   expectParity('hp10', attachNormalized(await dumpState(page, 'hp10')));
+  await expect(page).toHaveScreenshot('panel-layout-hp10.png');
 });
