@@ -50,8 +50,11 @@ export default defineConfig({
   },
   webServer: {
     // cwd is the workspace root when invoked via yarn workspace scripts;
-    // the config lives one level deeper.
-    command: 'node tests/parity/serve.mjs',
+    // the config lives one level deeper. `yarn build` runs the workspace
+    // build (imports:check + both esbuild targets) first — the parity run
+    // can never hit a stale dist/. Same pattern as the minimap e2e
+    // (yarn build-minimap-demo && node …/harness/serve.mjs).
+    command: 'yarn build && node tests/parity/serve.mjs',
     cwd: path.resolve(here, '..', '..'),
     url: 'http://127.0.0.1:4173/mock/editor-dockview7-floats.html',
     reuseExistingServer: !process.env.CI,

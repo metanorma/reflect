@@ -5,15 +5,24 @@
  * Rooted at pkg/panel-layout/ so the fixed routes are:
  *   /mock/editor-dockview7-floats.html   (reference target, today)
  *   /twin/…                              (library twin, later)
+ *   /dist/mock/panel-layout.js           (built library artifact, for the
+ *                                         future mock glue)
  *
  * Port is provided by the Playwright webServer config (4173). Same pattern
  * as pkg/prosemirror-minimap/harness/serve.mjs.
+ *
+ * --watch: rebuild continuously. Spawns the ROOT builder
+ * (`yarn node ../../build-panel-layout.mjs --dev --watch` — the builder
+ * must run from the root manifest for PnP; this file never imports
+ * esbuild) as a child process and keeps serving in the foreground — one
+ * process tree, one port; do NOT run a separate esbuild watch alongside.
  */
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
 import { extname, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
 
 const require = createRequire(import.meta.url);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -55,3 +64,19 @@ server.listen(port, '127.0.0.1', () => {
   require('node:process').stdout.write(
     `parity server on http://127.0.0.1:${port}\n`);
 });
+
+if (process.argv.includes('--watch')) {
+  // Root-owned builder as a child (see header); this server stays the
+  // foreground process. stdio: 'inherit' keeps rebuild output visible.
+  const child = spawn('yarn', [
+    'node', '../../build-panel-layout.mjs', '--dev', '--watch',
+  ], { cwd: ROOT, stdio: 'inherit' });
+  const stop = () => { child.kill('SIGTERM'); };
+  process.on('SIGINT', () => { stop(); process.exit(0); });
+  process.on('SIGTERM', () => { stop(); process.exit(0); });
+  child.on('exit', (code) => {
+    if (code !== null && code !== 0) {
+      console.error(`watch builder exited with ${code}`);
+    }
+  });
+}

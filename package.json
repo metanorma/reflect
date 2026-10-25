@@ -13,6 +13,8 @@
     "build-gui": "yarn node build-gui.mjs",
     "build-gui:dev": "yarn node build-gui.mjs --dev",
     "build-minimap-demo": "yarn node build-minimap-demo.mjs",
+    "build-panel-layout": "yarn node build-panel-layout.mjs",
+    "build-panel-layout:dev": "yarn node build-panel-layout.mjs --dev",
     "check-specs": "node scripts/check-specs.mjs",
     "spec-impact": "node scripts/spec-impact.mjs",
     "test": "yarn workspaces foreach -A run test",

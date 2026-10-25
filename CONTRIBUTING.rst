@@ -185,11 +185,13 @@ More specifically, check the following before submitting:
   ``prosemirror-minimap``, ``relaton``); the rest have none, so a green
   ``yarn test`` means those three suites passed.
 
-- Browser e2e (not CI-enforced): ``yarn workspace editor-gui e2e``
-  and ``yarn workspace @metanorma/prosemirror-minimap e2e``. Each suite
-  builds its own target via Playwright's ``webServer`` and serves it;
-  the only prerequisite is the one-time browser install,
-  ``yarn workspace <pkg> e2e:install``.
+- Browser e2e (not CI-enforced): ``yarn workspace editor-gui e2e``,
+  ``yarn workspace @metanorma/prosemirror-minimap e2e`` and
+  ``yarn workspace @metanorma/panel-layout parity``. Each suite builds
+  its own target via Playwright's ``webServer`` and serves it; the only
+  prerequisite is the one-time browser install,
+  ``yarn workspace <pkg> e2e:install`` (for panel-layout,
+  ``parity:install``).
 
 - DOM-rendering plugins (widgets, node views, decorations): wire the
   plugin into the GUI app and extend
@@ -208,3 +210,4 @@ Workspace inventory (all under ``pkg/``; used by the
 - ``@metanorma/prosemirror-minimap``
   (``pkg/prosemirror-minimap``) — unit tests, e2e
 - ``editor-gui`` (``pkg/editor-gui``) — e2e (incl. plugin rendering smoke)
+- ``@metanorma/panel-layout`` (``pkg/panel-layout``) — e2e (parity)
