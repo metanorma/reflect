@@ -31,7 +31,7 @@ own scope; the schema spec is the root authority for the document model.
 
 ### 1.1 Spec placement
 
-A spec lives in one of two places, decided by the release intent of the
+A spec lives in one of three shapes, decided by the release intent of the
 package it specifies:
 
 - **Corpus specs** live in `docs/` (the default). This is where specs for
@@ -43,6 +43,11 @@ package it specifies:
   for independent publication: npm always packs `README*` files regardless of
   the `files` field, so every released version bundles its own contract
   snapshot, and an installed version's spec describes exactly that version.
+- **In-package spec suites** live at `pkg/<pkg>/docs/` — the multi-document
+  form of colocation for a package whose contract spans several specs (e.g.
+  the `@metanorma/panel-layout` behavior/api/demo trio). Unlike `README*`,
+  a `docs/` directory ships in a tarball only when the package's `files`
+  field (or its absence) includes it.
 
 Corollaries of colocation:
 
@@ -52,16 +57,20 @@ Corollaries of colocation:
 - Links **into** a colocated spec are ordinary relative markdown links (the
   tooling validates them across both locations). Links **out of** a colocated
   spec resolve within the repository but not inside a published tarball — keep
-  colocated specs link-free.
+  `README.spec.md` colocated specs link-free. An in-package suite at
+  `pkg/<pkg>/docs/` may carry repository-relative links when it is
+  repo-internal documentation; whether it ships in a tarball at all is the
+  package's `files`-field decision.
 
 Current placements: corpus — `schema.spec.md`*, `MetanormaProseMirror.spec.md`,
 `MetanormaToolbar.spec.md`, `EditorCommands.spec.md`, the
-`AdvancedMetanormaToolbar/` suite; colocated — `pkg/relaton/README.spec.md`.
+`AdvancedMetanormaToolbar/` suite; colocated — `pkg/relaton/README.spec.md`;
+in-package suite — `pkg/panel-layout/docs/`.
 
 *\* `prosemirror-schema` and `prosemirror-minimap` are also slated for
 independent publication; their specs migrate at their own release.*
 
-**Reference documents** (`docs/metanorma-model.md`) are a third kind of
+**Reference documents** (`docs/metanorma-model.md`) are a separate kind of
 prose: verified, commit-pinned facts about *external* systems that corpus
 specs derive from. They are non-contractual input — they sit outside the §1
 hierarchy, and a spec citing one derives its own authority from itself. The
@@ -91,7 +100,7 @@ the project ever publishes specs externally or needs formal version pinning; it
 is intentionally omitted now as prematurely heavyweight.
 
 
-## 3. Cross-spec references
+## 3. References
 
 When a spec depends on or references another, express it as a **relative
 markdown link in body text**, pointing at the relevant section:
@@ -110,6 +119,13 @@ Rules:
   won't be flagged for review when the dependency changes.
 - Use section anchors (`§N`) where a specific section is meant; bare file links
   are fine for whole-spec references.
+
+
+### 3.1 References to code
+
+- Avoid exact line numbers to TS/JS code in references, as they go stale quickly.
+  Prefer to reference units instead.
+  (Exact line number references are allowed when the target is frozen.)
 
 
 ## 4. Specs are current-state only; change history lives elsewhere
@@ -170,7 +186,8 @@ heavy `>` prefixes that serve no structural purpose.
 Two scripts maintain spec integrity. Both are zero-dependency Node scripts under
 `scripts/`; both pick up new specs and subpackage docs automatically (no
 hardcoded spec lists). They cover every spec location defined in §1.1: the
-`docs/` corpus and the colocated `pkg/<pkg>/README.spec.md` files.
+`docs/` corpus, the colocated `pkg/<pkg>/README.spec.md` files, and the
+in-package suites at `pkg/<pkg>/docs/`.
 
 ### `scripts/check-specs.mjs` — CI gate
 
@@ -178,8 +195,8 @@ Run via `yarn check-specs` (or `node scripts/check-specs.mjs`). Wired into CI
 on every PR and push. Validates:
 
 1. **Link integrity** — every relative markdown link in every spec file
-   (`docs/**/*.md` and `pkg/*/README.spec.md`) resolves to an existing file.
-   Catches renames, moves, and deletes.
+   (`docs/**/*.md`, `pkg/*/README.spec.md`, and `pkg/*/docs/**/*.md`) resolves
+   to an existing file. Catches renames, moves, and deletes.
 2. **Header hygiene** — no spec carries the removed `**Spec version:**` or
    `**Spec dependencies:**` lines (regression guard).
 3. **Transition-prose guard** (warnings) — flags patterns that belong in the
