@@ -3,8 +3,9 @@
 // Spec cross-reference integrity checker.
 //
 // Validates that every relative markdown link in the spec files — docs/**/*.md
-// plus every colocated pkg/<pkg>/README.spec.md (placement per
-// CONVENTIONS.md §1.1) — resolves to an existing file, that no spec carries
+// plus every colocated pkg/<pkg>/README.spec.md and in-package suite
+// pkg/<pkg>/docs/**/*.md (placements per CONVENTIONS.md §1.1) — resolves to
+// an existing file, that no spec carries
 // the removed **Spec version:** / **Spec dependencies:** header lines, and
 // that specs are free of transition prose (per CONVENTIONS.md §4: specs are
 // current-state only).
@@ -37,7 +38,8 @@ async function walk(dir) {
 }
 
 // The spec corpus: every docs/**/*.md file, plus every colocated
-// pkg/<pkg>/README.spec.md (CONVENTIONS.md §1.1).
+// pkg/<pkg>/README.spec.md and in-package suite pkg/<pkg>/docs/**/*.md
+// (CONVENTIONS.md §1.1).
 async function specFiles() {
   const files = await walk(docsDir);
   let packages = [];
@@ -47,12 +49,15 @@ async function specFiles() {
     // No pkg/ directory — corpus only.
   }
   for (const name of packages) {
-    const candidate = join(pkgDir, name, 'README.spec.md');
-    try {
-      const s = await stat(candidate);
-      if (s.isFile()) files.push(candidate);
-    } catch {
-      // Package has no colocated spec.
+    for (const rel of ['README.spec.md', 'docs']) {
+      const candidate = join(pkgDir, name, rel);
+      try {
+        const s = await stat(candidate);
+        if (s.isFile()) files.push(candidate);
+        else if (s.isDirectory()) files.push(...await walk(candidate));
+      } catch {
+        // No spec at this placement.
+      }
     }
   }
   return files;

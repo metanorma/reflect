@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ============================================================================
 // capture.mjs — regenerate the three static state frames (+ PNG siblings)
-// referenced by ../behavior.spec.md §3 (rows A3, B1, I2).
+// referenced by ../../docs/behavior.spec.md §3 (rows A3, B1, I2).
 //
 //   node pkg/panel-layout/mock/states/capture.mjs              # capture + verify
 //   node pkg/panel-layout/mock/states/capture.mjs --check-only # verify only
@@ -34,7 +34,7 @@
 // loads each frame from file:// with request logging and asserts zero
 // non-file:// requests, zero script elements (DOM and source), required
 // tokens/text, and that every states/*.html|png path mentioned in
-// ../behavior.spec.md exists on disk.
+// ../../docs/behavior.spec.md exists on disk.
 //
 // Playwright resolution order: importable 'playwright' module, then
 // $MN_CAPTURE_PLAYWRIGHT (path to a playwright module dir), then
@@ -56,7 +56,7 @@ const PROP_DIR = resolve(SCRIPT_DIR, '..');                 // pkg/panel-layout/
 const REPO_ROOT = resolve(PROP_DIR, '..', '..', '..');  // repo root (pkg/panel-layout/mock → pkg → repo)
 const MOCK_REL = 'pkg/panel-layout/mock/editor-dockview7-floats.html';
 const MOCK_ABS = join(PROP_DIR, 'editor-dockview7-floats.html');
-const SPEC_ABS = join(REPO_ROOT, 'docs/panel-layout-proposal/behavior.spec.md');
+const SPEC_ABS = join(REPO_ROOT, 'pkg/panel-layout/docs/behavior.spec.md');
 const DOCKVIEW_CSS_URL = 'https://unpkg.com/dockview-core@7.0.4/dist/styles/dockview.css';
 const DOCKVIEW_CSS_SRC = 'dockview-core@7.0.4/dist/styles/dockview.css';
 const REGEN_CMD = 'node pkg/panel-layout/mock/states/capture.mjs';

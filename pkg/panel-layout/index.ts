@@ -1,12 +1,12 @@
 /**
  * Public API for `@metanorma/panel-layout`.
  *
- * Implements `docs/panel-layout-proposal/behavior.spec.md` — the
+ * Implements `docs/behavior.spec.md` — the
  * panel-based editor layout: a main-grid document area plus floating
  * "tabset group" mini-windows (dockview v7), with per-tabset pinned
  * heights, auto-wrap undocking, and layout persistence. The library-scope
  * module inventory that this package will export is specified in
- * `docs/panel-layout-proposal/api.spec.md`.
+ * `docs/api.spec.md`.
  *
  * Status: scaffolding. The behavior modules are ported internals
  * (see api.spec.md §2 for the module map; each carries a provenance header

@@ -2,13 +2,15 @@
 
 // Spec reverse-dependency report.
 //
-// Given a spec file path (under docs/ or a colocated pkg/<pkg>/README.spec.md
-// — placement per CONVENTIONS.md §1.1), prints every other spec that links to
+// Given a spec file path (under docs/, a colocated pkg/<pkg>/README.spec.md,
+// or an in-package suite pkg/<pkg>/docs/**/*.md — placements per
+// CONVENTIONS.md §1.1), prints every other spec that links to
 // it. Use this to find which specs to review when you change one.
 //
 // Usage:
 //   node scripts/spec-impact.mjs docs/schema.spec.md
 //   node scripts/spec-impact.mjs pkg/relaton/README.spec.md
+//   node scripts/spec-impact.mjs pkg/panel-layout/docs/behavior.spec.md
 //
 // Zero runtime dependencies — pure Node fs + path. Picks up new specs and
 // subpackage docs automatically (no hardcoded spec list).
@@ -50,7 +52,8 @@ async function walk(dir) {
 }
 
 // The spec corpus: every docs/**/*.md file, plus every colocated
-// pkg/<pkg>/README.spec.md (CONVENTIONS.md §1.1).
+// pkg/<pkg>/README.spec.md and in-package suite pkg/<pkg>/docs/**/*.md
+// (CONVENTIONS.md §1.1).
 async function specFiles() {
   const files = await walk(docsDir);
   let packages = [];
@@ -60,12 +63,15 @@ async function specFiles() {
     // No pkg/ directory — corpus only.
   }
   for (const name of packages) {
-    const candidate = join(pkgDir, name, 'README.spec.md');
-    try {
-      const s = await stat(candidate);
-      if (s.isFile()) files.push(candidate);
-    } catch {
-      // Package has no colocated spec.
+    for (const rel of ['README.spec.md', 'docs']) {
+      const candidate = join(pkgDir, name, rel);
+      try {
+        const s = await stat(candidate);
+        if (s.isFile()) files.push(candidate);
+        else if (s.isDirectory()) files.push(...await walk(candidate));
+      } catch {
+        // No spec at this placement.
+      }
     }
   }
   return files;
