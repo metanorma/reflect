@@ -36,7 +36,8 @@ asserts mock and twin against the same baselines.
 
 - `hp*.png` — key screens at 1440×900 @1x: default layout, mid-drag
   (ghost + zone suppression), post-unwrap, merged tab, bottom-parked window,
-  resized tabset, reset, empty editor. **Reviewed baselines** — look at them
+  resized tabset, auto-wrap OFF (grid zones back mid-drag + doc sibling-tab
+  merge), reset, empty editor. **Reviewed baselines** — look at them
   in code review; pixel diffs are advisory.
 - `state-hp*.json` — serialized state after each flow: `layout`
   (`window.__api.toJSON()`), `storage` (both localStorage keys parsed),

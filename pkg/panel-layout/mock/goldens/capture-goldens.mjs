@@ -50,7 +50,7 @@ import {
   gotoLoaded, settle, dumpState, attachNormalized, findPasteboardPoint,
   tabInfo, groupDropPoint, voidPointForGroupWithTab,
   titlebarPointForWindowWithTab, resizeHandlePoint, waitZone,
-  closeAllPanels, ghostInfo,
+  closeAllPanels, ghostInfo, toggleAutoWrap,
 } from '../../tests/parity/flows.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -60,9 +60,10 @@ const GOLDENS_DIR = SCRIPT_DIR;
 const REGEN_CMD = 'node pkg/panel-layout/mock/goldens/capture-goldens.mjs';
 const PNG_FILES = [
   'hp1-default.png', 'hp2-mid-drag.png', 'hp2-post-unwrap.png', 'hp3-merged.png',
-  'hp5-bottom-parked.png', 'hp6-resized.png', 'hp9-reset.png', 'hp10-empty.png',
+  'hp5-bottom-parked.png', 'hp6-resized.png', 'hp7-mid-drag.png', 'hp7-post-drop.png',
+  'hp9-reset.png', 'hp10-empty.png',
 ];
-const STATE_FILES = ['hp1', 'hp2', 'hp3', 'hp4', 'hp5', 'hp6', 'hp8', 'hp9', 'hp10']
+const STATE_FILES = ['hp1', 'hp2', 'hp3', 'hp4', 'hp5', 'hp6', 'hp7', 'hp8', 'hp9', 'hp10']
   .map((f) => `state-${f}.json`);
 const TRACE_FILES = ['trace-chrome.json', 'trace-tokens.json', 'trace-transitions.json',
   'trace-geometry-hp2.json', 'trace-zones.json'];
@@ -403,6 +404,30 @@ function gateHp2(st) {
   } else ok = false;
   return { ok, details };
 }
+// HP7: auto-wrap OFF — grid overlays visible mid-drag, center-drop merged the
+// panel into the doc grid as a sibling tab (stock path unclaimed — F1), the
+// Pinned window shrank but survived (kept its other member).
+function gateHp7(pre, post, overlayBack) {
+  const details = [];
+  details.push(`gridOverlayVisibleMidDrag=${overlayBack} (expect true)`);
+  const L = (st) => (st.layout && st.layout.grid ? leavesOf(st.layout.grid.root) : []);
+  const preViews = L(pre).map((v) => v.join(','));
+  const postViews = L(post).map((v) => v.join(','));
+  const docGained = postViews.includes('doc,review') && preViews.join('|') === 'doc';
+  details.push(`doc grid views: [${preViews.join(' | ')}] -> [${postViews.join(' | ')}] (expect doc+review merged as tabs)`);
+  const pinnedKept = (post.floats || []).some((f) => Array.isArray(f.tabs) && f.tabs.some((t) => t.includes('Pinned')));
+  details.push(`Pinned window survived with member: ${pinnedKept} (expect true)`);
+  return { ok: overlayBack === true && docGained && pinnedKept, details };
+}
+function leavesOf(root) {
+  const out = [];
+  (function walk(n) {
+    if (n && n.type === 'leaf' && n.data && Array.isArray(n.data.views)) out.push(n.data.views);
+    if (n && Array.isArray(n.data)) n.data.forEach(walk);
+  })(root);
+  return out;
+}
+
 function gateHp8(pre, post) {
   const details = [];
   const A = (pre.floats || []).filter((f) => Array.isArray(f.groupIds));
@@ -685,6 +710,68 @@ async function runSession({ browser, url, out, say }) {
   await out.json('state-hp8.json', st8);
   gates.c = gateHp8(st6, st8);
 
+  // ---------- HP7: auto-wrap OFF → grid overlays return, center-drop merges
+  // into the doc grid as a sibling tab (stock path unclaimed — F1) ----------
+  // Sequencing: AFTER HP8's reload (reload resets the toggle to ON — React
+  // state) and BEFORE HP9. The step ends by toggling back ON so HP9/HP10's
+  // full-viewport PNGs keep showing the toggle in its preset ON state.
+  say('HP7 auto-wrap OFF → doc merge…');
+  const off = await toggleAutoWrap(page, false);
+  if (off.error) throw new Error('HP7: ' + off.error);
+  say('  auto-wrap: ' + off.label);
+  const hp7src = await tabInfo(page, 'Review'); // in Pinned [Pinned, Review] after HP8
+  if (hp7src.error) throw new Error('HP7: ' + hp7src.error);
+  // Center-zone point on the doc grid: the grid group's content-container
+  // center, clamped into the visible layout area (the white page is 2000px+
+  // tall and scrolls — its raw center sits below the viewport, where no drop
+  // target can latch).
+  const docCenter = await page.evaluate(() => {
+    const api = window.__api;
+    const g = api.groups.find((gr) => gr.api.location.type === 'grid');
+    if (!g) return null;
+    const c = g.element.querySelector('.dv-content-container') || g.element;
+    const r = c.getBoundingClientRect();
+    const vr = document.querySelector('.layoutArea').getBoundingClientRect();
+    const x = Math.round(r.left + r.width / 2);
+    const y = Math.min(Math.max(Math.round(r.top + r.height / 2), Math.round(vr.top + 80)),
+      Math.round(vr.bottom - 20));
+    return { x, y };
+  });
+  if (!docCenter) throw new Error('HP7: doc grid group not found');
+  await page.mouse.move(hp7src.x, hp7src.y);
+  await page.waitForTimeout(120);
+  await page.mouse.down();
+  await page.mouse.move(docCenter.x, docCenter.y, { steps: DRAG_STEPS });
+  // suppression is gated on the toggle (mock :1470–1474): with auto-wrap OFF
+  // the doc-grid zone overlays render again — wait for a visible CENTER zone
+  // (the stock merge-as-tab target the spec's HP7 outcome names).
+  const overlayBack = await page.waitForFunction(() => {
+    const area = document.querySelector('.layoutArea');
+    if (!area || area.classList.contains('mn-unwrap-hover')) return false;
+    const gridSel = [...area.querySelectorAll('.dv-drop-target-selection')]
+      .find((el) => !el.closest('.dv-resize-container'));
+    if (!gridSel) return false;
+    const cs = getComputedStyle(gridSel);
+    return cs.display !== 'none' && gridSel.clientWidth > 0
+      && gridSel.classList.contains('dv-drop-target-center');
+  }, undefined, { timeout: 6000 }).then(() => true, () => false);
+  say('  doc-grid drop overlay visible with auto-wrap OFF: ' + overlayBack);
+  await page.waitForTimeout(ZONE_SETTLE_MS);
+  pngSizes['hp7-mid-drag.png'] = await out.png('hp7-mid-drag.png', page);
+  await page.mouse.up();
+  if (!(await settle(page))) warn('settle timeout after HP7 drop');
+  pngSizes['hp7-post-drop.png'] = await out.png('hp7-post-drop.png', page);
+  const hp7 = attachNormalized(await dumpState(page, 'hp7', {
+    autoWrapLabelBeforeDrop: off.label,
+    gridOverlayVisibleMidDrag: overlayBack,
+    sourceTab: 'Review (from Pinned window)',
+  }));
+  await out.json('state-hp7.json', hp7);
+  gates.f = gateHp7(st8, hp7, overlayBack);
+  // restore the preset toggle state for HP9/HP10 screenshots
+  const backOn = await toggleAutoWrap(page, true);
+  if (backOn.error) warn('auto-wrap toggle-back failed: ' + backOn.error);
+
   // ---------- HP9: Reset → preset restored ----------
   say('HP9 Reset…');
   await page.locator('.toolbar button', { hasText: 'Reset' }).first().click();
@@ -800,9 +887,9 @@ async function verifyWrittenArtifacts({ pngSizes, say }) {
 
 function printGates(gates, say) {
   say('\nSanity gates:');
-  const labels = { a: '(a) HP1 preset: 3 floats, members 3/1/4, preset heights', b: '(b) HP2 post-unwrap: 4 floats / 1-member new window / heights key', c: '(c) HP8 reload round-trip vs HP6', e: '(e) trace-tokens sash transition 0.1s / 0.5s' };
+  const labels = { a: '(a) HP1 preset: 3 floats, members 3/1/4, preset heights', b: '(b) HP2 post-unwrap: 4 floats / 1-member new window / heights key', c: '(c) HP8 reload round-trip vs HP6', e: '(e) trace-tokens sash transition 0.1s / 0.5s', f: '(f) HP7 auto-wrap OFF: overlays back, doc sibling merge' };
   let fails = 0;
-  for (const k of ['a', 'b', 'c', 'e']) {
+  for (const k of ['a', 'b', 'c', 'e', 'f']) {
     const g = gates[k];
     if (!g) { say(`  [FAIL] ${labels[k]} — not evaluated`); fails++; continue; }
     say(`  [${g.ok ? 'PASS' : 'FAIL'}] ${labels[k]}`);

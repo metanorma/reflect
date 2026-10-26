@@ -494,3 +494,42 @@ export async function ghostInfo(page) {
     };
   });
 }
+
+// ---- auto-wrap toggle (HP7; behavior.spec.md §2 HP7, demo.spec.md F1n) -----
+// Reads the demo toolbar's toggle (label + .on class), optionally clicking it
+// first. Returned `on` is derived from the class (the label suffix mirrors it).
+// The click and the read are separate round-trips with a tick between: React
+// commits the state update after the click task, so a same-tick read is stale.
+export async function autoWrapState(page, { click = false } = {}) {
+  if (click) {
+    const clicked = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.toolbar .tb-btn')]
+        .find((b) => b.textContent.trim().startsWith('Auto-wrap panels:'));
+      if (!btn) return false;
+      btn.click();
+      return true;
+    });
+    if (!clicked) return { error: 'auto-wrap toggle not found' };
+    await page.waitForTimeout(80); // let React commit the re-render
+  }
+  return page.evaluate(() => {
+    const btn = [...document.querySelectorAll('.toolbar .tb-btn')]
+      .find((b) => b.textContent.trim().startsWith('Auto-wrap panels:'));
+    if (!btn) return { error: 'auto-wrap toggle not found' };
+    const on = btn.classList.contains('on');
+    return { on, label: btn.textContent.trim() };
+  });
+}
+
+// Toggle to a desired state and return the resulting state (no-op click-free
+// if already there). Errors surface the raw autoWrapState() shape.
+export async function toggleAutoWrap(page, want) {
+  const before = await autoWrapState(page);
+  if (before.error) return before;
+  if (before.on !== want) {
+    const after = await autoWrapState(page, { click: true });
+    if (after.error) return after;
+    return after;
+  }
+  return before;
+}

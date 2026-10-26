@@ -34,6 +34,7 @@ import {
   settle,
   tabInfo,
   titlebarPointForWindowWithTab,
+  toggleAutoWrap,
   voidPointForGroupWithTab,
   waitZone,
 } from './flows.mjs';
@@ -360,6 +361,166 @@ test('HP8 reload round-trip', async ({ page }) => {
     !!(window as unknown as { __api?: unknown }).__api);
   await settle(page);
   expectParity('hp8', attachNormalized(await dumpState(page, 'hp8')));
+});
+
+test('HP7 auto-wrap OFF → doc sibling merge', async ({ page }) => {
+  await gotoLoaded(page, BASE_URL);
+  await settle(page);
+
+  // Rebuild the full chained prefix (HP2→HP6, then HP8's reload) — the HP7
+  // golden was captured after the reload, when the Pinned window holds
+  // [Pinned, Review] at its HP6 size and the toggle has reset to ON.
+  {
+    const pb = await findPasteboardPoint(page);
+    const src = await tabInfo(page, 'Outline');
+    await page.mouse.move(src.x, src.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(pb.x, pb.y, { steps: DRAG_STEPS });
+    await page.waitForFunction(() => document
+      .querySelector('.layoutArea')
+      ?.classList.contains('mn-unwrap-hover'));
+    await page.waitForTimeout(ZONE_SETTLE_MS);
+    await page.mouse.up();
+    await settle(page);
+  }
+  {
+    const rev = await tabInfo(page, 'Review');
+    const pinned = await groupDropPoint(page, 'Pinned', 'center');
+    await page.mouse.move(rev.x, rev.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(pinned.x, pinned.y, { steps: DRAG_STEPS });
+    await waitZone(page, 'Pinned', 'center', 6000);
+    await page.waitForTimeout(ZONE_SETTLE_MS);
+    await page.mouse.up();
+    await settle(page);
+  }
+  {
+    // HP4: Bibliography void → Outline window bottom band (stack)
+    const void0 = await voidPointForGroupWithTab(page, 'Bibliography');
+    const outlineBottom = await groupDropPoint(
+      page, 'Outline', 'bottomBand');
+    await page.mouse.move(void0.x, void0.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(outlineBottom.x, outlineBottom.y,
+      { steps: DRAG_STEPS });
+    await waitZone(page, 'Outline', 'bottom', 6000);
+    await page.waitForTimeout(ZONE_SETTLE_MS);
+    await page.mouse.up();
+    await settle(page);
+  }
+  {
+    // HP5: Identity titlebar → drawer park (HP5_PARK below bottom)
+    const park = await page.evaluate(({ txt, frac }) => {
+      const api = window.__api;
+      const comp = api.component ?? api;
+      const area = document.querySelector('.layoutArea');
+      const ar = area.getBoundingClientRect();
+      for (const fpRaw of comp.floatingGroups ?? []) {
+        const fp = fpRaw;
+        const winEl = fp.overlay.element;
+        const tabs = [...winEl.querySelectorAll('.dv-tab')]
+          .map((t) => (t.textContent || '').trim());
+        if (!tabs.some((t) => t.includes(txt))) continue;
+        const bar = winEl.querySelector('.dv-floating-titlebar');
+        const wr = winEl.getBoundingClientRect();
+        const br = bar.getBoundingClientRect();
+        const newTop = Math.round(ar.height - wr.height * frac);
+        const curTop = Math.round(wr.top - ar.top);
+        return {
+          grab: {
+            x: Math.round(br.left + br.width / 2),
+            y: Math.round(br.top + br.height / 2),
+          },
+          delta: newTop - curTop,
+        };
+      }
+      return { error: 'no window for ' + txt };
+    }, { txt: 'Identity', frac: HP5_PARK });
+    await page.mouse.move(park.grab.x, park.grab.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(park.grab.x, park.grab.y + park.delta,
+      { steps: DRAG_STEPS + 4 });
+    await page.waitForTimeout(350);
+    await page.mouse.up();
+    await settle(page);
+  }
+  {
+    // HP6: Pinned bottom-edge resize (+40px)
+    const handle = await resizeHandlePoint(
+      page, 'Pinned', '.dv-resize-handle-bottom');
+    await page.mouse.move(handle.x, handle.y);
+    await page.waitForTimeout(120);
+    await page.mouse.down();
+    await page.mouse.move(handle.x, handle.y + HP6_RESIZE_DELTA,
+      { steps: 8 });
+    await page.mouse.up();
+    await settle(page);
+  }
+
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#boot', { state: 'detached' });
+  await page.waitForFunction(() =>
+    !!(window as unknown as { __api?: unknown }).__api);
+  await settle(page);
+
+  // HP7: auto-wrap OFF → suppression drops, the doc grid's CENTER zone
+  // overlay shows (the F1 observable), and a center release merges the
+  // panel into the doc group as a sibling tab (stock path unclaimed).
+  const off = await toggleAutoWrap(page, false);
+  expect(off.error, `toggle: ${off.error ?? ''}`).toBeFalsy();
+  expect(off.on, 'auto-wrap must read OFF').toBe(false);
+
+  const src = await tabInfo(page, 'Review');
+  const docCenter = await page.evaluate(() => {
+    const api = (window as unknown as {
+      __api: {
+        groups: Array<{
+          element: HTMLElement;
+          api: { location: { type: string } };
+        }>;
+      };
+    }).__api;
+    const g = api.groups
+      .find((gr) => gr.api.location.type === 'grid');
+    if (!g) return null;
+    const c = g.element.querySelector('.dv-content-container')
+      ?? g.element;
+    const r = c.getBoundingClientRect();
+    const vr = document.querySelector('.layoutArea')
+      ?.getBoundingClientRect();
+    if (!vr) return null;
+    const x = Math.round(r.left + r.width / 2);
+    const y = Math.min(Math.max(Math.round(r.top + r.height / 2),
+      Math.round(vr.top + 80)), Math.round(vr.bottom - 20));
+    return { x, y };
+  });
+  expect(docCenter, 'doc grid content center').toBeTruthy();
+
+  await page.mouse.move(src.x, src.y);
+  await page.waitForTimeout(120);
+  await page.mouse.down();
+  await page.mouse.move(docCenter!.x, docCenter!.y, { steps: DRAG_STEPS });
+  // F1 observable: with auto-wrap OFF the suppression class is gone and a
+  // grid (non-float) zone overlay is visible — specifically the CENTER
+  // zone (the merge-as-tab target the golden captured).
+  await page.waitForFunction(() => {
+    const area = document.querySelector('.layoutArea');
+    if (!area || area.classList.contains('mn-unwrap-hover')) return false;
+    const sel = [...area.querySelectorAll('.dv-drop-target-selection')]
+      .find((el) => !el.closest('.dv-resize-container'));
+    return !!sel
+      && getComputedStyle(sel).display !== 'none'
+      && sel.classList.contains('dv-drop-target-center');
+  }, undefined, { timeout: 6000 });
+  await page.waitForTimeout(ZONE_SETTLE_MS);
+  await page.mouse.up();
+  await settle(page);
+  expectParity('hp7', attachNormalized(await dumpState(page, 'hp7')));
+  await expect(page).toHaveScreenshot('panel-layout-hp7-post-drop.png');
 });
 
 test('HP9 reset + HP10 empty', async ({ page }) => {
