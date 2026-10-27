@@ -19,11 +19,11 @@ All raw content is reachable as
 
 | Repository | Commit | Role |
 |---|---|---|
-| metanorma/metanorma-standoc | `38a50557` | AsciiDoc→Semantic-XML converter; runtime `lib/metanorma/validate/` grammars |
+| metanorma/metanorma-standoc | `78bb1347` | AsciiDoc→Semantic-XML converter; runtime `lib/metanorma/validate/` grammars |
 | metanorma/standoc-models | `7d5d737c` | Human-authored grammar sources (`grammars/`) |
 | metanorma/basicdoc-models | `3b408b71` | Base grammar (`basicdoc.rnc`); submodule of standoc-models |
-| metanorma/metanorma | `a62ca5a8` | Pipeline orchestrator (compile driver) |
-| metanorma/isodoc | `92b3d2b0` | Semantic→Presentation-XML transform and renderers |
+| metanorma/metanorma | `e9a3bc18` | Pipeline orchestrator (compile driver) |
+| metanorma/isodoc | `9d02f55f` | Semantic→Presentation-XML transform and renderers |
 
 **Naming note (three senses of "isodoc").** Upstream commit `4bad36724d`
 (2026-08-17, "grammars: rename isodoc.\* sources to standoc.\* (retire the
@@ -32,41 +32,43 @@ misnomer)") renamed the grammar sources in `metanorma/standoc-models`:
 `standoc-presentation.rnc`, and companions. It did **not** rename: (a) the
 `metanorma/isodoc` **gem** (the Presentation-XML renderer — "Isodoc" properly
 names that gem); (b) the **vendored runtime filename**
-`lib/metanorma/validate/isodoc-compile.rng` in metanorma-standoc (gem code
+`lib/metanorma/validate/standoc-compile.rng` in metanorma-standoc (gem code
 loads that path — `lib/metanorma/validate/schema.rb` `schema_file`, which
-returns the bare filename resolved against its own directory); (c)
-`isostandard.rnc`, the actual ISO-flavour grammar. When this ledger or the corpus says **Standoc**, it
+returns the bare filename resolved against its own directory; named
+`isodoc-compile.rng` until the 2026-10-01 vendoring pass — see the vendoring
+note below); (c) `isostandard.rnc`, the actual ISO-flavour grammar. When this ledger or the corpus says **Standoc**, it
 means the shared grammar layer (`grammars/standoc.rnc`); **isodoc** references
-below the rename are the gem or the vendored runtime path. The rename commit is
+below the rename are the gem (the vendored runtime path kept its `isodoc.*`
+name only until the 2026-10-01 flip). The rename commit is
 content-neutral for the semantic grammar (one comment word); the standoc-layer
 drift recorded in §4 came from the intervening re-sync `8bb23fd5631e`, the
 basicdoc-layer drift from PR #46 after it.
 
-**Vendoring note.** The rename is now propagating through the vendoring
+**Vendoring note.** The rename has now propagated through the vendoring
 layer. standoc-models' `grammars/copy.sh` (at the 2026-08-22 merged PR #46,
 "Cutover complete: grammar re-sync, standoc.\* rename, .lml source
-migration") vendors under `standoc.*` destination names; at the pinned
-metanorma-standoc commit the shipped files are still the legacy
-`isodoc.rng`/`isodoc-compile.rng` (a chain self-consistent in filenames and
-include graph: `isodoc-compile.rng` → `isodoc.rng` → `reqt.rng` +
-`basicdoc.rng` — but content-stale at the basicdoc layer; see §4's
-vendored-runtime note).
-Expect the gem's `lib/metanorma/validate/` filenames — and the
-`schema_file` return value — to flip to `standoc.*` on the next vendoring
-pass; the models-side rename is done, the gem-side flip is pending.
+migration") vendors under `standoc.*` destination names, and the gem's
+2026-10-01 refresh (commit `80892abc`, "refresh vendored grammars from
+standoc-models@v2.3.0 (standoc.\* names)") completed the flip:
+`lib/metanorma/validate/` now ships `standoc-compile.rng` → `standoc.rng` →
+`reqt.rng` + `basicdoc.rng`, and `schema_file` returns `standoc-compile.rng`
+(the `isodoc.*` filenames are gone). The refresh was cut from the release
+tag `v2.3.0` (2026-08-17, basicdoc submodule `50fe9e85` — pre-PR #46), not
+from main, so the vendored basicdoc content is unchanged by it and the
+content lag recorded in §4 persists through the flip.
 
 **Re-verification.** Facts below were verified 2026-08-16 at the then-pins,
-re-verified 2026-08-18, and re-verified **2026-09-25** at the §1 pins
-(trigger: metanorma-standoc main advanced past its release-trigger pin).
-Grammar sources: `standoc.rnc` and `standoc-presentation.rnc` are
-**byte-identical since the 2026-08-18 verification** (`4bad3672` → `7d5d737c`,
-no change) — §3 stands as verified. The standoc layer's drift happened once,
-in the 2026-08-17 re-sync window (`a3596dc9` → `4bad3672`, the `8bb23fd5`
-vendoring): `OlAttributes.@type` widened and `ExampleBody` restructured
-(§4's first two bullets, which are `standoc.rnc` changes, not basicdoc). All
-remaining drift is in `basicdoc.rnc` (submodule `50fe9e85` → `3b408b71`,
-PR #46); recorded in §4. Re-verify on the next metanorma-standoc release;
-drift then surfaces as a diff against a known commit.
+re-verified 2026-08-18, re-verified 2026-09-25, and re-verified
+**2026-10-28** at the §1 pins (trigger: the metanorma-standoc October
+prerelease run past its release-trigger pin). Grammar sources did not move
+this cycle — `standoc-models` main is still `7d5d737c` (submodule `3b408b71`),
+so `standoc.rnc`/`standoc-presentation.rnc`/`basicdoc.rnc` are byte-identical
+to the 2026-09-25 verification; §3 and §4's source facts stand as verified.
+This cycle's drift is all gem-side, recorded in §2 (vendoring flip +
+Jing→leptris engine swap) and §1's vendoring note (refresh cut from tag
+`v2.3.0`, so the §4 vendored-runtime lag persists). Re-verify on the next
+metanorma-standoc release; drift then surfaces as a diff against a known
+commit.
 
 ## 2. Pipeline and artifacts
 
@@ -76,7 +78,7 @@ Semantic-XML stage.
 ```
 AsciiDoc ──(standoc makexml1 + cleanup)──► Semantic XML
               │                                   │
-              │                    validated here (RNG, Jing)
+              │                    validated here (RNG, leptris)
               │                                   ▼
               │            (isodoc PresentationXMLConvert) ──► Presentation XML
               │                                                       │
@@ -87,13 +89,16 @@ AsciiDoc ──(standoc makexml1 + cleanup)──► Semantic XML
 - Semantic XML is produced by standoc (`lib/metanorma/converter/base.rb`
   `makexml`: `makexml1` → `cleanup` → validate) and validated there: content
   checks (`lib/metanorma/validate/validate.rb` — xref integrity, empty-block,
-  MathML via Plurimath) plus RelaxNG via Jing against
-  `lib/metanorma/validate/isodoc-compile.rng`
+  MathML via Plurimath) plus RelaxNG against
+  `lib/metanorma/validate/standoc-compile.rng`
   (`lib/metanorma/validate/schema.rb` `schema_file`), gated on `@novalid`.
-  Since the 2026-09-25 re-verification the gem's lib paths are flat: a
-  2026-09 restructure flattened the old `lib/metanorma/standoc/…` prefix, so
-  the runtime tree that lived at `lib/metanorma/standoc/validate/` is now
-  `lib/metanorma/validate/`.
+  The gem's lib paths are flat: the 2026-09 restructure flattened the old
+  `lib/metanorma/standoc/…` prefix, so the runtime tree that lived at
+  `lib/metanorma/standoc/validate/` is now `lib/metanorma/validate/`. Since
+  the 2026-10-28 re-verification the RNG engine is **leptris**
+  (`Leptris::XML::RelaxNG`, `lib/metanorma/validate/schema.rb`
+  `schema_validate_errors`), replacing ruby-jing (swap commit `27afe5e1`,
+  2026-10-14, "Replace ruby-jing with leptris RNG validation").
 - Presentation XML is produced by isodoc's `PresentationXMLConvert`, reached
   through the metanorma driver (`lib/metanorma/compile/compile.rb`
   `generate_presentation_xml` → `lib/metanorma/compile/render.rb`
@@ -105,7 +110,8 @@ AsciiDoc ──(standoc makexml1 + cleanup)──► Semantic XML
   missing presxml ids to `fmt-*` targets, repeat-id checks, contenthash
   cleanup), not grammar validation; no RelaxNG pass exists on the
   presentation path. The single runtime RNG grammar remains
-  `isodoc-compile.rng`, the Semantic-XML grammar, even though its compiled
+  `standoc-compile.rng` (named `isodoc-compile.rng` before the 2026-10-01
+  flip), the Semantic-XML grammar, even though its compiled
   model also admits presentation-only constructs (§3).
 
 ## 3. Semantic vs Presentation — the layering test
@@ -193,15 +199,19 @@ are `basicdoc.rnc` (PR #46 window):
 
 **Vendored-runtime lag.** The drift bullets are verified against the
 **source** grammars at the models pins; the vendored runtime grammars at the
-metanorma-standoc pin (`38a50557`) lag them at the basicdoc layer —
+metanorma-standoc pin (`78bb1347`) lag them at the basicdoc layer —
 `lib/metanorma/validate/basicdoc.rng` matches the `50fe9e85` submodule
 (pre-PR #46): no `reg-attribute`/`variable-ref`, and `TdBody`'s block branch
 still `(paragraph-with-footnote | note)+`. The basicdoc-only PR #46 changes
 therefore pass the source grammar but **fail runtime RNG validation** at that
-pin. The standoc layer's own overrides are vendored current in `isodoc.rng`
-(`LiBody = BasicBlock+`, `dd = BasicBlock*`), so the `li`/`dd`/`quote`/
-`admonition` block-content widenings — governed by that layer — validate at
-runtime. Expect the lag to close on the next vendoring pass (§1).
+pin. The standoc layer's own overrides are vendored current in
+`standoc.rng` (`LiBody = BasicBlock+`, `dd = BasicBlock*`), so the
+`li`/`dd`/`quote`/`admonition` block-content widenings — governed by that
+layer — validate at runtime. The lag survived the 2026-10-01 filename flip:
+that refresh was cut from release tag `v2.3.0` (submodule `50fe9e85`), not
+main (§1); byte-comparing the pre- and post-flip vendored `basicdoc.rng`
+confirms the content is identical. Expect the lag to close only when a
+vendoring pass is cut from PR #46-or-later content.
 
 - **`standoc.rnc`** — `OlAttributes.@type` widened from the closed
   five-value enum
@@ -278,8 +288,10 @@ The upstream emission lifecycle (standoc):
    `@id` (normalized to the `xsd:IDREF` of §3); `@anchor` is dropped.
 
 Uniqueness of `id`/`anchor` is enforced by standoc content checks
-(STANDOC_36); Jing runs with `id_check: false` because `IdRefType` is `text`
-in Semantic XML.
+(STANDOC_36); the RNG pass makes no ID/IDREF-type assertion — `IdRefType`
+is `text` in Semantic XML (the leptris engine has no DTD-compatibility
+ID check to disable; under the former ruby-jing engine, `id_check: false`
+suppressed its namespace-blind one).
 
 **Consequence for the editor:** Semantic `xref/@target` values and id-bearing
 elements' stable identifiers are **not interchangeable** with `@id` — a

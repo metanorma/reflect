@@ -3,7 +3,7 @@
 **Source of truth for the document model: the Metanorma document model**, as
 expressed in the Semantic XML that the Metanorma pipeline
 (`metanorma-standoc`) authors and validates (the compiled RelaxNG grammar
-`lib/metanorma/validate/isodoc-compile.rng` in
+`lib/metanorma/validate/standoc-compile.rng` in
 [`metanorma/metanorma-standoc`](https://github.com/metanorma/metanorma-standoc),
 human-authored source `grammars/standoc.rnc` in
 [`metanorma/standoc-models`](https://github.com/metanorma/standoc-models) —
@@ -962,7 +962,7 @@ As stated in §1.1, this schema covers a **subset** of the Metanorma document
 model. It is designed for **unambiguous convertibility**: every document the
 editor can produce must map to a single, well-defined Metanorma Semantic XML
 structure — the authoring form that `metanorma-standoc` validates
-(`isodoc-compile.rng`; pipeline and grammar facts are pinned in
+(`standoc-compile.rng`; pipeline and grammar facts are pinned in
 [`metanorma-model.md`](./metanorma-model.md)). A dedicated converter performs attribute/element
 renames and structural reshapes (e.g. `cite` → `citeas`, `href` → `target`,
 `number` → `reference`, the `section_title` child node → a `<title>` child

@@ -7,6 +7,38 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-10-28 — Upstream ledger re-pin: vendoring flip landed; grammar sources unmoved
+
+`docs/metanorma-model.md` re-pin (plus one rename in `docs/schema.spec.md`);
+**Commits: *(pending)***. Trigger: the ledger's own policy — the
+metanorma-standoc October prerelease run (`v3.5.1.pre.alpha.1–3`) advanced
+past the release-trigger pin.
+
+- **Pins** — metanorma-standoc `38a50557` → `78bb1347` (main), metanorma
+  `a62ca5a8` → `e9a3bc18`, isodoc `92b3d2b0` → `9d02f55f`. Grammar sources
+  did not move: standoc-models main is still `7d5d737c` (basicdoc submodule
+  `3b408b71`), so §3/§4's source facts stand as verified — no source drift
+  this cycle.
+- **Vendoring flip landed** — the gem's 2026-10-01 refresh (commit
+  `80892abc`) completed the models-side rename through the runtime tree:
+  `lib/metanorma/validate/` now ships `standoc-compile.rng` → `standoc.rng`
+  → `reqt.rng` + `basicdoc.rng` and `schema_file` returns
+  `standoc-compile.rng`; the `isodoc.*` filenames are gone. But the refresh
+  was cut from release tag `v2.3.0` (2026-08-17, submodule `50fe9e85` —
+  pre-PR #46), so the vendored basicdoc content is byte-identical to the
+  pre-flip state and the §4 vendored-runtime lag (no `reg-attribute` /
+  `variable-ref` at runtime; source-vs-runtime split on PR #46 basicdoc
+  constructs) persists through the flip.
+- **Engine swap** — RelaxNG validation moved from ruby-jing to leptris
+  (commit `27afe5e1`, 2026-10-14); §2 records the new engine and §5's
+  `id_check: false` note is reworded (leptris has no DTD-compatibility ID
+  check to disable).
+- **Corpus rename** — `docs/schema.spec.md` header and §17 now say
+  `standoc-compile.rng` (two references); dated history entries in this
+  file stand as written.
+
+---
+
 ## 2026-10-16 — schema §12.1 implemented: unknown JSON attrs captured into `data` via `MetanormaSchema`
 
 `prosemirror-schema` + `docs/schema.spec.md` errata; no other package touched
