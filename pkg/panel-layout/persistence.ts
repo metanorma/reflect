@@ -114,8 +114,9 @@ export function createPersistence(options: PersistenceOptions): Persistence {
       try {
         const raw = storage.getItem(keys.heights);
         const parsed: unknown = raw ? JSON.parse(raw) : {};
-        if (typeof parsed !== 'object' || parsed === null) {
-          return {}; // A7
+        if (typeof parsed !== 'object' || parsed === null
+          || Array.isArray(parsed)) {
+          return {}; // A7 (arrays are typeof 'object' — not a heights map)
         }
         return parsed as HeightsMap;
       } catch {

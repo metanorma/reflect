@@ -66,6 +66,22 @@ export default defineConfig({
       testMatch: 'mock.spec.ts',
     },
     {
+      // Seeded-state specs (synthetic-storage/pin/vetoes + the module 8/9
+      // riders — see ../README.md) land with the convergence task, when
+      // the mock consumes dist/mock/panel-layout.js; before that, a page
+      // harness would characterize the mock's inline code, not the
+      // library. Placeholder now (same pattern as 'twin') so `yarn parity`
+      // and CI never need a flag day when it lands.
+      //
+      // This project MUST keep its own browser context (Playwright's
+      // default per-test isolation): synthetic specs seed localStorage via
+      // addInitScript, which runs on EVERY page load of its context — a
+      // context shared with the 'mock' project would re-seed storage under
+      // the plain parity pages and corrupt them.
+      name: 'synthetic',
+      testMatch: 'synthetic*.spec.ts',
+    },
+    {
       // Placeholder until the twin target exists; keep `yarn parity`
       // stable so CI never needs a flag day when it lands.
       name: 'twin',
