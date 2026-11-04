@@ -18,5 +18,5 @@ jobs:
 
       - name: Check spec cross-references
         # Zero-dep script — validates link integrity, header hygiene, and
-        # stale-version-reference guards. See docs/CONVENTIONS.md §6.
+        # stale-version-reference guards. See docs/CONVENTIONS.md §7.
         run: node scripts/check-specs.mjs

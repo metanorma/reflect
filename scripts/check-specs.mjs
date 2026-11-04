@@ -5,12 +5,14 @@
 // Validates that every relative markdown link in the spec files — docs/**/*.md
 // plus every colocated pkg/<pkg>/README.spec.md and in-package suite
 // pkg/<pkg>/docs/**/*.md (placements per CONVENTIONS.md §1.1) — resolves to
-// an existing file, that no spec carries
+// an existing file, that any link anchor names a heading of the target file
+// (GitHub slug rules), that no spec carries
 // the removed **Spec version:** / **Spec dependencies:** header lines, that
 // specs are free of transition prose (per CONVENTIONS.md §4: specs are
 // current-state only), and that acceptance-criteria sections reference
 // packages with a test suite where applicable (per CONVENTIONS.md §4.1,
-// warnings).
+// warnings), and that every top-level docs/*.spec.md is named in the
+// current-placements paragraph of CONVENTIONS.md §1.1.
 //
 // Zero runtime dependencies — pure Node fs + path. Picks up new specs and
 // subpackage docs automatically (no hardcoded spec list); the package
@@ -74,14 +76,104 @@ function extractLinks(content) {
   let m;
   while ((m = linkRe.exec(content)) !== null) {
     const raw = m[2];
-    // Strip anchor and query
+    // Strip anchor and query from the path part
     const path = raw.split('#')[0].split('?')[0];
+    // Anchor, if any (query stripped). A bare trailing "#" is an empty
+    // anchor — it claims nothing, so the anchor check skips it.
+    const anchor = raw.includes('#') ? raw.split('#')[1].split('?')[0] : '';
     // Only check relative links (skip http, mailto, absolute paths)
     if (!path || /^(https?:|mailto:|tel:|#)/.test(path) || path.startsWith('/')) continue;
     if (!path.endsWith('.md')) continue;
-    links.push({ raw, path });
+    links.push({ raw, path, anchor });
   }
   return links;
+}
+
+// GitHub-compatible heading slug: lowercase; strip every character that is
+// not a letter, number, underscore, space, or hyphen (underscores kept, as
+// github-slugger keeps them — code identifiers in headings survive); then
+// each single space becomes one hyphen. Spaces are not collapsed, so
+// "7. `inclusive` / `excludes` conventions" slugs to
+// "7-inclusive--excludes-conventions" (the stripped "/" leaves two).
+function githubSlug(text) {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}_ -]/gu, '').replace(/ /g, '-');
+}
+
+// ATX heading texts (line-initial #), skipping fenced code blocks.
+// Emphasis/backtick markers are dropped — they render away — while
+// underscores are kept (githubSlug keeps "_").
+function extractHeadings(content) {
+  const headings = [];
+  let inFence = false;
+  let fenceMarker = '';
+  for (const line of content.split('\n')) {
+    const fence = line.match(/^\s*(```+|~~~+)/);
+    if (fence) {
+      if (!inFence) {
+        inFence = true;
+        fenceMarker = fence[1];
+      } else if (fence[1].startsWith(fenceMarker)) {
+        inFence = false;
+      }
+      continue;
+    }
+    if (inFence) continue;
+    const m = line.match(/^#{1,6}\s+(.*)$/);
+    if (m) headings.push(m[1].replace(/[*`]/g, '').trim());
+  }
+  return headings;
+}
+
+// Memoized set of valid anchors for a target file. Duplicate heading texts
+// get "-1", "-2", … suffixes from the second occurrence on, as on GitHub.
+const anchorCache = new Map();
+async function anchorSlugs(target) {
+  if (!anchorCache.has(target)) {
+    const content = await readFile(target, 'utf8');
+    const seen = new Map();
+    const slugs = new Set();
+    for (const text of extractHeadings(content)) {
+      const base = githubSlug(text);
+      const nth = seen.get(base) || 0;
+      seen.set(base, nth + 1);
+      slugs.add(nth === 0 ? base : `${base}-${nth}`);
+    }
+    anchorCache.set(target, slugs);
+  }
+  return anchorCache.get(target);
+}
+
+// The §1.1 "Current placements:" paragraph of docs/CONVENTIONS.md — the
+// lead-in line through the next blank line, joined into one string.
+async function currentPlacementsParagraph() {
+  const content = await readFile(join(docsDir, 'CONVENTIONS.md'), 'utf8');
+  const lines = content.split('\n');
+  const start = lines.findIndex((line) => line.startsWith('Current placements:'));
+  if (start === -1) return null;
+  const end = lines.findIndex((line, i) => i > start && line.trim() === '');
+  return lines.slice(start, end === -1 ? lines.length : end).join(' ');
+}
+
+// Top-level corpus specs: docs/*.spec.md files (the corpus shape of
+// CONVENTIONS.md §1.1 — suite directories and non-spec docs excluded).
+async function corpusSpecBasenames() {
+  const basenames = [];
+  let entries = [];
+  try {
+    entries = await readdir(docsDir);
+  } catch {
+    return basenames; // No docs/ directory.
+  }
+  for (const name of entries) {
+    if (!name.endsWith('.spec.md')) continue;
+    try {
+      const s = await stat(join(docsDir, name));
+      if (s.isFile()) basenames.push(name);
+    } catch {
+      // Unstatable entry — skip.
+    }
+  }
+  return basenames;
 }
 
 // Transition-prose patterns (CONVENTIONS.md §4: specs are current-state only).
@@ -219,17 +311,30 @@ async function main() {
     const content = await readFile(file, 'utf8');
     const lines = content.split('\n');
 
-    // Check 1: Link integrity
+    // Check 1: Link integrity — the path resolves to a file, and a named
+    // anchor matches a heading slug in that target (CONVENTIONS.md §3).
     const links = extractLinks(content);
     for (const link of links) {
       const target = resolve(dirname(file), link.path);
+      let targetIsFile = false;
       try {
         const s = await stat(target);
         if (!s.isFile()) {
           errors.push(`${relPath}: link target not a file: ${link.raw}`);
+        } else {
+          targetIsFile = true;
         }
       } catch {
         errors.push(`${relPath}: broken link: ${link.raw}`);
+      }
+      if (targetIsFile && link.anchor) {
+        const slugs = await anchorSlugs(target);
+        if (!slugs.has(link.anchor)) {
+          errors.push(
+            `${relPath}: broken anchor: no heading "${link.anchor}" in ` +
+              `${relative(root, target)}: ${link.raw}`,
+          );
+        }
       }
     }
 
@@ -273,6 +378,24 @@ async function main() {
           `${relPath}: acceptance criteria reference package(s) without a test script: ` +
             `${untested.map((d) => `pkg/${d}`).join(', ')} — see docs/CONVENTIONS.md §4.1`,
         );
+      }
+    }
+  }
+
+  // Check 5: Placements guard — every top-level docs/*.spec.md is named in
+  // the §1.1 current-placements paragraph of CONVENTIONS.md. Containment is
+  // checked against that paragraph alone: a spec basename may legitimately
+  // appear elsewhere in CONVENTIONS.md (e.g. §4.1's test-naming examples),
+  // which would make whole-file containment vacuous for exactly the drift
+  // this guard exists to catch. Error-tier: an unnamed corpus spec is
+  // invisible to the placement list readers navigate by.
+  const placements = await currentPlacementsParagraph();
+  if (placements === null) {
+    errors.push('docs/CONVENTIONS.md: no "Current placements:" paragraph (see CONVENTIONS.md §1.1)');
+  } else {
+    for (const basename of await corpusSpecBasenames()) {
+      if (!placements.includes(basename)) {
+        errors.push(`docs/CONVENTIONS.md: corpus spec not listed in §1.1 placements: ${basename}`);
       }
     }
   }

@@ -15,7 +15,7 @@
 // Zero runtime dependencies — pure Node fs + path. Picks up new specs and
 // subpackage docs automatically (no hardcoded spec list).
 //
-// See docs/CONVENTIONS.md §6.
+// See docs/CONVENTIONS.md §7.
 
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve, dirname, relative } from 'node:path';

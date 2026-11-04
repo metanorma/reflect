@@ -15,6 +15,12 @@
 - [ ] Commit messages for spec changes follow `docs(<area>): <summary>`
       (e.g. `docs(schema): add bibdata node`).
 - [ ] `yarn check-specs` passes (enforced in CI).
+- [ ] `yarn test` passes (all workspace suites).
+- [ ] Affected workspaces compile:
+      `yarn workspace <name> compile` (workspace names in
+      [CONTRIBUTING.rst](CONTRIBUTING.rst), Verification).
+- [ ] If `yarn.lock` changed: `yarn dedupe --check` passes locally
+      (enforced in CI).
 
 ---
 

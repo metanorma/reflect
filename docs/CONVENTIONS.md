@@ -63,9 +63,10 @@ Corollaries of colocation:
   package's `files`-field decision.
 
 Current placements: corpus — `schema.spec.md`*, `MetanormaProseMirror.spec.md`,
-`MetanormaToolbar.spec.md`, `EditorCommands.spec.md`, the
-`AdvancedMetanormaToolbar/` suite; colocated — `pkg/relaton/README.spec.md`;
-in-package suite — `pkg/panel-layout/docs/`.
+`MetanormaToolbar.spec.md`, `EditorCommands.spec.md`,
+`ProseMirrorMinimap.spec.md`, the `AdvancedMetanormaToolbar/` suite;
+colocated — `pkg/relaton/README.spec.md`; in-package suite —
+`pkg/panel-layout/docs/`.
 
 *\* `prosemirror-schema` and `prosemirror-minimap` are also slated for
 independent publication; their specs migrate at their own release.*
@@ -77,6 +78,13 @@ hierarchy, and a spec citing one derives its own authority from itself. The
 tooling sweeps them like any other `docs/**/*.md` file. Reference docs carry
 a verification ledger (commit pins + dates); provenance for *their* contents
 is Git, as for specs (§2).
+
+**Agent working-memory guidance**
+([`docs/LLM-MEMORY.md`](./LLM-MEMORY.md)) is the same kind of
+non-corpus prose: the discipline for what an LLM agent's working memory in
+this repository holds and how to read it. It is non-contractual, sits
+outside the §1 hierarchy, and is swept by the tooling like any other
+`docs/**/*.md` file.
 
 
 ## 2. Provenance model: Git, not version numbers
@@ -182,9 +190,10 @@ docs(governance): add CONVENTIONS.md
 ```
 
 Areas: `schema`, `editor`, `toolbar`, `amt`, `relaton`, `commands`,
-`governance`. These are advisory — reinforced by the PR template and human
-review, not automatically enforced. They make `git log --oneline -- docs/`
-readable as a changelog.
+`minimap`, `panel-layout`, `metanorma-model`, `governance`. These are
+advisory — reinforced by the PR template and human review, not
+automatically enforced. They make `git log --oneline -- docs/` readable as
+a changelog.
 
 
 ## 6. Markdown style
@@ -236,6 +245,15 @@ on every PR and push. Validates:
    is incomplete at review. The package map is computed from
    `pkg/*/package.json` at run time. Warning-tier, like check 3 — never
    fails CI.
+5. **Anchor integrity** — a relative link's `#anchor` must match a
+   GitHub-compatible slug of one of the target file's headings (lowercase,
+   punctuation stripped, each space one hyphen, duplicate headings suffixed
+   `-1`, `-2`, …). Error-tier, like checks 1-2: it catches section renames
+   that leave anchors pointing at nothing.
+6. **Placements guard** — every top-level `docs/*.spec.md` (the corpus-spec
+   shape of §1.1) is named in that section's current-placements paragraph.
+   Error-tier, like checks 1-2: the placements list is how a reader finds
+   where a spec lives; a corpus spec missing from it is unfindable.
 
 ### `scripts/spec-impact.mjs` — reverse-dependency report (on demand)
 
@@ -252,3 +270,26 @@ Referenced by:
 
 This recovers the coordination value the old dependency-manifest system provided
 — without any bookkeeping, because it's computed from the link graph on demand.
+
+
+## 8. Walkthrough: making a typical spec+code change
+
+A change that touches both a spec and the code it governs proceeds in this
+order:
+
+1. Update the spec first, as current-state prose (§4). Express cross-spec
+   dependencies as relative markdown links (§3), with anchors that name a
+   heading of the target file.
+2. Run `yarn spec-impact <spec-path.md>` and review every listed dependent
+   for a claim the change contradicts.
+3. Implement the code change. The commands that verify each change type —
+   per-workspace compile, unit tests, e2e, dependency-graph checks — are
+   listed in the Verification section of
+   [`CONTRIBUTING.rst`](../CONTRIBUTING.rst); run what that section maps to
+   the change type.
+4. Run `yarn check-specs` over the doc edits (CI-enforced on every PR).
+5. Add a [`CHANGELOG.md`](./CHANGELOG.md) entry only when the §4 bar is
+   met: the change spans multiple commits or specs, or its narrative is not
+   recoverable from commit messages.
+6. Commit as `docs(<area>): <imperative summary>` (§5), keeping spec and
+   code changes in separate commits when both exist.
