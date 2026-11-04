@@ -84,6 +84,11 @@ Types & schema
 
 - Use ``@ts-expect-error``, if necessary, but not the ignore directive.
 
+- The import-lint scanner (``scripts/check-imports.mjs``) cannot see a
+  ``/`` right after ``}``: avoid self-closing JSX immediately after a
+  spread (``<X {...props} />`` written as ``<X {...props}/>``) — use
+  ``createElement`` or restructure.
+
 Style guidelines
 ^^^^^^^^^^^^^^^^
 
