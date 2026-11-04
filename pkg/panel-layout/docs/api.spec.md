@@ -140,7 +140,31 @@ export interface PanelLayoutSettledEvent {
 The three nets: dockview's `onDidMutateLayout` bracket (one transaction
 per compound mutation; `fromJSON` is a single `'load'` transaction, so
 HP1's immediate first save is covered); the drag-takeover pointerup commit
-(HP6); and window-drag release.
+(HP6); and window-drag release. A fourth wiring rides the same `fromJSON`
+transaction for restore semantics: on `onDidLayoutFromJSON` the component
+clears the pin map (`commitHeights({})`) and runs one synchronous pin pass
+over the preset seeds — the restore-to-default path (HP9) is
+wipe-keys → `clear()` → `fromJSON(default)`, and the fromJSON net is what
+makes the stored layout post-pin.
+
+### Persistence timing (wiring)
+
+The two halves persist on different clocks, and both are pinned by the
+captured goldens:
+
+- **Layout** saves are synchronous on the change event — the component
+  subscribes `saveLayout` on `api.onDidLayoutChange`, and the initial
+  `fromJSON` write passes through once at ready. The maintenance pass
+  does not re-save the layout.
+- **Heights** saves ride the rAF-debounced maintenance pass and the
+  takeover pointerup commit; a mid-drag save cannot race the window-drag
+  gate.
+
+The component realizes this split through a persistence facade over the
+`Persistence` instance (init pass-through, pass re-saves suppressed,
+synchronous layout net), so the observable storage timing — including the
+lag between a live layout and its stored counterpart at any intermediate
+checkpoint — is the goldens' captured shape.
 
 ### 2.4 Engine type re-exports
 
@@ -188,7 +212,14 @@ export interface PanelRegistration {
 /** Key = dockview `contentComponent` name (the serialized field). */
 export type PanelRegistry = Record<string, PanelRegistration>;
 
-/** Derived at wiring time (F3) — not a prop; cannot drift from the registry. */
+/**
+ * Derived at wiring time (F3) — not a prop; cannot drift from the
+ * registry. Returns PANEL IDS: a registry entry with `floatable: false`
+ * excludes the panel whose id matches the registry key. When a panel's
+ * id differs from its contentComponent, the policy entry rides the
+ * panel-id key (the demo's `doc` panel is the case: id `doc`,
+ * contentComponent `document`).
+ */
 export function floatExcludedPanels(
   registry: PanelRegistry,
 ): ReadonlySet<string>;
@@ -232,7 +263,10 @@ adapter, never two — `clear()` stays atomic (HP9). Validation is
 hand-rolled guards behind a single decode seam (dockview's
 `SerializedDockview` carries no version or migration story — versioning is
 the library's); the seam's internals can be replaced by a schema decoder
-without API change.
+without API change. The restore-to-default operation (HP9) composes the
+two halves: storage keys wiped + `clear()` (atomic), then
+`fromJSON(default)` — the fromJSON net (§2.3) clears the pin map and
+re-pins over the preset seeds so the stored layout lands post-pin.
 
 ## 3. Module inventory
 
@@ -242,7 +276,7 @@ they were extracted from; planned modules are marked.
 
 | # | Module | Responsibility | Key symbols | Spec rows |
 |---|---|---|---|---|
-| 1 | **PanelLayout component** (`panelLayout.tsx`) | The front door (§2.1): renders `DockviewReact` with every behavior wired. | `PanelLayout`, `PanelLayoutProps` | HP1, F1, G2, HP7 |
+| 1 | **PanelLayout component** (`panelLayout.tsx`) | The front door (§2.1): renders `DockviewReact` with every behavior wired — the nine-module composition plus the persistence facade (§2.3) and the fromJSON restore net (HP9). | `PanelLayout`, `PanelLayoutProps` | HP1, F1, G2, HP7 |
 | 2 | **Persistence & corrupted-storage fallback** (`persistence.ts`) | Save/load layout + heights over an injected `LayoutStorage` adapter (§2.6); silent fallback to the default layout; restore-to-default clears storage atomically. | `LayoutStorage`, `createPersistence`, `PersistenceOptions`, `HeightsMap` | HP8, A4–A9, C2, C4, HP9 |
 | 3 | **Pin-pass wiring** (`pinHeights.ts`) | The per-tabset pinned-heights model: members/chrome measurement, pin + reconcile, the maintenance pass with sample-guard, stable-heights collection; wiring runs the pass on layout change, gated during live window drags. | `pinAllWindows`, `collectStableHeights`, `usePinnedHeights` (planned) | HP4, HP6, B4–B6, A5, A8 |
 | 4 | **Drag/unwrap claim + veto engine** (`unwrap.ts`) | Grid-surface drop claims (panel or whole tabset → new float window, source-rect sizing, height carry), the veto set (no left/right splits, no group-into-grid docks, float-excluded panels), zone-overlay suppression state, dead-zone pointerup fallback. | `handleWillDrop`, veto predicates, `unwrapAtPointer`, `useDropRules` (planned) | HP2, HP3, HP4, HP7, F3, F5 |
@@ -312,3 +346,13 @@ The mock-facing flavor asserts (via the esbuild metafile) that no
 the twin flavor asserts the resolved engine versions are exactly the
 pins. Layout and deferred end-states are recorded in
 [`pkg/panel-layout/dist/README.rst`](../dist/README.rst).
+
+**The mock is the extraction source.** The reference mock keeps the
+library chrome CSS blocks and the design constants inline, because
+`extract-css.mjs`/`extract-design-tokens.mjs` read the mock to generate
+`panel-layout.css` and `design-tokens.json` (`tokens:check` fails on
+drift). The served `<link>`s are additive and byte-identical to those
+blocks — cascade-neutral — and the drift direction is mock → library:
+chrome changes start in the mock, then regenerate. A mock whose inline
+style carries only demo CSS is therefore not an arrangement this
+pipeline supports.
