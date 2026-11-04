@@ -6,12 +6,15 @@
 // plus every colocated pkg/<pkg>/README.spec.md and in-package suite
 // pkg/<pkg>/docs/**/*.md (placements per CONVENTIONS.md §1.1) — resolves to
 // an existing file, that no spec carries
-// the removed **Spec version:** / **Spec dependencies:** header lines, and
-// that specs are free of transition prose (per CONVENTIONS.md §4: specs are
-// current-state only).
+// the removed **Spec version:** / **Spec dependencies:** header lines, that
+// specs are free of transition prose (per CONVENTIONS.md §4: specs are
+// current-state only), and that acceptance-criteria sections reference
+// packages with a test suite where applicable (per CONVENTIONS.md §4.1,
+// warnings).
 //
 // Zero runtime dependencies — pure Node fs + path. Picks up new specs and
-// subpackage docs automatically (no hardcoded spec list).
+// subpackage docs automatically (no hardcoded spec list); the package
+// name→directory map is computed from pkg/*/package.json at run time.
 //
 // See docs/CONVENTIONS.md for the governance model this enforces.
 
@@ -115,12 +118,101 @@ const transitionPatterns = [
 const headerVersionRe = /\*\*Spec version:\*\*\s*\d/i;
 const headerDepsRe = /\*\*Spec dependencies:\*\*\s*\[/i;
 
+// Acceptance-criteria section heading, at any level (e.g. "## 13. Acceptance
+// criteria", "### 1.12 Acceptance criteria").
+const acceptanceHeadingRe = /^#{1,6}\s+.*acceptance criteria/i;
+const headingRe = /^(#{1,6})\s/;
+
+// Package references inside an acceptance section, both forms:
+// - `pkg/<dir>/` with trailing slash. Load-bearing: bare `pkg/<dir>` mentions
+//   without a slash are deliberately NOT matched — e.g. ProseMirrorMinimap
+//   §15's closing note mentions `pkg/editor-gui` bare as a consumer aside,
+//   and bare-path matching would falsely warn on it.
+// - `@metanorma/<name>` mentions (incl. `yarn workspace @metanorma/<name>`).
+//   Required for robustness: schema.spec.md §14 and EditorCommands.spec.md
+//   §1.12 reference their package only by name, never by path.
+const pkgPathRefRe = /pkg\/([a-z0-9-]+)\//g;
+const pkgNameRefRe = /@metanorma\/([a-z0-9-]+)/g;
+
+// Workspace name → pkg/ directory and pkg dir → has-test-script, computed
+// from pkg/*/package.json at run time (no hardcoded map). Note: `editor-gui`'s
+// workspace name is bare (no @metanorma/ scope), so name-form references to
+// it don't resolve — acceptable, since it is a consumer app, not a
+// spec-governed package.
+async function packageMaps() {
+  const nameToDir = new Map(); // '@metanorma/<name>' → pkg dir
+  const dirHasTest = new Map(); // pkg dir → has test script
+  let packages = [];
+  try {
+    packages = await readdir(pkgDir);
+  } catch {
+    return { nameToDir, dirHasTest }; // No pkg/ directory — corpus only.
+  }
+  for (const name of packages) {
+    try {
+      const s = await stat(join(pkgDir, name));
+      if (!s.isDirectory()) continue;
+    } catch {
+      continue;
+    }
+    let hasTest = false;
+    let pkgName = null;
+    try {
+      const pkg = JSON.parse(await readFile(join(pkgDir, name, 'package.json'), 'utf8'));
+      pkgName = pkg.name || null;
+      hasTest = Boolean(pkg.scripts && pkg.scripts.test);
+    } catch {
+      // Unreadable/absent manifest — treat as no tests.
+    }
+    if (pkgName) nameToDir.set(pkgName, name);
+    dirHasTest.set(name, hasTest);
+  }
+  return { nameToDir, dirHasTest };
+}
+
+// Slice out the body of an acceptance-criteria section: heading line → next
+// heading of same-or-higher level (subsections included — Minimap §15.1–15.3
+// are ### under ##).
+function acceptanceSections(content) {
+  const lines = content.split('\n');
+  const sections = [];
+  let current = null; // { level, from }
+  for (let i = 0; i < lines.length; i++) {
+    const m = headingRe.exec(lines[i]);
+    if (m) {
+      if (current && m[1].length <= current.level) {
+        sections.push(lines.slice(current.from, i).join('\n'));
+        current = null;
+      }
+      if (acceptanceHeadingRe.test(lines[i])) {
+        current = { level: m[1].length, from: i };
+      }
+    }
+  }
+  if (current) sections.push(lines.slice(current.from).join('\n'));
+  return sections;
+}
+
+// Package directories referenced by an acceptance section (both ref forms),
+// resolved through the name→dir map.
+function acceptancePackageRefs(section, nameToDir) {
+  const refs = new Set();
+  let m;
+  while ((m = pkgPathRefRe.exec(section)) !== null) refs.add(m[1]);
+  while ((m = pkgNameRefRe.exec(section)) !== null) {
+    const dir = nameToDir.get(`@metanorma/${m[1]}`);
+    if (dir) refs.add(dir);
+  }
+  return refs;
+}
+
 let failed = false;
 const errors = [];
 const warnings = [];
 
 async function main() {
   const files = await specFiles();
+  const { nameToDir, dirHasTest } = await packageMaps();
 
   for (const file of files) {
     const relPath = relative(root, file);
@@ -151,9 +243,12 @@ async function main() {
       }
     });
 
-    // Check 3: Transition-prose warnings (CONVENTIONS.md §4)
-    // Skip governance docs (they document the patterns legitimately)
+    // Skip governance docs for the prose checks (they document the patterns
+    // and mention packages legitimately; they are not specs governing a
+    // package).
     if (relPath === 'docs/CONVENTIONS.md' || relPath === 'docs/CHANGELOG.md') continue;
+
+    // Check 3: Transition-prose warnings (CONVENTIONS.md §4)
     lines.forEach((line, i) => {
       for (const { re, label, exclude } of transitionPatterns) {
         if (exclude && exclude.test(line)) continue;
@@ -162,11 +257,29 @@ async function main() {
         }
       }
     });
+
+    // Check 4: Acceptance-criteria coverage warnings (CONVENTIONS.md §4.1).
+    // An acceptance-criteria section that references a package lacking a
+    // test script warns — the criteria are contractual (§4.1), so a spec
+    // governing an untested package is incomplete. Warning-tier, like
+    // check 3: never fails CI. Sections with no package references are
+    // skipped silently.
+    for (const section of acceptanceSections(content)) {
+      const refs = acceptancePackageRefs(section, nameToDir);
+      if (refs.size === 0) continue;
+      const untested = [...refs].filter((dir) => dirHasTest.get(dir) === false);
+      if (untested.length > 0) {
+        warnings.push(
+          `${relPath}: acceptance criteria reference package(s) without a test script: ` +
+            `${untested.map((d) => `pkg/${d}`).join(', ')} — see docs/CONVENTIONS.md §4.1`,
+        );
+      }
+    }
   }
 
   // Report
   if (warnings.length > 0) {
-    console.log('⚠ Transition-prose warnings (move to CHANGELOG or rewrite as current-state):\n');
+    console.log('⚠ Spec check warnings (transition prose per §4, acceptance-criteria coverage per §4.1):\n');
     for (const w of warnings) console.log(`  ${w}`);
     console.log('');
   }

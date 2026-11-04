@@ -64,6 +64,17 @@ Integration surfaces
   child of its parent element — ``table:has(> colgroup)`` CSS and
   ``:scope >`` DOM queries silently match nothing.
 
+- Verify the dispatch point in the installed dist at **design time** —
+  before specifying a subclass, wrapper, hook, or any override of library
+  behavior. Upstream docs and memory describe the public API, not the
+  dispatch mechanics a design depends on: whether the method is a prototype
+  method or a constructor-assigned own property determines who calls what
+  and when, and an override of the wrong kind never runs
+  (``MetanormaSchema`` assigns ``nodeFromJSON``/``markFromJSON`` as own
+  arrow-function properties in its constructor — a prototype-method
+  override of either would never execute). Record the verified dispatch
+  fact in a code comment where it is relied upon.
+
 - Record non-obvious behavior in a code comment
   where it was verified (package, file, what it does), so the assumption
   can be re-checked after dependency upgrades.
@@ -186,9 +197,19 @@ More specifically, check the following before submitting:
   ``yarn workspaces foreach -A run compile`` compiles all of them.
 
 - Unit tests: ``yarn test`` runs every suite in one command.
-  Three packages have unit tests today (``editor-commands``,
-  ``prosemirror-minimap``, ``relaton``); the rest have none, so a green
-  ``yarn test`` means those three suites passed.
+  Five packages have unit tests today (``editor-commands``,
+  ``panel-layout``, ``prosemirror-minimap``, ``relaton``,
+  ``prosemirror-schema``); the rest have none, so a green
+  ``yarn test`` means those five suites passed.
+
+- When unit-testing library-mediated serialization (``toJSON``, DOM
+  serializers), assert against observed behavior: prefer key-order-
+  insensitive deep equality on parsed output, or verify the serialization
+  facts (key presence/order, omitted-empty fields) first. But when the
+  serialization shape is itself the contract — in-repo:
+  ``pkg/prosemirror-schema/tableWidths.ts`` string stability,
+  ``roundtrip.test.mjs`` exact-shape assertions — pin it explicitly with
+  stringify equality.
 
 - Browser e2e (not CI-enforced): ``yarn workspace editor-gui e2e``,
   ``yarn workspace @metanorma/prosemirror-minimap e2e`` and
@@ -207,7 +228,7 @@ More specifically, check the following before submitting:
 Workspace inventory (all under ``pkg/``; used by the
 ``yarn workspace <name>`` commands above):
 
-- ``@metanorma/prosemirror-schema`` (``pkg/prosemirror-schema``) — no tests
+- ``@metanorma/prosemirror-schema`` (``pkg/prosemirror-schema``) — unit tests
 - ``@metanorma/prosemirror-editor`` (``pkg/prosemirror-editor``) — no tests
 - ``@metanorma/editor-commands`` (``pkg/editor-commands``) — unit tests
 - ``@metanorma/toolbar`` (``pkg/toolbar``) — no tests
@@ -215,4 +236,4 @@ Workspace inventory (all under ``pkg/``; used by the
 - ``@metanorma/prosemirror-minimap``
   (``pkg/prosemirror-minimap``) — unit tests, e2e
 - ``editor-gui`` (``pkg/editor-gui``) — e2e (incl. plugin rendering smoke)
-- ``@metanorma/panel-layout`` (``pkg/panel-layout``) — e2e (parity)
+- ``@metanorma/panel-layout`` (``pkg/panel-layout``) — unit tests, e2e (parity)

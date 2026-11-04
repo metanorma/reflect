@@ -61,6 +61,51 @@ past the release-trigger pin.
 
 ---
 
+## 2026-10-16 — governance: acceptance-criteria contract (CONVENTIONS §4.1), dispatch-verification + assertion-discipline rules, check-specs coverage warning
+
+`docs/CONVENTIONS.md`, `CONTRIBUTING.rst`, `scripts/check-specs.mjs`;
+**Commits: *(pending)***. Governance follow-ups distilled from the
+`MetanormaSchema` integration review.
+
+- **Acceptance-criteria contract** — new CONVENTIONS §4.1: every numbered
+  criterion in an `Acceptance criteria` section is covered in the package
+  the spec governs, as the criterion itself specifies (a compile criterion
+  by a green `yarn workspace <pkg> compile`; a criterion naming a test by
+  that test); a spec whose governing package has no test suite is
+  incomplete at review. Naming a covering test inside a criterion is
+  compliant — prohibited is a per-criterion test-file index in the spec;
+  the criterion→test mapping lives in the package's suite. Second rule: no
+  untested spec claims in code docstrings; pointers to spec sections are
+  plain text (`schema.spec.md §12.1`), not relative markdown links
+  (publication-slated packages would ship rotting relative paths).
+- **Design-time dispatch verification** — `CONTRIBUTING.rst`
+  "Integration surfaces" now scopes the verify-against-installed-zips rule
+  to design time: before specifying a subclass, wrapper, hook, or override,
+  confirm the dispatch point in the installed dist (prototype method vs.
+  constructor-assigned own property) and record the fact in a code comment
+  where relied upon.
+- **Assertion discipline** — `CONTRIBUTING.rst` "Verification": unit tests
+  of library-mediated serialization assert against observed behavior
+  (key-order-insensitive deep equality, or verify serialization facts
+  first), with the carve-out that when serialization shape is itself the
+  contract (`tableWidths.ts` string stability, `roundtrip.test.mjs`
+  exact-shape), it is pinned explicitly with stringify equality.
+- **Inventory corrected** — the workspace inventory now records five
+  unit-tested packages (`editor-commands`, `panel-layout`,
+  `prosemirror-minimap`, `relaton`, `prosemirror-schema`); the
+  `prosemirror-schema` ("no tests") and `panel-layout` ("e2e only") rows
+  were stale.
+- **check-specs check 4** (warnings) — an acceptance-criteria section that
+  references a workspace package (path or `@metanorma/` name form; map
+  computed from `pkg/*/package.json`) lacking a `test` script warns, citing
+  §4.1. Section-scoped: file-wide matching would warn on every doc that
+  merely mentions an untested package. Never fails CI.
+- **Known gap recorded** — `pkg/prosemirror-editor` has no test suite, so
+  `MetanormaProseMirror.spec.md` §13 (whose criterion 1 promises a manifest
+  test) surfaces as a standing warning until its suite lands.
+
+---
+
 ## 2026-10-16 — schema §12.1 implemented: unknown JSON attrs captured into `data` via `MetanormaSchema`
 
 `prosemirror-schema` + `docs/schema.spec.md` errata; no other package touched

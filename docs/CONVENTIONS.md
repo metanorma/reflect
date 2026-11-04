@@ -147,6 +147,28 @@ Specs and comments describe what the system **is**, not how it got there. Three 
    `git log --oneline -- <spec>.md` is the first-stop changelog for any
    spec.
 
+### 4.1 Acceptance-criteria contract
+
+**Acceptance criteria are contractual.** Every numbered criterion in a spec's
+`Acceptance criteria` section is covered in the package the spec governs, as
+the criterion itself specifies: a compile criterion is covered by a green
+`yarn workspace <pkg> compile` in CI, not a dedicated `node:test` case; a
+criterion that names a test is covered by that test. A spec whose governing
+package has no test suite at all is incomplete at review. Naming a covering
+test inside a criterion is compliant — the criterion may cite the suite or
+file that covers it (`ProseMirrorMinimap.spec.md` §15.1's heading names
+`test.mjs`; `schema.spec.md` §14 names the round-trip suite). Prohibited is a
+per-criterion test-file index in the spec: the criterion→test mapping lives in
+the package's own test suite, not in a hand-maintained spec-side cache (the
+§2 philosophy applied to coverage).
+
+**No untested spec claims in code docs.** A behavioral claim from a spec does
+not go into a code docstring or comment unless a test pins it. The docstring
+states the contract and points to the spec section as a plain pointer —
+e.g. `schema.spec.md §12.1` — not a relative markdown link:
+publication-slated packages (§1.1) would ship rotting relative paths in
+published tarballs.
+
 
 ## 5. Commit-message convention (advisory)
 
@@ -206,6 +228,14 @@ on every PR and push. Validates:
    Conservative: avoids false positives on legitimate product-scope markers
    like "out of scope for v1" and `metanorma-standoc ≥ v1.4.1`. These are
    warnings, not errors — they don't fail CI.
+4. **Acceptance-criteria coverage guard** (warnings) — an
+   `Acceptance criteria` section (any heading level, including its
+   subsections) that references a workspace package — as `pkg/<dir>/` or
+   `@metanorma/<name>` — whose manifest has no `test` script warns: the
+   criteria are contractual (§4.1), so a spec governing an untested package
+   is incomplete at review. The package map is computed from
+   `pkg/*/package.json` at run time. Warning-tier, like check 3 — never
+   fails CI.
 
 ### `scripts/spec-impact.mjs` — reverse-dependency report (on demand)
 
