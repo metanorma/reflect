@@ -128,9 +128,9 @@ Rules:
   (Exact line number references are allowed when the target is frozen.)
 
 
-## 4. Specs are current-state only; change history lives elsewhere
+## 4. Current-state only; change history lives elsewhere
 
-Specs describe what the system **is**, not how it got there. Three tiers:
+Specs and comments describe what the system **is**, not how it got there. Three tiers:
 
 1. **Specs — current state only.** No "Recent change" blocks, no
    "previously/prior to" transition prose, no "this revision" framing, no "in vN"
