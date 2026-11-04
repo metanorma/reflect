@@ -14,7 +14,7 @@
     "@metanorma/relaton": "workspace:^",
     "prosemirror-commands": "^1.7.1",
     "prosemirror-keymap": "^1.2.2",
-    "prosemirror-model": "^1.22.0",
+    "prosemirror-model": "^1.25.8",
     "prosemirror-state": "^1.4.4",
     "prosemirror-view": "1.42.0",
     "react": "^19.2.7",

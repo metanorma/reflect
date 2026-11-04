@@ -10,7 +10,7 @@
     "test": "yarn node --test roundtrip.test.mjs"
   },
   "dependencies": {
-    "prosemirror-model": "^1.22.0"
+    "prosemirror-model": "^1.25.8"
   },
   "devDependencies": {
     "typescript": "~6.0.3"
