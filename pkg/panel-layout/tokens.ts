@@ -70,14 +70,19 @@ interface DesignTokensFile {
 
 const file = raw as DesignTokensFile;
 
-/** Mock `:root` custom properties, verbatim (e.g. `--accent`). */
-export const TOKENS = file.tokens;
+/**
+ * Mock `:root` custom properties, verbatim (e.g. `--accent`). Deliberately
+ * a flat map — not a hand-listed literal-key interface: the JSON
+ * regenerates with the mock, and key lists here would drift where
+ * `tokens:check` cannot see it.
+ */
+export const TOKENS: Readonly<Record<string, string>> = file.tokens;
 
 /** Dockview theme overrides, verbatim (titlebar/tab/sash chrome values). */
-export const DV_TOKENS = file.dvTokens;
+export const DV_TOKENS: Readonly<Record<string, string>> = file.dvTokens;
 
 /** Layout behavior constants (floors, chrome, sash, fallbacks). */
-export const CONSTANTS = file.constants;
+export const CONSTANTS: LayoutConstants = file.constants;
 
 /** Dockview `dndEdges` option, verbatim from the mock. */
 export const DND_EDGES = file.dndEdges;
@@ -93,3 +98,12 @@ export const STORAGE_KEYS = file.storageKeys;
 
 /** Provenance of the extraction (mock path, commit, date). */
 export const PROVENANCE = file._provenance;
+
+/**
+ * The JSON carries three more keys that deliberately have NO typed view
+ * here: `panelTitles` and `presetLayout` (demo-consumer data — the 11
+ * panels and their preset are registrations api.spec.md §4 keeps out of
+ * this package forever) and `importMap` (the mock's CDN pins, a build
+ * input). They exist for the extractor round-trip and the parity suite,
+ * not for programmatic consumers of this library.
+ */

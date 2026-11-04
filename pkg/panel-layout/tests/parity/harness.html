@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>panel-layout synthetic harness (library via /dist/mock/panel-layout.js)</title>
+
+<link rel="stylesheet" href="https://unpkg.com/dockview-core@7.0.4/dist/styles/dockview.css">
+<link rel="stylesheet" href="/panel-layout.css">
+<link rel="stylesheet" href="/focus.css">
+<style>
+  /* Harness chrome only — every library rule comes from the linked sheets.
+     .layoutArea's flex fill is demo-consumer CSS (the mock carries the same
+     rule in its own sheet); the component's container reuses the class. */
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{background:#e3e7eb;font-family:sans-serif;overflow:hidden}
+  .window{width:100vw;height:100vh;display:flex;flex-direction:column}
+  .toolbar{display:flex;align-items:center;gap:4px;padding:7px 12px;background:#fff;
+           border-bottom:1px solid #d7dde3;font-size:12px}
+  .tb-btn{border:1px solid transparent;background:transparent;border-radius:6px;
+          padding:4px 8px;font-size:12px;cursor:pointer}
+  .tb-spacer{flex:1}
+  .layoutArea{flex:1;min-height:0;position:relative;background:#e3e7eb}
+  .statusbar{display:flex;align-items:center;gap:16px;padding:6px 14px;background:#fff;
+             border-top:1px solid #d7dde3;font-size:11px;color:#66707d}
+  .statusbar .grow{flex:1}
+  .panelwrap{height:100%;overflow:auto;background:#fff;font-size:12px;padding:10px 12px}
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.2.8?target=es2022",
+    "react/jsx-runtime": "https://esm.sh/react@19.2.8/jsx-runtime?target=es2022",
+    "react-dom": "https://esm.sh/react-dom@19.2.8?target=es2022&deps=scheduler@0.27.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.2.8/client?target=es2022&deps=scheduler@0.27.0",
+    "dockview-core": "https://esm.sh/dockview-core@7.0.4?target=es2022",
+    "dockview": "https://esm.sh/dockview@7.0.4?bundle&external=react,react-dom&target=es2022",
+    "dockview-react": "https://esm.sh/dockview-react@7.0.4?bundle&external=react,react-dom&target=es2022"
+  }
+}
+</script>
+</head>
+<body>
+<div id="boot">loading…</div>
+<div id="root"></div>
+
+<script type="module">
+// Synthetic harness: the built library artifact + the DEMO preset (loaded
+// from the mock's extracted design-tokens.json so the geometry matches the
+// parity pages) + a registry whose members are test markers. The C3 row
+// registers a THROWING component for the panel id named by ?throw=.
+const boot = document.getElementById('boot');
+try {
+  const params = new URLSearchParams(location.search);
+  const React = (await import('react')).default;
+  const { useState, createElement: h } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const lib = await import('/dist/mock/panel-layout.js');
+  const { PanelLayout } = lib;
+  const tokens = (await import('/mock/design-tokens.json', { with: { type: 'json' } })).default;
+  const presetLayout = tokens.presetLayout;
+
+  const throwKey = params.get('throw'); // C3: the registry key that throws (contentComponent)
+
+  const box = (label) => () => h('div', { className: 'panelwrap' }, label);
+  const registry = {
+    outline: { component: box('outline panel') },
+    bibliography: { component: box('bibliography panel') },
+    validation: { component: box('validation panel') },
+    review: { component: box('review panel') },
+    pinned: { component: box('pinned panel') },
+    identity: { component: box('identity panel') },
+    attributes: { component: box('attributes panel') },
+    structure: { component: box('structure panel') },
+    derived: { component: box('derived panel') },
+    overlays: { component: box('overlays panel') },
+    document: { component: box('document panel') },
+    doc: { component: box('document panel'), floatable: false },
+  };
+  // C3: ?throw=<registryKey> replaces that entry's component with one that
+  // throws during render (the registry key IS the serialized
+  // contentComponent — e.g. ?throw=outline throws the Outline panel).
+  if (throwKey && registry[throwKey]) {
+    registry[throwKey] = {
+      component: () => { throw new Error('synthetic panel render failure'); },
+    };
+  }
+
+  function App() {
+    const [autoWrap, setAutoWrap] = useState(true);
+    const onReady = ({ api }) => { window.__api = api; };
+    return h('div', { className: 'window' },
+      h('div', { className: 'toolbar' },
+        h('span', null, 'synthetic harness — library from /dist/mock/panel-layout.js'),
+        h('span', { className: 'tb-spacer' }),
+        h('button', {
+          className: 'tb-btn',
+          onClick: () => setAutoWrap(v => !v),
+        }, 'Auto-wrap panels: ' + (autoWrap ? 'ON' : 'OFF'))),
+      h(PanelLayout, {
+        registry,
+        defaultLayout: presetLayout,
+        persistence: {
+          defaultLayout: presetLayout,
+          format: { kind: 'two-key', keys: {
+            layout: 'mn-synth-layout-v1', heights: 'mn-synth-heights-v1' } },
+        },
+        autoWrap,
+        dockviewOptions: {
+          theme: { name: 'light', className: 'dockview-theme-light', colorScheme: 'light' },
+          dndEdges: tokens.dndEdges,
+        },
+        onReady,
+      }),
+      h('div', { className: 'statusbar' },
+        h('span', null, 'synthetic'),
+        h('span', { className: 'grow' })));
+  }
+
+  createRoot(document.getElementById('root')).render(h(App));
+  boot.remove();
+} catch (err) {
+  boot.textContent = 'harness failed: ' + (err && err.message || err);
+  console.error(err);
+}
+</script>
+</body>
+</html>

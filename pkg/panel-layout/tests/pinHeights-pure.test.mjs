@@ -1,6 +1,7 @@
 /**
  * Headless tests for @metanorma/panel-layout — pinGroup floor/round/guard
- * semantics (docs/behavior.spec.md rows B4/B5; the pin model of HP4/HP6).
+ * semantics (docs/behavior.spec.md rows B4/B5; the pin model of HP4/HP6)
+ * plus the §2.5 registry-floor interaction (api.spec.md §2.5 minHeight).
  *
  * Run: yarn workspace @metanorma/panel-layout test
  *
@@ -9,10 +10,12 @@
  * Asserting through a spy + getters is the function's real contract, not
  * fake state. If pinning work ever needs a FOURTH accessor, these tests
  * move to the synthetic layer; that discovery is an escalation, not an
- * extension of the fake. All other pinHeights surface (membersOf,
- * chromeOf, reconcileWindow, pinAllWindows, collectStableHeights) is
- * DOM-coupled (getBoundingClientRect/requestAnimationFrame) and covered by
- * parity (GREEN 1) until the synthetic layer lands.
+ * extension of the fake. The other pinHeights seams are covered by
+ * tests/pinHeights-wiring.test.mjs (injected-event wiring) and parity;
+ * measurement itself (membersOf, chromeOf, reconcileWindow, pinAllWindows,
+ * collectStableHeights) is DOM-coupled (getBoundingClientRect/
+ * requestAnimationFrame) and covered by parity (GREEN 1) until the
+ * synthetic layer lands.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -55,5 +58,25 @@ describe("pinHeights: pinGroup (B4 floor, HP6 re-pin)", () => {
     pinGroup(g, 300);
     assert.equal(calls.length, 1);
     assert.deepEqual(calls[0], { minimumHeight: 300, maximumHeight: 300 });
+  });
+
+  it("B4/§2.5: registry floor above the requested height wins (floor only ever raises)", () => {
+    const g = fakeGroup({ minimumHeight: 0, maximumHeight: 0 });
+    const h = pinGroup(g, 100, 200);
+    assert.equal(h, 200);
+    assert.deepEqual([g.minimumHeight, g.maximumHeight], [200, 200]);
+  });
+
+  it("§2.5: a sub-MIN_TS_H registry floor never lowers the global floor", () => {
+    const g = fakeGroup({ minimumHeight: 0, maximumHeight: 0 });
+    const h = pinGroup(g, 10, 10);
+    assert.equal(h, 36); // max(MIN_TS_H, h, floor) — floor cannot undercut 36
+  });
+
+  it("§2.5: a registry floor never clamps an above-floor height", () => {
+    const g = fakeGroup({ minimumHeight: 0, maximumHeight: 0 });
+    const h = pinGroup(g, 300, 200);
+    assert.equal(h, 300);
+    assert.deepEqual([g.minimumHeight, g.maximumHeight], [300, 300]);
   });
 });

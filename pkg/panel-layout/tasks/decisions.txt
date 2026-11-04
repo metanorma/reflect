@@ -1,0 +1,197 @@
+# panel-layout implementation-loop decisions
+# Format: D<N>: <decision>. Appended by the orchestrator (this conversation);
+# task threads READ but never WRITE this file. Later entries win.
+# Escalation outcomes land here as decisions too, keyed by their escalation id.
+
+D1: Task sequencing is the inventory's dependency order:
+    2 persistence -> 3 pinHeights -> 5 windowDrag -> 6 dragTakeover
+    -> 4 unwrap -> 7 titlebar -> 8 boundary -> 9 focus -> 10 theming
+    -> 1 PanelLayout (convergence task, consumes all).
+D2: Loop scope ends at convergence: mock carries zero inline behavior glue,
+    one editor instantiation, pins + demo panels + preset + chrome content;
+    suite green through the public API. NOT in scope: twin assembly + first
+    twin parity run; synthetic-suite audit. (Both are follow-up loops.)
+D3 (task 2 return): Envelope writes always carry both halves from
+    last-known-good memory (heights-only save pairs with last layout,
+    defaulting to defaultLayout). Corrupt-payload fallback signals dedup
+    per storage key until the stored payload changes; C2
+    storage-unavailable remains once-per-instance on first write failure.
+D4 (task 2 return): persistence.ts may export module-level contract
+    constants (DEFAULT_ENVELOPE_KEY, ENVELOPE_VERSION) and the §2.2
+    mirror types (FallbackReason, FallbackEvent) without adding them to
+    the public index.ts budget; internal.ts does not re-export them.
+D5 (task 2 return): api.spec §2.2 emitter split — persistence owns
+    layout-corrupt/heights-corrupt/storage-unavailable; the component
+    owns layout-restore-threw (A9). Persistence-side seam is named
+    onFallback; the component relays it as onDidFallback.
+D6 (task 3 return): usePinnedHeights is a framework-agnostic wiring
+    function called from onReady (module 1 wraps it), not a React hook.
+D7 (task 3 return): subscription-timing caveat — the wiring is created
+    after the consumer's fromJSON, so the 'load' transaction's mutate
+    event predates the subscription; the init settled emission
+    {source:'layout', origin:'api'} stands in for it.
+D8 (task 3 return): saveLayout/saveHeights both live inside the rAF-
+    debounced maintenance pass (mock's synchronous per-change saveLayout
+    became pass-debounced; settle-observable storage identical, goldens
+    byte-identical). A mid-drag save can no longer race the F4 gate.
+D9 (task 3 return): coverage-map vocabulary gains 'wiring-Node' for rows
+    where the discipline is Node-tested at injected seams while the DOM
+    half remains synthetic-planned (applies to A8, F4).
+D10 (task 3 return): HP1 wording precision — the heights key is ABSENT
+    (null) on first load, not written-empty; the mock writes {} only
+    after the first change or takeover. (Amendment suggestion pending
+    spec-owner approval; behavior already pinned by test.)
+D11 (task 5 return): createWindowDragGate owns the full mock retire
+    sequence in mock order: live=false -> onRetireFirst(ev) hook (module 1
+    supplies the unwrap fallback) -> zone sweep -> normalizeTops ->
+    onDragEnd subscribers. Listeners attach at creation with dispose();
+    wire() is pure subscription. Retire fires on pointerup AND
+    pointercancel and runs even without a prior arm.
+D12 (task 5 return): WindowDragGate public type carries dispose();
+    DragBox/DragContainerBox are public-by-budget. sweepZoneOverlays is
+    internal-only (shared by retireDragState and the gate).
+D13 (task 5 return): normalizeTops uses el.parentElement as the verified
+    equivalent of the mock's private overlay.options.container hop
+    (Overlay constructor appends to it) — engine-verified at 7.0.4;
+    drift note belongs in dist/README.rst if engine pin ever changes.
+D14 (task 5 return): gate notifies onDragEnd AFTER onRetireFirst returns,
+    so usePinnedHeights net-3 scheduling always lands post-unwrap.
+D15 (escalation E1, task 6 gate — orchestrator decision, engine-verified
+    by both thread and orchestrator): Resolution A adopted. FloatingGroupLike
+    is amended to the engine-true, mock-identical surface: the panel-level
+    position(bounds: Partial<AnchoredBox>) lives ON the floating-group
+    object (DockviewFloatingGroupPanel.position → overlay.setBounds); the
+    fabricated overlay.position member is removed. All call sites change
+    fp.overlay.position(...) → fp.position(...): pinHeights.ts ×5,
+    windowDrag.ts ×1, dragTakeover.ts ×1. This is a scoped exception to
+    the per-task untouchables for exactly those lines (modules 3/5 files
+    touched by the orchestrator's mandate, not by task 6); no test in the
+    100-test baseline touches them. Task 6 executes with this convention.
+D16 (task 6 return): wireTabsetEdges options shape {api, onCommit?,
+    floorOf?}; pointerup = reconcileWindow -> onCommit(collectStable);
+    per-move pinGroup(target, h, floorOf?.(target)) with the floor applied
+    BEFORE window-height math so the window tracks the pinned height.
+    pickResizeTarget/resizeFrame are module-exported, NOT on index.
+D17 (task 6 return): internal.ts header + dist/README.rst should be
+    updated at module-1 convergence to note the mock's inline
+    wireTabsetEdges block is superseded (deferred to convergence task).
+D18 (task 4 return): the mock's immediate `heightsMap[newGroup.id] =
+    size.h` write at undock (mock :1303) has no library-side seam: the
+    heights map lives inside usePinnedHeights (D8), and the undock-path
+    `setConstraints` to the source height plus the pin pass's sample
+    guard (existing min==max constraints win over a transient rect)
+    reproduce the same settle-observable storage. Approved D-a/D-b
+    porting-defect fixes: handleWillDrop merges the mock's two
+    onWillDrop listeners (claim short-circuits, DECLINED claim falls
+    through to the veto backstop — mock :1343 + :1479 semantics);
+    panelEdgeDropVeto restores the group-branch grid-target exemption
+    (mock :1400) without which the onWillShowOverlay veto would kill the
+    HP2 grid-surface claim's latched drop state. useDropRules self-
+    subscribes (D6 pattern) and returns the bound handlers on its handle;
+    DropEventLike.group became `DockviewGroupPanel | undefined`
+    (non-optional) for exactOptionalPropertyTypes contravariance.
+D19 (task 4 return): claimGridSurfaceDrop joins the internal-only pure
+    helper set (module-exported, not on index; same category as
+    pickResizeTarget) — the claim body lifted out of handleWillDrop so a
+    declined claim is observable; module 1 and the synthetic layer can
+    drive the claim path directly once elementFromPoint is injectable.
+D20 (task 4 return): DropEventLike.group is non-optional
+    (DockviewGroupPanel | undefined) for exactOptionalPropertyTypes
+    contravariance when registering against the engine's event types.
+D21 (task 7 return): watchTitlebars root is injectable
+    ({root?, intervalMs?}, defaults document.body / 500); module 1 passes
+    the layout container, mirroring the mock's #root observation.
+D22 (task 7 return): suppressTitlebarGroupDrag is internal-only forever
+    (quarantined _titleBar.dragSource reach-in, exposed via internal.ts
+    for module 1 only). If the engine ships a public disable API, the
+    quarantine header changes, not the export surface.
+D23 (task 8 return): wrapPanelComponent(component) lives in
+    panelErrorBoundary.tsx, internal.ts-only (NOT on index) — the §2.5
+    registry-application seam; reads props.api.id as panelId, renders
+    consumer as boundary child. Module 1 consumes it via internal.
+D24 (task 8 return): react-dom/server CANNOT exercise error boundaries
+    (it rethrows; derived-state/catch never fire) — Node C3 coverage
+    drives the real class lifecycle directly; the synthetic layer later
+    mounts a throwing panel through wrapPanelComponent.
+D25 (task 8 return): Node harness resolves react/react-dom (PnP) for
+    compiled-.tsx imports (panelErrorBoundary.test.mjs proves the path);
+    module 1's panelLayout.tsx relies on this.
+D26 (task 9 return): splitDockviewOptions is the OWNED-vs-PASSED option
+    contract (owned: dndStrategy/floatingGroupBounds/floatingGroupDragHandle,
+    values pinned from tokens+mock; keyboardNavigation and everything else
+    pass verbatim). Internal-only; module 1 consumes at convergence.
+D27 (task 9 return): G5 focus restoration implemented event-driven
+    (onDidRemovePanel -> microtask -> focusNowhere guard ->
+    activeGroup.focus()); moves/unwraps are movingLock-suppressed by the
+    engine so only closes fire it. G6 = convergence amendment: module 1
+    calls queueMicrotask(() => panel.api.group?.focus()) at module 4's
+    claim seam after a successful panel-claim. G7/G8 stay documented gaps.
+D28 (task 9 return): G3 focus rings live in focus.css, a hand-authored
+    library stylesheet OUTSIDE the tokens:extract/tokens:check pipeline
+    (which owns panel-layout.css verbatim from the mock). Additive
+    source-order win over the engine's :focus suppression; no sash rule
+    (sashes are not focusable, engine-verified).
+D29 (task 10 return): extract-css.mjs gripHover grab overrun fixed — the
+    lazy `\n  }` anchor ran past the grip-hover rule (which ends inline,
+    `3px 7px)}`) to the importmap's closing brace, dragging `</style>`,
+    importmap JSON and ~170 lines of demo panel-content CSS into
+    panel-layout.css while tokens:check stayed green (both directions
+    derive from the same regex: self-consistent but wrong; present since
+    the pipeline's first commit, unnoticed because nothing links the file).
+    Fix: every grab anchored to verbatim rule text (unique prefix +
+    terminal literal of the last declaration); grabs added for the
+    previously-uncarved with-titlebar radius and the tab-strip/grid-sash
+    group (which had reached the artifact ONLY via the overrun — a naive
+    regex fix would have silently dropped J5's grid-sash accent), sash/
+    suppression grabs extended to their explanatory comments; FORBIDDEN
+    sanity guard in the extractor (fails on HTML tags, importmap JSON,
+    mock JS, demo panel/app-chrome/document-page selectors) + mirrored
+    scope pin in tokens.test.mjs. Promotion surface: CONSTANTS/TOKENS/
+    DV_TOKENS (+ LayoutConstants type) on index; DND_EDGES/
+    FLOATING_GROUP_BOUNDS (engine option values, owned-and-ignored per
+    §2.1/D26), STORAGE_KEYS (consumer config; library default is
+    DEFAULT_ENVELOPE_KEY per D4) and PROVENANCE internal-only.
+    TOKENS/DV_TOKENS typed Readonly<Record<string,string>> — no
+    literal-key interfaces (would drift where tokens:check can't see).
+    panelTitles/presetLayout/importMap stay viewless (demo data).
+D30 (task 10 return): every panel-layout.css rule except :root and
+    .mn-drag-grip is .layoutArea-scoped — module 1's PanelLayout container
+    must carry the `layoutArea` class for the library chrome (theme
+    overrides, titlebar, grip, sash cursors, suppression) to apply; the
+    mock's own container already does. Noted in the generated artifact
+    header (extract-css.mjs owns that text).
+D31 (task 1 return, corrects D8): heights saves are pass-debounced, but
+    LAYOUT saves are the mock's synchronous change-event net (goldens pin
+    the lag: hp2 stores 484 while live is 236). panelLayout.tsx restores
+    that timing through a persistence facade (init saveLayout passes
+    through once; pass re-saves suppressed; component subscribes its own
+    synchronous saveLayout on onDidLayoutChange). Goldens are the authority.
+D32 (task 1 return): HP9 restore path is library behavior — consumer
+    fromJSON (the restore operation) clears the pin map and re-pins over
+    preset seeds through the onDidLayoutFromJSON net (commitHeights({}) +
+    synchronous pinAllWindows); demo Reset = wipe-keys + clear() +
+    fromJSON(preset).
+D33 (task 1 return): floatExcludedPanels returns PANEL IDS derived from
+    registry keys; when a panel's id != its contentComponent the policy
+    entry must ride the panel-id key (demo: doc id 'doc' vs component
+    'document'). §2.5 amendment candidate: derive per panel id at wiring.
+D34 (task 1 return): check-imports.mjs scanner constraint (no '/' after
+    '}' — self-closing JSX after a spread breaks the char-consumption
+    scan); panelLayout.tsx uses createElement for its final render for
+    that reason. CONTRIBUTING note candidate.
+D35 (task 1 return): mock keeps library chrome CSS blocks + design
+    constants inline as EXTRACTION ANCHORS (extract-css/extract-tokens
+    read the mock; removing the blocks would fail the pipeline). The
+    <link>s are additive and byte-identical; cascade-neutral. The
+    "inline style keeps only demo CSS" ideal is unreachable while the
+    extractor's source is the mock.
+D36 (task 1 return): build-panel-layout.mjs PnP onResolve now honors the
+    externals list (the plugin claimed bare specifiers before esbuild's
+    external could apply — first runtime dockview-react import bundled
+    the engine into the mock artifact; fixed, metafile assert green,
+    407KB->25KB).
+D37 (task 1 return): E2 resolved engine-stock (dockview title ?? id last
+    rung); layout->registry rungs are data plumbing. Synthetic harness
+    lives at tests/parity/harness.html (tracked). Coverage: B6 =
+    documented-gap; C2 page-survival + J7 rendered-motion = synthetic
+    follow-ups (quota-exhausted / emulated reduced-motion contexts).

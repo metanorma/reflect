@@ -23,14 +23,15 @@ const GRIP_CLASS = 'mn-drag-grip';
  * Decorate each float titlebar with the text-free drag-grip span. Idempotent
  * (skips bars that already carry a grip); the grip is decorative
  * (aria-hidden, pointer-events:none — the bar itself is the handle).
+ *
+ * The bar lookup uses the mock's plain truthiness guard (mock :687), not an
+ * instanceof check: `querySelector` on a titlebar-class element is always an
+ * `Element`, and every member touched below lives on `Element` itself.
  */
 export function decorateTitlebars(api: DockviewApi): void {
   for (const fp of floatingGroups(api)) {
     const bar = fp.overlay.element.querySelector('.dv-floating-titlebar');
-    if (!(bar instanceof HTMLElement)) {
-      continue;
-    }
-    if (bar.querySelector('.' + GRIP_CLASS)) {
+    if (!bar || bar.querySelector('.' + GRIP_CLASS)) {
       continue;
     }
     const grip = document.createElement('span');
@@ -80,6 +81,21 @@ export function suppressTitlebarGroupDrag(api: DockviewApi): void {
   }
 }
 
+/** Options for `watchTitlebars` (the mock's hard-wired values, injectable). */
+export interface WatchTitlebarsOptions {
+  /**
+   * Observation root for the MutationObserver net. The mock watches its
+   * app-owned `#root` (:1495); the library default is `document.body`, and
+   * module 1 passes the layout container.
+   */
+  readonly root?: HTMLElement;
+  /**
+   * Interval net period in ms. Default 500 — the A4 "grips ≤500ms late"
+   * bound (mock :1496).
+   */
+  readonly intervalMs?: number;
+}
+
 /**
  * Decoration safety net: run now + on DOM mutations + on an interval, so
  * windows created later (auto-wrap unwrap, restore) get chrome ≤1 tick late
@@ -87,7 +103,7 @@ export function suppressTitlebarGroupDrag(api: DockviewApi): void {
  */
 export function watchTitlebars(
   api: DockviewApi,
-  root: HTMLElement,
+  options: WatchTitlebarsOptions = {},
 ): () => void {
   const paint = (): void => {
     decorateTitlebars(api);
@@ -95,8 +111,11 @@ export function watchTitlebars(
   };
   paint();
   const mo = new MutationObserver(paint);
-  mo.observe(root, { childList: true, subtree: true });
-  const t = setInterval(paint, 500);
+  mo.observe(options.root ?? document.body, {
+    childList: true,
+    subtree: true,
+  });
+  const t = setInterval(paint, options.intervalMs ?? 500);
   return () => {
     mo.disconnect();
     clearInterval(t);

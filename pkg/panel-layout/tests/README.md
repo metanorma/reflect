@@ -11,7 +11,7 @@ stays mechanically traceable).
 |---|---|---|---|
 | **Node** | `tests/*.test.mjs` | `yarn workspace @metanorma/panel-layout test` (via root `yarn test`) | Pure seams: injected storage, decision tables, math, token pins |
 | **Parity** | `tests/parity/mock.spec.ts` | `yarn workspace @metanorma/panel-layout parity` | The DOM-coupled behavior of the whole surface, characterized against `mock/goldens/` |
-| **Synthetic** (later) | `tests/parity/synthetic*.spec.ts` | same `parity` run, `synthetic` project | Seeded-storage states, pin-pass measurement, grid-surface veto branches, error boundary, focus — arrives with the convergence task (mock consuming `dist/mock/panel-layout.js`) |
+| **Synthetic** | `tests/parity/synthetic-storage.spec.ts` + `synthetic-panel.spec.ts` | same `parity` run, `synthetic` project | Seeded-storage states (A6/A7/A8, HP9-from-dirty), the live error boundary (C3), late-window grip timing (A4), focus restoration (G5/G6) — driven against the rewired mock + the harness page (`tests/parity/harness.html`, tracked) that instantiates the built artifact with a test registry |
 
 Rule: **DOM rows are never faked in Node.** A faked `getBoundingClientRect`
 tests the fake. Until the synthetic layer lands, DOM-coupled rows are covered
@@ -49,17 +49,21 @@ ESCALATE with the spec row it contradicts.
 | 3 `pinHeights.ts` | `pinGroup` pinned; only pure helpers if any emerge | measurement/reconcile/pin pass (HP4/HP6, A4/A5/A8, B5/B6) |
 | 4 `unwrap.ts` | veto tables pinned; any new pure predicate gets table tests | grid-surface claims (HP2/HP7, F5), unwrap sizing |
 | 5 `windowDrag.ts` | `clampDragBox` pinned | normalizeTops, drag gate (HP5/F4 DOM side) |
-| 6 `dragTakeover.ts` | — (capture-phase DOM routing) | HP6 entirely |
-| 7 `titlebar.ts` | — (DOM decoration + reach-in) | F2, A4 grip timing |
-| 8 error boundary | pure fallback-model function if one is extracted | C3 → `synthetic-error-boundary.spec.ts` on landing |
-| 9 focus/keyboard | — (CSS + option wiring) | G1–G3, G5–G8 → `synthetic-focus.spec.ts` on landing |
+| 6 `dragTakeover.ts` | `pickResizeTarget`/`resizeFrame` pinned (target selection + frame math + floors, extracted pure from the mock block) | capture-phase listener wiring, overlay positioning, reconcile+commit sequencing (HP6 DOM side) |
+| 7 `titlebar.ts` | structure + wiring pinned (`titlebar.test.mjs`: grip append/aria-hidden/idempotence/barless skip; `__mnMoveOnly` marker, both-source disable, durability, feature-detection; safety-net paint/observer/interval/dispose/defaults) | F2 cursor states, real engine reach-in, late-window DOM timing |
+| 8 error boundary | fallback model pinned (`panelErrorBoundary.test.mjs`, driving the class lifecycle directly — react-dom/server rethrows rather than exercising boundaries): throw → classless "Panel failed: <id>" div, `componentDidCatch` diagnostic, `wrapPanelComponent` seam, no-reset semantics, .tsx smoke | C3 → `synthetic-error-boundary.spec.ts` on landing |
+| 9 focus/keyboard | option split + CSS pins + refocus wiring pinned (`focus.test.mjs`: G2 owned-vs-passthrough table incl. `keyboardNavigation` verbatim forms; G3 file-content pins on hand-authored `focus.css` — tab/group accent `:focus-visible`, no sash rule, additivity; G5 injected-seam wiring — restore/null/body/no-steal/no-group) | G1–G3, G5–G8 rendered/DOM halves → `synthetic-focus.spec.ts` on landing |
 | 10 theming/tokens | pinned in `tokens.test.mjs`; drift owned by `tokens:check` | J4/J5 visuals |
 
-Synthetic-layer specs (when the convergence task lands, per the staged plan):
-`synthetic-storage.spec.ts` (A6/A7/A8/C2/HP9 seeding via `addInitScript`),
-`synthetic-pin.spec.ts` (precedence + sample guards; `chromeOf` with ±1px
-tolerance — never pixel-equality), `synthetic-vetoes.spec.ts`
-(`overGridSurface` branches, `unwrapAtPointer`), plus the module 8/9 riders
-above. Each Playwright project keeps its **own browser context** —
-`addInitScript` seeding runs on every page load of its context, and a shared
-context would re-seed storage under the plain parity pages.
+Synthetic-layer specs (landed with the convergence task):
+`synthetic-storage.spec.ts` (A6/A7/A8/HP9-from-dirty seeding via
+`addInitScript`) and `synthetic-panel.spec.ts` (C3 live throw, A4 grip
+timing, G5/G6 focus — through `tests/parity/harness.html`, a tracked harness
+page that instantiates `/dist/mock/panel-layout.js` with a test registry;
+the demo preset loads from `mock/design-tokens.json` so the geometry
+matches the parity pages). Deferred rows (pin-pass measurement precedence,
+`overGridSurface` branches, quota-exhausted C2, emulated reduced-motion J7)
+are recorded as synthetic follow-up in coverage-map.md. Each Playwright
+project keeps its **own browser context** — `addInitScript` seeding runs on
+every page load of its context, and a shared context would re-seed storage
+under the plain parity pages.

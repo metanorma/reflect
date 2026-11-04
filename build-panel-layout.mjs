@@ -95,8 +95,30 @@ function cssLoaderFor(filePath) {
 }
 
 // ── Yarn PnP resolution plugin ─────────────────────────────────────────
+//
+// Takes the target's `externals` list (null for the twin): a bare specifier
+// that matches an external pattern must STAY external — esbuild applies the
+// `external` option in its own resolver, but a custom onResolve with a
+// matching filter claims the specifier first and the peer would be bundled
+// into the artifact instead. This first mattered at convergence, when
+// panelLayout.tsx became the package's first runtime `dockview-react`
+// import (type-only imports erase and never reach the resolver).
 
-const pnpPlugin = {
+function matchesExternal(specifier, externals) {
+  for (const pattern of externals) {
+    if (pattern.endsWith('/*')) {
+      const base = pattern.slice(0, -2);
+      if (specifier === base || specifier.startsWith(base + '/')) {
+        return true;
+      }
+    } else if (specifier === pattern) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const pnpPlugin = (externals) => ({
   name: 'pnp',
   setup(b) {
     // Resolve bare specifiers (e.g. "react", "dockview-react") through
@@ -105,6 +127,9 @@ const pnpPlugin = {
     // counterpart when one exists (granular ESM → tree-shaking). See
     // build-gui.mjs for the full rationale.
     b.onResolve({ filter: /^[^./]/ }, (args) => {
+      if (externals && matchesExternal(args.path, externals)) {
+        return { path: args.path, external: true };
+      }
       const resolveDir = args.resolveDir || projectRoot;
       const req = createRequire(resolveDir + '/');
       const resolved = req.resolve(args.path);
@@ -131,7 +156,7 @@ const pnpPlugin = {
       return { contents, resolveDir: path.dirname(args.path), loader };
     });
   },
-};
+});
 
 // ── Build ──────────────────────────────────────────────────────────────
 
@@ -156,7 +181,7 @@ function optionsFor(target) {
     },
     // CSS loaders for files resolved natively (project-local stylesheets).
     loader: { '.module.css': 'local-css', '.css': 'global-css' },
-    plugins: [pnpPlugin],
+    plugins: [pnpPlugin(target.externals)],
     logLevel: 'info',
     ...(target.externals ? { external: target.externals } : {}),
   };

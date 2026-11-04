@@ -66,11 +66,13 @@ export function fakeGroup({ minimumHeight, maximumHeight, setConstraintsSpy } = 
 }
 
 /**
- * Minimal drop-event fake for the veto predicates (DropEventLike seam):
- * getData() returns { panelId, groupId, viewId } per the drag payload.
- * Group drags carry panelId === null EXPLICITLY (dockview convention the
- * predicates encode: strict `d.panelId !== null` = panel drag; absent-key
- * undefined would defeat it) — so an unset panelId is emitted as null.
+ * Minimal drop-event fake for the veto predicates and handleWillDrop
+ * (DropEventLike seam): getData() returns { panelId, groupId, viewId } per
+ * the drag payload, preventDefault() latches defaultPrevented (the seam
+ * handleWillDrop's claim/veto paths touch). Group drags carry panelId ===
+ * null EXPLICITLY (dockview convention the predicates encode: strict
+ * `d.panelId !== null` = panel drag; absent-key undefined would defeat
+ * it) — so an unset panelId is emitted as null.
  */
 export function fakeDropEvent({
   kind = "content",
@@ -79,17 +81,24 @@ export function fakeDropEvent({
   groupId,
   viewId = "v-test",
   groupLocation = "floating",
+  nativeEvent = null,
+  group = undefined,
 } = {}) {
   const data = { panelId: panelId ?? null, groupId, viewId };
-  return {
+  const ev = {
     kind,
     position,
-    nativeEvent: null,
-    group: {
+    nativeEvent,
+    defaultPrevented: false,
+    group: group !== undefined ? group : {
       api: { location: { type: groupLocation } },
     },
     getData: () => data,
+    preventDefault() {
+      ev.defaultPrevented = true;
+    },
   };
+  return ev;
 }
 
 /** Minimal UnwrapConfig fake (unwrap.ts seam). */
@@ -105,4 +114,17 @@ export function fakeConfig({
     viewId: () => viewId,
     layoutArea: () => layoutArea,
   };
+}
+
+/**
+ * GroupDragLive fake (unwrap.ts seam) for maybeUnwrapGroupAtPointer: the
+ * mutable latch shape the fallback consumes. `ownerEl` is what
+ * `g.element.closest('.dv-grid-view')` must match for the
+ * same-owner guard — in Node the fallback always declines past the
+ * button/autoWrap/getGroup/location guards it can satisfy, which is
+ * exactly what these tests assert (the DOM hit-test branches stay
+ * parity/synthetic).
+ */
+export function fakeGroupDragLive({ group = null, ownerEl = null } = {}) {
+  return { group, ownerGridviewEl: ownerEl };
 }

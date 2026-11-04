@@ -15,11 +15,18 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  handleWillDrop,
+  maybeUnwrapGroupAtPointer,
   panelEdgeDropVeto,
   groupGridDropVeto,
   floatExclusionVeto,
 } from "../compiled/unwrap.js";
-import { fakeApi, fakeDropEvent, fakeConfig } from "./helpers.mjs";
+import {
+  fakeApi,
+  fakeConfig,
+  fakeDropEvent,
+  fakeGroupDragLive,
+} from "./helpers.mjs";
 
 const api = fakeApi({
   // group containing an excluded panel, for floatExclusionVeto's group path
@@ -54,6 +61,21 @@ describe("unwrap: panelEdgeDropVeto (HP3/HP7 — merge stays, splits vetoed)", (
   });
 });
 
+describe("unwrap: floatExclusionVeto (F3 — doc never enters a float window)", () => {
+  it("F3: excluded panel dropped on a float window is vetoed", () => {
+    assert.equal(floatExclusionVeto(api, fakeDropEvent({ kind: "content", position: "center", panelId: "doc", groupLocation: "floating" }), cfg), true);
+  });
+  it("F3: group containing an excluded panel (via api.getGroup) is vetoed", () => {
+    assert.equal(floatExclusionVeto(api, fakeDropEvent({ kind: "content", position: "center", groupId: "g-src", groupLocation: "floating" }), cfg), true);
+  });
+  it("F3: non-excluded panel on a float window passes", () => {
+    assert.equal(floatExclusionVeto(api, fakeDropEvent({ kind: "content", position: "center", panelId: "outline", groupLocation: "floating" }), cfg), false);
+  });
+  it("F3: grid-target drops are not this veto's business", () => {
+    assert.equal(floatExclusionVeto(api, fakeDropEvent({ kind: "content", position: "center", panelId: "doc", groupLocation: "grid" }), cfg), false);
+  });
+});
+
 describe("unwrap: groupGridDropVeto (T2 — whole groups never dock into the grid)", () => {
   it("HP4: group edge-band drop is vetoed", () => {
     assert.equal(groupGridDropVeto(api, fakeDropEvent({ kind: "edge", position: "center", groupId: "g-src" }), cfg, null), true);
@@ -77,17 +99,82 @@ describe("unwrap: groupGridDropVeto (T2 — whole groups never dock into the gri
   });
 });
 
-describe("unwrap: floatExclusionVeto (F3 — doc never enters a float window)", () => {
-  it("F3: excluded panel dropped on a float window is vetoed", () => {
-    assert.equal(floatExclusionVeto(api, fakeDropEvent({ kind: "content", position: "center", panelId: "doc", groupLocation: "floating" }), cfg), true);
+describe("unwrap: panelEdgeDropVeto group branch (HP2/HP4 — mock :1400 exemption)", () => {
+  it("HP2: group content drop on a GRID target is exempt at ANY position — claim territory (left/right not vetoed)", () => {
+    // Without the exemption a group drag on the doc grid's outer 20% bands
+    // (the bibdata strip etc., which resolve to edge zones) would be vetoed
+    // at the onWillShowOverlay stage, killing the latched drop state and
+    // with it the HP2 grid-surface unwrap claim.
+    assert.equal(panelEdgeDropVeto(api, fakeDropEvent({ kind: "content", position: "left", groupId: "g-src", groupLocation: "grid" }), cfg, null), false);
+    assert.equal(panelEdgeDropVeto(api, fakeDropEvent({ kind: "content", position: "right", groupId: "g-src", groupLocation: "grid" }), cfg, null), false);
+    assert.equal(panelEdgeDropVeto(api, fakeDropEvent({ kind: "content", position: "top", groupId: "g-src", groupLocation: "grid" }), cfg, null), false);
   });
-  it("F3: group containing an excluded panel (via api.getGroup) is vetoed", () => {
-    assert.equal(floatExclusionVeto(api, fakeDropEvent({ kind: "content", position: "center", groupId: "g-src", groupLocation: "floating" }), cfg), true);
+
+  it("HP4: group content drop on a FLOAT target — left/right side-splits vetoed, top/bottom stacking stays stock", () => {
+    assert.equal(panelEdgeDropVeto(api, fakeDropEvent({ kind: "content", position: "left", groupId: "g-src", groupLocation: "floating" }), cfg, null), true);
+    assert.equal(panelEdgeDropVeto(api, fakeDropEvent({ kind: "content", position: "right", groupId: "g-src", groupLocation: "floating" }), cfg, null), true);
+    assert.equal(panelEdgeDropVeto(api, fakeDropEvent({ kind: "content", position: "top", groupId: "g-src", groupLocation: "floating" }), cfg, null), false);
+    assert.equal(panelEdgeDropVeto(api, fakeDropEvent({ kind: "content", position: "bottom", groupId: "g-src", groupLocation: "floating" }), cfg, null), false);
   });
-  it("F3: non-excluded panel on a float window passes", () => {
-    assert.equal(floatExclusionVeto(api, fakeDropEvent({ kind: "content", position: "center", panelId: "outline", groupLocation: "floating" }), cfg), false);
+});
+
+describe("unwrap: handleWillDrop claim/veto composition (HP2/HP7 — mock :1343 + :1479)", () => {
+  it("HP7: autoWrap OFF runs the veto backstop — a vetoed drop is preventDefaulted and reported handled", () => {
+    const ev = fakeDropEvent({ kind: "content", position: "left", panelId: "outline", groupLocation: "floating" });
+    assert.equal(handleWillDrop(api, ev, fakeConfig({ autoWrap: false, floatExcludedPanelIds: new Set(["doc"]) })), true);
+    assert.equal(ev.defaultPrevented, true);
   });
-  it("F3: grid-target drops are not this veto's business", () => {
-    assert.equal(floatExclusionVeto(api, fakeDropEvent({ kind: "content", position: "center", panelId: "doc", groupLocation: "grid" }), cfg), false);
+
+  it("HP2: autoWrap ON with a DECLINED claim falls through to the veto backstop (mock's two-listener semantics)", () => {
+    // No nativeEvent → the claim's hit-test declines; the mock's second
+    // onWillDrop listener still ran its vetoes. Regression pin for D-a:
+    // the pre-fix port returned early and never vetoed here.
+    const cfgOn = fakeConfig({ floatExcludedPanelIds: new Set(["doc"]) });
+    const ev = fakeDropEvent({ kind: "content", position: "left", panelId: "outline", groupLocation: "floating" });
+    assert.equal(handleWillDrop(api, ev, cfgOn), true);
+    assert.equal(ev.defaultPrevented, true);
+  });
+
+  it("HP2: a foreign-viewId drag is untouched — no claim, no veto, no preventDefault", () => {
+    const ev = fakeDropEvent({ kind: "content", position: "center", panelId: "outline", viewId: "v-foreign" });
+    assert.equal(handleWillDrop(api, ev, cfg), false);
+    assert.equal(ev.defaultPrevented, false);
+  });
+});
+
+describe("unwrap: maybeUnwrapGroupAtPointer guards (HP4 — dead-zone fallback)", () => {
+  it("HP4: the latch is CLEARED at entry even when the fallback declines (mock :1041–1044 order)", () => {
+    const group = { id: "g-src", element: {}, api: { location: { type: "floating" } } };
+    const live = fakeGroupDragLive({ group, ownerEl: {} });
+    const out = maybeUnwrapGroupAtPointer(api, { button: 1, clientX: 10, clientY: 20 }, live, cfg);
+    assert.equal(out, false, "non-primary button declines");
+    assert.equal(live.group, null, "latch cleared before the guards ran");
+    assert.equal(live.ownerGridviewEl, null);
+  });
+
+  it("HP4: autoWrap OFF declines without unwrapping (HP7 — group drops never unwrap with the toggle off)", () => {
+    const live = fakeGroupDragLive({ group: { id: "g-src", element: {}, api: { location: { type: "floating" } } } });
+    const out = maybeUnwrapGroupAtPointer(api, { button: 0, clientX: 10, clientY: 20 }, live, fakeConfig({ autoWrap: false }));
+    assert.equal(out, false);
+    assert.equal(live.group, null);
+  });
+
+  it("HP4: a relocated group (getGroup mismatch — a stock drop moved it) declines", () => {
+    const movedApi = fakeApi({ getGroup: () => ({ id: "other" }) });
+    const live = fakeGroupDragLive({ group: { id: "g-src", element: {}, api: { location: { type: "floating" } } } });
+    const out = maybeUnwrapGroupAtPointer(movedApi, { button: 0, clientX: 10, clientY: 20 }, live, cfg);
+    assert.equal(out, false);
+  });
+
+  it("HP4: a group no longer floating (already docked by the stock pipeline) declines", () => {
+    const dockedApi = fakeApi({ getGroup: (id) => (id === "g-docked" ? { id } : undefined) });
+    const live = fakeGroupDragLive({ group: { id: "g-docked", element: {}, api: { location: { type: "grid" } } } });
+    const out = maybeUnwrapGroupAtPointer(dockedApi, { button: 0, clientX: 10, clientY: 20 }, live, cfg);
+    assert.equal(out, false);
+  });
+
+  it("HP4: an idle latch (no live group drag) declines as a no-op", () => {
+    const live = fakeGroupDragLive();
+    assert.equal(maybeUnwrapGroupAtPointer(api, { button: 0, clientX: 10, clientY: 20 }, live, cfg), false);
   });
 });

@@ -15,18 +15,25 @@ targets, one per consumption mode of the library:
 
 ``mock/panel-layout.js``
   The MOCK-FACING artifact: entry ``internal.ts`` (the dev-only internal
-  surface), every peer dependency EXTERNAL (``react``, ``react-dom``,
-  ``dockview-react`` and their subpaths — wildcards, so the
-  ``react/jsx-runtime`` specifier that automatic JSX emits stays
-  external too). It proves peer semantics: the package works when the
-  consumer supplies the engine. Served at
+  surface — the behavior modules plus the PanelLayout composition), every
+  peer dependency EXTERNAL (``react``, ``react-dom``, ``dockview-react``
+  and their subpaths — wildcards, so the ``react/jsx-runtime`` specifier
+  that automatic JSX emits stays external too). It proves peer semantics:
+  the package works when the consumer supplies the engine. Served at
   ``http://127.0.0.1:4173/dist/mock/panel-layout.js`` by the parity
-  server. The build asserts (from the esbuild metafile) that the
-  dockview/dockview-core packages appear nowhere in the module graph —
-  runtime engine imports from the library would load a second
-  dockview-core instance next to the one inlined in the mock's bundled
-  ``dockview-react`` (broken drag-and-drop); the source-level twin of
-  this check is ``scripts/check-imports.mjs`` (``yarn imports:check``).
+  server — the REWIRED reference mock imports it there, and the synthetic
+  harness (``tests/parity/harness.html``) does too. The
+  build asserts (from the esbuild metafile) that the dockview/dockview-core
+  packages appear nowhere in the module graph — runtime engine imports from
+  the library would load a second dockview-core instance next to the one
+  inlined in the mock's bundled ``dockview-react`` (broken drag-and-drop);
+  the source-level twin of this check is ``scripts/check-imports.mjs``
+  (``yarn imports:check``). NOTE: the PnP resolver plugin honors the
+  externals list (a bare specifier matching an external pattern stays
+  external — the custom onResolve claims specifiers before esbuild's own
+  resolver would apply `external`); this first mattered when
+  ``panelLayout.tsx`` became the package's first runtime ``dockview-react``
+  import.
 
 ``twin/panel-layout.js``
   The TWIN-FACING artifact: entry ``index.ts`` (the public surface),
@@ -36,19 +43,29 @@ targets, one per consumption mode of the library:
   source/peer per its exports map. Duplicate-instance protection is
   yarn's own gate (``yarn check-for-multiple-instances``).
 
-Deferred by design (they land with the PanelLayout component and the
-mock rewiring, not with this build groundwork):
+Deferred items that LANDED with the convergence task (module 1 +
+mock rewiring):
 
-- Mock rewiring: the reference mock currently runs its inline port of
-  the behavior code; the rewiring imports
-  ``/dist/mock/panel-layout.js`` instead and drops the inline
-  duplicates.
-- CSS de-duplication: the mock carries the extracted rules inline in
-  its ``<style>``; the target end-state is that it links the served
-  ``panel-layout.css`` instead. Drift direction stays mock → library
-  (``extract-css.mjs`` remains the generator).
-- Single-instance parity test: once the mock imports the built
-  artifact, a spec asserting that
-  ``performance.getEntriesByType('resource')`` contains exactly one
-  build URL per engine package becomes testable; it lands with the
-  rewiring.
+- Mock rewiring: DONE — the reference mock imports
+  ``/dist/mock/panel-layout.js`` and carries zero inline behavior glue
+  (demo panels, preset, toolbar/statusbar chrome and the boot/importmap
+  head remain). The parity suite proves the built artifact reproduces the
+  UNCHANGED goldens; module 1 composes the wiring order, the §2.1 option
+  split (D26) and the mock's layout-save timing through the persistence
+  facade (the synchronous save net — see panelLayout.tsx's header).
+- CSS linking: DONE — the mock links the served ``/panel-layout.css`` and
+  ``/focus.css`` after dockview.css (D28/D30). The library chrome blocks
+  REMAIN in the mock's inline ``<style>`` as the extraction source the
+  tokens pipeline reads (mock → library drift direction, D29); the linked
+  sheet is byte-identical to them, so cascade order changes nothing.
+  ``panel-layout.css`` now also carries the J7 reduced-motion block
+  (behavior.spec.md §3 J7), extracted from the mock.
+- Single-instance parity test: the mock-facing bundle's externals assert
+  (metafile) already cover the engine-copy guarantee; a page-level
+  resource-count spec remains follow-up work with the twin target.
+
+Still deferred by design (twin loop, not this one):
+
+- Twin assembly + first twin parity run (D2): ``dist/twin/panel-layout.js``
+  bundles the engine from the yarn pins; no page consumes it yet.
+- Synthetic-suite audit beyond the convergence rows (D2).

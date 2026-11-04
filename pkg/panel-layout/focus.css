@@ -1,0 +1,48 @@
+/*
+ * focus.css — library-owned focus styles (api.spec.md §3 module 9,
+ * behavior.spec.md G3), the keyboard half of the focus layer.
+ *
+ * HAND-AUTHORED, NOT EXTRACTED: the mock carries no `:focus-visible` rules
+ * (that absence is the G3 gap), and `panel-layout.css` is regenerated
+ * VERBATIM from the mock by extract-css.mjs (`tokens:extract` /
+ * `tokens:check`), so library-ADDED rules cannot live there. This file
+ * sits beside it outside that pipeline; consumers link both stylesheets
+ * (the mock/twin linking story lands with the PanelLayout component, per
+ * dist/README.rst "deferred by design").
+ *
+ * Additivity contract: dockview.css:2503 ships the engine's group-focus
+ * outline suppression (a bare `:focus` rule removing the ring for ALL
+ * focus kinds). These rules never edit or override that suppression; they
+ * add EQUAL-specificity focus-visible companions that win by source order
+ * alone (the library stylesheet loads after dockview.css). Mouse-driven
+ * activation therefore stays ring-less; keyboard focus gets the ring.
+ * `--accent` is the mock's design token (focus ring = accent, the same
+ * color language as the sash hover accent and the request-selection
+ * outline in the demo page).
+ *
+ * Engine facts (pinned dockview-core 7.0.4): the tab element is keyboard-
+ * focusable (roving tabindex, role=tab); the group container is program-
+ * focusable (tabIndex=-1) but carries no ring. The sash element is NOT
+ * focusable (plain div, no tabIndex/role) — there is deliberately NO sash
+ * rule here; sash resize is a pointer gesture (module 6 takeover) with
+ * hover accent as its only affordance.
+ */
+
+/* G3 — the tab ring: the roving-tabindex tab strip (G1, engine stock) is
+   the keyboard surface; give the focused tab an accent outline. The tab's
+   5px 5px 0 0 corner radius (panel-layout.css) is why the ring rides the
+   same box: outline follows border-radius in every supported browser. */
+.layoutArea .dv-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* G3 — the group ring: `group.focus()` (G5 restore, and the engine's F6
+   group-to-group navigation once a consumer passes `keyboardNavigation`)
+   focuses the group container programmatically; the focus-visible pseudo
+   keys the ring to keyboard-driven focus only, so the post-close restore
+   (G5) does not paint a ring on every mouse close. */
+.layoutArea .dv-groupview:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
