@@ -7,6 +7,28 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-11-03 — Upstream ledger re-pin: one id-generation change; grammars and vendoring unmoved
+
+`docs/metanorma-model.md` re-pin; **Commits: *(pending)***. Trigger: the
+ledger's own policy — the metanorma-standoc release run `v3.5.1`–`v3.5.7`
+advanced past the release-trigger pin.
+
+- **Pins** — metanorma-standoc `78bb1347` → `ba325b0e` (main), metanorma
+  `e9a3bc18` → `de1e757d`, isodoc `9d02f55f` → `cbbdc3b1`. Grammar sources
+  unmoved (standoc-models still `7d5d737c`, submodule `3b408b71`) and the
+  vendored runtime grammars byte-identical to the 2026-10-28 verification —
+  no vendoring pass since the 2026-10-01 flip, so the §4 vendored-runtime
+  lag persists; §3/§4 source facts stand as verified.
+- **One drift** — standoc `2f3d7e87` (2026-10-31, "Generate internal
+  identifiers from the buffered Metanorma::Utils pool"): `id_attr` now
+  generates placeholder ids via `Metanorma::Utils.random_uuid` (buffered
+  v4-UUID pool in metanorma-utils ≥ 2.0.10) instead of per-call
+  `UUIDTools::UUID.random_create` entropy — a performance change; the
+  `"_" + UUID` placeholder shape and the whole §5 lifecycle (contenthash
+  rewrite, anchor resolution) are unchanged. §5 updated.
+
+---
+
 ## 2026-10-28 — Upstream ledger re-pin: vendoring flip landed; grammar sources unmoved
 
 `docs/metanorma-model.md` re-pin (plus one rename in `docs/schema.spec.md`);

@@ -19,11 +19,11 @@ All raw content is reachable as
 
 | Repository | Commit | Role |
 |---|---|---|
-| metanorma/metanorma-standoc | `78bb1347` | AsciiDoc→Semantic-XML converter; runtime `lib/metanorma/validate/` grammars |
+| metanorma/metanorma-standoc | `ba325b0e` | AsciiDoc→Semantic-XML converter; runtime `lib/metanorma/validate/` grammars |
 | metanorma/standoc-models | `7d5d737c` | Human-authored grammar sources (`grammars/`) |
 | metanorma/basicdoc-models | `3b408b71` | Base grammar (`basicdoc.rnc`); submodule of standoc-models |
-| metanorma/metanorma | `e9a3bc18` | Pipeline orchestrator (compile driver) |
-| metanorma/isodoc | `9d02f55f` | Semantic→Presentation-XML transform and renderers |
+| metanorma/metanorma | `de1e757d` | Pipeline orchestrator (compile driver) |
+| metanorma/isodoc | `cbbdc3b1` | Semantic→Presentation-XML transform and renderers |
 
 **Naming note (three senses of "isodoc").** Upstream commit `4bad36724d`
 (2026-08-17, "grammars: rename isodoc.\* sources to standoc.\* (retire the
@@ -58,17 +58,17 @@ from main, so the vendored basicdoc content is unchanged by it and the
 content lag recorded in §4 persists through the flip.
 
 **Re-verification.** Facts below were verified 2026-08-16 at the then-pins,
-re-verified 2026-08-18, re-verified 2026-09-25, and re-verified
-**2026-10-28** at the §1 pins (trigger: the metanorma-standoc October
-prerelease run past its release-trigger pin). Grammar sources did not move
-this cycle — `standoc-models` main is still `7d5d737c` (submodule `3b408b71`),
-so `standoc.rnc`/`standoc-presentation.rnc`/`basicdoc.rnc` are byte-identical
-to the 2026-09-25 verification; §3 and §4's source facts stand as verified.
-This cycle's drift is all gem-side, recorded in §2 (vendoring flip +
-Jing→leptris engine swap) and §1's vendoring note (refresh cut from tag
-`v2.3.0`, so the §4 vendored-runtime lag persists). Re-verify on the next
-metanorma-standoc release; drift then surfaces as a diff against a known
-commit.
+re-verified 2026-08-18, 2026-09-25, 2026-10-28, and re-verified
+**2026-11-03** at the §1 pins (trigger: the metanorma-standoc release run
+`v3.5.1`–`v3.5.7` past its release-trigger pin). Grammar sources did not
+move — `standoc-models` main is still `7d5d737c` (submodule `3b408b71`),
+and the vendored runtime grammars are byte-identical to the 2026-10-28
+verification (no vendoring pass since the 2026-10-01 flip, so the §4
+vendored-runtime lag persists); §3 and §4's source facts stand as verified.
+This cycle's drift is one gem-side change: generated ids now come from
+`Metanorma::Utils.random_uuid` (buffered v4-UUID pool) instead of per-call
+UUIDTools entropy — recorded in §5. Re-verify on the next metanorma-standoc
+release; drift then surfaces as a diff against a known commit.
 
 ## 2. Pipeline and artifacts
 
@@ -95,11 +95,9 @@ AsciiDoc ──(standoc makexml1 + cleanup)──► Semantic XML
   The gem's lib paths are flat: the 2026-09 restructure flattened the old
   `lib/metanorma/standoc/…` prefix, so the runtime tree that lived at
   `lib/metanorma/standoc/validate/` is now `lib/metanorma/validate/`. Since
-  the 2026-10-28 re-verification the RNG engine is **leptris**
-  (`Leptris::XML::RelaxNG`, `lib/metanorma/validate/schema.rb`
-  `schema_validate_errors`), replacing ruby-jing (swap commit `27afe5e1`,
-  2026-10-14, "Replace ruby-jing with leptris RNG validation").
-- Presentation XML is produced by isodoc's `PresentationXMLConvert`, reached
+  The RNG engine is **leptris** (`Leptris::XML::RelaxNG`,
+  `lib/metanorma/validate/schema.rb` `schema_validate_errors`; replaced
+  ruby-jing in `27afe5e1`, 2026-10-14).
   through the metanorma driver (`lib/metanorma/compile/compile.rb`
   `generate_presentation_xml` → `lib/metanorma/compile/render.rb`
   `process_ext(:presentation)` → `@processor.output`).
@@ -199,7 +197,7 @@ are `basicdoc.rnc` (PR #46 window):
 
 **Vendored-runtime lag.** The drift bullets are verified against the
 **source** grammars at the models pins; the vendored runtime grammars at the
-metanorma-standoc pin (`78bb1347`) lag them at the basicdoc layer —
+metanorma-standoc pin (`ba325b0e`) lag them at the basicdoc layer —
 `lib/metanorma/validate/basicdoc.rng` matches the `50fe9e85` submodule
 (pre-PR #46): no `reg-attribute`/`variable-ref`, and `TdBody`'s block branch
 still `(paragraph-with-footnote | note)+`. The basicdoc-only PR #46 changes
@@ -276,8 +274,10 @@ Every id-bearing element carries `RequiredId = attribute id { xsd:ID }`
 The upstream emission lifecycle (standoc):
 
 1. **At authoring** (`lib/metanorma/converter/blocks.rb` `id_attr`): `@id` is
-   always a generated placeholder `"_" + UUIDTools random UUID`; `@anchor`
-   carries the user's AsciiDoc id (`[[name]]`), only when supplied.
+   always a generated placeholder `"_" + Metanorma::Utils.random_uuid`
+   (a buffered v4-UUID pool in the metanorma-utils gem; per-call UUIDTools
+   entropy until `2f3d7e87`, 2026-10-31); `@anchor` carries the user's
+   AsciiDoc id (`[[name]]`), only when supplied.
 2. **At cleanup** (`lib/metanorma/cleanup/inline.rb` `contenthash_id_make`):
    every GUID-shaped `@id` is replaced by a content-derived hash
    (`Metanorma::Utils.contenthash`; algorithm lives in the unpinned
