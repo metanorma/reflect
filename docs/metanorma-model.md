@@ -22,6 +22,8 @@ All raw content is reachable as
 | metanorma/metanorma-standoc | `ba325b0e` | AsciiDoc→Semantic-XML converter; runtime `lib/metanorma/validate/` grammars |
 | metanorma/standoc-models | `7d5d737c` | Human-authored grammar sources (`grammars/`) |
 | metanorma/basicdoc-models | `3b408b71` | Base grammar (`basicdoc.rnc`); submodule of standoc-models |
+| metanorma/relaton-models | `afa81f5e` | Relaton bibliographic grammar sources (`grammars/biblio*.rnc` + per-flavour `relaton-*.rnc`); submodule of standoc-models |
+| metanorma/metanorma-requirements-models | `3e49a518` | Requirements grammar sources (`grammars/reqt.rnc`/`reqt.rng`); submodule of standoc-models |
 | metanorma/metanorma | `de1e757d` | Pipeline orchestrator (compile driver) |
 | metanorma/isodoc | `cbbdc3b1` | Semantic→Presentation-XML transform and renderers |
 
@@ -346,7 +348,9 @@ references at anchors, never at generated GUIDs or content hashes.
 
 The Relaton bibliographic model grammars ship with standoc's runtime tree:
 `metanorma-standoc → lib/metanorma/validate/biblio.rng` and
-`biblio-standoc.rng`. Relaton itself is a Ruby-only ecosystem; no off-the-shelf
+`biblio-standoc.rng`; their source-side counterparts live in
+`metanorma/relaton-models` (`grammars/biblio*.rnc` plus per-flavour
+`relaton-*.rnc`), pinned in §1. Relaton itself is a Ruby-only ecosystem; no off-the-shelf
 JavaScript implementation exists (citation-js targets CSL-JSON, not Relaton).
 This repository's modeled subset is specified — with its coverage table — in
 [`pkg/relaton/README.spec.md`](../pkg/relaton/README.spec.md).

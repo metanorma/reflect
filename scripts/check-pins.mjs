@@ -90,6 +90,8 @@ const SENSITIVITY = {
   },
   'metanorma/standoc-models': { fail: ['**'], report: [] },
   'metanorma/basicdoc-models': { fail: ['**'], report: [] },
+  'metanorma/relaton-models': { fail: ['**'], report: [] },
+  'metanorma/metanorma-requirements-models': { fail: ['**'], report: [] },
   'metanorma/metanorma': {
     fail: ['lib/metanorma/compile/compile.rb', 'lib/metanorma/compile/render.rb'],
     report: ['lib/metanorma/compile/**'],
@@ -255,17 +257,40 @@ function matchTier(cfg, path) {
   return null;
 }
 
-/** Filter a tree's blob entries into per-tier path→sha maps. */
+/** Filter a tree's watched entries — blobs and submodule gitlinks — into
+ *  per-tier path→sha maps. A gitlink's sha is the submodule's pinned
+ *  commit, so a pointer bump diffs like any content change. */
 function filterTree(entries, cfg) {
   const fail = new Map();
   const report = new Map();
   for (const e of entries) {
-    if (e.type !== 'blob') continue;
+    if (e.type !== 'blob' && e.type !== 'commit') continue;
     const tier = matchTier(cfg, e.path);
     if (tier === 'fail') fail.set(e.path, e.sha);
     else if (tier === 'report') report.set(e.path, e.sha);
   }
   return { fail, report };
+}
+
+
+/**
+ * Filter two tree listings by the sensitivity map and diff them per tier.
+ * Pure — synthetic tree fixtures drive its tests. Returns the per-tier
+ * diffs plus the set of gitlink paths appearing in either tree, so the
+ * triage hint can name pointer bumps: a models-side submodule refresh
+ * must surface at the source, not only later at vendoring.
+ */
+export function diffTrees(baseTree, headTree, cfg) {
+  const base = filterTree(baseTree, cfg);
+  const head = filterTree(headTree, cfg);
+  const gitlinks = new Set([
+    ...baseTree, ...headTree,
+  ].filter((e) => e.type === 'commit').map((e) => e.path));
+  return {
+    fail: diffTier(base.fail, head.fail),
+    report: diffTier(base.report, head.report),
+    gitlinks,
+  };
 }
 
 
@@ -300,11 +325,22 @@ function signatureOf(paths) {
  * grammar sources, or structural (new layer, rename, files outside
  * grammars/)? Aimed at the human's first two seconds with the issue.
  */
-function classifyHint(paths) {
-  const inGrammars = paths.filter((p) => p.startsWith('grammars/')).length;
-  if (inGrammars === paths.length) return 'grammar sources (grammars/)';
-  if (inGrammars === 0) return 'outside grammars/ — structural (new layer, rename, or non-grammar tree change)';
-  return 'mixed: grammar sources and structure';
+export function classifyHint(paths, gitlinks = new Set()) {
+  const bumps = paths.filter((p) => gitlinks.has(p));
+  if (bumps.length === paths.length) {
+    const names = bumps.slice(0, 5).join(', ');
+    const more = bumps.length > 5 ? ` (+${bumps.length - 5} more)` : '';
+    return `submodule pointer bump(s): ${names}${more}`;
+  }
+  const blobs = paths.filter((p) => !gitlinks.has(p));
+  const inGrammars = blobs.filter((p) => p.startsWith('grammars/')).length;
+  if (bumps.length === 0 && inGrammars === blobs.length) {
+    return 'grammar sources (grammars/)';
+  }
+  if (bumps.length === 0 && inGrammars === 0) {
+    return 'outside grammars/ — structural (new layer, rename, or non-grammar tree change)';
+  }
+  return 'mixed: grammar sources, structure, and/or submodule pointers';
 }
 
 
@@ -426,10 +462,9 @@ async function driftRepo(pin, opts, token) {
       : await fetchTree(pin.repo, baseSha, token);
     const headTree = await fetchTree(pin.repo, headSha, token);
 
-    const baseTiers = filterTree(baseTree, cfg);
-    const headTiers = filterTree(headTree, cfg);
-    entry.fail = diffTier(baseTiers.fail, headTiers.fail);
-    entry.report = diffTier(baseTiers.report, headTiers.report);
+    const { fail, report, gitlinks } = diffTrees(baseTree, headTree, cfg);
+    entry.fail = fail;
+    entry.report = report;
     entry.base = baseSha;
     entry.head = headSha;
     entry.compare = `https://github.com/${pin.repo}/compare/${baseSha}...${headSha}`;
@@ -444,7 +479,7 @@ async function driftRepo(pin, opts, token) {
     entry.reportSignature = signatureOf(reportPaths);
     if (failPaths.length > 0) {
       entry.status = 'drift-fail';
-      if (cfg.fail.includes('**')) entry.hint = classifyHint(failPaths);
+      if (cfg.fail.includes('**')) entry.hint = classifyHint(failPaths, gitlinks);
     } else if (reportPaths.length > 0) {
       entry.status = 'drift-report';
     }
@@ -499,8 +534,19 @@ function renderReport(entries) {
     out.push(...listLines(e.report));
     out.push('');
   }
+  out.push('---', '', COVERAGE_NOTE, '');
   return out.join('\n');
 }
+
+// Standing coverage disclosure: ledger facts whose sources are NOT pinned
+// in §1, and therefore not watched. Green means "nothing watched moved" —
+// never "the ledger is current". Extend this list when the ledger gains a
+// fact citing another unpinned source.
+const COVERAGE_NOTE = [
+  'Coverage — not watched: facts citing unpinned sources:',
+  '  metanorma/metanorma-utils  (§5: random_uuid / contenthash algorithms)',
+  '  metanorma/plurimath        (§2: MathML content check)',
+].join('\n');
 
 const CHECKLIST = `## Human interpretation loop
 

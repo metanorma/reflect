@@ -20,18 +20,20 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parsePins, parseArgv } from './check-pins.mjs';
+import { parsePins, parseArgv, diffTrees, classifyHint } from './check-pins.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, 'check-pins.mjs');
 const ledgerPath = join(here, '..', 'docs', 'metanorma-model.md');
 
-// All five repos the sensitivity map watches — scratch tables must carry
+// All seven repos the sensitivity map watches — scratch tables must carry
 // exactly these for the bidirectional consistency check to pass.
 const PINS = [
   '| metanorma/metanorma-standoc | `ba325b0e` | converter |',
   '| metanorma/standoc-models | `7d5d737c` | grammar sources |',
   '| metanorma/basicdoc-models | `3b408b71` | base grammar |',
+  '| metanorma/relaton-models | `afa81f5e` | relaton grammar sources |',
+  '| metanorma/metanorma-requirements-models | `3e49a518` | requirements grammar |',
   '| metanorma/metanorma | `de1e757d` | pipeline |',
   '| metanorma/isodoc | `cbbdc3b1` | renderer |',
 ];
@@ -55,17 +57,19 @@ function run(args, env = {}) {
 
 // --- parsePins ---
 
-test('parsePins reads the real ledger: exactly the five table pins', async () => {
+test('parsePins reads the real ledger: exactly the seven table pins', async () => {
   const content = await readFile(ledgerPath, 'utf8');
   const { pins, unrecognized } = parsePins(content);
   assert.deepEqual(unrecognized, []);
-  assert.equal(pins.length, 5);
+  assert.equal(pins.length, 7);
   assert.deepEqual(
     pins.map((p) => p.repo),
     [
       'metanorma/metanorma-standoc',
       'metanorma/standoc-models',
       'metanorma/basicdoc-models',
+      'metanorma/relaton-models',
+      'metanorma/metanorma-requirements-models',
       'metanorma/metanorma',
       'metanorma/isodoc',
     ],
@@ -81,7 +85,7 @@ test('parsePins ignores backticked prose SHAs in §1 body text', () => {
   ].join('\n');
   const content = ledger(PINS).replace('## 2. Pipeline', `${prose}\n\n## 2. Pipeline`);
   const { pins } = parsePins(content);
-  assert.equal(pins.length, 5);
+  assert.equal(pins.length, 7);
   assert.ok(!pins.some((p) => ['4bad36724d', '8bb23fd5631e', '80892abc', '50fe9e85']
     .includes(p.commit)));
 });
@@ -117,7 +121,7 @@ test('parsePins never reaches tables outside §1', () => {
     '| root | `ba325b0e` | shape |', '| `metanorma/x` | `deadbee1` | x |', '',
   ].join('\n');
   const { pins, unrecognized } = parsePins(content);
-  assert.equal(pins.length, 5);
+  assert.equal(pins.length, 7);
   assert.deepEqual(unrecognized, []);
 });
 
@@ -162,7 +166,81 @@ test('parseArgv: CHECK_PINS_BASE_OVERRIDE env equals the --base flag and wins', 
   );
 });
 
-// --- lint / drift config class (offline CLI) ---
+// --- diffTrees / classifyHint (gitlink watching) ---
+
+const mkTree = (rows) => rows.map(([type, path, sha]) => ({ type, path, sha }));
+const FULL_TREE_CFG = { fail: ['**'], report: [] };
+
+test('diffTrees: a gitlink sha bump is fail-tier drift with a pointer hint', () => {
+  const base = mkTree([
+    ['commit', 'grammars/relaton-models', 'afa81f5e'],
+    ['blob', 'grammars/standoc.rnc', 'bbb2222'],
+  ]);
+  const head = mkTree([
+    ['commit', 'grammars/relaton-models', '1b4ba894'],
+    ['blob', 'grammars/standoc.rnc', 'bbb2222'],
+  ]);
+  const d = diffTrees(base, head, FULL_TREE_CFG);
+  assert.deepEqual(d.fail.changed, ['grammars/relaton-models']);
+  assert.deepEqual(d.fail.added, []);
+  assert.deepEqual(d.fail.removed, []);
+  assert.equal(d.gitlinks.has('grammars/relaton-models'), true);
+  assert.equal(
+    classifyHint(d.fail.changed, d.gitlinks),
+    'submodule pointer bump(s): grammars/relaton-models',
+  );
+});
+
+test('diffTrees: gitlink added/removed is a path-set diff', () => {
+  const base = mkTree([
+    ['commit', 'grammars/relaton-model-iso', 'aaa0000'],
+    ['blob', 'grammars/standoc.rnc', 'bbb2222'],
+  ]);
+  const head = mkTree([
+    ['commit', 'grammars/relaton-models', 'ccc3333'],
+    ['blob', 'grammars/standoc.rnc', 'bbb2222'],
+  ]);
+  const d = diffTrees(base, head, FULL_TREE_CFG);
+  assert.deepEqual(d.fail.removed, ['grammars/relaton-model-iso']);
+  assert.deepEqual(d.fail.added, ['grammars/relaton-models']);
+  assert.match(classifyHint(
+    [...d.fail.added, ...d.fail.removed], d.gitlinks,
+  ), /^submodule pointer bump\(s\)/);
+});
+
+test('diffTrees: blob-only change keeps the ordinary hints (regression)', () => {
+  const base = mkTree([['blob', 'grammars/standoc.rnc', 'bbb2222']]);
+  const head = mkTree([['blob', 'grammars/standoc.rnc', 'ddd4444']]);
+  const d = diffTrees(base, head, FULL_TREE_CFG);
+  assert.deepEqual(d.fail.changed, ['grammars/standoc.rnc']);
+  assert.equal(classifyHint(d.fail.changed, d.gitlinks), 'grammar sources (grammars/)');
+  const outside = diffTrees(
+    mkTree([['blob', 'profiles/x.yaml', 'a1']]),
+    mkTree([['blob', 'profiles/x.yaml', 'b2']]),
+    FULL_TREE_CFG,
+  );
+  assert.match(classifyHint(outside.fail.changed, outside.gitlinks), /^outside grammars\//);
+});
+
+test('diffTrees: mixed blob + gitlink change → mixed hint', () => {
+  const base = mkTree([
+    ['commit', 'grammars/basicdoc-models', 'aaa0000'],
+    ['blob', 'grammars/standoc.rnc', 'bbb2222'],
+  ]);
+  const head = mkTree([
+    ['commit', 'grammars/basicdoc-models', 'eee5555'],
+    ['blob', 'grammars/standoc.rnc', 'ddd4444'],
+  ]);
+  const d = diffTrees(base, head, FULL_TREE_CFG);
+  assert.deepEqual([...d.fail.changed].sort(),
+    ['grammars/basicdoc-models', 'grammars/standoc.rnc']);
+  assert.equal(
+    classifyHint(d.fail.changed, d.gitlinks),
+    'mixed: grammar sources, structure, and/or submodule pointers',
+  );
+});
+
+
 
 test('lint passes a consistent scratch table', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'check-pins-'));

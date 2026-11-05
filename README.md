@@ -16,7 +16,14 @@ each pinned repo's watched paths at the pin vs its default branch —
 nothing is stored. Watching is **cite-driven and tiered**: paths the ledger
 cites as verification sources are fail-tier (drift fails the job); their
 enclosing subtrees are report-tier (restructures surface as a digest, no
-action required).
+action required). The pin table covers the seven grammar/pipeline sources —
+standoc-models, basicdoc-models, the Relaton and requirements grammar
+repos, metanorma-standoc, the metanorma driver, isodoc — and **submodule
+pointers are watched too**: a models-side grammar refresh surfaces at the
+source, not only later at vendoring. Every report foots a coverage note
+listing facts cited to *unpinned* sources (currently metanorma-utils,
+plurimath) — green means "nothing watched moved", never "the ledger is
+current".
 
 **Accepted cadence.** metanorma-standoc's cited files are hot upstream, so
 between its releases the job is *expected* red with a drift issue open. Red
@@ -59,5 +66,6 @@ Revive it with a manual dispatch of the workflow.
 - **Claim-named probes** over the drift-check substrate: ledger claims
   re-expressed as content predicates ("the engine is leptris, not jing"),
   so an alert names the falsified claim instead of "bytes differ" — plus a
-  release-feed trigger for metanorma-standoc. A later layer over the
-  shipped pin-diff check, not a replacement.
+  release-feed trigger for metanorma-standoc and for the unpinned-citation
+  sources (metanorma-utils, plurimath). A later layer over the shipped
+  pin-diff check, not a replacement.

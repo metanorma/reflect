@@ -7,6 +7,10 @@
 - [ ] If this changes a spec (`docs/**/*.md`), I have run
       `yarn spec-impact docs/<changed-spec>.md` and reviewed the listed
       dependents.
+- [ ] If this adds or extends a **model area** in a spec, the same PR
+      adds/extends the upstream ledger row + watch-map entry
+      (`docs/metanorma-model.md` §1, `scripts/check-pins.mjs`) — the
+      drift oracle only watches what the ledger pins.
 - [ ] Spec cross-references are relative markdown links (no version
       numbers in headers). See [CONVENTIONS.md](docs/CONVENTIONS.md).
 - [ ] If this is a significant spec transition (multi-commit,

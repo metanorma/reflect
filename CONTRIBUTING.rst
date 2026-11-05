@@ -199,9 +199,11 @@ More specifically, check the following before submitting:
   issue (see the README's "Upstream drift detection"): red between
   metanorma-standoc releases is the expected steady state — the fast path
   for verified no-semantic-change drift is re-pin + Re-verified date bump
-  in the ledger, in one commit. GitHub disables scheduled workflows after
-  60 days of repo inactivity — if drift alerts stop, dispatch the
-  workflow manually.
+  in the ledger, in one commit. A spec change that adds or extends a
+  **model area** must add/extend the ledger row and watch-map entry in
+  the same PR — the drift oracle only watches what the ledger pins.
+  GitHub disables scheduled workflows after 60 days of repo inactivity —
+  if drift alerts stop, dispatch the workflow manually.
 
 - Dependency graph: run ``yarn`` and check for the
   duplicate-instance error at the end (see the dependency policy above),
