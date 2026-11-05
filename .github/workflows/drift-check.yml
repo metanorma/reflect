@@ -1,0 +1,173 @@
+name: Drift check (upstream pins)
+
+# Daily watch of the upstream Metanorma repos pinned in
+# docs/metanorma-model.md §1. The pin table is the baseline; the job diffs
+# each repo's watched paths (see the sensitivity map in
+# scripts/check-pins.mjs) at the pin vs its default branch.
+#
+# Accepted cadence: metanorma-standoc's cited files are hot upstream, so a
+# red run with an open drift issue is the EXPECTED steady state between its
+# releases and the next re-pin. Red means "the ledger is stale relative to
+# upstream", not error. Exit for verified no-semantic-change drift is the
+# fast path documented in the tracking issue (re-pin + Re-verified date
+# bump in the ledger, one commit).
+#
+# CAVEAT — GitHub disables scheduled workflows after 60 days of repository
+# inactivity. On a quiet pre-production repo this watch can silently stop.
+# Revive it with a manual workflow_dispatch run (and watch for GitHub's
+# inactivity email).
+#
+# Post-merge smoke (the gh glue below only becomes runnable once this file
+# is on main — workflow_dispatch runs the default-branch copy):
+#   1. Dispatch once with smoke_override "metanorma/standoc-models=<parent
+#      of 4bad3672>": expect a "Upstream drift: metanorma/standoc-models"
+#      issue created with the checklist and an embedded signature, and no
+#      digest comment (nothing moved on report tiers).
+#   2. Dispatch once without the override: expect that issue commented and
+#      closed IF standoc-models is genuinely clean at that moment. If it
+#      (or any other repo) is genuinely drifted, the issue shows the real
+#      diff instead and the close check defers until it is clean — the
+#      concurrent drift is triaged as real work, never as smoke failure.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+    inputs:
+      smoke_override:
+        description: 'org/repo=ref — run the drift diff for that repo against <ref> instead of its pin (smoke/dry-run hook; parsed by check-pins.mjs)'
+        required: false
+        default: ''
+        type: string
+
+# Overlapping runs (daily + manual dispatch) must not interleave issue
+# writes; queue instead of cancelling, so a manual smoke is not lost.
+concurrency:
+  group: drift-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Diff pins against upstream
+        # Zero-dep script, no install step. Exits 1 on fail-tier drift
+        # (expected between metanorma-standoc releases), 2 on config or
+        # infra error. continue-on-error: issue ops and gate still run;
+        # gate is the red/green relay. GITHUB_TOKEN is required — the run
+        # makes 25-30 API requests and the unauthenticated 60 req/hr
+        # shared-IP budget is not reliable. The smoke override reaches the
+        # script through env, never by interpolating into this run line.
+        id: drift
+        continue-on-error: true
+        run: node scripts/check-pins.mjs drift
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CHECK_PINS_BASE_OVERRIDE: ${{ inputs.smoke_override }}
+
+      - name: Manage drift and digest issues
+        # Per-repo, driven by .drift/drift-status.json:
+        #   drift-fail → find-or-create "Upstream drift: <repo>" (label
+        #     `drift`), rewrite its body only when the embedded
+        #     failSignature changed (no per-run churn);
+        #   clean → comment + close that repo's open issue (a repo re-pinned
+        #     while another still drifts closes independently);
+        #   error → no issue, no close.
+        # Digest channel: one long-lived "Upstream watch" issue; a comment
+        # is added only when some repo's report-tier signature changed —
+        # never per-run, never a new-issue ping.
+        # FIRST GUARD: a missing/empty/unparseable status file means the
+        # drift step died before writing it — do nothing at all (never a
+        # blanket close on missing data).
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          STATUS=.drift/drift-status.json
+          if [ ! -s "$STATUS" ] \
+              || ! node -e "JSON.parse(require('fs').readFileSync('$STATUS','utf8'))" 2>/dev/null; then
+            echo "drift-status.json missing/corrupt — skipping issue ops entirely."
+            exit 0
+          fi
+          gh label create drift --force >/dev/null 2>&1 || true
+
+          node -e '
+            const s = JSON.parse(require("fs").readFileSync(".drift/drift-status.json", "utf8"));
+            for (const [repo, e] of Object.entries(s.repos ?? {})) {
+              console.log(repo + "\t" + e.status);
+            }
+          ' | while IFS=$'\t' read -r repo status; do
+            slug=${repo//\//-}
+            case "$status" in
+              drift-fail)
+                body=".drift/issues/${slug}.md"
+                num=$(gh issue list --label drift --state open --json number,title \
+                  --jq ".[] | select(.title == \"Upstream drift: ${repo}\") | .number")
+                if [ -z "$num" ]; then
+                  gh issue create --title "Upstream drift: ${repo}" \
+                    --label drift --body-file "$body"
+                else
+                  old=$(gh issue view "$num" --json body --jq .body \
+                    | grep -o 'failSignature: [0-9a-f]*' | head -1 | cut -d' ' -f2)
+                  new=$(grep -o 'failSignature: [0-9a-f]*' "$body" | head -1 | cut -d' ' -f2)
+                  if [ "$old" != "$new" ]; then
+                    gh issue edit "$num" --body-file "$body"
+                  fi
+                fi
+                ;;
+              clean)
+                num=$(gh issue list --label drift --state open --json number,title \
+                  --jq ".[] | select(.title == \"Upstream drift: ${repo}\") | .number")
+                if [ -n "$num" ]; then
+                  gh issue close "$num" --comment \
+                    "Clean against its pin as of $(date -u +%F) — closing. If this closed real drift, the re-pin commit carries the interpretation."
+                fi
+                ;;
+              *)
+                # error / anything unexpected: no issue, nothing closed.
+                ;;
+            esac
+          done
+
+          WATCH_TITLE="Upstream watch — report-only digest"
+          watch_num=$(gh issue list --state open --json number,title \
+            --jq ".[] | select(.title == \"${WATCH_TITLE}\") | .number")
+          if [ -s .drift/watch-markers.txt ]; then
+            new_markers=$(cat .drift/watch-markers.txt)
+            if [ -n "$watch_num" ]; then
+              old_markers=$(gh issue view "$watch_num" --json body --jq .body \
+                | sed -n '/check-pins watch markers/,/-->$/p' | sed '1d;$d')
+            else
+              old_markers=""
+            fi
+            if [ "$old_markers" != "$new_markers" ]; then
+              if [ -s .drift/digest-comment.md ]; then
+                if [ -z "$watch_num" ]; then
+                  watch_num=$(gh issue create --title "$WATCH_TITLE" \
+                    --body-file .drift/watch-body.md | grep -o '[0-9]\+$')
+                fi
+                gh issue comment "$watch_num" --body-file .drift/digest-comment.md
+                gh issue edit "$watch_num" --body-file .drift/watch-body.md
+              elif [ -n "$watch_num" ]; then
+                gh issue edit "$watch_num" --body-file .drift/watch-body.md
+              fi
+            fi
+          fi
+
+      - name: Gate (red/green relay)
+        # The drift step above runs continue-on-error, so this is the job's
+        # verdict: exit 1 on any fail-tier drift; exit 2 on any per-repo
+        # error or a missing/corrupt status file. An all-error run must end
+        # red, never silently green.
+        run: node scripts/check-pins.mjs gate

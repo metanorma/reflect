@@ -184,6 +184,25 @@ More specifically, check the following before submitting:
   spec that other docs link to, run ``yarn spec-impact <spec-path.md>``
   and review the listed dependents (``docs/CONVENTIONS.md`` §7).
 
+- Root scripts (``scripts/*.mjs``): ``yarn test:scripts`` runs their
+  ``node:test`` suites (CI-enforced on every PR — zero-dep, no install
+  needed).
+
+- Upstream pin table (``docs/metanorma-model.md`` §1): ``yarn check-pins``
+  is the offline lint — the table must parse and stay consistent with the
+  watch map in ``scripts/check-pins.mjs`` (CI-enforced). ``node
+  scripts/check-pins.mjs drift`` is the network check the scheduled
+  ``drift-check`` workflow runs; dry-run it with ``--only org/repo``,
+  ``--base org/repo=ref``, ``--head org/repo=ref`` or ``--table <path>``
+  (env form ``CHECK_PINS_BASE_OVERRIDE``). Re-verification of ledger
+  facts is the checklist embedded in each ``drift``-labelled tracking
+  issue (see the README's "Upstream drift detection"): red between
+  metanorma-standoc releases is the expected steady state — the fast path
+  for verified no-semantic-change drift is re-pin + Re-verified date bump
+  in the ledger, in one commit. GitHub disables scheduled workflows after
+  60 days of repo inactivity — if drift alerts stop, dispatch the
+  workflow manually.
+
 - Dependency graph: run ``yarn`` and check for the
   duplicate-instance error at the end (see the dependency policy above),
   then ``yarn check-for-multiple-instances`` (narrow it down with

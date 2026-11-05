@@ -67,8 +67,11 @@ verification (no vendoring pass since the 2026-10-01 flip, so the §4
 vendored-runtime lag persists); §3 and §4's source facts stand as verified.
 This cycle's drift is one gem-side change: generated ids now come from
 `Metanorma::Utils.random_uuid` (buffered v4-UUID pool) instead of per-call
-UUIDTools entropy — recorded in §5. Re-verify on the next metanorma-standoc
-release; drift then surfaces as a diff against a known commit.
+UUIDTools entropy — recorded in §5. Drift against these pins is checked
+daily by the scheduled drift-check job (`scripts/check-pins.mjs`, watched
+paths = the paths cited above); re-verification is the interpretation
+procedure embedded in the job's drift tracking issue — a pin bump always
+travels with its interpretation.
 
 ## 2. Pipeline and artifacts
 

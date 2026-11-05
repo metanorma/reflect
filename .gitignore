@@ -28,5 +28,8 @@
 !.yarn/cache
 #.pnp.*
 
+# check-pins.mjs drift artifacts (status JSON, report, issue bodies)
+/.drift
+
 /mockups
 !mockups/editor-dockview7-floats.html

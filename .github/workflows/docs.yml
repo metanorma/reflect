@@ -20,3 +20,14 @@ jobs:
         # Zero-dep script — validates link integrity, header hygiene, and
         # stale-version-reference guards. See docs/CONVENTIONS.md §7.
         run: node scripts/check-specs.mjs
+
+      - name: Check upstream pin table
+        # Zero-dep, network-free lint of docs/metanorma-model.md §1: the
+        # pin table must parse and stay consistent with the sensitivity
+        # map in scripts/check-pins.mjs (both directions). See the script
+        # header and README "Upstream drift detection".
+        run: node scripts/check-pins.mjs lint
+
+      - name: Test root scripts
+        # node:test suites for scripts/ — zero-dep, fast.
+        run: node --test scripts/*.test.mjs
