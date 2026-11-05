@@ -553,21 +553,23 @@ single-line); the way to "finish" a term is Enter, which moves to its `dd`.
 
 #### 2.4.5 Container blocks (`note`, `example`, `quote`, `review`, `admonition`, `figure`)
 
-These nodes share content `block+` (for `figure`, `(image | block)*`). They are
-"wrapper" blocks the user enters and later wants to leave.
+These nodes share content `block+` (for `figure`, the typed body slot
+`(image | paragraph+ | figure+)?` — schema §8.6). They are "wrapper" blocks
+the user enters and later wants to leave.
 
 | Selection | Zone | Context | Effect | Invariant |
 |---|---|---|---|---|
 | Collapsed | start / middle | non-empty block in the container | Split the inner block in place; container unaffected. | Container keeps `block+`. |
 | Collapsed | end | last block, non-empty | Split the inner block; the tail stays inside the container. | `block+`. |
-| Collapsed | empty | the container's **last** block is an empty paragraph | **Exit the container**: lift an empty paragraph out to sit *after* the container (sibling in the container's parent); if the container would become empty, remove it. | No empty container left; parent content model honoured. |
+| Collapsed | empty | the container's **last** block is an empty paragraph | **Exit the container**: lift an empty paragraph out to the nearest position that ADMITS a paragraph — directly after the container when its parent takes blocks, or after the outermost enclosing figure when the container sits in a parent figure's `figure+` body run (`paragraphExitAfter`, shared legality helper in `util.ts`; a paragraph is admissible in a `figure+` run nowhere — an unconditional lift would be thrown out by step validation or "repaired" into a sibling-figure fission, so the walk is load-bearing). If the container would become empty, remove it (in place when the parent slot admits a paragraph; otherwise delete and land at the walked position). | No empty container left; parent content model honoured. |
 | Collapsed | empty | an empty paragraph that is NOT the container's last block | Split in place (add another paragraph inside). Exiting mid-container would reorder siblings unexpectedly. | `block+`. |
 | Ranged | any | within the container | Delete the range, then apply the collapsed rule. | `block+`. |
 | Node | — | — | See §2.4.7. | — |
 
 The exit rule is what lets the user "press Enter on the last empty line to leave
-the note/quote/figure." For `figure`, exiting leaves the figure (with its image
-and caption blocks) intact and creates a paragraph after it.
+the note/quote/figure." For `figure`, exiting leaves the figure (with its
+caption and body branch) intact and creates a paragraph after it — after the
+OUTERMOST enclosing figure when the exited figure is a subfigure.
 
 **Note.** `footnote_entry` also has content `block+` but is **excluded** from
 the exit rule: its parent `footnotes` requires `footnote_entry+` and does not
@@ -601,7 +603,8 @@ paragraph around them. `floating_title` is a textblock with `inline*` content
 
 | Selection | Context | Effect | Invariant |
 |---|---|---|---|
-| Node selection on an atom | `image` / `formula` | **`createParagraphNear`**: insert an empty paragraph adjacent to the atom (before it if the selection is at the front, after it otherwise); cursor in the new paragraph. | New paragraph is a legal sibling; atom untouched. |
+| Node selection on an atom | `formula` (any `block+` container) | **`createParagraphNear`** (stock): insert an empty paragraph adjacent to the atom (before it if the selection is at the front, after it otherwise); cursor in the new paragraph. | New paragraph is a legal sibling; atom untouched. |
+| Node selection on an atom | `image` (inside a figure — the only place the schema admits it) | Stock adjacent insertion is schema-illegal beside an `image` (the typed body slot admits a paragraph nowhere next to it), so the custom `createParagraphNear` wrapper routes through `paragraphExitAfter`: empty paragraph AFTER the enclosing figure (after the outermost enclosing figure for a subfigure), cursor in it. | Figure and its body branch untouched; paragraph lands at a schema-valid position. |
 | Node selection on a **non-atom** block (`paragraph`, `sourcecode`, `note`, `clause`, …) | — | Return `false` (Enter does nothing). Restructuring whole blocks or sections on Enter is surprising; dedicated commands handle those, and the user can arrow into the block to type. | — |
 
 #### 2.4.8 Structural and section nodes
@@ -728,10 +731,10 @@ The Enter feature introduces the following commands in
 | `splitListItem` | `(schema) => Command` | adapted from `prosemirror-schema-list` | Continue a `bullet_list`/`ordered_list` by splitting the item's inner block into a new item, or exit the list (one level) on an empty trailing item. Generalised for `list_item` content `block+`. |
 | `insertSectionAbove` | `Command` | custom | Word/Docs/Pages heading-split analog. When the caret is a collapsed `TextSelection` at offset 0 of a **non-empty** `section_title`, insert a new same-type sibling section **before** the current section (empty `section_title` + empty `paragraph`, fresh generated `id`) and keep the caret at offset 0 of the current title. Schema-derived legality: pre-flights `parent.canReplaceWith(titleIndex, titleIndex, sectionType)`; on refusal returns `false` (stricter flavors degrade to `exitSectionTitle`). Fires before `exitSectionTitle` in the chain (every state it accepts is also an `exitSectionTitle` trigger). |
 | `exitSectionTitle` | `Command` | custom | When the cursor is inside a `section_title` textblock (the heading of a section node), move the cursor to the section's first body block, or insert an empty `paragraph` as the first body block if none exists. Preempts the generic split so Enter inside a heading does not produce a second heading textblock. |
-| `exitName` | `Command` | custom | When the cursor is inside a `figure_name` / `table_name` caption textblock (the optional leading caption child of `figure` / `table`), move the cursor on without splitting. `table_name`: descend into the first cell's paragraph. `figure_name`: land in the first following sibling inside the figure that can hold a textblock cursor; if none (the `image` atom is next, or the caption is the figure's last child), insert an empty `paragraph` after the figure's last child and place the cursor in it. Preempts the generic split so Enter inside a caption does not create a second caption sibling (violating `figure_name?` / `table_name?`). |
+| `exitName` | `Command` | custom | When the cursor is inside a `figure_name` / `table_name` caption textblock (the optional leading caption child of `figure` / `table`), move the cursor on without splitting. `table_name`: descend into the first cell's paragraph. `figure_name`: land in the first following sibling inside the figure that can hold a textblock cursor; if none — (a) caption is the figure's **only** child (the empty body slot): insert an empty `paragraph` after the caption, INSIDE the figure (choosing the `paragraph+` branch of the typed body slot), cursor in it; (b) otherwise (the `image` atom or an empty imported subfigure follows): **exit the figure** — an empty paragraph at the nearest paragraph-admitting position (`paragraphExitAfter`; after the outermost enclosing figure for a subfigure), cursor in it. Preempts the generic split so Enter inside a caption does not create a second caption sibling (violating `figure_name?` / `table_name?`). |
 | `exitFloatingTitle` | `Command` | custom | When the cursor is inside a `floating_title` textblock (an unnumbered free-standing heading), move the cursor to the start of the next sibling, or — when the title is its parent's last child — insert a new `clause` (empty `section_title` + `paragraph`, cursor in the heading) after it. Preempts the generic split so Enter inside a floating title starts the titled section rather than producing a second heading. |
 | `exitContainerBlock` | `Command` | custom | Lift an empty trailing paragraph out of a `block+` container (`note`, `example`, `quote`, `review`, `admonition`, `figure`), removing the container if it would become empty. |
-| `createParagraphNear` | `Command` | re-exported from `prosemirror-commands` | Create an empty paragraph adjacent to a node-selected atom. |
+| `createParagraphNear` | `Command` | custom wrapper over the stock `prosemirror-commands` command | Create an empty paragraph adjacent to a node-selected atom. Stock first (adjacent insertion wherever the parent admits a paragraph — `formula` in any `block+` container); when stock refuses and the atom sits inside a figure (an `image`, the only block atom the typed body slot admits), create the paragraph AFTER the enclosing figure via `paragraphExitAfter` (`util.ts`). See §2.4.7, matrix rows A1a/A1b. |
 | `splitBlockKeepMarks` | `Command` | adapted from `prosemirror-commands` | Default fallback: split the innermost textblock (typically a `paragraph`) carrying active marks, after deleting any ranged selection. |
 
 The package also re-exports the `chainCommands` combinator (§1.9.2) so consumers
@@ -857,10 +860,21 @@ rows:
   row/cell count unchanged.
 - **T2** empty paragraph in a `table_cell` → no exit; another paragraph in the
   cell (or no-op); cell/row count unchanged.
-- **A1** node-selected `image` / `formula` → adjacent empty
-  paragraph created on the selection's side.
+- **A1a** node-selected `image` (inside a figure) → empty paragraph created
+  AFTER the enclosing figure (after the outermost enclosing figure for a
+  subfigure); figure and body branch untouched.
+- **A1b** node-selected `formula` (in a `block+` container) → adjacent empty
+  paragraph created on the selection's side (stock behaviour, unchanged).
 - **A3** node-selected non-atom block (a `paragraph`, a `clause`, …) → no-op
   (`false`).
+- **FN1** cursor in a `figure_name` whose figure body is EMPTY → empty
+  paragraph inserted inside the figure after the caption (the `paragraph+`
+  branch); cursor in it.
+- **FN2** cursor in a `figure_name` whose figure body holds the `image` →
+  figure EXITED: empty paragraph after the figure (after the outermost
+  enclosing figure for a subfigure); figure `[figure_name, image]` untouched.
+- **FN3** empty last paragraph in a figure's paragraph run → figure exited
+  per the container rule (§2.4.5); the run's remaining members stay.
 - **S1** every exit branch: assert no `bullet_list` / `ordered_list` / `dl` /
   container / table part / section is left with fewer children than its
   content expression requires.
@@ -1474,6 +1488,14 @@ requires `(table_head | table_body | table_foot)+`, so deleting it would
 destroy user content. The guard fires before the §4.7.3 container-stack walk
 (the caption's parent is not a `block+` container the walk understands) and is
 the structural dual of the Enter feature's `exitName` command (§2.7).
+
+**Figure body states** (typed body slot, schema §8.6) — handled by the
+§4.7.3 walk, no dedicated guard needed:
+
+| Selection | Zone | Context | Effect | Invariant |
+|---|---|---|---|---|
+| Collapsed | start-of-empty | empty `paragraph` in a `[figure_name, paragraph]` body (the text branch's last run member) | Delete the paragraph; caret to the end of the caption. | Figure returns to the EMPTY slot (the recovery state — the Image fill re-enables); `figure_name?` intact. |
+| Collapsed | start-of-empty | empty `paragraph` as a subfigure's sole child (inside a parent `figure+` run) | The walk deletes the subfigure (an emptied subfigure is a shell); parent figure and run survive. | `figure+` run keeps its remaining members; never an empty subfigure shell. |
 
 ### 4.5 Schema-preservation guarantees
 

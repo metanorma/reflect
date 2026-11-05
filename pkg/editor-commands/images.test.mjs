@@ -68,11 +68,17 @@ function stateInCaption() {
   );
 }
 
-/** Run the command headlessly; returns { ok, state }. */
+/** Run the command headlessly; returns { ok, state }. Standing validity
+ * gate: a dispatched transaction must leave a schema-valid document
+ * (`nodeFromJSON` is content-lenient; `check()` is not). */
 function run(state, attrs) {
   let applied = null;
   const ok = insertImageIntoFigure(state, (tr) => {
     applied = state.apply(tr);
+    assert.doesNotThrow(
+      () => applied.doc.check(),
+      "insertImageIntoFigure produced an invalid document",
+    );
   }, attrs);
   return { ok, state: applied };
 }

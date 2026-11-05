@@ -14,6 +14,7 @@ import { reactKeys } from "@handlewithcare/react-prosemirror";
 import { keymap } from "prosemirror-keymap";
 import { metanormaSchema } from "@metanorma/prosemirror-schema";
 import { placeholderClickPlugin } from "./plugins/placeholderClick.js";
+import { figureSlotClickPlugin } from "./plugins/figureSlotClick.js";
 import { history, undo, redo, type HistoryOptions } from "@metanorma/editor-commands";
 import type { MetanormaDocument } from "./types.js";
 
@@ -111,6 +112,7 @@ export function createInitialEditorState(opts: {
   const basePlugins: Plugin[] = [
     reactKeys(),
     placeholderClickPlugin(),
+    figureSlotClickPlugin(),
   ];
 
   if (opts.history) {

@@ -14,6 +14,8 @@ import { EditorState, TextSelection, NodeSelection } from "prosemirror-state";
 import { metanormaSchema } from "@metanorma/prosemirror-schema";
 import {
   exitName,
+  exitContainerBlock,
+  createParagraphNear,
   emptyTextblockBackspace,
   insertTable,
   insertFigure,
@@ -100,7 +102,10 @@ function figureChildNames(figNode) {
 
 /**
  * Apply a command with a dispatch that applies the transaction back into a
- * mutable state; returns { fired, state }.
+ * mutable state; returns { fired, state }. Standing validity gate: any
+ * dispatched transaction must leave a schema-valid document (`nodeFromJSON`
+ * is content-lenient; `check()` is not — sequence assertions alone cannot
+ * see invalid documents).
  */
 function run(command, state) {
   let s = state;
@@ -109,6 +114,9 @@ function run(command, state) {
     s = s.apply(tr);
     fired = true;
   });
+  if (fired) {
+    assert.doesNotThrow(() => s.doc.check(), "command produced an invalid document");
+  }
   return { ok, fired, state: s };
 }
 
@@ -212,27 +220,27 @@ describe("exitName: figure_name", () => {
     assert.equal(after.doc.textContent.includes("after"), true);
   });
 
-  it("with only the image following: inserts a paragraph after the image, cursor inside", () => {
+  it("with only the image following: EXITS the figure — paragraph lands after it", () => {
     let state = stateWith([figureNode("Cap", true)]);
     state = state.apply(
       state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "figure_name"))),
     );
     const { fired, state: after } = run(exitName, state);
     assert.equal(fired, true);
-    const fig = after.doc.content.content[1].content.content[0].child(1);
-    assert.equal(fig.type.name, "figure");
-    const names = [];
-    fig.forEach((c) => names.push(c.type.name));
-    assert.deepEqual(names, ["figure_name", "image", "paragraph"]);
+    const clause = after.doc.content.content[1].content.content[0];
+    // Clause: [section_title, figure, paragraph] — a paragraph INSIDE the
+    // figure would violate the body-slot XOR; the exit lands outside.
+    assert.deepEqual(clauseChildNames(clause), ["section_title", "figure", "paragraph"]);
+    const fig = clause.child(1);
+    assert.deepEqual(figureChildNames(fig), ["figure_name", "image"]);
     assert.equal(after.selection.$from.parent.type.name, "paragraph");
-    // The cursor's paragraph IS the inserted one (inside the figure).
     for (let d = after.selection.$from.depth; d >= 1; d--) {
-      if (after.selection.$from.node(d).type.name === "figure") {
-        assert.equal(true, true);
-        return;
-      }
+      assert.notEqual(
+        after.selection.$from.node(d).type.name,
+        "figure",
+        "cursor must be outside the figure",
+      );
     }
-    assert.fail("cursor not inside the figure");
   });
 
   it("as last child of an empty figure: inserts a paragraph after the caption", () => {
@@ -443,8 +451,8 @@ describe("insertImageIntoFigure", () => {
     assert.equal(insertImageIntoFigure(state), true, "query form matches predicate");
   });
 
-  it("ordering: image lands right after the caption, before the exitName paragraph", () => {
-    // [figure_name, paragraph] — the Enter flow's intermediate state.
+  it("text-branch figure: the image REPLACES the paragraph run (silent, undoable)", () => {
+    // [figure_name, paragraph("residue")] — the text branch.
     const para = { type: "paragraph", attrs: { data: {} }, content: [{ type: "text", text: "residue" }] };
     let state = stateWith([figureNode("Cap", false, [para])]);
     state = state.apply(
@@ -457,13 +465,14 @@ describe("insertImageIntoFigure", () => {
     );
     assert.equal(ok, true);
     const fig = after.doc.content.content[1].content.content[0].child(1);
-    // The image is inserted immediately after figure_name — NOT appended after
-    // the paragraph (the only XML-valid position: schema.spec.md §17.6).
-    assert.deepEqual(figureChildNames(fig), ["figure_name", "image", "paragraph"]);
-    assert.equal(fig.child(2).textContent, "residue");
+    // Whole-slot replacement: the paragraph run is gone, the image IS the
+    // body (images-figures.md §6.4).
+    assert.deepEqual(figureChildNames(fig), ["figure_name", "image"]);
+    assert.equal(after.doc.textContent.includes("residue"), false);
+    assert.equal(after.selection.$from.parent.type.name, "figure_name");
   });
 
-  it("caption-less figure (parsed doc): image becomes the first child", () => {
+  it("caption-less figure (parsed doc): the image replaces the paragraph body", () => {
     const para = { type: "paragraph", attrs: { data: {} }, content: [{ type: "text", text: "body" }] };
     const figNoCaption = {
       type: "figure",
@@ -481,7 +490,9 @@ describe("insertImageIntoFigure", () => {
     );
     assert.equal(ok, true);
     const fig = after.doc.content.content[1].content.content[0].child(1);
-    assert.deepEqual(figureChildNames(fig), ["image", "paragraph"]);
+    assert.deepEqual(figureChildNames(fig), ["image"]);
+    // No caption: the caret lands just after the figure.
+    assert.equal(after.selection.$from.node(after.selection.$from.depth - 1).type.name, "clause");
   });
 
   it("false on empty src (assertValidImageAttrs guard)", () => {
@@ -594,5 +605,233 @@ describe("caption-aware predicates", () => {
       content: [{ type: "text", text: "cap", marks: [{ type: "strong" }] }],
     });
     assert.equal(tblCap.content.firstChild.marks[0].type, strong);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Nested figures (imported subfigures) — exit targets and slot refusal
+// ---------------------------------------------------------------------------
+
+/** A clause holding a parent figure whose body is a subfigure `figure+` run. */
+function subfigureDoc(subfigureContent) {
+  return [
+    {
+      type: "figure",
+      attrs: { id: "outer", number: null, width: null, data: {} },
+      content: [
+        { type: "figure_name", attrs: { data: {} }, content: [{ type: "text", text: "Outer" }] },
+        {
+          type: "figure",
+          attrs: { id: "sub", number: null, width: null, data: {} },
+          content: subfigureContent,
+        },
+      ],
+    },
+  ];
+}
+
+describe("nested figures: exit targets walk past the figure+ run", () => {
+  it("regression: plain note exit — trailing empty paragraph lifts out (first unit coverage)", () => {
+    // The inLastBlockOfContainer position check was dead at HEAD (content
+    // ends differ by the textblock's close token); this locks the fix in.
+    const note = {
+      type: "note",
+      attrs: { data: {} },
+      content: [
+        { type: "paragraph", attrs: { data: {} }, content: [{ type: "text", text: "note body" }] },
+        { type: "paragraph", attrs: { data: {} }, content: [] },
+      ],
+    };
+    let state = stateWith([note]);
+    let lastParaPos = -1;
+    let paraCount = 0;
+    state.doc.descendants((n, p) => {
+      if (n.type.name === "paragraph") { paraCount += 1; }
+      return true;
+    });
+    // Caret in the LAST paragraph (the second one).
+    state.doc.descendants((n, p) => {
+      if (n.type.name === "paragraph") {
+        lastParaPos = p + 1;
+      }
+      return true;
+    });
+    assert.equal(paraCount, 2);
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, lastParaPos)));
+    const { fired, state: after } = run(exitContainerBlock, state);
+    assert.equal(fired, true);
+    const clause = after.doc.content.content[1].content.content[0];
+    // Note survives with its content; an empty paragraph follows it.
+    assert.deepEqual(clauseChildNames(clause), ["section_title", "note", "paragraph"]);
+    assert.equal(clause.child(1).textContent, "note body");
+    assert.equal(after.selection.$from.parent.type.name, "paragraph");
+    for (let d = after.selection.$from.depth; d >= 1; d--) {
+      assert.notEqual(after.selection.$from.node(d).type.name, "note", "cursor outside the note");
+    }
+  });
+
+  it("exitName in an image-bearing subfigure caption: paragraph lands after the OUTER figure", () => {
+    // sub = [figure_name("Sub"), image]; parent = [figure_name("Outer"), sub]
+    let state = stateWith(subfigureDoc([
+      { type: "figure_name", attrs: { data: {} }, content: [{ type: "text", text: "Sub" }] },
+      { type: "image", attrs: { src: "x.png", alt: null, data: {} } },
+    ]));
+    // Caret in the SUBFIGURE's caption (the second figure_name in the doc).
+    let captionPos = -1;
+    let seen = 0;
+    state.doc.descendants((n, p) => {
+      if (n.type.name === "figure_name") {
+        seen += 1;
+        if (seen === 2) { captionPos = p + 1; return false; }
+      }
+      return true;
+    });
+    assert.notEqual(captionPos, -1);
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, captionPos)));
+    const { fired, state: after } = run(exitName, state);
+    assert.equal(fired, true);
+    const clause = after.doc.content.content[1].content.content[0];
+    // The paragraph is a CLAUSE child (after the outer figure) — a paragraph
+    // inside the parent's figure+ run would be schema-invalid.
+    assert.deepEqual(clauseChildNames(clause), ["section_title", "figure", "paragraph"]);
+    const outer = clause.child(1);
+    assert.deepEqual(figureChildNames(outer), ["figure_name", "figure"]);
+    assert.deepEqual(figureChildNames(outer.child(1)), ["figure_name", "image"]);
+    assert.equal(after.selection.$from.parent.type.name, "paragraph");
+  });
+
+  it("exitContainerBlock in a subfigure's trailing paragraph: lifts to the clause", () => {
+    // sub = [figure_name("Sub"), paragraph()] — caret in the empty paragraph.
+    let state = stateWith(subfigureDoc([
+      { type: "figure_name", attrs: { data: {} }, content: [{ type: "text", text: "Sub" }] },
+      { type: "paragraph", attrs: { data: {} }, content: [] },
+    ]));
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "paragraph"))),
+    );
+    const { fired, state: after } = run(exitContainerBlock, state);
+    assert.equal(fired, true);
+    const clause = after.doc.content.content[1].content.content[0];
+    assert.deepEqual(clauseChildNames(clause), ["section_title", "figure", "paragraph"]);
+    const outer = clause.child(1);
+    // The subfigure survives, its trailing paragraph gone (empty slot again).
+    assert.deepEqual(figureChildNames(outer), ["figure_name", "figure"]);
+    assert.deepEqual(figureChildNames(outer.child(1)), ["figure_name"]);
+    assert.equal(after.selection.$from.parent.type.name, "paragraph");
+  });
+
+  it("insertImageIntoFigure refuses on a figure+ body (subfigure destruction)", () => {
+    let state = stateWith(subfigureDoc([
+      { type: "figure_name", attrs: { data: {} }, content: [{ type: "text", text: "Sub" }] },
+      { type: "image", attrs: { src: "x.png", alt: null, data: {} } },
+    ]));
+    // Caret in the OUTER figure's caption (first figure_name).
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "figure_name"))),
+    );
+    assert.equal(canInsertImageIntoFigure(state), false, "figure+ run is never replaced");
+    const { ok, fired } = run(
+      (s, d) => insertImageIntoFigure(s, d, { src: "n.png", alt: null, mimetype: "image/png" }),
+      state,
+    );
+    assert.equal(ok, false);
+    assert.equal(fired, false, "nothing dispatched");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createParagraphNear — Enter on a node-selected block atom (§2.10 A1a/A1b)
+// ---------------------------------------------------------------------------
+
+describe("createParagraphNear: block atoms (§2.4.7, §2.10)", () => {
+  it("node-selected image inside a figure: paragraph lands AFTER the figure", () => {
+    let state = stateWith([figureNode("Cap", true)]);
+    let imgPos = -1;
+    state.doc.descendants((n, p) => {
+      if (imgPos !== -1) return false;
+      if (n.type.name === "image") { imgPos = p; return false; }
+      return true;
+    });
+    assert.notEqual(imgPos, -1);
+    state = state.apply(state.tr.setSelection(NodeSelection.create(state.doc, imgPos)));
+    const { fired, state: after } = run(createParagraphNear, state);
+    assert.equal(fired, true);
+    const clause = after.doc.content.content[1].content.content[0];
+    assert.deepEqual(clauseChildNames(clause), ["section_title", "figure", "paragraph"]);
+    assert.deepEqual(figureChildNames(clause.child(1)), ["figure_name", "image"]);
+    assert.equal(after.selection.$from.parent.type.name, "paragraph");
+  });
+
+  it("node-selected formula in a clause: stock adjacent paragraph, unchanged", () => {
+    // Regression guard for the formula branch of §2.10 row A1: the wrapper
+    // must not regress atoms that live in block+ containers.
+    const formula = {
+      type: "formula",
+      attrs: { id: null, number: null, type: "asciimath", asciimath: "x", mathml: null, data: {} },
+    };
+    let state = stateWith([
+      { type: "paragraph", attrs: { data: {} }, content: [{ type: "text", text: "p" }] },
+      formula,
+    ]);
+    let formulaPos = -1;
+    state.doc.descendants((n, p) => {
+      if (formulaPos !== -1) return false;
+      if (n.type.name === "formula") { formulaPos = p; return false; }
+      return true;
+    });
+    assert.notEqual(formulaPos, -1);
+    state = state.apply(state.tr.setSelection(NodeSelection.create(state.doc, formulaPos)));
+    const { fired, state: after } = run(createParagraphNear, state);
+    assert.equal(fired, true);
+    const clause = after.doc.content.content[1].content.content[0];
+    // An empty paragraph now sits adjacent to the formula (side per stock).
+    assert.deepEqual(
+      clauseChildNames(clause),
+      ["section_title", "paragraph", "formula", "paragraph"],
+    );
+    assert.equal(after.selection.$from.parent.type.name, "paragraph");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// emptyTextblockBackspace — figure body states (§4.4, recovery)
+// ---------------------------------------------------------------------------
+
+describe("emptyTextblockBackspace: figure body", () => {
+  it("empty body paragraph deleted → figure returns to the empty slot (recovery state)", () => {
+    let state = stateWith([figureNode("Cap", false, [
+      { type: "paragraph", attrs: { data: {} }, content: [] },
+    ])]);
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "paragraph"))),
+    );
+    const { fired, state: after } = run(emptyTextblockBackspace, state);
+    assert.equal(fired, true);
+    const fig = after.doc.content.content[1].content.content[0].child(1);
+    assert.deepEqual(figureChildNames(fig), ["figure_name"]);
+    // Caret back in the caption; the slot is fillable again.
+    assert.equal(after.selection.$from.parent.type.name, "figure_name");
+    assert.equal(canInsertImageIntoFigure(after), true);
+  });
+
+  it("empty paragraph as a subfigure's sole child deletes the subfigure", () => {
+    // sub = [paragraph()] (no caption); parent = [figure_name, sub].
+    let state = stateWith(subfigureDoc([
+      { type: "paragraph", attrs: { data: {} }, content: [] },
+    ]));
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, posInFirst(state, "paragraph"))),
+    );
+    const { fired, state: after } = run(emptyTextblockBackspace, state);
+    assert.equal(fired, true);
+    const outer = after.doc.content.content[1].content.content[0].child(1);
+    // The subfigure is gone; the parent figure survives with its caption.
+    assert.deepEqual(figureChildNames(outer), ["figure_name"]);
+    let subCount = 0;
+    after.doc.descendants((n) => {
+      if (n.type.name === "figure" && n.attrs.id === "sub") subCount += 1;
+      return true;
+    });
+    assert.equal(subCount, 0);
   });
 });

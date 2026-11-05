@@ -536,3 +536,78 @@ describe('image/figure toDOM specs (§8.6 — headless DOMOutputSpec inspection)
     assert.ok(!('data-width' in spec[1]));
   });
 });
+
+describe('figure body slot — typed XOR expression (§8.6, §17.6)', () => {
+  const N = metanormaSchema.nodes;
+  /** A figure via createChecked (throws on invalid content). */
+  const fig = (content) => N.figure.createChecked({ id: 'f1' }, content);
+  const name = () => N.figure_name.create();
+  const p = () => N.paragraph.create();
+  const img = () => N.image.create({ src: 'x.png', mimetype: 'image/png' });
+
+  // -- Acceptance: empty slot, and each single branch, with/without caption.
+
+  it('accepts the empty body — caption-only (seeded/recovery state) and bare', () => {
+    fig([name()]);
+    fig([]);
+  });
+
+  it('accepts the image branch, with and without caption', () => {
+    fig([name(), img()]);
+    fig([img()]);
+  });
+
+  it('accepts a paragraph run (single and multiple), with and without caption', () => {
+    fig([name(), p()]);
+    fig([name(), p(), p()]);
+    fig([p(), p()]);
+  });
+
+  it('accepts a subfigure run, with and without caption', () => {
+    fig([name(), fig([name()])]);
+    fig([fig([img()]), fig([])]);
+  });
+
+  // -- Rejection: mixed branches, repetition of the atom, foreign blocks.
+  // createChecked throws RangeError('Invalid content for node figure').
+
+  it('rejects image + paragraph in either order (the old exitName residue)', () => {
+    assert.throws(() => fig([name(), img(), p()]), /Invalid content/);
+    assert.throws(() => fig([name(), p(), img()]), /Invalid content/);
+  });
+
+  it('rejects two images (one atom per figure)', () => {
+    assert.throws(() => fig([name(), img(), img()]), /Invalid content/);
+  });
+
+  it('rejects paragraphs + subfigures mixed', () => {
+    assert.throws(() => fig([name(), p(), fig([])]), /Invalid content/);
+  });
+
+  it('rejects generic blocks in the body (table, note — Standoc-trailing kinds not yet modeled)', () => {
+    const table = N.table.createChecked(null, [
+      N.table_body.create(null, [N.table_row.create(null, [N.table_cell.create(null, [p()])])]),
+    ]);
+    assert.throws(() => fig([name(), table]), /Invalid content/);
+    assert.throws(() => fig([name(), N.note.create(null, [p()])]), /Invalid content/);
+  });
+
+  // -- Leniency contract: nodeFromJSON does NOT validate figure content;
+  //    doc.check() does. This asymmetry is why load-side repairs and the
+  //    editor-commands doc.check() assertions exist (see figureSlot tests).
+
+  it('nodeFromJSON accepts a schema-invalid figure silently; check() rejects it', () => {
+    const bad = metanormaSchema.nodeFromJSON({
+      type: 'figure',
+      attrs: { id: 'f1', number: null, width: null, data: {} },
+      content: [
+        { type: 'figure_name', attrs: { data: {} }, content: [] },
+        { type: 'image', attrs: { src: 'x.png' } },
+        { type: 'paragraph', attrs: { data: {} }, content: [] },
+      ],
+    });
+    assert.ok(bad != null); // no throw — fromJSON is content-lenient
+    assert.throws(() => bad.check(), /Invalid content/);
+  });
+});
+

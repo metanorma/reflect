@@ -244,7 +244,7 @@ positions that name them accept them. This matches Standoc, where
 | `table_head`, `table_body`, `table_foot` | `table_row+` | |
 | `table_row` | `table_cell+` | |
 | `table_cell` | `block+` | |
-| `figure` | `figure_name? (image \| block)*` | Optional leading caption textblock, then an optional `image` plus other blocks. `image` is allowed **only** here. |
+| `figure` | `figure_name? (image \| paragraph+ \| figure+)?` | Optional leading caption textblock, then a **typed body slot** mirroring Standoc's `FigureBody` XOR (§17.6): empty, OR exactly one branch — an `image` atom, a paragraph run, or a nested-figure run. `image` is allowed **only** here; generic blocks (tables, notes, …) are NOT admitted. |
 | `figure_name` | `inline*` | Caption of its parent `figure`; no group (§3.1 note). |
 | `table_name` | `inline*` | Caption of its parent `table`; no group (§3.1 note). |
 | `image` | *(empty)* | Atom leaf; `src` attr required. |
@@ -662,7 +662,7 @@ outside are renormalized proportionally, unrecoverable input parses as
 
 | Node | `content` | `atom`/leaf | `toDOM` | `parseDOM` |
 |---|---|---|---|---|
-| `figure` | `figure_name? (image \| block)*`, `group: 'block'` | — | `['figure', {class: CLASS.figure (+ `figureTextWidth`/`figureFullPageWidth` when role set), 'data-id': id, 'data-width': role}, 0]` (function; `data-width` only when the role is non-null; no `x-*` key — §6 rule 5) | `[{tag: 'figure'}]` — `data-width` (then foreign `width`) through `normalizeFigureWidth`; keywords map to the role, non-keyword values bank verbatim into `data.width` |
+| `figure` | `figure_name? (image \| paragraph+ \| figure+)?`, `group: 'block'` — the **typed body slot** (§17.6): empty OR exactly one XOR branch (`image` / paragraph run / nested-figure run); mixed branches and generic blocks are schema-invalid | — | `['figure', {class: CLASS.figure (+ `figureTextWidth`/`figureFullPageWidth` when role set), 'data-id': id, 'data-width': role}, 0]` (function; `data-width` only when the role is non-null; no `x-*` key — §6 rule 5) | `[{tag: 'figure'}]` — `data-width` (then foreign `width`) through `normalizeFigureWidth`; keywords map to the role, non-keyword values bank verbatim into `data.width` |
 | `figure_name` | `inline*` (no group) | — | `['figcaption', {class: CLASS.figureName}, 0]` | `[{tag: 'figcaption.mn-figure-name'}]` |
 | `image` | *(empty)* | atom, `draggable: true` | `['img', {src, alt, 'data-src': src, 'data-width'?, 'data-height'?, 'data-mimetype'?}]` (function; **no content slot** — leaf; numeric dims serialized via `formatImageSize` (§11); each `data-*` only when the attr is set; no `x-*` key — §6 rule 5) | `[{tag: 'img', getAttrs: …}]` — reads the intra-editor set (`data-width`/`data-height`/`data-mimetype`) first, then foreign HTML (raw `width`/`height` attributes, percent-only inline `style`), every candidate through `normalizeImageSize` (§17.8); non-canonical originals bank verbatim into `data.width`/`data.height` |
 
@@ -670,6 +670,35 @@ outside are renormalized proportionally, unrecoverable input parses as
 `<caption>` is destroyed by the HTML parser (reduced to a bare text node), so
 `<figcaption>` is the only figure-caption tag that survives clipboard
 re-parsing (§3.1 caption note, §14.11).
+
+**Figure body slot.** `figure_name? (image | paragraph+ | figure+)?` mirrors
+Standoc's `FigureBody` choice group (`basicdoc.rnc`) faithfully: the body is
+empty (the seeded/`insertFigure` and image-deletion recovery state) OR exactly
+one XOR branch — an `image` atom, a paragraph run, or a nested-figure run.
+Consequences, current state:
+
+- Mixed branches (`[figure_name, image, paragraph]`) and generic blocks
+  (tables, notes) in a figure body are schema-INVALID — no export coercion
+  for figures exists or is needed. Filling/replacing the slot is a whole-body
+  operation (`insertImageIntoFigure`, EditorCommands §6); caret-relative
+  insertion beside existing body children is never used (ProseMirror's
+  replace fitting re-homes displaced content into new sibling figures).
+- Enforcement boundaries: `NodeType.create`/`createChecked` and `doc.check()`
+  validate against the expression, and — prosemirror-transform ≥1.12 — every
+  transaction path does too (`tr.step` validates the post-step document and
+  throws `TransformError` on a violation); the fitting helpers
+  (`replaceRangeWith`, `insert`) avoid the throw by repairing (re-homing
+  displaced content into new sibling figures) or refusing. The one lenient
+  surface is `nodeFromJSON`: an invalid stored figure loads without error and
+  is caught only by `doc.check()` — the editor-commands suite asserts
+  `doc.check()` after every dispatched transaction.
+- Standoc's trailing content after the choice group (`fn*`, `dl?`, `note*`,
+  `source?`) is not modeled; DOM ingest of foreign figures carrying it is
+  repaired by the parser's content-match fitting, and adding trailing
+  alternatives later does not disturb the XOR.
+- Nested figures (`figure+`) are loadable first-class documents; their
+  authoring refusal (v1) is a command-level policy (EditorCommands
+  images-figures §2.2), not a schema rule.
 
 ### 8.7 Footnote nodes
 
@@ -1155,15 +1184,6 @@ coercion, not ambiguity — there is a single valid target):
   children fall outside the editor's inline vocabulary (e.g. `<index>`) is
   dropped on import. Both are coercions with a single valid target, not
   ambiguities.
-- `figure` permits an `image` alongside sibling blocks
-  (`figure_name? (image | block)*`), but Standoc's `FigureBody` choice group
-  (`basicdoc.rnc`) is single-occurrence — `image` XOR a
-  `paragraph-with-footnote+` run XOR nested figures — with only `fn*`, `dl?`,
-  `note*`, `source?` trailing. The converter's coercion: **drop empty trailing
-  paragraphs** after an image on export (the Enter/`exitName` residue —
-  `[figure_name, image, paragraph]` exports as `[figure_name, image]`);
-  **non-empty blocks after an image are a coverage gap** (the editor admits
-  them; export cannot express them — flagged as such, not silently dropped).
 
 `floating_title` is **not** a source of over-permissiveness: it is a groupless
 textblock whose legal positions (§8.3) — `sections` top level and the subclause

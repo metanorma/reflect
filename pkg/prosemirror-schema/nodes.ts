@@ -705,8 +705,32 @@ function imageSizeAttrsFromDom(el: SizeElementLike): Record<string, unknown> {
 }
 
 const mediaNodes: Record<string, NodeSpec> = {
+  /**
+   * The `figure` node — a caption plus a **typed body slot** (§8.6).
+   *
+   * `figure_name? (image | paragraph+ | figure+)?` mirrors Standoc's
+   * `FigureBody` choice group (§17.6): the body is EITHER empty (the seeded /
+   * recovery state) OR exactly one branch — an `image` atom, a run of
+   * paragraphs, or a run of nested figures. Mixed branches (image beside
+   * paragraphs, paragraphs after an image) are schema-INVALID here, not
+   * export-coerced — the XOR is an editor-level invariant, which is what
+   * makes the slot predicates (`canReplaceWith` over the body range) and
+   * whole-body replacement sound. Consequences:
+   *
+   * - `figure` no longer admits generic blocks (the old `(image | block)*`):
+   *   tables/lists/notes cannot sit inside a figure, matching Standoc.
+   * - A figure with only a caption is VALID (the trailing `?`) — the empty
+   *   slot state `insertFigure` seeds and image-deletion recovers to.
+   * - Nested figures (`figure+`) remain loadable first-class documents;
+   *   their authoring (v1 nesting refusal, images-figures.md §2.2) is a
+   *   command-level policy, not a schema rule.
+   * - Filling is whole-slot: commands replace the ENTIRE body range, never
+   *   inserting beside existing children (caret-relative inserts under this
+   *   expression are silently re-homed into new sibling figures by
+   *   ProseMirror's replace fitting — the figureSlot tests lock this in).
+   */
   figure: {
-    content: `figure_name? (image | ${BLOCK_GROUP})*`,
+    content: 'figure_name? (image | paragraph+ | figure+)?',
     group: BLOCK_GROUP,
     attrs: {
       id: { default: null },

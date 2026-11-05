@@ -44,7 +44,7 @@ defined in `schema.spec.md` §8.6 — implementation
 
 | Node | Content | Group | Atom | Draggable | Attrs |
 |---|---|---|---|---|---|
-| `figure` | `figure_name? (image \| block)*` | `block` | no | — | `id`, `number` (default `null`), `width` (role enum `'text-width'` \| `'full-page-width'`, default `null`), plus `data` (default `{}`); the caption is the `figure_name` child node |
+| `figure` | `figure_name? (image \| paragraph+ \| figure+)?` | `block` | no | — | `id`, `number` (default `null`), `width` (role enum `'text-width'` \| `'full-page-width'`, default `null`), plus `data` (default `{}`); the caption is the `figure_name` child node. The body is a **typed slot**: empty, or exactly one XOR branch — `image`, a paragraph run, or a nested-figure run (schema §8.6) |
 | `figure_name` | `inline*` | **none** | no | — | `data` (default `{}`) — the caption textblock |
 | `image` | *(empty)* | **none** | yes | yes | `src` (default `""`), `alt` (default `null`), `mimetype`/`width`/`height` (default `null` — the sizing axis, normalized per schema §17.8), `x-natural-width`/`x-natural-height` (editor-only, schema §6 rule 5), plus `data` (default `{}`) |
 
@@ -90,39 +90,45 @@ body:
 FigureBody = tname?, (image | video | audio | pre | paragraph-with-footnote+ | figure*), fn*, dl?, note*, source?
 ```
 
-Two structural facts follow:
+The ProseMirror schema mirrors the choice group **as a typed body slot**
+(`schema.spec.md` §8.6): `figure_name? (image | paragraph+ | figure+)?`. The
+single-occurrence XOR — an `image` XOR a paragraph run XOR nested figures —
+is a **schema-level invariant**, not an export coercion: mixed branches
+cannot be authored, dispatched, or pasted into existence. Everything after
+the choice group (`fn*`, `dl?`, `note*`, `source?`) is trailing content that
+the schema does not yet model (see §2.1.1).
 
-- The choice group is **single-occurrence**: an XML figure carries `image`
-  XOR a `paragraph-with-footnote+` run XOR nested figures — never both an
-  image and sibling paragraphs.
-- Everything after the choice group (`fn*`, `dl?`, `note*`, `source?`) is
-  trailing content that follows the primary content.
+Because the body is one slot, filling is a **whole-body operation**:
+`insertImageIntoFigure` (§6.4) replaces the ENTIRE body range — everything
+after `figure_name` — in one `replaceRangeWith` step. Caret-relative
+insertion beside existing body children is never used: under the XOR
+expression, ProseMirror's replace fitting "preserves" displaced paragraphs
+by re-homing them into new sibling figures (figure fission), so the command
+must hand the fitter a range that already covers everything that must go.
 
-The ProseMirror schema's `figure_name? (image | block)*` is intentionally
-looser (schema.spec.md §17.6): the editor admits a figure holding an image
-alongside blocks, because the Enter/`exitName` flow legitimately leaves an
-empty paragraph after the image. The export coercion for that divergence is
-governed by the §17.6 ledger (`schema.spec.md` §17.6), not by this feature.
-For `insertImageIntoFigure` the constraint is positional: **given the XOR, the
-slot immediately after `figure_name` is the only position valid in both
-models** — `[figure_name, image]` is the canonical XML figure, while
-`[figure_name, paragraph, image]` is invalid XML under any ordering of the
-trailing content. The command therefore always inserts immediately after the
-caption (§6.4 step 5).
+### 2.1.1 Standoc branches not yet modeled
+
+`video`, `audio`, and `pre` alternatives and the trailing `fn*`, `dl?`,
+`note*`, `source?` content are future schema extensions — each is one more
+alternative in the expression (or trailing terms after the group), and the
+slot predicates derive from the content expression automatically.
 
 ### 2.2 Nested figures (subfigures)
 
-Nested figures are **legal in both models**. In the PM schema, `figure` is in
-the `block` group and its content expression admits blocks, so a figure may
-contain a figure. In Standoc, `figure*` is one of the `FigureBody` choice
-branches — subfigures are a first-class Metanorma feature.
+Nested figures are **legal in both models**. In the PM schema, `figure+` is
+one of the typed body slot's XOR branches (§2.1), so a figure's body may be a
+run of nested figures. In Standoc, `figure*` is one of the `FigureBody`
+choice branches — subfigures are a first-class Metanorma feature.
 
 v1 does not surface subfigure authoring. The **Figure button creates
 top-level figures only**: `canInsertFigure` (§6.2) returns `false` when any
 ancestor of the selection is a `figure`. Imported or pasted nested figures
-remain valid documents. For those, `insertImageIntoFigure` targets the
-**nearest** enclosing figure that lacks an `image` child (§6.3) — a
-documented, well-defined rule, not a silent one.
+remain valid, loadable, editable documents. For those, `insertImageIntoFigure`
+targets the **nearest** enclosing figure and applies the §6.3 verdict to its
+slot — filling an empty subfigure (its own empty slot), refusing inside a
+subfigure that already holds an image (one-image rule), and refusing to
+replace a `figure+` run (subfigures are never destroyed by a fill). All three
+outcomes are schema-derived, documented rules, not silent ones.
 
 The guard, exported from both `@metanorma/prosemirror-schema` and
 `@metanorma/toolbar`:
@@ -217,8 +223,9 @@ A plain data-driven `ToolbarButton` (base spec §5): `isActive` is always
 standard adapter shape (README §6.2), patterned on the outdent button.
 
 `insertFigure` lands the cursor inside the seeded caption, so immediately
-after clicking Figure the Image button is enabled (the caret is inside an
-image-less figure) and the Figure button is disabled (nesting refusal, §2.2).
+after clicking Figure the Image button is enabled (the caret is inside a
+figure whose body slot is empty — the `fill` verdict) and the Figure button
+is disabled (nesting refusal, §2.2).
 
 ### 4.2 The Image button
 
@@ -234,9 +241,11 @@ visual consistency.
 
 The button is **single-mode**: its enabled state is
 `canInsertImageIntoFigure(state)` alone, its title is static ("Add image to
-figure"), and its commit handler always dispatches `insertImageIntoFigure`.
-There is no context-dependent title, no alternate behavior outside a figure —
-outside an image-less figure the button is simply disabled. When the command
+figure"), and its commit handler always dispatches `insertImageIntoFigure`
+(`fill` of an empty slot or silent `replace` of a paragraph run alike —
+undoable). There is no context-dependent title, no alternate behavior outside
+a figure — outside a fillable/replaceable slot the button is simply disabled.
+When the command
 returns `false` (e.g. the selection moved during an async upload), the dialog
 surfaces the inline error "Insertion point is no longer inside a figure"
 (§9.1).
@@ -501,24 +510,23 @@ excludes captions, headings, and non-textblock positions), **and** no ancestor
 of the selection is a `figure` (§2.2 nesting refusal — v1 does not author
 subfigures from the toolbar).
 
-### 6.3 `canInsertImageIntoFigure` — the target rule
+### 6.3 `canInsertImageIntoFigure` — the slot verdict
 
-Walk the selection's ancestors from the cursor outward. The **target** is the
-nearest enclosing `figure` that contains **no `image` child**. `true` iff such
-a figure exists. When the selection is a `NodeSelection` whose selected node
-is itself a `figure` without an `image` child, that node is the target.
+The target is the **nearest enclosing figure** of the selection (or the
+node-selected figure itself). The verdict on its body slot decides:
 
-Rules the walk encodes:
+- **`fill`** — the body is empty (fresh `insertFigure`, or the recovery state
+  after the image is deleted): `true`; the image becomes the body.
+- **`replace`** — the body is a paragraph run (the text branch): `true`; the
+  run is silently replaced by the image — undoable; the authored branch of
+  §6.2's Enter flow transitions to the image branch.
+- **refuse** — the body already holds an `image` (one-image rule: the author
+  deletes it first) or a `figure+` run (subfigures are never destroyed by a
+  fill): `false`. No figure enclosing the selection: `false`.
 
-- **One image per figure (v1).** A figure that already has an `image` is not a
-  target; the walk continues outward from its context — e.g. inside a
-  subfigure-with-image, the enclosing parent figure (if image-less) is a legal
-  target for `insertImageIntoFigure`. This guards accidental duplicates and
-  serves first-fill (§6.2 leaves the caret in the caption of an image-less
-  figure) and post-deletion recovery (§8.3) alike.
-- The nearest-ancestor walk is what makes imported/pasted **nested figures**
-  well-defined targets (§2.2): an image is added to the innermost image-less
-  figure containing the caret.
+The nearest figure alone decides — there is **no outward walk**: filling past
+a filled subfigure would mean replacing the parent's `figure+` run, i.e.
+destroying the subfigure, which the verdict refuses.
 
 ### 6.4 `insertImageIntoFigure` — algorithm
 
@@ -537,23 +545,25 @@ Rules the walk encodes:
    on throw (or if `attrs`/`src` is missing/empty), return `false` without
    dispatching (EditorCommands §1.5(4)). The assert also narrows `src` to
    `string` for the type system.
-5. **Resolve the target figure** (same walk as §6.3, re-run against the
-   passed `state`): the nearest ancestor `figure` with no `image` child (or
-   the node-selected figure itself). Resolve its position (`figStart =
-   $target.before(depth)`; for NodeSelection, `selection.from`).
-6. **Compute the insertion point: immediately after `figure_name`.** If the
-   target figure's first child is a `figure_name`, insert at `figStart + 1 +
-   figure_name.nodeSize`; if it has no caption child (a parsed/imported
-   figure), insert at `figStart + 1`. Rationale: §2.1 — given the Standoc XOR,
-   the slot after the caption is the only position valid in both models, and
-   it is immune to whatever trailing content the figure has accumulated
-   (paragraphs, notes, …).
-7. **Insert.** `tr.insert(pos, imageType.create({ src, alt: attrs.alt ?? null,
-   mimetype, 'x-natural-width': attrs.xNaturalWidth ?? null,
-   'x-natural-height': attrs.xNaturalHeight ?? null }))`
-   — one transaction. The selection is left unchanged (the cursor stays where
-   the author had it, e.g. in the caption). Authored size (`width`/`height`)
-   is NOT set here — sizing is apply-time (`updateImageAttrs`, §8.1).
+5. **Resolve the slot** (same rule as §6.3, re-run against the passed
+   state — the adapter may dispatch after an async upload, so the selection
+   may have moved since the dialog was opened): the nearest enclosing figure
+   (or node-selected figure), its start, and its body range
+   `[bodyFrom, bodyTo)` — everything after the optional `figure_name`
+   first child.
+6. **Whole-body replacement.** `tr.replaceRangeWith(bodyFrom, bodyTo,
+   imageType.create({ src, alt: attrs.alt ?? null, mimetype,
+   'x-natural-width': attrs.xNaturalWidth ?? null, 'x-natural-height':
+   attrs.xNaturalHeight ?? null }))` — ONE step. `fill`: the empty body gains
+   the image; `replace`: the paragraph run is silently replaced (undoable).
+   Authored size (`width`/`height`) is NOT set here — sizing is apply-time
+   (`updateImageAttrs`, §8.1). Rationale (§2.1): under the XOR expression
+   this is the only insertion shape that never triggers ProseMirror's
+   replace fitting to "preserve" displaced content by re-homing it into new
+   sibling figures.
+7. **Selection: set explicitly.** The caret may have sat in a body paragraph
+   that the replacement deleted. With a caption, land at the caption's end;
+   without one, just after the figure.
 8. **Scroll into view + dispatch once.** `tr.scrollIntoView(); dispatch(tr);
    return true;` — exactly one transaction, dispatched exactly once.
 
@@ -635,25 +645,51 @@ export function insertFigure(
   return true;
 }
 
-/** The nearest ancestor figure with no image child, or null. */
-function targetFigure($pos: ResolvedPos): { node: Node; depth: number } | null {
-  for (let d = $pos.depth; d >= 1; d--) {
-    const node = $pos.node(d);
-    if (node.type.name !== "figure") continue;
-    if (nodeHasImage(node)) continue;
-    return { node, depth: d };
-  }
-  return null;
+/** The resolved slot target (§6.3): nearest enclosing (or node-selected)
+ * figure, its body range, and the verdict. null = refuse. */
+interface FigureSlot {
+  readonly node: Node;
+  readonly start: number;
+  readonly bodyFrom: number;
+  readonly bodyTo: number;
+  readonly verdict: "fill" | "replace";
+  readonly hasCaption: boolean;
 }
 
-/** True when the selection is inside (or node-selects) an image-less figure. */
-export function canInsertImageIntoFigure(state: EditorState): boolean {
+function figureSlot(state: EditorState): FigureSlot | null {
   const sel = state.selection;
-  if (sel instanceof NodeSelection && sel.node.type.name === "figure"
-      && !nodeHasImage(sel.node)) {
-    return true;
+  let figure: Node; let start: number;
+  if (sel instanceof NodeSelection && sel.node.type.name === "figure") {
+    figure = sel.node; start = sel.from;
+  } else {
+    let depth = -1;
+    for (let d = sel.$from.depth; d >= 1; d--) {
+      if (sel.$from.node(d).type.name === "figure") { depth = d; break; }
+    }
+    if (depth === -1) return null;
+    figure = sel.$from.node(depth); start = sel.$from.before(depth);
   }
-  return targetFigure(sel.$from) !== null;
+  const first = figure.firstChild;
+  let captionSize = 0;
+  if (first !== null && first.type.name === "figure_name") captionSize = first.nodeSize;
+  const hasCaption = captionSize > 0;
+  const bodyFrom = start + 1 + captionSize;
+  const bodyTo = start + figure.nodeSize - 1;
+  const firstBodyIndex = hasCaption ? 1 : 0;
+  if (figure.childCount === firstBodyIndex) {
+    return { node: figure, start, bodyFrom, bodyTo, verdict: "fill", hasCaption };
+  }
+  // Paragraph run → replace; image present or figure+ run → refuse.
+  for (let i = firstBodyIndex; i < figure.childCount; i++) {
+    if (figure.child(i).type.name !== "paragraph") return null;
+  }
+  return { node: figure, start, bodyFrom, bodyTo, verdict: "replace", hasCaption };
+}
+
+/** True when the selection is inside (or node-selects) a figure whose body
+ * slot an image may fill or replace (§6.3). */
+export function canInsertImageIntoFigure(state: EditorState): boolean {
+  return figureSlot(state) !== null;
 }
 
 export function insertImageIntoFigure(
@@ -676,23 +712,11 @@ export function insertImageIntoFigure(
   const imageType = schema.nodes["image"];
   if (imageType === undefined) return false;
 
-  // Resolve the target (§6.4 step 4).
-  const sel = state.selection;
-  let figStart: number;
-  let captionSize: number;
-  if (sel instanceof NodeSelection && sel.node.type.name === "figure") {
-    figStart = sel.from;
-    captionSize = sel.node.firstChild?.type.name === "figure_name"
-      ? sel.node.firstChild.nodeSize : 0;
-  } else {
-    const target = targetFigure(sel.$from);
-    if (target === null) return false;
-    figStart = sel.$from.before(target.depth);
-    captionSize = target.node.firstChild?.type.name === "figure_name"
-      ? target.node.firstChild.nodeSize : 0;
-  }
+  // Resolve the slot (§6.4 step 5).
+  const slot = figureSlot(state);
+  if (slot === null) return false;
 
-  // Insert immediately after figure_name (§6.4 step 6).
+  // Whole-body replacement (§6.4 step 6).
   const image = imageType.create({
     src,
     alt: attrs!.alt ?? null,
@@ -700,7 +724,17 @@ export function insertImageIntoFigure(
     "x-natural-width": attrs!.xNaturalWidth ?? null,
     "x-natural-height": attrs!.xNaturalHeight ?? null,
   });
-  const tr = state.tr.insert(figStart + 1 + captionSize, image);
+  const tr = state.tr.replaceRangeWith(slot.bodyFrom, slot.bodyTo, image);
+
+  // Selection: explicit — the caret may have sat in a replaced paragraph.
+  if (slot.hasCaption) {
+    const mapped = tr.mapping.map(slot.bodyFrom - 1);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(mapped), -1));
+  } else {
+    const mapped = tr.mapping.map(slot.bodyTo + 1);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(mapped), 1));
+  }
+
   tr.scrollIntoView();
   dispatch(tr);
   return true;
@@ -843,20 +877,26 @@ excludes captions) and inside any figure (nesting refusal, §2.2).
 
 ### 8.3 Image button enabled (and the recovery story)
 
-`canInsertImageIntoFigure(state)` (§6.3). The two gating conditions mirror the
-two stages:
+`canInsertImageIntoFigure(state)` (§6.3) — the slot verdict on the nearest
+enclosing figure:
 
-- **First fill.** After `insertFigure`, the caret is inside the caption of an
-  image-less figure → enabled. The author may type the caption first; the
-  caret stays inside the figure, the button stays enabled.
-- **Recovery.** Deleting the `image` atom (node-select it, Backspace/Delete —
-  stock `deleteSelection`) leaves `figure > [figure_name]`. The caret lands
-  inside the figure context, the button re-enables, and re-running the dialog
-  restores the image. This is the state that motivated the stage split (§1):
-  under the stage split it is recoverable, not a dead end.
+- **First fill (`fill`).** After `insertFigure`, the caret is inside the
+  caption of an empty-slot figure → enabled. The author may type the caption
+  first; the caret stays inside the figure, the button stays enabled.
+- **Text-branch transition (`replace`).** In a figure whose body is a
+  paragraph run → enabled; committing silently replaces the run with the
+  image (undoable) and lands the caret at the caption's end.
+- **Recovery (`fill` again).** Deleting the `image` atom (node-select it,
+  Backspace/Delete — stock `deleteSelection`) leaves `figure >
+  [figure_name]`. The caret lands inside the figure context, the button
+  re-enables, and re-running the dialog restores the image. This is the
+  state that motivated the stage split (§1): under the stage split it is
+  recoverable, not a dead end.
 - **Disabled otherwise.** Outside any figure (a plain paragraph, a clause
-  body, a table cell, a heading) → no target → disabled. Inside a figure that
-  already has an image (v1 one-image rule) → disabled.
+  body, a table cell, a heading) → no target → disabled. Inside a figure
+  that already has an image (v1 one-image rule: delete it first) → disabled.
+  Inside a figure whose body is a `figure+` run (subfigures are never
+  destroyed by a fill) → disabled.
 
 `canInsertImageIntoFigure` is a pure function of `EditorState`, so it plugs
 directly into `useEditorStateSelector`.
@@ -985,9 +1025,11 @@ matches. The affordance for adding an image is the **enabled Image button**
 caption — `[figure_name]` (fresh `insertFigure`, or after the image is
 deleted: the recovery state, §8.3) and the caption-less empty figure (a
 parsed doc). It does **not** match figures with any body content — an image,
-paragraphs (including the Enter/`exitName` residue `[figure_name,
-paragraph]`), or nested figures. A deliberate text-figure therefore never
-shows the placeholder.
+a paragraph run, or nested figures. A deliberate text-figure therefore never
+shows the placeholder. (A text-figure whose run has been fully emptied to a
+bare empty paragraph — `[figure_name, p-empty]` — also renders no placeholder:
+the branch is chosen but blank. That state is accepted; Backspace on the
+empty paragraph returns the figure to the empty slot.)
 
 **Why no empty-textblock guard.** The section-title placeholder uses
 `:has(> .ProseMirror-trailingBreak:only-child)` because it detects an empty
@@ -1000,8 +1042,12 @@ no auxiliary guard.
 The pseudo-element is invisible to ProseMirror's DOM reading (PM parses only
 its content DOM; pseudo-elements generate no DOM nodes), so there is no
 serialization impact. Clicks on the pseudo-element fall through to the
-`figure` element, where ProseMirror lands the caret in the nearest textblock
-(the caption), which enables the Image button.
+`figure` element, where the `figureSlotClickPlugin`
+(`@metanorma/prosemirror-editor`, MetanormaProseMirror.spec.md §6.2)
+dispatches a `NodeSelection` on the figure — a single click selects the
+slot's owner, enabling the Image button with the figure explicitly targeted.
+Clicks in the caption keep the caret (ProseMirror's own placement plus the
+`placeholderClickPlugin` normalization).
 
 ## 13. File-structure summary
 

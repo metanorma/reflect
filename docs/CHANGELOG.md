@@ -7,6 +7,53 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-10-16 — Figure body as a typed slot: schema-enforced XOR, whole-body image fill, placeholder-click selection
+
+Multi-spec, multi-package feature (schema.spec.md, images-figures.md,
+EditorCommands.spec.md, MetanormaProseMirror.spec.md; prosemirror-schema,
+editor-commands, prosemirror-editor, editor-gui). **Commits: *(pending)***.
+
+- **Schema** — `figure.content` tightened from `(image | block)*` to
+  `figure_name? (image | paragraph+ | figure+)?`: Standoc's `FigureBody`
+  single-occurrence XOR (image XOR paragraph run XOR subfigure run) is now a
+  schema-level invariant rather than an export coercion; the §17.6 figure
+  entry is retired (no export coercion for figures remains), generic blocks
+  are no longer admitted in figure bodies, and empty-slot figures (the
+  seeded/recovery state) are valid. Enforcement boundaries documented from
+  probes: `tr.step` validates post-step documents in prosemirror-transform
+  ≥1.12 (raw invalid steps throw `TransformError`); fitting helpers repair
+  (re-homing displaced content into new sibling figures — "fission") or
+  refuse; `nodeFromJSON` is the one lenient surface (invalid stored figures
+  load silently, caught only by `doc.check()`).
+- **Commands** — `insertImageIntoFigure` rewritten as a whole-slot
+  `replaceRangeWith` over the figure's entire body range (the only shape
+  that never fissions), with verdicts: `fill` (empty body), `replace`
+  (paragraph run — silent, undoable), refuse (image present → one-image
+  rule; `figure+` run → subfigure protection). The bespoke `targetFigure`
+  ancestor walk is gone; `canInsertImageIntoFigure` is the slot predicate.
+  `exitName`'s no-sibling branch splits: empty body → paragraph branch
+  inside; image atom next → exit OUTSIDE the figure. `exitContainerBlock`
+  lift targets validated via a new shared `paragraphExitAfter()` helper
+  (walks past enclosing `figure+` runs to a paragraph-admitting position).
+  `createParagraphNear` becomes a stock-first custom wrapper: Enter on a
+  node-selected `image` (stock insertion schema-illegal beside it) routes
+  through the exit walk; `formula` behavior unchanged (§2.10 A1 → A1a/A1b).
+- **Editor** — new `figureSlotClickPlugin`: single click on the empty-figure
+  placeholder node-selects the figure (previously triple-click only),
+  enabling the Image button with the figure explicitly targeted.
+- **Latent bugs found (previously untested paths)** — `exitContainerBlock`'s
+  last-block check compared content ends that always differ by the
+  textblock's close token (the command could never fire); its lift position
+  was used un-mapped after a deletion. Both fixed; first unit coverage.
+- **Tests** — schema figure-shape acceptance/rejection matrix (+ leniency
+  contract); standing `doc.check()` validity gates after every dispatched
+  transaction in editor-commands tests; new `figureSlot.test.mjs` locking
+  the whole-body/fission/enforcement-boundary facts; e2e for
+  placeholder-click selection, text-branch silent replace, Enter on
+  node-selected image, and imported-subfigure documents.
+
+---
+
 ## 2026-11-05 — Image sizing axis: model compliance + UX, end to end
 
 Multi-spec, multi-package feature (schema.spec.md, images-figures.md,

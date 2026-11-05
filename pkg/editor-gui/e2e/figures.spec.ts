@@ -182,11 +182,125 @@ test.describe('two-stage figure authoring', () => {
     await commitImageDialog(page);
     await expect(toolbarButton(page, 'Image')).toBeDisabled();
 
-    // Enter from the caption inserts a paragraph INSIDE the figure; the caret
-    // is still inside the figure → Figure stays disabled, and Image (the
-    // figure has an image) stays disabled.
+    // Enter from the caption EXITS the figure (the image atom follows; a
+    // paragraph inside would violate the body-slot XOR): the caret lands in
+    // a clause-level paragraph after the figure — outside any figure — so
+    // Figure re-enables and Image stays disabled.
     await page.keyboard.press('Enter');
-    await expect(toolbarButton(page, 'Figure')).toBeDisabled();
+    await expect(toolbarButton(page, 'Figure')).toBeEnabled();
+    await expect(toolbarButton(page, 'Image')).toBeDisabled();
+  });
+
+  test('single-click on the placeholder node-selects the figure (figureSlotClickPlugin)', async ({ page }) => {
+    await openEditor(page);
+    await clickBodyParagraph(page);
+
+    await toolbarButton(page, 'Figure').click();
+    const fig = page.locator('figure.mn-figure');
+    await fig.waitFor();
+
+    // Single plain click on the placeholder region (::after area, below the
+    // caption) — what used to need a triple-click. The plugin selects the
+    // figure node; the class merge keeps mn-figure alongside the chrome.
+    const box = await fig.boundingBox();
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height - 10);
+    const cls = await page.locator('figure').first().getAttribute('class');
+    expect(cls).toContain('mn-figure');
+    expect(cls).toContain('ProseMirror-selectednode');
+    // Selection targets the figure for the Image button; the doc is untouched.
+    await expect(toolbarButton(page, 'Image')).toBeEnabled();
+    const figure = findFigure(await getDoc(page));
+    expect(figure.content.map((c: any) => c.type)).toEqual(['figure_name']);
+
+    // A caption click, by contrast, keeps the caret (no node selection).
+    await page.locator('figure.mn-figure figcaption').click({ force: true });
+    const cls2 = await page.locator('figure').first().getAttribute('class');
+    expect(cls2).not.toContain('ProseMirror-selectednode');
+  });
+
+  test('text-branch figure: Image silently replaces the paragraph run (undoable)', async ({ page }) => {
+    await openEditor(page);
+    await clickBodyParagraph(page);
+
+    // Seed a figure, type a caption, Enter — the paragraph branch — and type
+    // body text: a complete text-figure (§2.1 paragraph+ branch).
+    await toolbarButton(page, 'Figure').click();
+    await page.keyboard.type('Text fig');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('prose body');
+
+    let figure = findFigure(await getDoc(page));
+    expect(figure.content.map((c: any) => c.type)).toEqual(['figure_name', 'paragraph']);
+
+    // The replace verdict keeps the Image button enabled…
+    await expect(toolbarButton(page, 'Image')).toBeEnabled();
+    // …and committing replaces the whole body run with the image, silently.
+    await commitImageDialog(page);
+    figure = findFigure(await getDoc(page));
+    expect(figure.content.map((c: any) => c.type)).toEqual(['figure_name', 'image']);
+    expect(JSON.stringify(figure).includes('prose body')).toBe(false);
+  });
+
+  test('Enter on a node-selected image exits: paragraph after the figure', async ({ page }) => {
+    await openEditor(page);
+    await clickBodyParagraph(page);
+
+    await toolbarButton(page, 'Figure').click();
+    await commitImageDialog(page);
+
+    // Click the image atom → NodeSelection on it. Enter: stock beside-atom
+    // insertion is schema-illegal here, so the wrapper routes through the
+    // exit walk — an empty paragraph AFTER the figure, caret in it.
+    await page.locator('figure.mn-figure img').click();
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('out here');
+
+    const doc = (await getDoc(page)) as any;
+    const clause = doc.content[1].content[0];
+    const figure = clause.content.find((c: any) => c.type === 'figure');
+    expect(figure.content.map((c: any) => c.type)).toEqual(['figure_name', 'image']);
+    const trailing = clause.content.filter((c: any) => c.type === 'paragraph')
+      .map((p: any) => (p.content ?? []).map((t: any) => t.text ?? '').join(''));
+    expect(trailing).toContain('out here');
+  });
+
+  test('imported subfigure document: loads; Image refuses the figure+ run, fills the empty subfigure', async ({ page }) => {
+    await openEditor(page);
+    await page.evaluate(() => {
+      (window).__mnLoadDoc?.({
+        type: 'doc',
+        content: [
+          { type: 'bibdata', attrs: { item: null, data: {} } },
+          { type: 'sections', content: [
+            { type: 'clause', attrs: { id: '_c' }, content: [
+              { type: 'section_title', content: [{ type: 'text', text: 'C' }] },
+              { type: 'figure', attrs: { id: 'outer' }, content: [
+                { type: 'figure_name', content: [{ type: 'text', text: 'Outer' }] },
+                { type: 'figure', attrs: { id: 'sub-empty' }, content: [
+                  { type: 'figure_name', content: [{ type: 'text', text: 'Sub' }] },
+                ] },
+                { type: 'figure', attrs: { id: 'sub-img' }, content: [
+                  { type: 'figure_name', content: [{ type: 'text', text: 'Sub2' }] },
+                  { type: 'image', attrs: { src: 'x.png' } },
+                ] },
+              ] },
+            ] },
+          ] },
+        ],
+      });
+    });
+
+    // Parent caption: the body is a figure+ run — replacement refused.
+    const captions = page.locator('figure figcaption');
+    await captions.nth(0).click({ force: true });
+    await expect(toolbarButton(page, 'Image')).toBeDisabled();
+
+    // Empty subfigure's caption: nearest figure, empty slot — fill enabled.
+    await captions.nth(1).click({ force: true });
+    await expect(toolbarButton(page, 'Image')).toBeEnabled();
+
+    // Image-bearing subfigure's caption: one-image rule — disabled.
+    await captions.nth(2).click({ force: true });
     await expect(toolbarButton(page, 'Image')).toBeDisabled();
   });
 });

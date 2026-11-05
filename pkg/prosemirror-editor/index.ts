@@ -30,6 +30,7 @@ export {
 } from "./state.js";
 
 export { placeholderClickPlugin } from "./plugins/placeholderClick.js";
+export { figureSlotClickPlugin } from "./plugins/figureSlotClick.js";
 export {
   tableColumnResizePlugin,
   tableColumnResizeKey,

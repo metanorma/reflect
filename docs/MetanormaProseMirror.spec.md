@@ -298,8 +298,8 @@ Requirements:
 3. `opts.plugins` are appended **after** `reactKeys()` so consumer plugins cannot
    accidentally displace it.
 4. **Base plugins.** `createInitialEditorState` installs, in order:
-   `reactKeys()` and `placeholderClickPlugin()` (below). Consumer plugins
-   come after both.
+   `reactKeys()`, `placeholderClickPlugin()`, and `figureSlotClickPlugin()`
+   (below). Consumer plugins come after all three.
 
 **`placeholderClickPlugin`** (`plugins/placeholderClick.ts`) normalizes caret
 placement for clicks on the styled placeholder of an empty textblock (§9.4).
@@ -315,6 +315,28 @@ collapsed `TextSelection` inside that block when the selection is not already
 there, carrying `storedMarks` over (`setSelection` nulls them). The handler
 returns `false`: double-click word selection, shift-extend, and drag remain
 fully intact. Exported for reuse and testing.
+
+**`figureSlotClickPlugin`** (`plugins/figureSlotClick.ts`) selects the figure
+on a single click in its empty body region. The empty-figure placeholder
+("Empty figure", document.css) is a CSS `::after` on the `<figure>` element —
+no DOM node of its own — so placeholder clicks fall through to the figure
+element, where PM's caret placement lands in the caption; the figure itself
+was reachable only by triple-click. On a plain left-click (no modifiers,
+detail 1) whose target is inside a `figure.mn-figure` but not inside any of
+its textblocks (`figcaption`, body `p`/`pre`), and whose figure's body slot
+is EMPTY (no children beyond the optional `figure_name` — schema §8.6 seeded
+/ recovery state), the plugin dispatches a `NodeSelection` on that figure.
+The hook is `handleClickOn` — inside PM's click pipeline, after the click's
+position is computed — and the handler returns `true` to suppress PM's
+default caret placement (a `handleDOMEvents` dispatch would race PM's own
+selection handling and lose). Selection chrome rides `FigureNodeView`'s class
+merge (`ProseMirror-selectednode` alongside `mn-figure`). Scope: figures with
+a body branch (image / paragraph run / subfigure run) keep stock click
+behaviour — caret into textblocks, node-selection on atoms. A figure whose
+text branch has been emptied to a bare empty paragraph
+(`[figure_name, p-empty]`) renders no placeholder (the CSS selector is
+structural) and is NOT click-selectable by this plugin; that blank-but-chosen
+state is accepted. Exported for reuse and testing.
 
 ### 6.3 The image natural-size backfill plugin
 
@@ -620,6 +642,7 @@ export {
 /** Editor plugins (§6.2 base plugins; §6.3 backfill plugin; the table
  *  column-resize plugin is specified by tables.md §8.6). */
 export { placeholderClickPlugin } from "./plugins/placeholderClick";
+export { figureSlotClickPlugin } from "./plugins/figureSlotClick";
 export {
   tableColumnResizePlugin,
   tableColumnResizeKey,

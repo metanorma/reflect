@@ -21,7 +21,7 @@
  */
 
 import type { EditorState } from 'prosemirror-state';
-import type { Node, NodeType } from 'prosemirror-model';
+import type { Node, NodeType, ResolvedPos } from 'prosemirror-model';
 
 export { chainCommands } from 'prosemirror-commands';
 
@@ -144,4 +144,44 @@ export function admittedTextblock(
   if (!type.isTextblock) return null;
   if (!parent.canReplaceWith(index, index + 1, type)) return null;
   return type;
+}
+
+/**
+ * The exit target for "leave this figure" Enter commands: the position
+ * immediately after the node at `depth` — or, when that position's parent
+ * does not admit a paragraph there, the position after the next enclosing
+ * node whose parent does. Shared by `exitName` (Enter in a caption whose
+ * body cannot host the caret — the image atom), `exitContainerBlock`
+ * (lifting a trailing paragraph out of a figure), and `createParagraphNear`
+ * (Enter on a node-selected atom inside a figure).
+ *
+ * Why the walk is needed: a figure may sit inside another figure's `figure+`
+ * body run (`figure_name? (image | paragraph+ | figure+)?`), and a paragraph
+ * is admissible in a `figure+` run nowhere — inserting "after the subfigure"
+ * unconditionally would be rejected by the step machinery (`TransformError`
+ * from `tr.step`'s post-step validation) or "repaired" by the replace fitter
+ * into a sibling-figure fission. The walk computes the correct position
+ * instead of relying on either failure mode.
+ *
+ * Insertion-shaped legality at each candidate (`canReplaceWith(i, i, t)`),
+ * the same question `canInsertBlockAdjacent` asks. Returns `null` when no
+ * ancestor admits a paragraph at all (cannot happen in this schema — every
+ * figure's ancestor chain reaches a `block+` container — but the helper
+ * stays total for composed schemas).
+ */
+export function paragraphExitAfter(
+  $pos: ResolvedPos,
+  depth: number,
+  paraType: NodeType,
+): number | null {
+  for (let d = depth; d >= 1; d--) {
+    const parentDepth = d - 1;
+    // $pos is strictly inside node(d), so index(parentDepth) is node(d)'s
+    // child index in its parent — the slot after it is index + 1.
+    const index = $pos.index(parentDepth) + 1;
+    if ($pos.node(parentDepth).canReplaceWith(index, index, paraType)) {
+      return $pos.after(d);
+    }
+  }
+  return null;
 }

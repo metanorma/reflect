@@ -4,8 +4,9 @@
  * Verifies that insertion seeds an empty caption and focuses it, that typing
  * fills it, that inline marks apply inside the caption (rich markup), that
  * Enter exits per the landing rules (first cell for tables; paragraph after
- * the image for figures), that Backspace on an empty caption unwinds per the
- * §4.4.9b guard, and — as a browser-locked regression — that both caption
+ * the FIGURE for figures — a paragraph inside an image-bearing figure would
+ * violate the body-slot XOR), that Backspace on an empty caption unwinds per
+ * the §4.4.9b guard, and — as a browser-locked regression — that both caption
  * serializations survive the HTML parser (§14.11 of schema.spec.md).
  */
 import { expect, test } from '@playwright/test';
@@ -109,7 +110,7 @@ test.describe('table captions', () => {
 });
 
 test.describe('figure captions', () => {
-  test('Figure+Image seeds a caption; Enter with only the image following inserts a paragraph after it', async ({ page }) => {
+  test('Figure+Image seeds a caption; Enter with only the image following EXITS the figure', async ({ page }) => {
     await openEditor(page);
     await clickBodyParagraph(page);
     await page.keyboard.type('intro ');
@@ -127,22 +128,24 @@ test.describe('figure captions', () => {
     // Cursor back in the seeded figure_name — type the caption.
     await page.keyboard.type('Fig caption');
 
-    // Enter: no textblock-bearing sibling inside the figure (image is next) →
-    // paragraph inserted after the image, cursor inside it.
+    // Enter: the next body child is the image atom — a paragraph INSIDE the
+    // figure would violate the body-slot XOR (schema §8.6), so the figure is
+    // exited: the paragraph lands AFTER the figure (a clause sibling), and
+    // the caret is in it.
     await page.keyboard.press('Enter');
-    await page.keyboard.type('in figure');
+    await page.keyboard.type('after figure');
 
     const doc = (await getDoc(page)) as any;
-    let figure: any = null;
-    const find = (node: any) => {
-      if (node.type === 'figure') { figure = node; return; }
-      for (const c of node.content ?? []) find(c);
-    };
-    find(doc);
-    expect(figure).not.toBeNull();
-    expect(figure.content.map((c: any) => c.type)).toEqual(['figure_name', 'image', 'paragraph']);
-    const paraText = (figure.content[2].content ?? []).map((t: any) => t.text ?? '').join('');
-    expect(paraText).toBe('in figure');
+    const clause = doc.content[1].content[0];
+    expect(clause.content.map((c: any) => c.type)).toEqual([
+      'section_title', 'paragraph', 'figure', 'paragraph',
+    ]);
+    const figure = clause.content[2];
+    expect(figure.content.map((c: any) => c.type)).toEqual(['figure_name', 'image']);
+    // The typed text went to the clause-level paragraph AFTER the figure —
+    // not into the figure body.
+    const afterText = (clause.content[3].content ?? []).map((t: any) => t.text ?? '').join('');
+    expect(afterText).toBe('after figure');
     const capText = (figure.content[0].content ?? []).map((t: any) => t.text ?? '').join('');
     expect(capText).toBe('Fig caption');
   });

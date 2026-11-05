@@ -1,6 +1,6 @@
 /**
  * `exitName` — Enter behaviour inside a `figure_name` / `table_name` caption
- * textblock (spec §2.4.6b).
+ * textblock (spec §2.4.6; inventory §2.7; matrix §2.10).
  *
  * Captions are optional first children of `figure` / `table` with content
  * `inline*`; splitting with `splitBlockKeepMarks` would create a second
@@ -12,12 +12,16 @@
  *   `table_head`/`table_body` row's first cell paragraph (the table always
  *   has rows: its content expression requires them).
  * - `figure_name`: move to the start of the first following sibling that can
- *   hold a textblock cursor. When no such sibling exists (the next child is
- *   the `image` atom, or the caption is the figure's last child), insert an
- *   empty paragraph after the figure's **last child** and place the cursor in
- *   it — so `[figure_name, image]` + Enter yields `[figure_name, image,
- *   paragraph]` with the cursor in the paragraph, never a stray selection
- *   beside an atom.
+ *   hold a textblock cursor. When no such sibling exists:
+ *   - caption is the figure's **only** child (the empty body slot) → insert
+ *     an empty paragraph after the caption, INSIDE the figure — choosing the
+ *     `paragraph+` branch of the body slot (§8.6) — cursor in it;
+ *   - otherwise (the next child is the `image` atom, or an empty imported
+ *     subfigure) → **exit the figure**: an empty paragraph after the figure,
+ *     at the nearest paragraph-admitting position (`paragraphExitAfter` —
+ *     inside a parent figure's `figure+` run, "just after this figure" does
+ *     not admit a paragraph, so the walk lands after the outermost enclosing
+ *     figure).
  *
  * - cursor NOT inside a caption → **not applicable** (returns `false`).
  *
@@ -33,6 +37,7 @@ import type { Command } from 'prosemirror-state';
 import { TextSelection } from 'prosemirror-state';
 
 import { NODE_NAME, nodeType } from '../schema.js';
+import { paragraphExitAfter } from '../util.js';
 
 
 /**
@@ -85,10 +90,10 @@ export const exitName: Command = (state, dispatch) => {
       // Move the cursor to the start of that sibling (descending into it).
       const siblingStart = captionEnd; // start of child at landIndex
       tr.setSelection(TextSelection.near(tr.doc.resolve(siblingStart), 1));
-    } else {
-      // No textblock-bearing sibling follows (image atom next, or caption is
-      // last child): insert an empty paragraph after the figure's LAST child
-      // and place the cursor in it.
+    } else if (parentNode.childCount === captionIndex + 1) {
+      // The caption is the figure's only child — the EMPTY body slot: create
+      // the paragraph branch inside (`figure_name? (image | paragraph+ |
+      // figure+)?` gains its `paragraph+` run), cursor in it.
       const paraType = nodeType(state.schema, NODE_NAME.paragraph);
       if (paraType === null) return false;
       const parentEnd = $from.after(parentDepth);
@@ -96,6 +101,18 @@ export const exitName: Command = (state, dispatch) => {
       // The inserted paragraph occupies [parentEnd-1, parentEnd+1); its
       // content starts at parentEnd.
       tr.setSelection(TextSelection.near(tr.doc.resolve(parentEnd), 1));
+    } else {
+      // No cursor-bearing sibling follows, but the body is NOT empty (the
+      // `image` atom, or an empty imported subfigure): a paragraph INSIDE
+      // would violate the body-slot XOR — exit the figure instead, landing
+      // at the nearest paragraph-admitting position (after the outermost
+      // enclosing figure when this figure is a subfigure).
+      const paraType = nodeType(state.schema, NODE_NAME.paragraph);
+      if (paraType === null) return false;
+      const exitPos = paragraphExitAfter($from, parentDepth, paraType);
+      if (exitPos === null) return false;
+      tr.insert(exitPos, paraType.create());
+      tr.setSelection(TextSelection.near(tr.doc.resolve(exitPos + 1), 1));
     }
   }
 
