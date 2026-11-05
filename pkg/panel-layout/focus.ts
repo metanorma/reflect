@@ -20,9 +20,8 @@
  * (no `:focus-visible` rules anywhere in the mock or dockview.css) and
  * G5/G6 (focus left on `body` after close/unwrap) are the documented gaps
  * this module closes. The G3 ring CSS ships as the sibling hand-authored
- * `focus.css` (outside the `tokens:extract` pipeline, which owns
- * `panel-layout.css` verbatim from the mock — the mock has no focus rules
- * to extract).
+ * `focus.css`, hand-authored like `panel-layout.css` (both D45:
+ * hand-owned sources of truth, no pipeline).
  *
  * Engine facts this module is built on (verified against the pinned
  * dockview-core 7.0.4, `.yarn/cache/dockview-core-npm-7.0.4-*.zip`):

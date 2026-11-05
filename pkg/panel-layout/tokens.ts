@@ -1,13 +1,7 @@
 /**
- * Design tokens and layout constants — typed views over the generated
- * `design-tokens.json` (extracted verbatim from the mock).
- *
- * The mock remains the source of truth until superseded by the
- * implementation; regenerate the JSON with
- * `yarn workspace @metanorma/panel-layout tokens:extract`.
- *
- * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
- * @ 94d4b8307e5f0db2a1b32e14ceb8754207a51f27
+ * Design tokens and layout constants — typed views over the hand-owned
+ * `design-tokens.json` (D45: its `_provenance` records the final
+ * extraction snapshot; changes land directly in the JSON).
  */
 
 import raw from './mock/design-tokens.json';
@@ -71,10 +65,9 @@ interface DesignTokensFile {
 const file = raw as DesignTokensFile;
 
 /**
- * Mock `:root` custom properties, verbatim (e.g. `--accent`). Deliberately
- * a flat map — not a hand-listed literal-key interface: the JSON
- * regenerates with the mock, and key lists here would drift where
- * `tokens:check` cannot see it.
+ * `:root` custom properties (e.g. `--accent`). Deliberately a flat map —
+ * not a hand-listed literal-key interface: key lists here would drift
+ * from the JSON where no gate could see it.
  */
 export const TOKENS: Readonly<Record<string, string>> = file.tokens;
 

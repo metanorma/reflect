@@ -7,9 +7,8 @@
  * the mock's historical localStorage keys, verbatim — the parity goldens'
  * `storage` halves and the flows' `settle()` polling read them by name.
  *
- * The reference mock keeps dead-data `const LS_KEY` / `const LS_H_KEY`
- * declarations as EXTRACTION ANCHORS (extract-design-tokens.mjs reads the
- * key strings from the mock — D35); this module is the live copy.
+ * This module is the single source for the key strings (the mock's
+ * dead-data anchors were removed with the extraction pipeline, D45).
  *
  * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
  * @ 94d4b8307e5f0db2a1b32e14ceb8754207a51f27

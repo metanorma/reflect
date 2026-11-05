@@ -213,13 +213,11 @@ are referenced from that spec.
 ## 4. Default / initial values
 
 The canonical values live in
-[`design-tokens.json`](../mock/design-tokens.json) —
-machine-extracted verbatim from the mock by
-[`extract-design-tokens.mjs`](../mock/extract-design-tokens.mjs)
-(regenerate: `yarn workspace @metanorma/panel-layout tokens:extract`;
-provenance recorded in its `_provenance` key). What follows is the same
-information as prose, for reading; the JSON is the shared source that both
-the mock (as origin) and any implementation (as consumer) agree on.
+[`design-tokens.json`](../mock/design-tokens.json) — a hand-owned source
+of truth whose `_provenance` records its final extraction snapshot. What
+follows is the same information as prose, for reading; the JSON is the
+shared source that the library consumes (via its typed views) and any
+implementation agrees on.
 
 - **Storage** (`storageKeys`): the serialization model — heights map keyed by group id, `{top}`-only window forms, layout JSON shape — is library contract. The storage medium and key names are consumer configuration (demo: localStorage, `mn-dockview7-floats-v1` / `mn-dockview7-heights-v1`); empty first load; written on layout change + takeover drags; wiped by restore-to-default.
 - **Toolbar**: Bold · Italic | Quote · Note | Xref · Eref | spacer | Auto-wrap panels: **ON** | Reset.

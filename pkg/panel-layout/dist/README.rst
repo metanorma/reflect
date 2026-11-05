@@ -53,10 +53,8 @@ The DEMO artifacts (demo task, D38/D39 — one per flavor, entry
   importmap (mapped to ``/dist/mock/panel-layout.js``), so the demo
   bundle consumes the built library exactly as a third-party consumer
   would. The thinned reference mock imports BOTH artifacts and mounts
-  ``DemoApp`` — its inline remainder is the boot overlay, the app-shell +
-  library-chrome CSS (extraction anchors, D35) and a dead-data design-token
-  anchor block (titles/preset/storage keys/constants/engine-option
-  literals; ``tests/demo.test.mjs`` drift-guards the duplication). The
+  ``DemoApp`` — its inline remainder is the boot overlay and the app-shell
+  CSS; the library chrome arrives via the linked sheets (D45). The
   metafile assert's external allow-list gains ``@metanorma/panel-layout``
   for this target (everything external remains importmap-suppliable).
 
@@ -78,12 +76,14 @@ mock rewiring):
   split (D26) and the mock's layout-save timing through the persistence
   facade (the synchronous save net — see panelLayout.tsx's header).
 - CSS linking: DONE — the mock links the served ``/panel-layout.css`` and
-  ``/focus.css`` after dockview.css (D28/D30). The library chrome blocks
-  REMAIN in the mock's inline ``<style>`` as the extraction source the
-  tokens pipeline reads (mock → library drift direction, D29); the linked
-  sheet is byte-identical to them, so cascade order changes nothing.
-  ``panel-layout.css`` now also carries the J7 reduced-motion block
-  (behavior.spec.md §3 J7), extracted from the mock.
+  ``/focus.css`` after dockview.css (D28/D30), and since the D45
+  extraction-pipeline decommission those links are the SOLE source of the
+  library chrome: the extractor-duplicated inline ``:root``/chrome blocks
+  were deleted from the mock in the same change, and the parity suite
+  passed against the UNCHANGED goldens (the cascade proof — the linked
+  sheet was byte-identical to the deleted inline copies).
+  ``panel-layout.css`` also carries the J7 reduced-motion block
+  (behavior.spec.md §3 J7).
 - Single-instance parity test: the mock-facing bundle's externals assert
   (metafile) already cover the engine-copy guarantee; a page-level
   resource-count spec remains follow-up work with the twin target.
@@ -102,10 +102,35 @@ Deferred items that LANDED with the demo task (D38/D39):
   design (D35); where it lives for a host other than the mock is the twin
   loop's decision.
 - Mock thinning: DONE — the mock keeps zero demo content, zero chrome
-  JSX and zero registrations inline; its remainder is boot/head, the
-  extraction-anchor CSS + design-token blocks, and one two-import mount
-  of ``DemoApp``. The parity suite passes UNCHANGED against the same
-  goldens through the extracted demo.
+  JSX and zero registrations inline; since D45 its remainder is also free
+  of the dead-data extraction anchors and the extractor-duplicated
+  library-chrome/``:root`` CSS (boot/head, app-shell CSS, and one
+  two-import mount of ``DemoApp``). The parity suite passes UNCHANGED
+  against the same goldens through the extracted demo.
+
+Extraction-pipeline decommission (D45):
+
+- ``panel-layout.css`` and ``mock/design-tokens.json`` are HAND-OWNED
+  sources of truth (headers no longer claim GENERATED; provenance = git
+  history; payloads frozen byte-for-byte from the pipeline's final run —
+  ``mock/design-tokens.json`` `_provenance` records that snapshot). The
+  extract scripts and the ``tokens:extract``/``tokens:check`` package
+  scripts are retired; nothing else invoked them (CI never did). The
+  standing consistency guard is in-suite: ``tests/tokens.test.mjs``
+  cross-checks the JSON's ``TOKENS``/``DV_TOKENS`` against the
+  declarations parsed out of ``panel-layout.css``. The JSON stays at
+  ``mock/design-tokens.json`` — the parity harness
+  (``tests/parity/harness.html``) imports it at that hardcoded path.
+- ``capture:states`` caveat (extends D42): that tool serves the mock with
+  ``mock/`` as its server root, so the mock's absolute links
+  (``/panel-layout.css``, ``/focus.css``, and since D39
+  ``/demo/panel-content.css``) are unreachable there; frame REGENERATION
+  needs a server-root change (the tool lives in an untouchable dir) or
+  absolute-path links. Before the decommission the inline duplication
+  masked the two library links; the checked-in frames remain valid
+  (``--check-only`` reads frame files, not the live mock), and the
+  parity/goldens servers (rooted at ``pkg/panel-layout/``) resolve every
+  link.
 
 Still deferred by design (twin loop, not this one):
 
@@ -114,6 +139,8 @@ Still deferred by design (twin loop, not this one):
   the decision of where the demo's app-chrome CSS lives outside the mock.
 - Synthetic-suite audit beyond the convergence rows (D2).
 - Regenerating the state frames from the thinned mock
-  (``capture:states``) needs the demo stylesheet reachable from that
-  tool's server root (it serves the mock from ``mock/`` today); until
-  then the existing checked-in frames remain the verification source.
+  (``capture:states``) needs the demo stylesheet — and, since D45, the
+  library sheets — reachable from that tool's server root (it serves the
+  mock from ``mock/`` today); see the extended caveat in the
+  decommission section above. Until then the existing checked-in frames
+  remain the verification source.

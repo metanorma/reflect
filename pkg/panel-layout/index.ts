@@ -16,11 +16,9 @@
  * theming/CSS layer (§3 module 10) and the `<PanelLayout>` front door
  * (§3 module 1), which composes all of them (api.spec.md §2.1).
  *
- * - `panel-layout.css` — library chrome styles (regenerate + drift-check:
- *   `yarn workspace @metanorma/panel-layout tokens:extract [--check]`);
- *   `focus.css` is hand-authored beside it (G3 rings, outside the pipeline).
- *   Consumers link both after dockview.css; the mock links the served
- *   copies (see the rewired mock's `<head>`).
+ * - `panel-layout.css` + `focus.css` — the hand-owned stylesheets (D45:
+ *   chrome and G3 rings respectively). Consumers link both after
+ *   dockview.css; the mock links the served copies (see its `<head>`).
  *
  * The mock and its capture tooling under `mock/` are build inputs and
  * acceptance references (state frames, goldens), not shipped code; the 11
@@ -187,9 +185,8 @@ export type { PanelErrorBoundaryProps } from './panelErrorBoundary.js';
 
 /**
  * Theming/CSS layer (api.spec.md §3 module 10): typed views over the
- * generated design tokens (`mock/design-tokens.json`, extracted verbatim
- * from the mock — regenerate + drift-check with
- * `yarn workspace @metanorma/panel-layout tokens:extract [--check]`).
+ * hand-owned design tokens (`mock/design-tokens.json`, D45 — its
+ * `_provenance` records the final extraction snapshot).
  * The budgeted surface is the token data itself; the engine-option views
  * (`DND_EDGES`, `FLOATING_GROUP_BOUNDS`), the consumer-configurable
  * storage key names (`STORAGE_KEYS`) and the extraction bookkeeping

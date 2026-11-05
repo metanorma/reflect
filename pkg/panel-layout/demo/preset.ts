@@ -13,10 +13,8 @@
  * leaf `size` = height in px (for a VERTICAL branch, size is the height
  * dimension). `views` reference panel ids in `panels`.
  *
- * NOTE: the reference mock keeps a dead-data copy of this function as an
- * EXTRACTION ANCHOR (extract-design-tokens.mjs reads it verbatim from the
- * mock — D35); tests/demo.test.mjs VM-evaluates the anchor and asserts
- * byte-parity against this module, so the two copies cannot drift.
+ * NOTE: the extraction anchors this module superseded were removed with
+ * the extraction pipeline (D45); this module is the single source.
  *
  * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
  * @ 94d4b8307e5f0db2a1b32e14ceb8754207a51f27

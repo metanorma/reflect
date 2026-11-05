@@ -244,3 +244,33 @@ D44 (demo task return): F1n (aria-pressed) and C2-demo (statusbar
     owner's fold (demo.spec was ruled behavior-only/untouched by the demo
     task; the fold is a normal current-state spec edit, not execution
     content).
+D45 (orchestrator, decommission ruling — supersedes D35's extraction-source
+    arrangement and D40's repointing amendment): the extractors were
+    extraction-era scaffolding; the mock is superseded as a source of truth
+    (library at convergence, demo data at the demo loop). panel-layout.css
+    and design-tokens.json become HAND-OWNED sources of truth (headers stop
+    claiming GENERATED; provenance = git history). The mock's dead-data
+    EXTRACTION ANCHORS block and the extractor-duplicated inline
+    chrome/:root rules are deleted IN THE SAME CHANGE as the script
+    retirement — no silent-drift window (the <link>s become the sole source
+    of library chrome; parity pixels are the cascade proof). extract
+    scripts and the tokens:extract/tokens:check package scripts retire.
+    The JSON<->CSS cross-check tests in tokens.test.mjs (which never read
+    the mock) become the standing consistency guard; DEMO-anchor-parity
+    dies with its subject. Post-task spec folds land orchestrator-side.
+D46 (decommission return, per ruling 3): design-tokens.json STAYS at
+    mock/design-tokens.json — relocation was considered and blocked by
+    tests/parity/harness.html's hardcoded /mock/design-tokens.json import
+    (untouchable harness; lifting that hardcode is the prerequisite if the
+    twin loop ever wants the JSON at the package root). _provenance now
+    declares HAND-OWNED (7-field shape kept; commit/dates record the final
+    extraction snapshot); payloads byte-identical at handover.
+D47 (decommission return): Yarn 4.17 does NOT auto-chain the pretest
+    lifecycle script — `yarn test` alone can run a stale compiled/.
+    All gate runs must be `yarn compile && yarn test`; fixing the test
+    script (or tests/README's claim) is a pending small change.
+D48 (decommission return): capture:states regeneration caveat extended —
+    with the inline chrome gone, that tool's mock/-rooted server also
+    misses /panel-layout.css and /focus.css; frame regeneration needs the
+    server-root fix (tool in an untouchable dir; twin-loop work item).
+    Checked-in frames remain valid (--check-only reads frame files).

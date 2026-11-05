@@ -8,14 +8,13 @@
 <!-- Real dockview stylesheet (theme vars + structural rules) -->
 <link rel="stylesheet" href="https://unpkg.com/dockview-core@7.0.4/dist/styles/dockview.css">
 
-<!-- Library chrome, served by the parity server (tests/parity/serve.mjs,
-     rooted at pkg/panel-layout/): panel-layout.css is the extracted-verbatim
-     artifact (tokens:extract / tokens:check own it — the blocks below in this
-     file's <style> remain as the EXTRACTION SOURCE the pipeline reads, per
-     D29/D30); focus.css is the hand-authored G3 ring sheet (D28). Both load
-     AFTER dockview.css (additive source-order wins). When opened from
-     file:// these links 404 harmlessly — the inline blocks below carry the
-     same rules, so the standalone page stays pixel-identical. -->
+<!-- Library chrome, served from a root at pkg/panel-layout/ (the parity
+     server, tests/parity/serve.mjs, and the goldens capture tool):
+     panel-layout.css is the HAND-OWNED library chrome sheet (D45 — the
+     extraction pipeline retired; these links are its sole source, so this
+     page must be served, not opened from file://); focus.css is the
+     hand-authored G3 ring sheet (D28). Both load AFTER dockview.css
+     (additive source-order wins). -->
 <link rel="stylesheet" href="/panel-layout.css">
 <link rel="stylesheet" href="/focus.css">
 
@@ -41,17 +40,6 @@
      already flush to an edge, snapping another into the same band stacks
      them into an overlap (free-form float placement instead).
      ============================================================ */
-  :root{
-    --ink:#1c2733; --muted:#66707d; --faint:#9aa3ad;
-    --chrome:#eef1f4; --line:#d7dde3; --line-soft:#e6ebef;
-    --accent:#2f6fdb; --accent-ink:#1d4fa8; --accent-bg:#e8f0fe;
-    --err:#c4392f; --warn-ink:#8a6100; --warn-bg:#fff3d6; --warn-line:#e3c565;
-    --derive-ink:#7c8692;
-    --rail-w:128px;
-    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-    --sans:-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-    --doc:"Helvetica Neue",Arial,"Liberation Sans",sans-serif;
-  }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;height:100%}
   body{background:var(--chrome);font-family:var(--sans);color:var(--ink);overflow:hidden}
@@ -81,115 +69,16 @@
   .statusbar .grow{flex:1}
   .statusbar .live{font-family:var(--mono);font-size:10px;color:var(--accent-ink)}
 
-  /* ============ dockview theme overrides (InDesign-ish float panels) ============ */
-  .layoutArea .dockview-theme-light{
-    --dv-group-view-background-color:#fff;
-    --dv-tabs-and-actions-container-background-color:#eef1f5;
-    --dv-tabs-and-actions-container-height:30px;
-    --dv-tabs-and-actions-container-font-size:11.5px;
-    --dv-separator-border:#ccd3da;
-    --dv-activegroup-visiblepanel-tab-background-color:#fff;
-    --dv-inactivegroup-visiblepanel-tab-background-color:#f4f6f8;
-    --dv-activegroup-visiblepanel-tab-color:#1c2733;
-    --dv-inactivegroup-visiblepanel-tab-color:#66707d;
-    --dv-activegroup-hiddenpanel-tab-color:#8b95a0;
-    --dv-inactivegroup-hiddenpanel-tab-color:#9aa3ad;
-    --dv-drag-over-background-color:rgba(47,111,219,.10);
-    --dv-drag-over-border-color:#7ea6ea;
-    --dv-icon-hover-background-color:rgba(47,111,219,.10);
-    --dv-floating-box-shadow:0 14px 40px rgba(15,25,40,.30),0 2px 8px rgba(15,25,40,.18);
-    --dv-floating-border:1px solid #c6cdd4;
-    --dv-floating-titlebar-height:24px;
-    --dv-floating-titlebar-background-color:linear-gradient(#f8fafc,#e8edf2);
-    --dv-floating-titlebar-border-bottom:1px solid #d6dce2;
-    --dv-border-radius:8px;
-  }
-  /* the floating window itself (overflow must stay visible: the 4px resize
-     handles protrude 2px beyond the box and would be clipped/unhittable) */
-  .layoutArea .dv-resize-container.dv-resize-container-with-titlebar{
-    border-radius:8px;
-  }
-  /* dedicated float move-handle: drag = move window — move-ONLY (T6: the
-     titlebar's redock drag source is disabled; see suppressTitlebarGroupDrag).
-     Dragging against an edge magnetizes the window flush (LIVE MAGNET in
-     transformFloatingGroupDrag) — it never docks into the grid. */
-  .layoutArea .dv-floating-titlebar{
-    background-image:linear-gradient(#f8fafc,#e8edf2);
-    background-color:#e8edf2;
-    display:flex;align-items:center;justify-content:center;cursor:grab;
-    overflow:hidden;
-  }
-  .layoutArea .dv-floating-titlebar:active{cursor:grabbing}
-  /* drag-affordance grip: a centered ridged bar (no text — titles and hints
-     live in the tabset tab strips below; the bar only signals "grab here") */
-  .mn-drag-grip{
-    flex:0 0 auto;width:44px;height:12px;border-radius:6px;
-    background:repeating-linear-gradient(90deg,
-      #b7c0c9 0 3px, transparent 3px 7px);
-    opacity:.8;user-select:none;pointer-events:none;
-  }
-  .layoutArea .dv-floating-titlebar:hover .mn-drag-grip,
-  .layoutArea .dv-floating-titlebar:active .mn-drag-grip{opacity:1;background:repeating-linear-gradient(90deg,
-    #8a99a8 0 3px, transparent 3px 7px)}
-  /* tab strip + tabs + sashes */
-  .layoutArea .dv-tabs-and-actions-container{border-bottom:1px solid var(--line-soft)}
-  .layoutArea .dv-tab{border-radius:5px 5px 0 0}
-  .layoutArea .dv-sash{background:#ccd3da}
-  .layoutArea .dv-sash.dv-enabled:hover,.layoutArea .dv-sash.dv-enabled.dv-active-sash{background:var(--accent)}
-  /* Per-tabset-height takeover (see "absolute per-tabset heights" below):
-     the pin model (min==max on every member) makes dockview's stock
-     sash-enablement logic mark float-window sashes dv-disabled — with an
-     all-pinned splitview no view can give or take space, so stock disables
-     the sash and the cursor falls back to default. OUR takeover drag
-     resizes them regardless (pin + window reposition), so restore the
-     resize affordance for sashes inside float windows: always show the
-     ns-resize cursor and the hover accent. */
-  .layoutArea .dv-resize-container .dv-split-view-container > .dv-sash-container > .dv-sash{cursor:ns-resize;background:#ccd3da}
-  .layoutArea .dv-resize-container .dv-split-view-container > .dv-sash-container > .dv-sash:hover,
-  .layoutArea .dv-resize-container .dv-split-view-container > .dv-sash-container > .dv-sash.dv-active-sash{background:var(--accent)}
-
   /* edge-snap indicator retired (snapping removed) — kept: none */
-
-  /* drop-zone suppression while an unwrap/wrap-claimed drag hovers the doc
-     grid: every zone there means "undock into a new window", so the stock
-     center/left/right/tab-strip indicators are inert. Hide ALL zone overlays
-     in the layout area, then re-show the ones inside FLOAT windows (real
-     stacking/merge targets — their gridviews are nested in
-     .dv-resize-container; the main grid's are not). */
-  .layoutArea.mn-unwrap-hover .dv-drop-target-selection,
-  .layoutArea.mn-unwrap-hover .dv-drop-target-dropzone,
-  .layoutArea.mn-unwrap-hover .dv-drop-target-anchor,
-  .layoutArea.mn-unwrap-hover .dv-drop-target-container{display:none !important}
-  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-selection,
-  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-dropzone,
-  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-anchor,
-  .layoutArea.mn-unwrap-hover .dv-resize-container .dv-drop-target-container{display:block !important}
-
-  /* J7 reduced motion (behavior.spec.md §3 J7): under
-     prefers-reduced-motion the motion-bearing transitions the library theme
-     relies on are killed by zeroing their duration vars at the elements
-     that declare them — the J4 zone-overlay fade (70ms selection / 300ms
-     anchor, --dv-transition-duration on the drop-target elements) and the
-     J5 sash hover accent (0.1s after 0.5s, --dv-active-sash-transition-* on
-     the sash itself, overriding the theme root's values by proximity).
-     The engine's own reduced-motion block (dockview.css) covers
-     .dv-tab/.dv-tab-group-chip only — not these surfaces. */
-  @media (prefers-reduced-motion: reduce){
-    .layoutArea .dv-drop-target,
-    .layoutArea .dv-drop-target-container{--dv-transition-duration: 0s}
-    .layoutArea .dv-sash{--dv-active-sash-transition-duration: 0s; --dv-active-sash-transition-delay: 0s}
-  }
 
 </style>
 
 <!-- Demo panel-content CSS — the byte-identical migration of the
-     panel-content region this file's <style> used to carry below the
-     library-chrome blocks (D35/D39; the blocks above STAY as extraction
-     anchors + this page's app shell). RELATIVE so it resolves on the
-     parity server and the goldens server (both rooted at pkg/panel-layout/)
-     AND from file:// — like the library links above, cascade position is
-     the region's original one (last); every selector is disjoint from
-     library chrome. -->
+     panel-content region this file's <style> used to carry (D39). RELATIVE
+     so it resolves on the parity server and the goldens server (both
+     rooted at pkg/panel-layout/) and from file://; cascade position is the
+     region's original one (last); every selector is disjoint from library
+     chrome. -->
 <link rel="stylesheet" href="../demo/panel-content.css">
 
 <script type="importmap">
@@ -229,135 +118,15 @@ try {
   // Everything this mock historically carried inline — first the behavior
   // layers (pin model, window-drag tracking, takeover drag, unwrap/veto
   // engine, titlebar chrome, persistence wiring, focus restoration, the
-  // error boundary), and now the demo material too (the 11 panel bodies,
-  // the registry, the preset, the storage keys, the toolbar/statusbar
-  // chrome, the App assembly) — lives in those two artifacts. This page
-  // is: the boot overlay, the app-shell + library-chrome CSS (extraction
-  // anchors, D35), the design-token anchors below, and ONE mount.
+  // error boundary), then the demo material too (the 11 panel bodies, the
+  // registry, the preset, the storage keys, the toolbar/statusbar chrome,
+  // the App assembly), and finally the design tokens + library chrome
+  // themselves (D45: the extraction pipeline retired; the linked
+  // panel-layout.css is the sole source, no inline duplication) — lives in
+  // those two artifacts plus the linked sheets. This page is: the boot
+  // overlay, the app-shell CSS, and ONE mount.
   await import('/dist/mock/panel-layout.js');
   const { DemoApp } = await import('/dist/mock/panel-layout-demo.js');
-
-  /* ============ EXTRACTION ANCHORS (D35) — DEAD DATA, NOT BEHAVIOR ============
-     extract-design-tokens.mjs + extract-css.mjs read THIS FILE as the
-     source of truth for design-tokens.json / panel-layout.css. The blocks
-     below stay verbatim as anchors; the LIVE copies live elsewhere — the
-     titles/preset/storage keys in the demo module (drift-guarded against
-     these anchors by tests/demo.test.mjs), the constants and engine
-     option values in the library's tokens layer. Do not edit without
-     regenerating: yarn workspace @metanorma/panel-layout tokens:extract.
-     ================================================================ */
-  /* ============ serialized layout (dockview v7 shapes) ============
-     grid.root: main grid = Document only (branch > leaf).
-     floatingGroups[]: each panel group is a floating window with a NESTED
-     grid (v7 SerializedFloatingGroup.grid). Root branch orientation
-     VERTICAL => the window's groups stack top-to-bottom sharing its width;
-     leaf `size` = height in px (for a VERTICAL branch, size is the height
-     dimension). `views` reference panel ids in `panels`.
-     ================================================================ */
-  const P = (id, component) => ({ id, contentComponent: component, title: TITLES[id] });
-  const TITLES = {
-    doc: '24817-1.adoc',
-    outline: 'Outline',
-    bibliography: 'Bibliography',
-    validation: 'Validation',
-    review: 'Review',
-    pinned: 'Pinned · #fig-ion-beam',
-    identity: 'Identity & References',
-    attributes: 'Attributes',
-    structure: 'Structure',
-    derived: 'Derived · read-only',
-    overlays: 'Overlays',
-  };
-  const G = (id, views, activeView) => ({ id, views, activeView });
-  const leaf = (data, size) => ({ type: 'leaf', data, size });
-  const branch = (data, size) => ({ type: 'branch', data, size });
-
-  function presetLayout() {
-    const panels = {};
-    for (const id of Object.keys(TITLES)) {
-      // component key: panel id, except 'doc' which renders the 'document' component
-      const component = id === 'doc' ? 'document' : id;
-      panels[id] = { id, contentComponent: component, title: TITLES[id], params: {} };
-    }
-    return {
-      grid: {
-        root: branch([leaf(G('group-doc', ['doc'], 'doc'), 1200)], 800),
-        height: 800, width: 1200, orientation: 'HORIZONTAL',
-      },
-      panels,
-      activeGroup: 'group-doc',
-      floatingGroups: [
-        { // Navigation: Outline / Bibliography+Validation / Review
-          grid: {
-            root: branch([
-              leaf(G('group-nav-1', ['outline'], 'outline'), 244),
-              leaf(G('group-nav-2', ['bibliography', 'validation'], 'bibliography'), 132),
-              leaf(G('group-nav-3', ['review'], 'review'), 74),
-            ], 252),
-            width: 252, height: 474, orientation: 'VERTICAL',
-          },
-          position: { left: 18, top: 12, width: 252, height: 450 },
-        },
-        { // Pinned
-          grid: {
-            root: branch([leaf(G('group-pinned', ['pinned'], 'pinned'), 142)], 300),
-            width: 300, height: 168, orientation: 'VERTICAL',
-          },
-          position: { left: 292, top: 12, width: 300, height: 168 },
-        },
-        { // Inspector: Identity / Attributes / Structure / Derived+Overlays
-          grid: {
-            root: branch([
-              leaf(G('group-insp-1', ['identity'], 'identity'), 200),
-              leaf(G('group-insp-2', ['attributes'], 'attributes'), 180),
-              leaf(G('group-insp-3', ['structure'], 'structure'), 116),
-              leaf(G('group-insp-4', ['derived', 'overlays'], 'derived'), 100),
-            ], 320),
-            width: 320, height: 628, orientation: 'VERTICAL',
-          },
-          position: { left: 1050, top: 12, width: 320, height: 602 },
-        },
-      ],
-    };
-  }
-  // Demo-owned storage keys (behavior.spec.md §4: medium + names are
-  // consumer configuration). The mock's historical two-key shape.
-  const LS_KEY = 'mn-dockview7-floats-v1';
-  const LS_H_KEY = 'mn-dockview7-heights-v1';
-  /* Design constants (behavior.spec.md §4) — the mock remains the source of
-     truth for the extracted design-tokens.json; the BEHAVIOR that consumed
-     them moved into the library (pinHeights/dragTakeover/unwrap read them
-     through CONSTANTS), but the values stay declared here as data so
-     extract-design-tokens.mjs keeps reading them from this file. */
-  const MIN_TS_H = 36;      // floor for one tabset (header + a sliver)
-  const MIN_WIN_H = 150;    // floor for a float window (overlay minimum)
-  const WRAP_W = 260, WRAP_H = 200;   // fallback window size for panel undock
-  void MIN_TS_H; void MIN_WIN_H; void WRAP_W; void WRAP_H;   // data, not behavior
-  // corner-drag width floor (dragTakeover resizeFrame) and the chrome added
-  // when a solo window is minted (titlebar 24 + borders 2); the per-sash
-  // height consumed by chromeOf — same extractor anchors, value-stable.
-  const cornerMinWidth = 120,   // isCorner) bounds.width = Math.max(120
-        undockChrome = 26,      // const chrome = 26
-        sashSize = 4;           // see chromeOf: Math.max(0, n - 1) * 4; // 4px per sash
-  void cornerMinWidth; void undockChrome; void sashSize;
-
-  // Pinned engine option values (design-tokens.json dndEdges /
-  // floatingGroupBounds read these object literals from this file; the
-  // demo passes its own copy at the <PanelLayout> instantiation — the
-  // library OWNS floatingGroupBounds per §2.1/D26 and ignores consumer
-  // values for it).
-  const demoDockviewOptions = {
-    dndEdges: {
-      size: { value: 160, type: 'pixels' },
-      activationSize: { value: 26, type: 'pixels' },
-    },
-    floatingGroupBounds: {
-      minimumHeightWithinViewport: 0,
-      minimumWidthWithinViewport: 0,
-    },
-  };
-  void TITLES; void presetLayout; void LS_KEY; void LS_H_KEY;
-  void demoDockviewOptions;
 
   createRoot(document.getElementById('root')).render(h(DemoApp));
   boot.remove();

@@ -10,7 +10,7 @@ preset, storage configuration, panel content, and app chrome
 api.spec.md §4; it consumes the public API only). The demo is realized
 by mounting `DemoApp`: the reference mock
 ([`editor-dockview7-floats.html`](../mock/editor-dockview7-floats.html))
-is its thin mount (CDN bootstrap + extraction anchors + one `DemoApp`
+is its thin mount (CDN bootstrap + app-chrome CSS + one `DemoApp`
 render), and the twin target consumes the same configuration.
 
 Scope here: the demo's CDN bootstrap, its preset geometry at narrow
@@ -78,7 +78,5 @@ artifacts.
 - **Registrations and preset**: the 11-panel registry (incl. the `doc`
   float-exclusion policy entry), `presetLayout()`, and the two-key
   storage configuration (legacy `mn-dockview7-*` keys) live in
-  [`demo/`](../demo/index.ts); the mock retains verbatim copies of the
-  preset/titles/key constants as extraction anchors for the tokens
-  pipeline (api.spec.md §5.1), drift-guarded by
-  `tests/demo.test.mjs`.
+  [`demo/`](../demo/index.ts) — the demo's single source for all three,
+  pinned by `tests/demo.test.mjs`.

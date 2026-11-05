@@ -1,12 +1,12 @@
 {
   "_provenance": {
-    "source": "pkg/panel-layout/mock/editor-dockview7-floats.html",
-    "commit": "69675fb39bf50629ef47cde26d21bcc6defb2e22",
-    "commitDate": "2026-11-04T10:58:26+08:00",
-    "workingTreeDirtyAtExtraction": true,
-    "extractedAtUTC": "2026-11-05T10:02:28.653Z",
-    "regenerate": "node pkg/panel-layout/mock/extract-design-tokens.mjs",
-    "note": "GENERATED FILE — do not edit by hand; the mock is the source of truth. Change the mock, re-run the command above."
+    "source": "pkg/panel-layout/mock/design-tokens.json",
+    "commit": "392d3e7b71c13e403921bc2672be99d9861cd21f",
+    "commitDate": "2026-11-05T19:53:46+08:00",
+    "workingTreeDirtyAtExtraction": false,
+    "extractedAtUTC": "2026-11-05T12:53:56.909Z",
+    "regenerate": "none — HAND-OWNED since the D45 decommission; edit directly, provenance = git history",
+    "note": "HAND-OWNED since the D45 extraction-pipeline decommission — edit values directly; git history is the provenance. Previously GENERATED from the mock by the now-retired mock/extract-design-tokens.mjs; commit/commitDate/extractedAtUTC above record the pipeline's FINAL extraction (the last tokens:extract run), whose output this file freezes byte-for-byte."
   },
   "tokens": {
     "--ink": "#1c2733",

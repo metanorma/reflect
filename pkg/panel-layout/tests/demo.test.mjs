@@ -3,11 +3,11 @@
  * demo consumer of '@metanorma/panel-layout/demo'. Node-only seams:
  * registry shape (§2.5 keying, D33), preset structural pins (behavior.spec
  * §4 — the values the parity goldens pin), the two-key storage config
- * (§2.6), the consumer firewall (demo/ imports only the public API), and
- * the anchor drift-guard (the mock's dead-data TITLES/presetLayout
- * extraction anchors must stay byte-equal to the demo's live copies — the
- * mitigation for the D35 duplication). Browser behavior (DemoApp mounting,
- * chrome interaction, pixels) is parity territory.
+ * (§2.6), and the consumer firewall (demo/ imports only the public API).
+ * (The D35 extraction-anchor drift-guard died with its subject at the D45
+ * decommission — the mock no longer carries the anchor block.) Browser
+ * behavior (DemoApp mounting, chrome interaction, pixels) is parity
+ * territory.
  *
  * Run: yarn workspace @metanorma/panel-layout test
  */
@@ -16,7 +16,6 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import vm from "node:vm";
 
 import { floatExcludedPanels } from "../compiled/index.js";
 import { createElement as h } from "react";
@@ -37,7 +36,6 @@ import {
 } from "../compiled/demo/chrome.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const MOCK = join(here, "..", "mock", "editor-dockview7-floats.html");
 const DEMO_DIR = join(here, "..", "demo");
 
 describe("DEMO registry (§2.5/D33)", () => {
@@ -132,40 +130,6 @@ describe("DEMO storage (§2.6)", () => {
     });
     assert.equal(DEMO_LAYOUT_KEY, "mn-dockview7-floats-v1");
     assert.equal(DEMO_HEIGHTS_KEY, "mn-dockview7-heights-v1");
-  });
-});
-
-describe("DEMO extraction-anchor drift-guard (D35)", () => {
-  it("DEMO-anchor-parity: the mock's dead-data TITLES/presetLayout anchors equal the demo's live preset", () => {
-    // Replicates extract-design-tokens.mjs exactly: brace-matched slices of
-    // the mock, evaluated in a bare VM with the same G/leaf/branch prelude.
-    const src = readFileSync(MOCK, "utf8");
-    const sliceBalanced = (from) => {
-      const start = src.indexOf(from);
-      assert.ok(start >= 0, `anchor present: ${from}`);
-      const b0 = src.indexOf("{", start);
-      let depth = 0, i = b0;
-      for (; i < src.length; i++) {
-        if (src[i] === "{") depth++;
-        else if (src[i] === "}") { depth--; if (depth === 0) break; }
-      }
-      return src.slice(start, i + 1);
-    };
-    const prelude = `
-      const G = (id, views, activeView) => ({ id, views, activeView });
-      const leaf = (data, size) => ({ type: 'leaf', data, size });
-      const branch = (data, size) => ({ type: 'branch', data, size });
-      ${sliceBalanced("const TITLES =")}
-      ${sliceBalanced("function presetLayout()")}
-      ({ titles: TITLES, presetLayout: presetLayout() });
-    `;
-    const { presetLayout: mockPreset } = vm.runInNewContext(prelude, {},
-      { timeout: 1000 });
-    // JSON comparison: the VM produces cross-realm objects whose prototype
-    // differs from the host's (deepStrictEqual fails on that, not content).
-    assert.equal(JSON.stringify(mockPreset), JSON.stringify(presetLayout()),
-      "mock anchor and demo preset drifted — regenerate design-tokens.json "
-      + "expectations and reconcile (the mock is the extraction source)");
   });
 });
 

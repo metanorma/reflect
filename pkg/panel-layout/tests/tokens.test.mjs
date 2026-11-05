@@ -6,9 +6,10 @@
  * Run: yarn workspace @metanorma/panel-layout test
  *
  * These are regression pins, not unit tests: the values below are the
- * spec-cited contract numbers. If one fails, either the mock changed (and
- * spec §4 + this file must be updated together, via tokens:extract) or the
- * typed views drifted from the JSON.
+ * spec-cited contract numbers. If one fails, a hand-owned value changed
+ * (design-tokens.json and panel-layout.css are the sources of truth since
+ * the D45 decommission) — spec §4 and these pins must be updated together,
+ * and the JSON↔CSS cross-checks below keep the two artifacts consistent.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -61,12 +62,15 @@ describe("tokens: storage keys (spec §4, two-key format)", () => {
 });
 
 describe("tokens: provenance drift tripwire", () => {
-  it("§4: extracted tokens track the mock's last-touching commit — regeneration that changes contract values must update spec §4 and these pins together", () => {
+  it("§4: _provenance declares the file HAND-OWNED and records the final extraction snapshot (D45) — value changes are plain edits now, git history is the provenance", () => {
     // Not pinned as a literal here: the strong pin is the constants above.
-    // This asserts the provenance shape stays machine-readable for the
-    // build-time drift checks (tokens:check owns byte-exactness).
+    // The extractor retired at the D45 decommission; this asserts the
+    // provenance shape stays machine-readable for tokens.ts's Provenance
+    // view and that the header no longer claims GENERATED status.
     assert.match(PROVENANCE.commit, /^[0-9a-f]{40}$/);
-    assert.equal(PROVENANCE.source, "pkg/panel-layout/mock/editor-dockview7-floats.html");
+    assert.equal(PROVENANCE.source, "pkg/panel-layout/mock/design-tokens.json");
+    assert.match(PROVENANCE.note, /^HAND-OWNED/);
+    assert.match(PROVENANCE.regenerate, /^none/);
   });
 });
 

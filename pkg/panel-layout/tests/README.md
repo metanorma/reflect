@@ -53,7 +53,7 @@ ESCALATE with the spec row it contradicts.
 | 7 `titlebar.ts` | structure + wiring pinned (`titlebar.test.mjs`: grip append/aria-hidden/idempotence/barless skip; `__mnMoveOnly` marker, both-source disable, durability, feature-detection; safety-net paint/observer/interval/dispose/defaults) | F2 cursor states, real engine reach-in, late-window DOM timing |
 | 8 error boundary | fallback model pinned (`panelErrorBoundary.test.mjs`, driving the class lifecycle directly — react-dom/server rethrows rather than exercising boundaries): throw → classless "Panel failed: <id>" div, `componentDidCatch` diagnostic, `wrapPanelComponent` seam, no-reset semantics, .tsx smoke | C3 → `synthetic-error-boundary.spec.ts` on landing |
 | 9 focus/keyboard | option split + CSS pins + refocus wiring pinned (`focus.test.mjs`: G2 owned-vs-passthrough table incl. `keyboardNavigation` verbatim forms; G3 file-content pins on hand-authored `focus.css` — tab/group accent `:focus-visible`, no sash rule, additivity; G5 injected-seam wiring — restore/null/body/no-steal/no-group) | G1–G3, G5–G8 rendered/DOM halves → `synthetic-focus.spec.ts` on landing |
-| 10 theming/tokens | pinned in `tokens.test.mjs`; drift owned by `tokens:check` | J4/J5 visuals |
+| 10 theming/tokens | pinned in `tokens.test.mjs`; JSON↔CSS consistency cross-checked in-suite (the `tokens:check` pipeline retired at D45 — `panel-layout.css` and `design-tokens.json` are hand-owned) | J4/J5 visuals |
 
 Synthetic-layer specs (landed with the convergence task):
 `synthetic-storage.spec.ts` (A6/A7/A8/HP9-from-dirty seeding via

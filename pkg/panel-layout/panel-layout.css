@@ -1,10 +1,13 @@
 /*
- * panel-layout.css — library chrome styles, extracted verbatim from the
- * mock. Regenerate + drift-check:
- *   yarn workspace @metanorma/panel-layout tokens:extract [--check]
- *
- * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
- * (see mock/design-tokens.json _provenance for the commit)
+ * panel-layout.css — library chrome styles. HAND-OWNED source of truth
+ * since the D45 extraction-pipeline decommission (provenance = git
+ * history); the retired extract-css.mjs's final run produced exactly this
+ * payload, frozen at hand-off. Consumers link this stylesheet AFTER
+ * dockview.css (additive source-order wins); the reference mock loads it
+ * at /panel-layout.css from a server rooted at pkg/panel-layout/. The
+ * inline copies the mock historically carried were deleted at the
+ * decommission — the links are the sole source, parity-pinned. The final
+ * extraction snapshot is recorded in mock/design-tokens.json _provenance.
  *
  * Sections: design tokens (:root), dockview theme overrides, float window
  * radius, float titlebar cursor + drag-grip chrome, tab strip + sashes,

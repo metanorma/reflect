@@ -78,7 +78,7 @@ knowingly uncovered (spec'd "min:" candidate or hypothetical) · **N/A**.
 | J4 zone transitions | parity ✔ (`trace-transitions`/`trace-zones` timings) + Node ✔ (`tokens.test.mjs`: panel-layout.css carries the suppression rule pair — hide-all four zone kinds under `.mn-unwrap-hover`, re-show the four inside `.dv-resize-container` — the J4 "suppression is instant `display:none`" half; the 70ms/300ms stock timings are the engine's) |
 | J5 sash hover accent | parity ✔ (`trace-transitions` 0.1s/0.5s) + Node ✔ (`tokens.test.mjs`: panel-layout.css carries both accent surfaces — stock grid sashes (`dv-enabled:hover`/`dv-active-sash`) and float-window takeover sashes (`cursor:ns-resize` + accent) — the transition vars themselves are the engine's theme vars) |
 | J6 maximize | N/A (unused) |
-| J7 reduced motion | Landed (convergence): the mock-first `@media (prefers-reduced-motion: reduce)` var-zeroing block (J4 zone fades + J5 sash accent) is in the mock and extracted into `panel-layout.css` (tokens:check green). The rendered-motion assertion under an emulated reduced-motion context is synthetic follow-up. Note: engine 7.0.4 `dockview.css` ships its own reduced-motion block, but it covers `.dv-tab`/`.dv-tab-group-chip` transitions only, not J4 zone overlays or J5 sash hovers |
+| J7 reduced motion | Landed (convergence): the `@media (prefers-reduced-motion: reduce)` var-zeroing block (J4 zone fades + J5 sash accent) lives in `panel-layout.css` (hand-owned since the D45 decommission; the mock's inline copy was deleted with the pipeline, parity-pinned). The rendered-motion assertion under an emulated reduced-motion context is synthetic follow-up. Note: engine 7.0.4 `dockview.css` ships its own reduced-motion block, but it covers `.dv-tab`/`.dv-tab-group-chip` transitions only, not J4 zone overlays or J5 sash hovers |
 
 ## Demo-owned rows (demo.spec.md — verified by frames, not this suite)
 
@@ -100,8 +100,11 @@ current-state; fold pending — see the demo-task report).
 
 ## §4 Defaults
 
-Node ✔ — `tokens.test.mjs` pins every spec-cited value; byte-exact drift
-owned by `tokens:check`. Module 10 added: promotion-surface pins (budgeted
+Node ✔ — `tokens.test.mjs` pins every spec-cited value; byte-consistency
+between `design-tokens.json` and `panel-layout.css` is owned by the
+in-suite cross-checks (the `tokens:check` pipeline retired at the D45
+decommission — both artifacts are hand-owned). Module 10 added:
+promotion-surface pins (budgeted
 `CONSTANTS`/`TOKENS`/`DV_TOKENS` public, engine-option/storage-key/
 provenance views internal), token cardinals (18 `:root` / 20 dv-theme),
 and the both-directions pins — `:root`/dv-theme declarations parsed out of

@@ -16,8 +16,6 @@
     "imports:check": "node ../../scripts/check-imports.mjs .",
     "build": "yarn imports:check && yarn node ../../build-panel-layout.mjs",
     "build:dev": "yarn node ../../build-panel-layout.mjs --dev",
-    "tokens:extract": "node mock/extract-design-tokens.mjs && node extract-css.mjs",
-    "tokens:check": "node mock/extract-design-tokens.mjs --check && node extract-css.mjs --check",
     "capture:states": "node mock/states/capture.mjs",
     "capture:goldens": "node mock/goldens/capture-goldens.mjs",
     "parity": "playwright test --config=tests/parity/playwright.config.ts",

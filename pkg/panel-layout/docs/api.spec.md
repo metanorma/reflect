@@ -285,7 +285,7 @@ they were extracted from; planned modules are marked.
 | 7 | **Titlebar chrome** (`titlebar.ts`) | Ridged drag-grip decoration (idempotent, safety-netted for windows created later) + move-only enforcement. The enforcement reach-in (`_titleBar.dragSource`) is quarantined, feature-detected, and degrades gracefully (shift-drag redock) if the engine surface shifts. | `decorateTitlebars`, `watchTitlebars` | F2, A4 (grip timing) |
 | 8 | **Per-panel error boundary** (planned) | Wraps consumer panel components so a render throw renders an inline "panel failed" state instead of unmounting the layout (dockview-react ships no boundary). | `PanelErrorBoundary` | C3 |
 | 9 | **Focus/keyboard layer** (planned) | `:focus-visible` styles for library-owned controls (tabs, sashes), surfacing `keyboardNavigation`, close/unwrap focus restoration. | CSS + option wiring | G1–G3, G5–G8 |
-| 10 | **Theming/CSS layer** (`panel-layout.css` + `tokens.ts`) | Library chrome styles extracted verbatim from the mock (design tokens, dockview theme overrides, grip, suppression, sash cursors) with a drift check against the mock; typed token views for programmatic consumers. | `tokens:extract [--check]`, `CONSTANTS`, `TOKENS`, `DV_TOKENS` | behavior.spec.md §4, J4/J5 |
+| 10 | **Theming/CSS layer** (`panel-layout.css` + `tokens.ts`) | Hand-owned library chrome stylesheet (design tokens, dockview theme overrides, grip, suppression, sash cursors) + the hand-owned token data (`design-tokens.json`) with typed views for programmatic consumers; consistency between the two guarded by the JSON↔CSS cross-check tests. | `CONSTANTS`, `TOKENS`, `DV_TOKENS` | behavior.spec.md §4, J4/J5 |
 
 ## 4. Explicitly not in the library's contract
 
@@ -323,8 +323,11 @@ The captured artifacts are the acceptance targets for the component layer:
   component layer, fed the demo's registrations and preset, reproduces the
   goldens' serialized state (rects, member heights, storage) — the strict
   diff targets — within their documented tolerances.
-- **Drift checks** — `yarn workspace @metanorma/panel-layout tokens:check`
-  fails when the extracted tokens/CSS and the mock diverge.
+- **Consistency guard** — the JSON↔CSS cross-check tests in
+  `tests/tokens.test.mjs` (which parse `panel-layout.css` and deep-equal
+  against `design-tokens.json`) keep the two hand-owned artifacts in
+  agreement; the scope guard in the same file rejects demo selectors and
+  non-chrome content in the stylesheet.
 - **Parity suite** — `yarn workspace @metanorma/panel-layout parity`
   (Playwright characterization run; browser one-time via `parity:install`)
   drives the HP flows against the configured targets with the shared
@@ -355,12 +358,10 @@ the twin flavor asserts the resolved engine versions are exactly the
 pins. Layout and deferred end-states are recorded in
 [`pkg/panel-layout/dist/README.rst`](../dist/README.rst).
 
-**The mock is the extraction source.** The reference mock keeps the
-library chrome CSS blocks and the design constants inline, because
-`extract-css.mjs`/`extract-design-tokens.mjs` read the mock to generate
-`panel-layout.css` and `design-tokens.json` (`tokens:check` fails on
-drift). The served `<link>`s are additive and byte-identical to those
-blocks — cascade-neutral — and the drift direction is mock → library:
-chrome changes start in the mock, then regenerate. A mock whose inline
-style carries only demo CSS is therefore not an arrangement this
-pipeline supports.
+**Token and stylesheet ownership.** `panel-layout.css` and
+`design-tokens.json` (at `mock/design-tokens.json`) are hand-owned
+sources of truth — their `_provenance` records the final extraction
+snapshot, and changes land directly in them. The reference mock links
+the stylesheet (plus `focus.css` and the demo's `panel-content.css`);
+its inline `<style>` carries only its own shell/boot/app-chrome CSS.
+The JSON↔CSS cross-check tests guard artifact consistency.
