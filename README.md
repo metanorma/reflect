@@ -44,6 +44,9 @@ Revive it with a manual dispatch of the workflow.
 
 ### Roadmap
 
+- Full Metanorma document model coverage
+  (anchoring to Standoc model / Semantic XML).
+
 - **Claim-named probes** over the drift-check substrate: ledger claims
   re-expressed as content predicates ("the engine is leptris, not jing"),
   so an alert names the falsified claim instead of "bytes differ" — plus a
