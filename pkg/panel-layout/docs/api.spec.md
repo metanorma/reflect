@@ -287,7 +287,7 @@ they were extracted from; planned modules are marked.
 | 9 | **Focus/keyboard layer** (planned) | `:focus-visible` styles for library-owned controls (tabs, sashes), surfacing `keyboardNavigation`, close/unwrap focus restoration. | CSS + option wiring | G1–G3, G5–G8 |
 | 10 | **Theming/CSS layer** (`panel-layout.css` + `tokens.ts`) | Library chrome styles extracted verbatim from the mock (design tokens, dockview theme overrides, grip, suppression, sash cursors) with a drift check against the mock; typed token views for programmatic consumers. | `tokens:extract [--check]`, `CONSTANTS`, `TOKENS`, `DV_TOKENS` | behavior.spec.md §4, J4/J5 |
 
-## 4. Explicitly not in this package
+## 4. Explicitly not in the library's contract
 
 - **The 11 demo panels** (outline, bibliography, validation, review,
   pinned, identity, attributes, structure, derived, overlays, document) —
@@ -297,6 +297,14 @@ they were extracted from; planned modules are marked.
 - **App chrome** — toolbars, statusbars, boot/CDN overlays, viewport
   strategy: [`demo.spec.md`](./demo.spec.md).
 - **Panel semantics** — data, filters, empty lists: panel territory.
+
+The demo registrations and chrome ship as the **`./demo` subpath export**
+(`demo/index.ts`): consumer configuration that rides the package but adds
+no library API. The subpath consumes the public API only — it never
+imports `internal.ts` or any module source, the same constraint any
+third-party consumer faces (enforced by `imports:check` over `demo/` and
+a firewall test in `tests/demo.test.mjs`). The reference mock mounts it;
+the twin target consumes the same configuration.
 
 ## 5. Mock and goldens as acceptance references
 

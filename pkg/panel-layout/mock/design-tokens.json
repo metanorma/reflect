@@ -1,10 +1,10 @@
 {
   "_provenance": {
     "source": "pkg/panel-layout/mock/editor-dockview7-floats.html",
-    "commit": "c3fcddcdb6d9446c4e5e01b47b351c3a5c32024a",
-    "commitDate": "2026-11-04T09:47:02+08:00",
-    "workingTreeDirtyAtExtraction": false,
-    "extractedAtUTC": "2026-11-04T02:02:49.249Z",
+    "commit": "69675fb39bf50629ef47cde26d21bcc6defb2e22",
+    "commitDate": "2026-11-04T10:58:26+08:00",
+    "workingTreeDirtyAtExtraction": true,
+    "extractedAtUTC": "2026-11-05T10:02:28.653Z",
     "regenerate": "node pkg/panel-layout/mock/extract-design-tokens.mjs",
     "note": "GENERATED FILE — do not edit by hand; the mock is the source of truth. Change the mock, re-run the command above."
   },
@@ -340,7 +340,8 @@
       "react-dom/client": "https://esm.sh/react-dom@19.2.8/client?target=es2022&deps=scheduler@0.27.0",
       "dockview-core": "https://esm.sh/dockview-core@7.0.4?target=es2022",
       "dockview": "https://esm.sh/dockview@7.0.4?bundle&external=react,react-dom&target=es2022",
-      "dockview-react": "https://esm.sh/dockview-react@7.0.4?bundle&external=react,react-dom&target=es2022"
+      "dockview-react": "https://esm.sh/dockview-react@7.0.4?bundle&external=react,react-dom&target=es2022",
+      "@metanorma/panel-layout": "/dist/mock/panel-layout.js"
     }
   }
 }

@@ -84,7 +84,19 @@ knowingly uncovered (spec'd "min:" candidate or hypothetical) · **N/A**.
 
 A1/A2 boot pending/slow (mock inline) · A3/C1 CDN failure (`cdn-failure.html`)
 · I1/I2 narrow viewport (`narrow-viewport.html`) · G4 toolbar focus (demo
-chrome) · F1n toggle a11y (demo chrome; feeds F1/HP7 above).
+chrome).
+
+Landed with the demo surface (D38/D39): the demo material lives in
+`@metanorma/panel-layout/demo` (`demo/`, mounted by the thinned mock as
+`DemoApp`). **F1n** toggle a11y — `aria-pressed` now rendered on the
+auto-wrap toggle (attribute-only; feeds F1/HP7 above): Node ✔
+(`demo.test.mjs` renders `DemoToolbar` and pins the attribute + unchanged
+label/class). **C2 demo half** — the statusbar `.live` save claim swaps
+to "layout NOT saved — storage unavailable" when `onDidFallback` signals
+`storage-unavailable` (never in the parity environment, so goldens pin
+the default string): Node ✔ (same file, byte-exact default + tail-only
+swap). demo.spec.md §2's F1n row still describes the pre-fix gap (spec is
+current-state; fold pending — see the demo-task report).
 
 ## §4 Defaults
 

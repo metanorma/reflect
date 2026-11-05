@@ -1,5 +1,5 @@
 {
-  "include": ["*.ts", "*.tsx", "*.d.ts"],
+  "include": ["*.ts", "*.tsx", "*.d.ts", "demo"],
   "exclude": ["compiled", "states", "goldens", "mock"],
   "extends": "../../tsconfig.json",
   "compilerOptions": {

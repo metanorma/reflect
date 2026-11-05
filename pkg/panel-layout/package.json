@@ -6,6 +6,7 @@
   "main": "index.ts",
   "exports": {
     ".": "./index.ts",
+    "./demo": "./demo/index.ts",
     "./mock": "./mock/editor-dockview7-floats.html"
   },
   "scripts": {

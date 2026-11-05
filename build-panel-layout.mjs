@@ -60,8 +60,10 @@ const MOCK_BANNED = new Set(['dockview', 'dockview-core']);
 const TARGETS = [
   {
     name: 'mock',
+    flavor: 'mock',
     entry: path.join(pkgRoot, 'internal.ts'),
     outdir: path.join(pkgRoot, 'dist', 'mock'),
+    entryNames: 'panel-layout',
     externals: [
       'react', 'react/*',
       'react-dom', 'react-dom/*',
@@ -69,10 +71,55 @@ const TARGETS = [
     ],
   },
   {
+    // The DEMO artifact (demo surface, D38): entry `demo/index.ts`
+    // (DemoApp + the demo data), mock-facing — the peers AND the library
+    // itself stay external: the reference mock's importmap maps
+    // '@metanorma/panel-layout' to /dist/mock/panel-layout.js, so the
+    // demo bundle consumes the built library exactly as a consumer would.
+    // The metafile assert's allow-list gains the package name (everything
+    // external must still be importmap-suppliable — the assert's intent).
+    name: 'mock-demo',
+    flavor: 'mock',
+    entry: path.join(pkgRoot, 'demo', 'index.ts'),
+    outdir: path.join(pkgRoot, 'dist', 'mock'),
+    entryNames: 'panel-layout-demo',
+    // Shares dist/mock with the 'mock' target, which runs FIRST and cleans
+    // the dir — this target must not re-clean it (it would delete the
+    // just-built library artifact).
+    skipClean: true,
+    externals: [
+      'react', 'react/*',
+      'react-dom', 'react-dom/*',
+      'dockview-react', 'dockview-react/*',
+      '@metanorma/panel-layout', '@metanorma/panel-layout/*',
+    ],
+    allowed: new Set([...MOCK_ALLOWED, '@metanorma/panel-layout']),
+  },
+  {
     name: 'twin',
+    flavor: 'twin',
     entry: path.join(pkgRoot, 'index.ts'),
     outdir: path.join(pkgRoot, 'dist', 'twin'),
+    entryNames: 'panel-layout',
     externals: null,
+  },
+  {
+    // The twin-facing DEMO artifact: entry `demo/index.ts`, nothing
+    // external — the library (aliased from the demo's consumer-shaped
+    // bare import '@metanorma/panel-layout' to the PUBLIC entry index.ts —
+    // never internal.ts) and the engine bundle from the yarn pins. Proves
+    // version truth for the demo surface; like dist/twin/panel-layout.js
+    // it is a test artifact, not a ship format.
+    name: 'twin-demo',
+    flavor: 'twin',
+    entry: path.join(pkgRoot, 'demo', 'index.ts'),
+    outdir: path.join(pkgRoot, 'dist', 'twin'),
+    entryNames: 'panel-layout-demo',
+    externals: null,
+    // Shares dist/twin with the 'twin' target, which runs FIRST and
+    // cleans the dir.
+    skipClean: true,
+    alias: { '@metanorma/panel-layout': path.join(pkgRoot, 'index.ts') },
   },
 ];
 
@@ -93,6 +140,25 @@ function cssLoaderFor(filePath) {
   if (filePath.endsWith('.css'))        return 'global-css';
   return undefined;
 }
+
+// ── Consumer-import alias (twin-demo flavor) ───────────────────────────
+//
+// The demo's '@metanorma/panel-layout' import is consumer-shaped (a bare
+// package specifier, mapped by the mock's importmap in the mock flavor);
+// for the bundled twin flavor it resolves HERE to the PUBLIC entry
+// (index.ts — never internal.ts). The firewall itself is a source
+// property: check-imports scans demo/ as consumer code, and the demo
+// sources contain no other reach into the package.
+
+const aliasPlugin = (alias) => ({
+  name: 'alias',
+  setup(b) {
+    b.onResolve({ filter: /^@metanorma\/panel-layout(\/|$)/ }, (args) => {
+      const target = alias[args.path] ?? alias['@metanorma/panel-layout'];
+      return { path: target };
+    });
+  },
+});
 
 // ── Yarn PnP resolution plugin ─────────────────────────────────────────
 //
@@ -169,7 +235,7 @@ function optionsFor(target) {
     platform: 'browser',
     target: 'es2020',
     outdir: target.outdir,
-    entryNames: 'panel-layout',
+    entryNames: target.entryNames ?? 'panel-layout',
     sourcemap: true,
     minify: !dev,
     metafile: true,
@@ -181,7 +247,10 @@ function optionsFor(target) {
     },
     // CSS loaders for files resolved natively (project-local stylesheets).
     loader: { '.module.css': 'local-css', '.css': 'global-css' },
-    plugins: [pnpPlugin(target.externals)],
+    plugins: [
+      ...(target.alias ? [aliasPlugin(target.alias)] : []),
+      pnpPlugin(target.externals),
+    ],
     logLevel: 'info',
     ...(target.externals ? { external: target.externals } : {}),
   };
@@ -209,7 +278,7 @@ function fail(message) {
  *  from the package's PnP zip; scanning only external imports would miss
  *  it. The external checks guard the complementary leak: something marked
  *  external (engine or otherwise) that the mock's importmap can't supply. */
-function assertMockExternals(metafile) {
+function assertMockExternals(metafile, allowed = MOCK_ALLOWED) {
   const bannedPath = /node_modules[/\\](dockview|dockview-core)[/\\]/;
   const bundled = Object.keys(metafile.inputs)
     .filter((p) => bannedPath.test(p));
@@ -225,9 +294,13 @@ function assertMockExternals(metafile) {
   for (const out of Object.values(metafile.outputs)) {
     for (const imp of out.imports) {
       if (!imp.external) continue;
-      const base = imp.path.split('/')[0];
+      // Scoped packages keep their @scope/name base (same convention as
+      // check-imports.mjs's basePackage).
+      const base = imp.path.startsWith('@')
+        ? imp.path.split('/').slice(0, 2).join('/')
+        : imp.path.split('/')[0];
       if (MOCK_BANNED.has(base)) bannedHits.add(imp.path);
-      else if (!MOCK_ALLOWED.has(base)) notAllowed.add(imp.path);
+      else if (!allowed.has(base)) notAllowed.add(imp.path);
     }
   }
   if (bannedHits.size > 0) {
@@ -264,12 +337,14 @@ function assertTwin(metafile, target) {
 }
 
 async function buildFresh(target) {
-  await clean(target.outdir);
+  if (!target.skipClean) {
+    await clean(target.outdir);
+  }
   const ctx = await context(optionsFor(target));
   const result = await ctx.rebuild();
   await ctx.dispose();
-  if (target.name === 'mock') {
-    assertMockExternals(result.metafile);
+  if (target.flavor === 'mock') {
+    assertMockExternals(result.metafile, target.allowed ?? MOCK_ALLOWED);
   } else {
     assertTwin(result.metafile, target);
   }

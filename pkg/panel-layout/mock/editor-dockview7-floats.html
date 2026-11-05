@@ -180,178 +180,17 @@
     .layoutArea .dv-sash{--dv-active-sash-transition-duration: 0s; --dv-active-sash-transition-delay: 0s}
   }
 
-  /* ---- panel content ---- */
-  .panelwrap{height:100%;overflow:auto;background:#fff;font-size:12px;padding:10px 12px}
-  .panelwrap.docwrap{overflow:auto;background:#e3e7eb;padding:16px 12px 56px}
-  .osearch{display:block;width:100%;border:1px solid var(--line);border-radius:6px;
-           padding:4px 8px;font-size:11.5px;color:var(--faint);margin-bottom:10px}
-  .o-node{display:block;padding:3px 8px;border-radius:6px;color:var(--ink);cursor:pointer}
-  .o-node.sub{padding-left:22px;color:var(--muted)}
-  .o-node:hover{background:var(--chrome)}
-  .o-node.sel{background:var(--accent-bg);color:var(--accent-ink);font-weight:600}
-  .o-node .otag{font-size:10px;color:var(--faint);font-family:var(--mono);margin-left:4px}
-  .o-node.floating{color:var(--derive-ink);font-style:italic}
-  .bib-row{display:flex;gap:8px;align-items:baseline;padding:5px 0;
-           border-top:1px dashed var(--line-soft);cursor:pointer}
-  .bib-row:first-of-type{border-top:none}
-  .bib-row .docid{font:11px var(--mono);color:var(--ink);flex:0 0 118px}
-  .bib-row .bt{font-size:11px;color:var(--muted);flex:1;min-width:0;
-               white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bib-row:hover{background:#f6f9fc}
-  .pfoot{font:10px var(--mono);color:var(--faint);margin-top:7px;
-         border-top:1px solid var(--line-soft);padding-top:6px}
-  .pfilter{display:block;width:100%;border:1px solid var(--line);border-radius:6px;
-           padding:5px 9px;font-size:11.5px;color:var(--ink);background:#fff;margin-bottom:7px}
-  .pfilter::placeholder{color:var(--faint)}
-  .iss{display:flex;gap:8px;align-items:baseline;padding:5px 0;font-size:11.5px}
-  .iss .sev{flex:0 0 8px;width:8px;height:8px;border-radius:50%;margin-top:2px}
-  .sev.err{background:var(--err)} .sev.warn{background:var(--warn-line)}
-  .iss .txt{flex:1;line-height:1.35}
-  .iss .txt b{font-weight:600}
-  .iss .jump{color:var(--accent-ink);cursor:pointer;font-size:11px;white-space:nowrap}
-  .mono10{font-family:var(--mono);font-size:10px}
-  .node-pill{font:700 10.5px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;
-             color:var(--accent-ink);background:var(--accent-bg);border:1px solid #c4d7f7;
-             border-radius:5px;padding:4px 8px;display:inline-block}
-  .anchor-ref{font:11.5px var(--mono);color:var(--muted);margin-left:6px}
-  .field{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;align-items:start;
-         padding:4px 0}
-  .field>label{font-size:11px;color:var(--muted);padding-top:4px}
-  .ctl input[type=text],.ctl .selbox{width:100%;border:1px solid var(--line);border-radius:6px;
-       padding:4.5px 8px;font-size:12px;background:#fff;color:var(--ink)}
-  .ctl .selbox{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
-  .ctl .selbox::after{content:"▾";color:var(--faint);font-size:10px}
-  .ctl input[readonly]{background:#f4f6f8;color:var(--muted);font-family:var(--mono);font-size:11px}
-  .fnote{font-size:10px;color:var(--faint);margin-top:3px;line-height:1.4}
-  .kv{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;padding:3px 0;font-size:11.5px}
-  .kv .k{color:var(--muted)}
-  .kv .v{color:var(--ink)}
-  .hatched{background:repeating-linear-gradient(-45deg,#fafbfc,#fafbfc 6px,#f4f6f8 6px,#f4f6f8 12px);
-           height:100%}
-  .derived-note{font-size:10px;color:var(--faint);font-style:italic;margin-top:7px;line-height:1.45}
-  .prow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-  .pick{display:inline-flex;gap:6px;align-items:center;font-size:11.5px;
-        border:1px solid #c4d7f7;background:var(--accent-bg);color:var(--accent-ink);
-        border-radius:6px;padding:3.5px 8px;cursor:pointer}
-  .linklike{font-size:11px;color:var(--accent-ink);cursor:pointer}
-  .blink-list{list-style:none;margin:4px 0 0;padding:0}
-  .blink-list li{display:flex;gap:7px;align-items:baseline;font-size:11.5px;
-                 padding:3.5px 0;border-top:1px dashed var(--line-soft)}
-  .blink-list li:first-child{border-top:none}
-  .blink-list .jump{margin-left:auto;color:var(--accent-ink);cursor:pointer;font-size:11px}
-  .blink-list .src{color:var(--faint);font-family:var(--mono);font-size:10px}
-  .ftoggles{display:flex;gap:5px;margin:0 0 7px}
-  .ft{font-size:10.5px;border:1px solid var(--line);border-radius:10px;padding:2.5px 8px;
-      color:var(--faint);background:#fff;cursor:pointer}
-  .ft.on{color:var(--accent-ink);background:var(--accent-bg);border-color:#c4d7f7}
-  .ovrow{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px}
-  .ovrow .lbl{flex:1}
-  .ovrow .lock{font-size:10px;color:var(--faint)}
-  .tg{font:600 10px/1 var(--sans);border-radius:10px;padding:3px 9px;border:1px solid}
-  .tg.on{color:#175c37;background:#e2f3e9;border-color:#b7e0c6}
-  .tg.off{color:var(--faint);background:#f1f3f5;border-color:var(--line)}
-  .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-top:6px}
-  .seg span{font-size:11px;padding:4px 10px;color:var(--muted);background:#fff}
-  .seg span.on{background:var(--accent-bg);color:var(--accent-ink);font-weight:600}
-
-  /* ---- document page (same language as earlier mocks) ---- */
-  .page{width:848px;margin:0 auto;background:#fff;border:1px solid #d0d6dc;
-        box-shadow:0 3px 14px rgba(20,30,40,.10);padding:38px 44px 64px 26px;
-        font-family:var(--doc);color:#111922;font-size:13.5px;line-height:1.55}
-  .row{display:grid;grid-template-columns:var(--rail-w) minmax(0,1fr);column-gap:20px}
-  .row+.row{margin-top:2px}
-  .rail{position:relative;text-align:right;padding-right:6px;padding-top:.18em}
-  .cell{min-width:0}
-  .mk{display:inline-flex;align-items:center;gap:5px;font:10.5px/1 var(--mono);
-      color:var(--muted);background:#f4f7fa;border:1px solid var(--line-soft);
-      border-radius:20px;padding:3px 8px;cursor:default}
-  .mk b{font-weight:600;color:#4a5560}
-  .mk.hot{border-color:#b9d0f5;background:var(--accent-bg);color:var(--accent-ink)}
-  .mk.hot b{color:var(--accent-ink)}
-  .mk.dot{background:transparent;border-color:transparent;padding:3px 2px;color:var(--faint)}
-  .mk.dot::before{content:"";width:7px;height:7px;border-radius:50%;
-                  border:1.5px solid var(--faint);display:inline-block}
-  .mk.dot.weak::before{border-color:#cfd5da}
-  .mk.selmark{border-color:var(--accent);box-shadow:0 0 0 2px rgba(47,111,219,.15)}
-  .mk-region{font:10.5px/1.25 var(--mono);color:var(--faint);padding-right:6px;cursor:pointer}
-  .badge{display:inline-flex;align-items:center;gap:4px;font:600 10px/1 var(--sans);
-         letter-spacing:.02em;border-radius:4px;padding:2.5px 6px;vertical-align:1px;
-         border:1px solid;cursor:default;white-space:nowrap}
-  .b-shall{color:var(--accent-ink);background:var(--accent-bg);border-color:#c4d7f7}
-  .b-should{color:var(--warn-ink);background:var(--warn-bg);border-color:var(--warn-line)}
-  .b-meta{color:var(--muted);background:#f3f6f8;border-color:var(--line)}
-  .b-warn{color:var(--warn-ink);background:var(--warn-bg);border-color:var(--warn-line);cursor:pointer}
-  .chip-d{display:inline-flex;align-items:center;font:italic 10px/1 var(--sans);
-          color:var(--derive-ink);background:repeating-linear-gradient(45deg,#f6f7f8,#f6f7f8 4px,#eef1f3 4px,#eef1f3 8px);
-          border:1px dashed var(--line);border-radius:4px;padding:2.5px 6px;vertical-align:1px;white-space:nowrap}
-  .ptr{display:inline-flex;align-items:center;gap:3px;font:11.5px var(--sans);
-       color:var(--accent-ink);border-bottom:1px dotted #9db8e4;cursor:pointer;white-space:nowrap}
-  .ptr .arr{font-size:10px}
-  .xref{border-bottom:1px dotted #9db8e4;cursor:pointer}
-  .eref{border-bottom:1px dotted #9db8e4;cursor:pointer;font-style:italic}
-  .broken{color:var(--err);text-decoration:underline wavy var(--err) 1.2px;
-          text-underline-offset:3px;cursor:pointer}
-  .doc-title{font-size:17px;font-weight:700;line-height:1.3;margin:2px 0 2px}
-  .doc-id{font-size:11.5px;color:var(--muted);margin-bottom:14px}
-  h.cl{font-size:14.5px;font-weight:700;margin:20px 0 6px}
-  h.scl{font-size:13.5px;font-weight:700;margin:15px 0 5px}
-  p.body{margin:0 0 9px;text-align:justify}
-  sup.fn{color:var(--accent-ink);cursor:pointer;font-size:10px}
-  .footnote{font-size:11px;color:var(--muted);margin:2px 0 6px}
-  .footnote .fnline{display:inline-block;width:26px;height:1px;background:var(--line);
-                    vertical-align:4px;margin-right:6px}
-  .term-word{font-weight:700}
-  .tsrc{font-size:11.5px;color:var(--muted);margin-top:3px}
-  .req{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;
-       padding:10px 14px 11px;margin:6px 0 10px;background:#fdfefe}
-  .req.rec{border-left-color:var(--warn-line)}
-  .req.selq{outline:2px solid var(--accent);outline-offset:2px;
-            box-shadow:0 0 0 6px rgba(47,111,219,.08)}
-  .req-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-  .req-kind{font:700 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .req-id{font:11px var(--mono);color:var(--accent-ink);background:var(--accent-bg);
-          border-radius:4px;padding:2px 6px}
-  .req-meta-row{font-size:11.5px;color:var(--muted);margin-top:7px;display:flex;
-                gap:6px;align-items:baseline;flex-wrap:wrap}
-  .req-meta-row .k{font-weight:600;color:#4a5560}
-  .req p{margin:0}
-  .figure{margin:10px 0 12px}
-  .figbox{border:1px solid var(--line);border-radius:6px;height:150px;
-          background:linear-gradient(160deg,#dfe7ee 0%,#cfdbe6 55%,#c2d2e0 100%);
-          display:flex;align-items:center;justify-content:center;color:#8195a6;
-          font-size:12px;letter-spacing:.04em}
-  .figure.small .figbox{height:86px}
-  .figcap{font-size:12px;color:#333c46;margin-top:6px;text-align:center}
-  .figcap b{font-weight:700}
-  .formula{margin:10px 0 12px;text-align:center;font-family:"STIX Two Math",Georgia,serif;
-           font-size:15px;font-style:italic}
-  .figtools{display:flex;gap:6px;justify-content:center;margin-top:6px;flex-wrap:wrap}
-  table.mn{border-collapse:collapse;margin:8px 0 4px;font-size:12.5px;width:100%}
-  table.mn th,table.mn td{border:1px solid #c9d1d8;padding:4.5px 9px;text-align:left}
-  table.mn th{background:#eef2f5;font-weight:600}
-  .tblcap{font-size:12px;color:#333c46;margin:6px 0 2px;text-align:center}
-  .note{border-left:3px solid #b8c4cf;background:#f6f8fa;font-size:12px;
-        padding:7px 11px;margin:8px 0;border-radius:0 6px 6px 0}
-  .bibdata-strip{display:flex;align-items:center;gap:14px;border:1px solid #c8d9ee;
-                 border-left:4px solid var(--accent);background:linear-gradient(90deg,#f2f7fd,#fbfdff);
-                 border-radius:8px;padding:10px 14px;margin-bottom:10px;cursor:pointer}
-  .bibdata-strip .tag{font:600 9.5px/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;
-                      color:var(--accent-ink);background:#fff;border:1px solid #c4d7f7;
-                      border-radius:4px;padding:3px 6px}
-  .bibdata-strip .id{font:700 13px var(--doc)}
-  .bibdata-strip .sub{font-size:11px;color:var(--muted)}
-  .bibdata-strip .grow{flex:1}
-  .tds-row{display:flex;align-items:center;gap:7px;margin:0 0 16px;font-size:11px;color:var(--muted)}
-  .tds-row .tag{font:600 9.5px/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;
-                color:var(--muted);background:#fff;border:1px solid var(--line);
-                border-radius:4px;padding:3px 6px}
-  .bib-item{display:flex;gap:10px;align-items:baseline;margin:0 0 8px;cursor:pointer}
-  .bib-item .n{font-family:var(--mono);font-size:11.5px;color:var(--muted);flex:0 0 26px}
-  .bib-item .t{flex:1;font-size:12.5px}
-  .bib-item .t em{font-style:italic}
-  .bib-side{display:flex;gap:5px;flex:0 0 auto}
-  h.floating{font-size:13.5px;font-weight:700;font-style:italic;color:#2c3641;margin:18px 0 5px}
 </style>
+
+<!-- Demo panel-content CSS — the byte-identical migration of the
+     panel-content region this file's <style> used to carry below the
+     library-chrome blocks (D35/D39; the blocks above STAY as extraction
+     anchors + this page's app shell). RELATIVE so it resolves on the
+     parity server and the goldens server (both rooted at pkg/panel-layout/)
+     AND from file:// — like the library links above, cascade position is
+     the region's original one (last); every selector is disjoint from
+     library chrome. -->
+<link rel="stylesheet" href="../demo/panel-content.css">
 
 <script type="importmap">
 {
@@ -362,7 +201,8 @@
     "react-dom/client": "https://esm.sh/react-dom@19.2.8/client?target=es2022&deps=scheduler@0.27.0",
     "dockview-core": "https://esm.sh/dockview-core@7.0.4?target=es2022",
     "dockview": "https://esm.sh/dockview@7.0.4?bundle&external=react,react-dom&target=es2022",
-    "dockview-react": "https://esm.sh/dockview-react@7.0.4?bundle&external=react,react-dom&target=es2022"
+    "dockview-react": "https://esm.sh/dockview-react@7.0.4?bundle&external=react,react-dom&target=es2022",
+    "@metanorma/panel-layout": "/dist/mock/panel-layout.js"
   }
 }
 </script>
@@ -375,247 +215,37 @@
 <script type="module">
 const boot = document.getElementById('boot');
 try {
-  const React = (await import('react')).default;
-  const { useState, createElement: h } = await import('react');
+  const { createElement: h } = await import('react');
   const { createRoot } = await import('react-dom/client');
-  // The BUILT library artifact (dist/mock/panel-layout.js — entry
-  // internal.ts, every peer external). The parity server serves it at
-  // /dist/mock/panel-layout.js; the importmap below supplies its bare
-  // imports (react, react-dom, dockview-react). Everything this mock used
-  // to port inline — the pin model, window-drag tracking, the takeover
-  // drag, the unwrap/veto engine, titlebar chrome, persistence wiring,
-  // focus restoration, the error boundary — lives in the library now; this
-  // page is demo content + app chrome + ONE <PanelLayout> instantiation.
-  const lib = await import('/dist/mock/panel-layout.js');
-  const { PanelLayout } = lib;
+  // The BUILT artifacts this page consumes (served by the parity server,
+  // tests/parity/serve.mjs, rooted at pkg/panel-layout/):
+  //   /dist/mock/panel-layout.js       — the library (entry internal.ts,
+  //     every peer external; the public surface re-exports index.ts).
+  //   /dist/mock/panel-layout-demo.js  — the demo surface (entry
+  //     demo/index.ts — the '@metanorma/panel-layout/demo' subpath, D38).
+  //     Its library dependency is the bare package name, which the
+  //     importmap above maps to the library artifact: the demo consumes
+  //     the library exactly as a third-party consumer would.
+  // Everything this mock historically carried inline — first the behavior
+  // layers (pin model, window-drag tracking, takeover drag, unwrap/veto
+  // engine, titlebar chrome, persistence wiring, focus restoration, the
+  // error boundary), and now the demo material too (the 11 panel bodies,
+  // the registry, the preset, the storage keys, the toolbar/statusbar
+  // chrome, the App assembly) — lives in those two artifacts. This page
+  // is: the boot overlay, the app-shell + library-chrome CSS (extraction
+  // anchors, D35), the design-token anchors below, and ONE mount.
+  await import('/dist/mock/panel-layout.js');
+  const { DemoApp } = await import('/dist/mock/panel-layout-demo.js');
 
-  /* ============ panel content (same markup as the FlexLayout mock) ============ */
-  const PANELS = {
-    outline: `
-      <input class="osearch" placeholder="Find in outline…">
-      <span class="o-node">◱ Document <span class="otag">bibdata</span></span>
-      <span class="o-node">1&nbsp;&nbsp;Scope</span>
-      <span class="o-node">2&nbsp;&nbsp;Normative references</span>
-      <span class="o-node">3&nbsp;&nbsp;Terms and definitions</span>
-      <span class="o-node">5&nbsp;&nbsp;Requirements</span>
-      <span class="o-node sub">5.1&nbsp;&nbsp;General</span>
-      <span class="o-node sub sel">5.2&nbsp;&nbsp;Determination</span>
-      <span class="o-node sub">5.3&nbsp;&nbsp;Calculation</span>
-      <span class="o-node">6&nbsp;&nbsp;Expression of results</span>
-      <span class="o-node">7&nbsp;&nbsp;Test report</span>
-      <span class="o-node floating">Experimental notes <span class="otag">floating</span></span>
-      <span class="o-node">Bibliography</span>`,
-    bibliography: `
-      <input class="pfilter" placeholder="Filter — docid · title · contributor">
-      <div class="bib-row"><span class="docid">ISO 80000-1:2022</span><span class="bt">Quantities and units — General</span><span class="chip-d">cited ×2</span></div>
-      <div class="bib-row"><span class="docid">ISO 11348-1:2007</span><span class="bt">Water quality — Luminescence…</span><span class="chip-d">cited ×3</span></div>
-      <div class="bib-row"><span class="docid">ISO 1087-1:2000</span><span class="bt">Terminology work — Vocabulary</span><span class="chip-d">non-ref.</span></div>
-      <div class="bib-row"><span class="docid">ISO 80000-1:2022*</span><span class="bt">draft revision</span><span class="badge b-warn">dup ↗</span></div>
-      <div class="pfoot">index over bibdata · termdocsource · bibitem · origins</div>`,
-    validation: `
-      <div class="iss"><span class="sev err"></span><span class="txt"><b>Unresolved xref</b> — “Clause 9” · target <span class="mono10">clause-9</span> not found</span><span class="jump">fix ▸</span></div>
-      <div class="iss"><span class="sev warn"></span><span class="txt"><b>Duplicate docid</b> — ISO 80000-1:2022 in [1] and [4]</span><span class="jump">merge ▸</span></div>
-      <div class="iss"><span class="sev warn"></span><span class="txt"><b>Missing mimetype</b> — Figure 2 (<span class="mono10">fig-torch</span>)</span><span class="jump">set ▸</span></div>
-      <div class="pfoot">re-checked on every transaction</div>`,
-    review: `
-      <div class="iss"><span class="sev warn"></span><span class="txt"><b>Committee comment</b> — 5.2: confirm acid volume for high-alloy grades <span class="mono10">(A. Ricci · Tue)</span></span></div>
-      <div class="iss"><span class="sev warn"></span><span class="txt"><b>Suggestion</b> — 7: add precision row to Table 2 <span class="mono10">(M. Okafor · Mon)</span></span></div>
-      <div class="pfoot">2 open · resolved hidden</div>`,
-    pinned: `
-      <div style="margin-bottom:6px"><span class="node-pill">figure</span><span class="anchor-ref">@ fig-ion-beam</span></div>
-      <ul class="blink-list">
-        <li><span class="src">5.1</span> xref <span class="jump">go ↸</span></li>
-        <li><span class="src">6.2</span> xref <span class="jump">go ↸</span></li>
-        <li><span class="src">bib[2]</span> eref · ISO 11348-1 <span class="jump">go ↸</span></li>
-      </ul>
-      <div class="fnote">stays on this figure while selection roams — drag the window titlebar to move it, or drag the tab onto another group</div>`,
-    identity: `
-      <div style="margin-bottom:7px"><span class="node-pill">requirement</span><span class="anchor-ref">@ req-5-2-1</span></div>
-      <div class="field"><label>anchor</label>
-        <div class="ctl"><input type="text" value="req-5-2-1">
-        <div class="fnote">3 references rewrite on rename (xref, eref, inherit)</div></div></div>
-      <div class="field"><label>id · generated</label>
-        <div class="ctl"><input type="text" readonly value="7f3a91c4…e21">
-        <div class="fnote">content-hash — pipeline-owned, never edit</div></div></div>
-      <div class="field"><label>backlinks</label>
-        <div class="ctl"><ul class="blink-list">
-          <li><span class="src">5.1</span> xref “R-5.2-1” <span class="jump">go ↸</span></li>
-          <li><span class="src">7 NOTE</span> xref <span class="jump">go ↸</span></li>
-          <li><span class="src">bib[1]</span> eref · ISO 24817-1 <span class="jump">go ↸</span></li>
-        </ul></div></div>
-      <div class="field"><label>inherit</label>
-        <div class="ctl"><div class="prow">
-          <span class="pick">ISO 24817-1:2016 · Req 5.2-1 ↗</span><span class="linklike">Pick…</span>
-        </div></div></div>`,
-    attributes: `
-      <div class="ftoggles"><span class="ft">Modified only</span><span class="ft">Non-default</span></div>
-      <div class="field"><label>obligation</label>
-        <div class="ctl"><div class="selbox">requirement — “shall”</div></div></div>
-      <div class="field"><label>classification</label>
-        <div class="ctl"><div class="prow">
-          <span class="pick">safety · test · verification (3)</span><span class="linklike">Edit…</span>
-        </div><div class="fnote">same edit state as the badge on the block</div></div></div>
-      <div class="field"><label>label</label>
-        <div class="ctl"><input type="text" value="R-5.2-1"></div></div>
-      <div class="field"><label>unnumbered</label>
-        <div class="ctl"><input type="checkbox" style="accent-color:var(--accent)"> off — inherits auto-numbering</div></div>`,
-    structure: `
-      <div class="kv"><span class="k">parent</span><span class="v" style="color:var(--accent-ink)">Document ▸ 5 Requirements ▸ 5.2 Determination</span></div>
-      <div class="kv"><span class="k">cohort</span><span class="v">section_body · sibling 2 of 3</span></div>
-      <div class="kv"><span class="k">content</span><span class="v">statement+, prov*</span></div>
-      <div class="fnote">tabsets in this window share one width; each has its own height — sashes and the window’s bottom edge resize one tabset at a time</div>`,
-    derived: `
-      <div class="hatched" style="padding:9px 10px;border-radius:6px">
-        <div class="kv"><span class="k">label (computed)</span><span class="v" style="color:var(--derive-ink);font-style:italic">Req 5.2.1 — from §5 numbering chain</span></div>
-        <div class="kv"><span class="k">renders as</span><span class="v" style="color:var(--derive-ink);font-style:italic">“shall” statement</span></div>
-        <div class="kv"><span class="k">citeas on export</span><span class="v" style="color:var(--derive-ink);font-style:italic">ISO 24817-1</span></div>
-        <div class="derived-note">Computed by the presentation pipeline — edit the semantic panels; derived values change on export.</div>
-      </div>`,
-    overlays: `
-      <div class="ovrow"><span class="lbl">Anchors &amp; references</span><span class="tg on">ON</span></div>
-      <div class="ovrow"><span class="lbl">Inbound counts</span><span class="tg on">ON</span></div>
-      <div class="ovrow"><span class="lbl">Obligations</span><span class="tg on">ON</span></div>
-      <div class="ovrow"><span class="lbl">Numbering overrides</span><span class="tg on">ON</span></div>
-      <div class="ovrow"><span class="lbl">Metadata anomalies</span><span class="tg on">ON</span></div>
-      <div class="ovrow"><span class="lbl">Integrity errors</span><span class="tg on">ON</span></div>
-      <div class="ovrow"><span class="lbl">Review marks</span><span class="tg off">OFF</span></div>
-      <div class="fnote">gutter density:</div>
-      <div class="seg"><span>Full</span><span class="on">Compact</span><span>Aggregated</span></div>
-      <div class="fnote">hold ⌥ to reveal all momentarily · auto-compacts above ~24 marks/viewport</div>`,
-    document: `
-      <div class="page">
-        <div class="row"><div class="rail"></div><div class="cell">
-          <div class="bibdata-strip">
-            <span class="tag">bibdata</span>
-            <div>
-              <div class="id">ISO/CD 24817-1</div>
-              <div class="sub">Aerospace alloys — Determination of Mg and Zn by FAAS · stage CD · 2026-03 · click to edit metadata</div>
-            </div>
-            <div class="grow"></div>
-            <span class="ptr">Edit metadata <span class="arr">▸</span></span>
-          </div>
-        </div></div>
-        <div class="row"><div class="rail"></div><div class="cell">
-          <div class="tds-row">
-            <span class="tag">termdocsource</span> terminology sources:
-            <span class="ptr">ISO 1087-1 <span class="arr">↗</span></span>
-            <span class="ptr">ISO 5127 <span class="arr">↗</span></span>
-          </div>
-        </div></div>
-        <div class="row"><div class="rail"></div><div class="cell">
-          <div class="doc-title">Determination of magnesium and zinc in aerospace alloys — Flame atomic absorption spectrometric method</div>
-          <div class="doc-id">ISO/CD 24817-1:2026(E)</div>
-        </div></div>
-        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">1&nbsp;&nbsp;Scope</h2></div></div>
-        <div class="row"><div class="rail"></div><div class="cell">
-          <p class="body">This document specifies a flame atomic absorption spectrometric method
-          for the determination of the mass fractions of magnesium and zinc in the aerospace
-          alloys listed in <span class="xref">Table 2</span>. Quantities and units are expressed
-          in accordance with <span class="eref">ISO 80000-1</span>. The method is applicable to
-          mass fractions from 0,005&nbsp;% to 1,5&nbsp;%. Calibration
-          shall follow the procedure given in <span class="broken">Clause 9</span>.</p>
-          <p class="footnote"><span class="fnline"></span>1&nbsp; Formerly designated “series AA alloys”.</p>
-        </div></div>
-        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">2&nbsp;&nbsp;Normative references</h2></div></div>
-        <div class="row"><div class="rail"></div><div class="cell"><p class="body">There are no normative references in this document.</p></div></div>
-        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">3&nbsp;&nbsp;Terms and definitions</h2></div></div>
-        <div class="row"><div class="rail"><span class="mk dot">term-alloy</span></div><div class="cell">
-          <p class="body"><b>3.1</b>&nbsp; <span class="term-word">aerospace alloy</span></p>
-          <p class="body">metallic material, alloyed for use in load-bearing aerospace structures</p>
-          <p class="tsrc">[SOURCE: ISO 11348-1:2007, 3.2, modified — “aircraft” replaced by “aerospace”]
-            &nbsp;<span class="ptr">→ bibitem [2] <span class="arr">↗</span></span></p>
-        </div></div>
-        <div class="row"><div class="rail"><span class="mk"><b>#sec-5</b>·2</span></div>
-          <div class="cell"><h2 class="cl">5&nbsp;&nbsp;Requirements</h2></div></div>
-        <div class="row"><div class="rail"></div><div class="cell"><h3 class="scl">5.1&nbsp;&nbsp;General</h3></div></div>
-        <div class="row"><div class="rail"></div><div class="cell">
-          <p class="body">The determination shall be carried out on the test portion prepared
-          in accordance with <span class="xref">6.2</span>, using the nebulizer geometry shown
-          in <span class="xref">Figure 1</span>. Results shall be reported as specified
-          in <span class="xref">Table 2</span>.</p>
-        </div></div>
-        <div class="row"><div class="rail"></div><div class="cell"><h3 class="scl">5.2&nbsp;&nbsp;Determination</h3></div></div>
-        <div class="row"><div class="rail"><span class="mk hot selmark"><b>#req-5-2-1</b>·2</span></div>
-          <div class="cell"><div class="req selq">
-            <div class="req-head">
-              <span class="req-kind">Requirement</span>
-              <span class="req-id">R-5.2-1</span>
-              <span class="badge b-shall">shall · obligation: requirement</span>
-              <span class="badge b-meta">classification · 3 ▸</span>
-            </div>
-            <p>The test portion shall be dissolved in 20&nbsp;ml of hydrochloric acid
-            (1+1) and 2&nbsp;ml of hydrogen peroxide, then diluted to 100,0&nbsp;ml.</p>
-            <div class="req-meta-row">
-              <span class="k">Inherits:</span>
-              <span class="ptr">ISO 24817-1:2016 · Req 5.2-1 <span class="arr">↗</span></span>
-              <span class="chip-d">citeas on export: “ISO 24817-1”</span>
-            </div>
-          </div></div></div>
-        <div class="row"><div class="rail"><span class="mk dot">#req-5-2-2</span></div>
-          <div class="cell"><div class="req rec">
-            <div class="req-head">
-              <span class="req-kind">Recommendation</span>
-              <span class="req-id">R-5.2-2</span>
-              <span class="badge b-should">should · obligation: recommendation</span>
-            </div>
-            <p>A reagent blank should be carried through the complete procedure with each batch.</p>
-          </div></div></div>
-        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">6&nbsp;&nbsp;Expression of results</h2></div></div>
-        <div class="row"><div class="rail"><span class="mk"><b>#eq-1</b>·2</span></div>
-          <div class="cell">
-            <div class="formula">w = (ρ₁ − ρ₀) · V / (m · f)</div>
-            <div class="figtools"><span class="badge b-meta">stem · asciimath</span><span class="badge b-meta">block</span></div>
-          </div></div>
-        <div class="row"><div class="rail"><span class="mk hot"><b>#fig-ion-beam</b>·3</span></div>
-          <div class="cell"><div class="figure">
-            <div class="figbox">image · ion-beam-geometry.svg</div>
-            <div class="figcap"><b>Figure 1</b> — Nebulizer flow geometry</div>
-          </div></div></div>
-        <div class="row"><div class="rail"><span class="mk dot weak">fig-torch</span></div>
-          <div class="cell"><div class="figure small">
-            <div class="figbox">image · torch-detail.png</div>
-            <div class="figcap"><b>Figure 2</b> — Torch detail</div>
-            <div class="figtools"><span class="badge b-warn">⚠ mimetype missing — see Validation ▸</span></div>
-          </div></div></div>
-        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">7&nbsp;&nbsp;Test report</h2></div></div>
-        <div class="row"><div class="rail"><span class="mk"><b>#tbl-2</b>·1</span></div>
-          <div class="cell">
-            <div class="tblcap"><b>Table 2</b> — Measured mass fractions</div>
-            <table class="mn">
-              <tr><th>Element</th><th>Mass fraction&nbsp;%</th><th>Wavelength&nbsp;nm</th></tr>
-              <tr><td>Mg</td><td>0,45</td><td>285,2</td></tr>
-              <tr><td>Zn</td><td>1,12</td><td>213,9</td></tr>
-            </table>
-          </div></div>
-        <div class="row"><div class="rail"></div><div class="cell">
-          <div class="note"><b>NOTE</b>&nbsp; The result is reported to four significant digits.</div>
-        </div></div>
-        <div class="row"><div class="rail"><span class="mk dot weak">notes</span></div>
-          <div class="cell">
-            <h3 class="floating">Experimental notes</h3>
-            <p class="body"><span class="badge b-meta">floating title · depth 2 · unnumbered</span></p>
-            <p class="body">Working notes retained for the committee; excluded from numbering.</p>
-          </div></div>
-        <div class="row"><div class="rail"></div><div class="cell"><h2 class="cl">Bibliography</h2></div></div>
-        <div class="row">
-          <div class="rail"><div class="mk-region">▸ 14 anchors<br>collapsed (density)</div></div>
-          <div class="cell">
-            <div class="bib-item"><span class="n">[1]</span>
-              <span class="t">ISO 80000-1:2022, <em>Quantities and units — Part 1: General</em>. Geneva: ISO.</span>
-              <span class="bib-side"><span class="chip-d">cited ×2</span></span></div>
-            <div class="bib-item"><span class="n">[2]</span>
-              <span class="t">ISO 11348-1:2007, <em>Water quality — Luminescence… Part 1</em>. Geneva: ISO.</span>
-              <span class="bib-side"><span class="chip-d">cited ×3</span></span></div>
-            <div class="bib-item"><span class="n">[3]</span>
-              <span class="t">ISO 1087-1:2000, <em>Terminology work — Vocabulary — Part 1</em>. Geneva: ISO.</span>
-              <span class="bib-side"><span class="chip-d">non-referenced</span></span></div>
-            <div class="bib-item"><span class="n">[4]</span>
-              <span class="t">ISO 80000-1:2022 (draft revision), <em>Quantities and units</em>.</span>
-              <span class="bib-side"><span class="badge b-warn">duplicate docid ↗ [1]</span></span></div>
-          </div>
-        </div>
-      </div>`,
-  };
+  /* ============ EXTRACTION ANCHORS (D35) — DEAD DATA, NOT BEHAVIOR ============
+     extract-design-tokens.mjs + extract-css.mjs read THIS FILE as the
+     source of truth for design-tokens.json / panel-layout.css. The blocks
+     below stay verbatim as anchors; the LIVE copies live elsewhere — the
+     titles/preset/storage keys in the demo module (drift-guarded against
+     these anchors by tests/demo.test.mjs), the constants and engine
+     option values in the library's tokens layer. Do not edit without
+     regenerating: yarn workspace @metanorma/panel-layout tokens:extract.
+     ================================================================ */
   /* ============ serialized layout (dockview v7 shapes) ============
      grid.root: main grid = Document only (branch > leaf).
      floatingGroups[]: each panel group is a floating window with a NESTED
@@ -690,58 +320,10 @@ try {
       ],
     };
   }
-
-  /* ============ demo app (toolbar + statusbar + one PanelLayout) ============
-     The demo owns exactly: the 11 panel registrations (§4 demo data), the
-     preset layout, the storage keys, the toolbar/statusbar chrome, and the
-     Reset button (HP9 restore-to-default: wipe the keys, then
-     clear()+fromJSON(preset) — the library's fromJSON net clears the pin
-     map and the maintenance pass re-pins and re-saves).
-
-     Registry notes (api.spec.md §2.5):
-     - key = the serialized `contentComponent` name ('document' renders the
-       doc panel; the other ten reuse their panel ids);
-     - `floatable: false` is registry-authoritative BEHAVIORAL policy, and
-       `floatExcludedPanels(registry)` yields PANEL IDS — the doc panel's id
-       is 'doc' (golden-pinned), so the policy entry rides the 'doc' key;
-       its component is never resolved (no panel carries contentComponent
-       'doc'), only the exclusion flag is read from it;
-     - `title` is data precedence rung 2 (layout wins — the preset carries
-       every title), kept for standalone completeness.
-     Everything else — persistence format, containment, takeover, vetoes,
-     suppression, decoration, G5/G6 focus — is <PanelLayout> wiring. */
-
-  const DocumentPanel = () => h('div', {
-    className: 'panelwrap docwrap',
-    dangerouslySetInnerHTML: { __html: PANELS.document },
-  });
-  const registry = {
-    outline: { component: panelComponent('outline') },
-    bibliography: { component: panelComponent('bibliography') },
-    validation: { component: panelComponent('validation') },
-    review: { component: panelComponent('review') },
-    pinned: { component: panelComponent('pinned') },
-    identity: { component: panelComponent('identity') },
-    attributes: { component: panelComponent('attributes') },
-    structure: { component: panelComponent('structure') },
-    derived: { component: panelComponent('derived') },
-    overlays: { component: panelComponent('overlays') },
-    document: { component: DocumentPanel },
-    // F3 float exclusion, expressed by PANEL ID (see note above).
-    doc: { component: DocumentPanel, floatable: false },
-  };
-  function panelComponent(key) {
-    return () => h('div', {
-      className: 'panelwrap',
-      dangerouslySetInnerHTML: { __html: PANELS[key] },
-    });
-  }
-
   // Demo-owned storage keys (behavior.spec.md §4: medium + names are
   // consumer configuration). The mock's historical two-key shape.
   const LS_KEY = 'mn-dockview7-floats-v1';
   const LS_H_KEY = 'mn-dockview7-heights-v1';
-
   /* Design constants (behavior.spec.md §4) — the mock remains the source of
      truth for the extracted design-tokens.json; the BEHAVIOR that consumed
      them moved into the library (pinHeights/dragTakeover/unwrap read them
@@ -759,83 +341,25 @@ try {
         sashSize = 4;           // see chromeOf: Math.max(0, n - 1) * 4; // 4px per sash
   void cornerMinWidth; void undockChrome; void sashSize;
 
-  function App() {
-    const [autoWrap, setAutoWrap] = useState(true);
+  // Pinned engine option values (design-tokens.json dndEdges /
+  // floatingGroupBounds read these object literals from this file; the
+  // demo passes its own copy at the <PanelLayout> instantiation — the
+  // library OWNS floatingGroupBounds per §2.1/D26 and ignores consumer
+  // values for it).
+  const demoDockviewOptions = {
+    dndEdges: {
+      size: { value: 160, type: 'pixels' },
+      activationSize: { value: 26, type: 'pixels' },
+    },
+    floatingGroupBounds: {
+      minimumHeightWithinViewport: 0,
+      minimumWidthWithinViewport: 0,
+    },
+  };
+  void TITLES; void presetLayout; void LS_KEY; void LS_H_KEY;
+  void demoDockviewOptions;
 
-    const onReady = ({ api }) => {
-      window.__api = api;   // parity drivers read live state through it
-    };
-
-    const reset = () => {
-      // HP9 restore-to-default: the demo wipes its keys, then restores the
-      // preset through the public api — the library's fromJSON net clears
-      // the pin map, and the maintenance pass re-pins + re-saves (both
-      // keys re-emerge: layout = preset, heights = {}).
-      try { localStorage.removeItem(LS_KEY); localStorage.removeItem(LS_H_KEY); } catch (e) {}
-      window.__api?.clear();
-      window.__api?.fromJSON(presetLayout());
-    };
-
-    return h('div', { className: 'window' },
-      h('div', { className: 'toolbar' },
-        h('button', { className: 'tb-btn' }, 'Bold'),
-        h('button', { className: 'tb-btn' }, 'Italic'),
-        h('span', { className: 'tb-sep' }),
-        h('button', { className: 'tb-btn' }, 'Quote'),
-        h('button', { className: 'tb-btn' }, 'Note'),
-        h('span', { className: 'tb-sep' }),
-        h('button', { className: 'tb-btn' }, 'Xref'),
-        h('button', { className: 'tb-btn' }, 'Eref'),
-        h('span', { className: 'tb-spacer' }),
-        h('button', {
-          className: 'tb-btn' + (autoWrap ? ' on' : ''),
-          onClick: () => setAutoWrap(v => !v),
-          title: 'When ON, dropping a dragged panel tab on empty space pops it into a new floating window (the Document tab itself stays docked)',
-        }, 'Auto-wrap panels: ' + (autoWrap ? 'ON' : 'OFF')),
-        h('button', { className: 'tb-btn', onClick: reset }, 'Reset')),
-      // The PanelLayout container IS the layout area (D30) — it carries the
-      // class itself; the demo's .layoutArea CSS (flex:1 fill) applies to it.
-      h(PanelLayout, {
-          registry,
-          defaultLayout: presetLayout(),
-          persistence: {
-            defaultLayout: presetLayout(),
-            format: { kind: 'two-key', keys: { layout: LS_KEY, heights: LS_H_KEY } },
-          },
-          autoWrap,
-          dockviewOptions: {
-            theme: {
-              name: 'light',
-              className: 'dockview-theme-light',
-              colorScheme: 'light',
-            },
-            // drag containment — everything but the bottom edge: the
-            // vertical/horizontal stock clamps are disabled via 0-minimums
-            // (no-op clamp range; the value is OWNED by the library per
-            // §2.1 but stays extractable from this file as the design
-            // source of truth) and module 5's transform re-imposes
-            // top/left bounds per frame, leaving the bottom free.
-            floatingGroupBounds: {
-              minimumHeightWithinViewport: 0,
-              minimumWidthWithinViewport: 0,
-            },
-            dndEdges: {
-              size: { value: 160, type: 'pixels' },
-              activationSize: { value: 26, type: 'pixels' },
-            },
-          },
-          onReady,
-        }),
-      h('div', { className: 'statusbar' },
-        h('span', null, h('span', { className: 'dot' }),
-          'Semantic XML valid · 1 unresolved reference · 1 duplicate docid'),
-        h('span', { className: 'grow' }),
-        h('span', { className: 'live' },
-          'dockview v7 · drag tabs between windows · drop a tab on empty space = new window · drag empty tab-strip space to move a whole stack · layout saved'),
-        h('span', null, '1 412 words · saved 12:04')));
-  }
-
-  createRoot(document.getElementById('root')).render(h(App));
+  createRoot(document.getElementById('root')).render(h(DemoApp));
   boot.remove();
 } catch (err) {
   boot.textContent = 'Failed to load from CDN: ' + (err && err.message || err) +
