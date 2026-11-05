@@ -7,6 +7,54 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-11-05 — Image sizing axis: model compliance + UX, end to end
+
+Multi-spec, multi-package feature (schema.spec.md, images-figures.md,
+MetanormaProseMirror.spec.md, metanorma-model.md, AdvancedMetanormaToolbar
+README; prosemirror-schema, editor-commands, prosemirror-editor, toolbar,
+editor-gui). **Commits: *(pending)***.
+
+- **Upstream ledger** — scoped re-verification of the figure/image size
+  family at the §1 pins (trigger: this work needed the `figure/@width` slot
+  recorded): `figure` carries free-text `width` **and** `height` (standoc
+  combine); standoc's include-block redefinition of `ImageAttributes` makes
+  `MediaAttributes` optional-as-a-whole (altsource delegation); converter
+  emits `auto` actively for absent image dims and its own keyword output is
+  grammar-invalid at the image slot — `figure/@width` is the conformant
+  keyword home. Size-family drift bullet + §1 stamp added; the drift job's
+  fail tier gained the three newly cited paths.
+- **Schema** — `image` gains `mimetype`/`width`/`height` + the first adopted
+  `x-` pair (`x-natural-width`/`-height`, §6 rule 5 five-point declaration);
+  `figure` gains the role enum `width`. New §17.8: import-normalization
+  table, export contract (explicitly contract-documentation — no converter
+  exists in-repo), banked-original rules (image dims conformance-gated;
+  figure free-text slots re-emit verbatim), role⇔size exclusion as a
+  command-level invariant. New `imageAttrs.ts` (`normalizeImageSize`,
+  `isForeignSizeValue`, `normalizeFigureWidth`, total `inferMimetype` +
+  `UNKNOWN_MIMETYPE` marker, `formatImageSize` plain-decimal at any
+  magnitude, grammar-faithful `isImageSizeConformant`) with a widened
+  single-node shape guard. toDOM/parseDOM carry the symmetric `data-*` set
+  with `data` banking; CLASS gains the two role modifiers.
+- **Editor** — node views paint authored size inline and the role class;
+  `document.css` keeps the base cap as default, adds `object-fit: contain`
+  and the two role analogues (no page-geometry constants anywhere).
+  Insertion captures mimetype + natural size at commit (fail-soft, timeout-
+  raced); new idle backfill plugin (data-URI-only scope, per-src failure
+  memo, live-state re-find, `addToHistory: false`).
+- **Toolbar** — new Size popover (`ImageSizingPopover`) backed by
+  `updateImageAttrs` (sizing scope realized; src/alt editing still deferred):
+  one transaction, exclusion enforced; popover fields reset on close.
+- **Infra** — Yarn-4 fix: inert `pretest` hooks replaced with explicit
+  `yarn compile &&` chaining (schema, editor-commands; prosemirror-editor
+  gains its first test script, clearing the long-standing check-specs §4.1
+  warning). Tests: 87 schema, 86+ editor-commands (images suite added), 5
+  prosemirror-editor, and a new editor-gui `image-sizing.spec.ts` (12 e2e:
+  parseDOM banking, paint, popover exclusion flows, backfill incl.
+  history-invisibility, dialog capture incl. both §17.4 inference
+  populations).
+
+---
+
 ## 2026-11-03 — Upstream ledger re-pin: one id-generation change; grammars and vendoring unmoved
 
 `docs/metanorma-model.md` re-pin; **Commits: *(pending)***. Trigger: the

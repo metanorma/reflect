@@ -29,11 +29,22 @@ import { generateId, canInsertBlockAdjacent } from '../util.js';
 
 /**
  * Attributes gathered by the adapter (dialog / prompt).
- * `src` must be non-empty.
+ * `src` must be non-empty; `mimetype` is an **insertion precondition**
+ * (§17.4): a non-null string, satisfied by construction because the adapter
+ * always runs `inferMimetype` (total) before dispatching. Legacy/imported
+ * documents may legitimately carry `mimetype: null` — that is a load-path
+ * concern, not this command's.
  */
 export interface InsertImageAttrs {
   readonly src: string;
   readonly alt?: string | null;
+  /** Inferred mimetype (§17.4) — the marker (`UNKNOWN_MIMETYPE`) is a valid
+   * value here; export-time inference may later replace it. */
+  readonly mimetype?: string;
+  /** Intrinsic geometry captured at commit (§6 rule 5) — null on decode
+   * failure or non-positive natural size (SVG without intrinsic size). */
+  readonly xNaturalWidth?: number | null;
+  readonly xNaturalHeight?: number | null;
 }
 
 /**
@@ -188,7 +199,16 @@ export function insertImageIntoFigure(
   // 2. Query form: no dispatch ⇒ pure predicate, mutate nothing.
   if (dispatch === undefined) return true;
 
-  // 3. Validate src via the throwing guard, wrapped to return false
+  // 3. Insertion precondition — a non-null `mimetype` (§17.4), satisfied by
+  // construction (the adapter always runs the total `inferMimetype`).
+  // Deliberately NOT part of the shape guard `assertValidImageAttrs`
+  // (§6.1): presence is an insertion-path requirement, loaded/parsed
+  // documents may legitimately carry null. Soft-fail like every other
+  // precondition.
+  const mimetype = attrs?.mimetype;
+  if (typeof mimetype !== 'string' || mimetype === '') return false;
+
+  // 4. Validate src via the throwing guard, wrapped to return false
   // (§6.4 step 3).
   let src: string;
   try {
@@ -198,7 +218,7 @@ export function insertImageIntoFigure(
     return false; // src missing / empty / wrong type
   }
 
-  // 4. Resolve the target figure and its start position (re-run against the
+  // 5. Resolve the target figure and its start position (re-run against the
   // passed state — the adapter may dispatch after an async upload, so the
   // selection may have moved since the dialog was opened).
   const schema = state.schema;
@@ -218,15 +238,21 @@ export function insertImageIntoFigure(
     captionSize = captionNodeSize(target.node);
   }
 
-  // 5. Insert immediately after the figure_name child (§2.1): given Standoc's
+  // 6. Insert immediately after the figure_name child (§2.1): given Standoc's
   // single-occurrence FigureBody choice group (image XOR paragraphs XOR
   // subfigures), the slot after the caption is the only position valid in
   // both models, and it is immune to trailing content the figure has
   // accumulated (notes, paragraphs — the exitName residue).
-  const image = imageType.create({ src, alt: attrs!.alt ?? null });
+  const image = imageType.create({
+    src,
+    alt: attrs!.alt ?? null,
+    mimetype,
+    'x-natural-width': attrs!.xNaturalWidth ?? null,
+    'x-natural-height': attrs!.xNaturalHeight ?? null,
+  });
   const tr = state.tr.insert(figStart + 1 + captionSize, image);
 
-  // 6. The selection is left unchanged (the cursor stays with the author,
+  // 7. The selection is left unchanged (the cursor stays with the author,
   // e.g. in the caption). scrollIntoView + dispatch EXACTLY ONCE.
   tr.scrollIntoView();
   dispatch(tr);

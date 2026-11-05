@@ -52,6 +52,8 @@ export {
   canInsertFigure,
   insertImageIntoFigure,
   canInsertImageIntoFigure,
+  updateImageAttrs,
+  canUpdateImageAttrs,
   wrapInClause,
   promoteClause,
   demoteClause,

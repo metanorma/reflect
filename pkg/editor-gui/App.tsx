@@ -4,6 +4,7 @@ import {
   createInitialEditorState,
   DEFAULT_HISTORY_OPTIONS,
   tableColumnResizePlugin,
+  imageNaturalSizePlugin,
 } from '@metanorma/prosemirror-editor';
 import type { EditorState, MetanormaDocument } from '@metanorma/prosemirror-editor';
 import { AdvancedMetanormaToolbar } from '@metanorma/toolbar';
@@ -148,6 +149,10 @@ const editorPlugins = [
     // the clipboard serializer carrying `data-colwidths`. Appended after the
     // keymap/minimap so it only observes transactions.
     tableColumnResizePlugin(),
+    // Image natural-size backfill (MetanormaProseMirror.spec.md §6.3):
+    // idle-scheduled, data-URI-only re-derivation of `x-natural-*` for
+    // pasted (clipboard-dropped) or failed-capture images; history-invisible.
+    imageNaturalSizePlugin(),
   ];
 
 

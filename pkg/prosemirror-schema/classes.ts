@@ -70,8 +70,11 @@ export const CLASS = {
   formula:       'mn-formula',
   floatingTitle: 'mn-floating-title',
 
-  // Media nodes (§8.6)
-  figure:        'mn-figure',
+  // Media nodes (§8.6) — the role classes are `--` modifiers emitted by
+  // `figure`'s toDOM ALONGSIDE the base class (§8.0).
+  figure:             'mn-figure',
+  figureTextWidth:    'mn-figure--text-width',
+  figureFullPageWidth: 'mn-figure--full-page-width',
 
   // Footnote nodes (§8.7)
   footnotes:      'mn-footnotes',

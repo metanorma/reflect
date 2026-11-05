@@ -73,6 +73,16 @@ paths = the paths cited above); re-verification is the interpretation
 procedure embedded in the job's drift tracking issue — a pin bump always
 travels with its interpretation.
 
+A scoped re-verification on **2026-11-05** covered the figure/image size
+family — `FigureAttributes`, `ImageAttributes`, `ImageSize`, and the
+converter's figure/image attribute emission (`lib/metanorma/converter/
+inline.rb`, `lib/metanorma/converter/blocks_image.rb`, corroborated by
+`spec/metanorma/blocks_spec.rb`; trigger: the corpus's image-sizing work
+needed the `figure/@width` slot recorded — see §4 and the size-family
+bullet in the drift log). Pins unmoved; the newly cited converter/spec
+paths joined the drift job's fail tier (cite-driven, per the job's
+sensitivity-map contract).
+
 ## 2. Pipeline and artifacts
 
 The Metanorma compile pipeline is a fixed chain; the editor targets the
@@ -185,8 +195,8 @@ From `basicdoc-models → grammars/basicdoc.rnc` and `standoc.rnc`:
 | root `metanorma` | `bibdata` **required** first child (then `termdocsource*`, `misccontainer?`, `boilerplate?`); body = `preface?`, `sections` (required), `annex*`, `bibliography?`, `indexsect*`, `colophon?` |
 | `preface` | `(content \| abstract \| foreword \| introduction \| acknowledgements \| executivesummary)+` — sections only |
 | `sections` | `(clause \| terms \| term-clause \| definitions \| floating-title)+` — sections only |
-| `figure` | `RequiredId` + `unnumbered?`/`subsequence?`/`class?`; no `src`, `title`, or `number` attribute. Body: optional caption child (`tname?`), then one of `image`/`video`/`audio`/`pre`/`paragraph-with-footnote+`/`figure*`, then `fn*`, `dl?`, `note*`, `source?` |
-| `image` | `RequiredId`; `src` (anyURI) and `mimetype` **required**; `alt?`, `title?`, `longdesc?`, `filename?`, `width?`, `height?` |
+| `figure` | `RequiredId` + `unnumbered?`/`subsequence?`/`class?` + `width?`/`height?` — the size pair is **free text** (`attribute { text }?`), added by standoc's tail combine over basicdoc's `FigureAttributes` (basicdoc alone carries no figure size attributes; emission semantics below). No `src`, `title`, or `number` attribute. Body: optional caption child (`tname?`), then one of `image`/`video`/`audio`/`pre`/`paragraph-with-footnote+`/`figure*`, then `fn*`, `dl?`, `note*`, `source?` |
+| `image` | `RequiredId`; the composed Semantic shape **redefines** basicdoc's `ImageAttributes` (standoc include-block replacement): `MediaAttributes?` — **optional as a whole** (its `src` (anyURI) + `mimetype` + `filename?` are required only when no `altsource` children carry the media attributes; basicdoc alone requires `src`+`mimetype`) — then `alt?`/`title?`/`longdesc?` and `width?`/`height?` of `ImageSize` = `\d+([.]\d+)?(%?)` **or the literal `"auto"`**. The same redefinition admits raw SVG markup as an image-body alternative and gives `ImageBody` an optional inline `svg` child |
 | `formula` | `RequiredId`; body = **required** `stem` child, then `dl?`, `note*` — not an empty atom |
 | `stem` | **required** `type` = `MathML`\|`AsciiMath`\|`LaTeX` (basicdoc) plus **required** `block` boolean (standoc combine) and `number-format?`; content = `text?`, `mathml?`, `asciimath?`, `latexmath?` child elements. Used both inline (in the `TextElement` choice) and as formula's math content |
 
@@ -263,10 +273,41 @@ vendoring pass is cut from PR #46-or-later content.
   (`sections`, `clause`/`Clause-Section`, annex structure, `preface`,
   `bibliography`, `references`, `floating-title`, `section-title`, `table`
   container shape, all `BasicBlock` extensions, `start`).
+- **Size-attribute family (first recorded 2026-11-05; scoped
+  re-verification, not window drift — provenance unclassified)**: `figure`
+  carries optional free-text `width`/`height` (standoc tail combine over
+  `FigureAttributes`), and standoc's include-block redefinition of
+  `ImageAttributes`/`image` makes `MediaAttributes` optional-as-a-whole
+  (altsource delegation) and admits SVG-markup image bodies — both now in
+  the §4 rows, with emission semantics in the size-semantics note above.
+  Neither the 2026-08-16 baseline (`a3596dc9`, no longer fetchable) nor the
+  2026-09-25 diff recorded them, so "missed earlier" vs "new in the window"
+  cannot be distinguished; they are recorded as present at the §1 pins.
+  `ImageSize` itself is unchanged across the window — identical at the
+  `50fe9e85` and `3b408b71` submodule pins and byte-identical in the
+  vendored-runtime `basicdoc.rng`, so the vendored-runtime lag (above) does
+  not affect this pattern.
 
 `stem`'s display mode is the `block` boolean — not the `type` enum, which
 selects the encoding. The encoding lives in child elements selected by `type`;
 there are no `asciimath`/`mathml` attributes on stem or formula.
+
+**Figure/image size semantics (converter, verified 2026-11-05).** Authored
+AsciiDoc `width`/`height` pass through verbatim onto **both** levels:
+`figure/@width`+`@height` via `figure_attrs`
+(`lib/metanorma/converter/blocks_image.rb` — absent when unauthored, free-text
+slots) and `image/@width`+`@height` via `image_attributes1`
+(`lib/metanorma/converter/inline.rb`). On `image`, an absent or empty value is
+**actively emitted as `"auto"`** (`image_dim_attr`: `ImageSize` admits only
+numbers, percentages, or `"auto"`) — standoc never serialises image size by
+omission, while figure size is omit-when-unauthored. Because the pass-through
+is verbatim, a non-numeric value (the page-relative keyword `text-width`) lands
+on `figure/@width` — grammar-legal, free text — *and* on `image/@width`, where
+`ImageSize` rejects it: standoc's own spec fixture at the pin
+(`spec/metanorma/blocks_spec.rb`, "accepts auto, float and percent values")
+carries `width="text-width"` on both elements, so its expected output is
+grammar-invalid at the image slot. The conformant home for keyword-sized
+figures is `figure/@width` alone.
 
 ## 5. Identifiers and cross-references
 

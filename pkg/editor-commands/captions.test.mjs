@@ -422,7 +422,7 @@ describe("insertImageIntoFigure", () => {
     );
     assert.equal(canInsertImageIntoFigure(state), true);
     const { ok, state: after } = run(
-      (s, d) => insertImageIntoFigure(s, d, { src: "a.png", alt: "alt text" }),
+      (s, d) => insertImageIntoFigure(s, d, { src: "a.png", alt: "alt text", mimetype: "image/png" }),
       state,
     );
     assert.equal(ok, true);
@@ -452,7 +452,7 @@ describe("insertImageIntoFigure", () => {
     );
     assert.equal(canInsertImageIntoFigure(state), true);
     const { ok, state: after } = run(
-      (s, d) => insertImageIntoFigure(s, d, { src: "b.png", alt: null }),
+      (s, d) => insertImageIntoFigure(s, d, { src: "b.png", alt: null, mimetype: "image/png" }),
       state,
     );
     assert.equal(ok, true);
@@ -476,7 +476,7 @@ describe("insertImageIntoFigure", () => {
     );
     assert.equal(canInsertImageIntoFigure(state), true);
     const { ok, state: after } = run(
-      (s, d) => insertImageIntoFigure(s, d, { src: "c.png", alt: null }),
+      (s, d) => insertImageIntoFigure(s, d, { src: "c.png", alt: null, mimetype: "image/png" }),
       state,
     );
     assert.equal(ok, true);
@@ -506,7 +506,7 @@ describe("insertImageIntoFigure", () => {
     );
     assert.equal(canInsertImageIntoFigure(state), false);
     const { ok, fired } = run(
-      (s, d) => insertImageIntoFigure(s, d, { src: "a.png", alt: null }),
+      (s, d) => insertImageIntoFigure(s, d, { src: "a.png", alt: null, mimetype: "image/png" }),
       state,
     );
     assert.equal(ok, false);
@@ -520,7 +520,7 @@ describe("insertImageIntoFigure", () => {
     );
     assert.equal(canInsertImageIntoFigure(state), false);
     const { ok, fired } = run(
-      (s, d) => insertImageIntoFigure(s, d, { src: "b.png", alt: null }),
+      (s, d) => insertImageIntoFigure(s, d, { src: "b.png", alt: null, mimetype: "image/png" }),
       state,
     );
     assert.equal(ok, false);
@@ -549,7 +549,7 @@ describe("insertImageIntoFigure", () => {
     );
     assert.equal(canInsertImageIntoFigure(restored), true);
     const { ok, state: afterRefill } = run(
-      (s, d) => insertImageIntoFigure(s, d, { src: "new.png", alt: null }),
+      (s, d) => insertImageIntoFigure(s, d, { src: "new.png", alt: null, mimetype: "image/png" }),
       restored,
     );
     assert.equal(ok, true);

@@ -1,5 +1,6 @@
 /*
- * image-dialog.css — URL/upload dialog for image insertion (images-figures.md §11).
+ * image-dialog.css — URL/upload dialog for image insertion, and the image
+ * sizing popover (images-figures.md §11).
  *
  * Consumes the `--mn-*` design tokens defined by `@metanorma/prosemirror-editor`
  * (tokens.css); light/dark themes are handled centrally there.
@@ -7,25 +8,33 @@
 
 @layer chrome {
 
-  .mn-toolbar-image {
+  .mn-toolbar-image,
+  .mn-toolbar-image-sizing {
     display: inline-block;
     position: relative;
   }
 
-  /* Anchor the dialog to the trigger button via CSS Anchor Positioning.
-     The dashed-ident is consumed by `position-anchor` on .mn-image-dialog. */
+  /* Anchor each dialog to its own trigger button via CSS Anchor Positioning
+     (distinct dashed-idents — a shared name would make both popovers resolve
+     to the same trigger). */
   .mn-toolbar-image .mn-toolbar-btn {
     anchor-name: --mn-image-anchor;
   }
 
-  /* ---- Image dialog popover (top-layer via Popover API) ---- */
+  .mn-toolbar-image-sizing .mn-toolbar-btn {
+    anchor-name: --mn-image-sizing-anchor;
+  }
+
+  /* ---- Image dialog popovers (top-layer via Popover API) ---- */
 
   /* Self-contained popover styling. Deliberately does NOT reuse the shared
      .mn-toolbar-dialog class — the consumer's vertical-toolbar override
      (style.module.css) targets .mn-toolbar-dialog with `right: 100%`, which
-     would conflict with anchor positioning. */
-  .mn-image-dialog {
-    position-anchor: --mn-image-anchor;
+     would conflict with anchor positioning. The sizing popover carries its
+     OWN class (.mn-image-sizing-dialog) — sharing .mn-image-dialog would
+     break the strict-mode dialog selectors in the e2e suite. */
+  .mn-image-dialog,
+  .mn-image-sizing-dialog {
     position-area: inline-end span-block-end;
     margin: 2px;
     background: var(--mn-surface);
@@ -37,17 +46,27 @@
     min-width: 16em;
   }
 
+  .mn-image-dialog {
+    position-anchor: --mn-image-anchor;
+  }
+
+  .mn-image-sizing-dialog {
+    position-anchor: --mn-image-sizing-anchor;
+  }
+
   /* `display: grid` only when the popover is open — the UA stylesheet sets
      `display: none` on hidden [popover] elements, but an author `display`
      declaration would override it and keep the dialog visible. */
-  .mn-image-dialog:popover-open {
+  .mn-image-dialog:popover-open,
+  .mn-image-sizing-dialog:popover-open {
     display: grid;
   }
 
   /* When anchor positioning is unavailable, fall back to positioning relative
-     to .mn-toolbar-image (position: relative). */
+     to the wrapper (position: relative). */
   @supports not (anchor-name: --x) {
-    .mn-image-dialog {
+    .mn-image-dialog,
+    .mn-image-sizing-dialog {
       position: absolute;
       top: 100%;
       left: 0;

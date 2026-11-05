@@ -142,8 +142,12 @@ Governed by `schema.spec.md` §6 (Attribute conventions):
 
 Exported per `schema.spec.md` §11 (Public API):
 
-`assertValidImageAttrs(attrs)` — asserts `src` is a non-empty string; used by
-image insertion paths (see `images-figures.md`).
+`assertValidImageAttrs(attrs)` — single-node image shape validation: asserts
+`src` is a non-empty string, `mimetype` is a string or `null`, and
+`width`/`height` are positive finite numbers, percent strings, or `null`
+(the role⇔size exclusion and insertion-time mimetype presence are
+deliberately outside the guard — schema.spec.md §6.1); used by image
+insertion paths (see `images-figures.md`).
 
 ## 5. Composition with `MetanormaToolbar`
 
@@ -361,6 +365,7 @@ pkg/editor-commands/                  ← pure commands (no React, no DOM, no Ed
   commands/
     insertTable.ts                        ← insertTable(state, dispatch?, rows, cols), canInsertTable
     insertImage.ts                        ← insertFigure, canInsertFigure, insertImageIntoFigure, canInsertImageIntoFigure
+    updateImageAttrs.ts                   ← updateImageAttrs, canUpdateImageAttrs (sizing scope)
     sections.ts                           ← wrapInClause, promoteClause, demoteClause, insertSection, insertFloatingTitle
     referenceMarks.ts                     ← applyReferenceMark, toggleXref/Eref/Concept/Bcp14, insertFootnoteMarker/insertStem
     definitionList.ts                     ← insertDefinitionList, addDefinitionPair (+ helpers)
@@ -411,6 +416,10 @@ export {
 } from "./commands/insertImage.js";
 export type { InsertImageAttrs } from "./commands/insertImage.js";
 export {
+  updateImageAttrs, canUpdateImageAttrs,
+} from "./commands/updateImageAttrs.js";
+export type { ImageSizingUpdate, FigureRole } from "./commands/updateImageAttrs.js";
+export {
   wrapInClause, promoteClause, demoteClause, insertSection,
   insertFloatingTitle,
 } from "./commands/sections.js";
@@ -442,6 +451,7 @@ export {
   insertTable, canInsertTable,
   insertFigure, canInsertFigure,
   insertImageIntoFigure, canInsertImageIntoFigure,
+  updateImageAttrs, canUpdateImageAttrs,
   wrapInClause, promoteClause, demoteClause, insertSection,
   insertFloatingTitle,
   applyReferenceMark,
@@ -592,7 +602,7 @@ This satisfies `EditorCommands.spec.md` §1.8 (purity) without losing the UX:
 | Feature doc | Pure command(s) → `editor-commands` | UI / view adapter → `@metanorma/toolbar` |
 |---|---|---|
 | `tables.md` | `insertTable(state, dispatch?, rows, cols)`; `canInsertTable(state)` is the predicate form | `TableSizePicker.tsx` (popover) + toolbar `run` adapter |
-| `images-figures.md` | `insertFigure(state, dispatch?)`; `insertImageIntoFigure(state, dispatch?, attrs)`; `canInsertFigure` / `canInsertImageIntoFigure` predicates | `ImageInsertDialog.tsx` (URL/upload) + plain Figure button + toolbar `run` adapter |
+| `images-figures.md` | `insertFigure(state, dispatch?)`; `insertImageIntoFigure(state, dispatch?, attrs)`; `updateImageAttrs(state, dispatch?, update)` (sizing scope — src/alt editing deferred); `canInsertFigure` / `canInsertImageIntoFigure` / `canUpdateImageAttrs` predicates | `ImageInsertDialog.tsx` (URL/upload) + `ImageSizingPopover.tsx` (Size popover) + plain Figure button + toolbar `run` adapter |
 | `sections.md` | `wrapInClause`, `promoteClause`, `demoteClause`, `insertSection`, `insertFloatingTitle` (+ legality helpers) | toolbar `run` adapter + `SectionPopover.tsx` (no view-taking overloads) |
 | `reference-marks.md` | `applyReferenceMark`, `toggleXref/Eref/Concept/Bcp14`, `insertFootnoteMarker`, `insertStem` | per-mark popover/prompt UI + toolbar `run` adapter |
 | `definition-lists.md` | `insertDefinitionList`, `addDefinitionPair` (pure `Command` only; no `(view)` overload) | `definitionListKeymap.ts` plugin + toolbar `run` adapter |

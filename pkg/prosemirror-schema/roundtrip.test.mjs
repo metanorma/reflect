@@ -428,3 +428,111 @@ describe('§14.12 x- load-side behavior', () => {
     );
   });
 });
+
+// --- §8.6/§17.8 image sizing: typed-attr round-trips + toDOM specs ---------
+
+describe('image sizing attrs round-trip (§8.6, §17.8)', () => {
+  it('round-trips the full sizing axis incl. declared x-natural pair', () => {
+    assert.equal(
+      roundTrip({
+        type: 'image',
+        attrs: {
+          src: 'data:image/png;base64,AAA',
+          alt: 'cat',
+          mimetype: 'image/png',
+          width: 150,
+          height: '50%',
+          'x-natural-width': 3000,
+          'x-natural-height': 2000,
+        },
+      }),
+      JSON.stringify({
+        type: 'image',
+        attrs: {
+          src: 'data:image/png;base64,AAA',
+          alt: 'cat',
+          mimetype: 'image/png',
+          width: 150,
+          height: '50%',
+          'x-natural-width': 3000,
+          'x-natural-height': 2000,
+          data: {},
+        },
+      }),
+    );
+  });
+
+  it('round-trips the figure role attr', () => {
+    assert.equal(
+      roundTrip({ type: 'figure', attrs: { id: 'f1', width: 'text-width' } }),
+      JSON.stringify({ type: 'figure', attrs: { id: 'f1', number: null, width: 'text-width', data: {} } }),
+    );
+  });
+});
+
+describe('image/figure toDOM specs (§8.6 — headless DOMOutputSpec inspection)', () => {
+  const imageToDOM = (attrs) =>
+    metanormaSchema.nodes['image'].spec.toDOM(
+      metanormaSchema.nodes['image'].create(attrs),
+    );
+  const figureToDOM = (attrs) =>
+    metanormaSchema.nodes['figure'].spec.toDOM(
+      metanormaSchema.nodes['figure'].create(attrs),
+    );
+
+  it('emits the full sizing attribute set — and never an x-* key', () => {
+    const spec = imageToDOM({
+      src: 'x.png',
+      alt: 'cat',
+      mimetype: 'image/png',
+      width: 150,
+      height: '50%',
+      'x-natural-width': 3000,
+      'x-natural-height': 2000,
+    });
+    // ['img', attrs] — leaf, no content slot.
+    assert.equal(spec[0], 'img');
+    assert.equal(spec.length, 2);
+    assert.deepEqual(spec[1], {
+      src: 'x.png',
+      'data-src': 'x.png',
+      alt: 'cat',
+      'data-mimetype': 'image/png',
+      'data-width': '150',
+      'data-height': '50%',
+    });
+    for (const key of Object.keys(spec[1])) {
+      assert.ok(!key.startsWith('x-'), `toDOM emitted editor-only key ${key}`);
+    }
+  });
+
+  it('omits data-* when unset and serializes numbers formatter-canonically', () => {
+    assert.deepEqual(
+      imageToDOM({ src: 'x.png' })[1],
+      { src: 'x.png', 'data-src': 'x.png' },
+    );
+    // Formatter-canonical number serialization — plain decimal at any
+    // magnitude (never '1e+21').
+    assert.equal(imageToDOM({ src: 'x.png', width: 1e21 })[1]['data-width'],
+      '1000000000000000000000');
+    assert.equal(imageToDOM({ src: 'x.png', width: 4.3 })[1]['data-width'], '4.3');
+  });
+
+  it('figure role rides the class (alongside the base) and data-width', () => {
+    const spec = figureToDOM({ id: 'f1', width: 'text-width' });
+    assert.equal(spec[0], 'figure');
+    assert.equal(spec[1]['class'], 'mn-figure mn-figure--text-width');
+    assert.equal(spec[1]['data-width'], 'text-width');
+    assert.equal(spec[1]['data-id'], 'f1');
+
+    const full = figureToDOM({ width: 'full-page-width' });
+    assert.equal(full[1]['class'], 'mn-figure mn-figure--full-page-width');
+    assert.equal(full[1]['data-width'], 'full-page-width');
+  });
+
+  it('role-less figure keeps the bare base class and no data-width', () => {
+    const spec = figureToDOM({ id: 'f1' });
+    assert.equal(spec[1]['class'], 'mn-figure');
+    assert.ok(!('data-width' in spec[1]));
+  });
+});

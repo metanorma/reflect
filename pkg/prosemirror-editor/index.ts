@@ -35,6 +35,10 @@ export {
   tableColumnResizeKey,
   tableColumnResizeDecorations,
 } from "./plugins/tableColumnResize.js";
+export {
+  imageNaturalSizePlugin,
+  needsNaturalSizeBackfill,
+} from "./plugins/imageNaturalSize.js";
 
 export {
   ImageNodeView,

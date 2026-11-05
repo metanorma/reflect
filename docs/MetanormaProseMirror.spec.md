@@ -316,6 +316,47 @@ there, carrying `storedMarks` over (`setSelection` nulls them). The handler
 returns `false`: double-click word selection, shift-extend, and drag remain
 fully intact. Exported for reuse and testing.
 
+### 6.3 The image natural-size backfill plugin
+
+**`imageNaturalSizePlugin`** (`plugins/imageNaturalSize.ts`) — this package's
+realization of the `x-natural-*` re-derivation-on-paste obligation (schema
+§6 rule 5, schema §6.1 declaration point (2)). The DOM is also the clipboard
+and `x-*` never reaches the DOM, so pasted images arrive with both attrs
+null; inserted images whose commit-time capture failed are null too. The
+re-derivation is async, so the mechanism is an **idle-scheduled view plugin**
+(`requestIdleCallback`/`setTimeout` fallback; one pending pass at a time,
+scheduled on view init and on every doc update).
+
+- **Scope — data-URI `src`s only.** Remote-URL images are **never**
+  backfilled: the plugin performs no editor-initiated network fetches.
+  Opening a legacy document triggers **no wholesale migration sweep** —
+  backfill is per-node, only-if-null, as nodes are observed. The pure
+  decision helper `needsNaturalSizeBackfill(node)` (exported) encodes this
+  rule plus the null check; the failure memo below is plugin-instance state
+  consulted around it.
+- **Failure memo (poison-pill guard).** A failed capture leaves the attrs
+  null and the `src` a data URI, so without a memo every idle pass would
+  re-attempt a permanently corrupt image forever. Failed decodes **and** ≤0
+  natural-size resolutions (SVG without intrinsic size — the bytes are in
+  the URI, so the result cannot change) are memoized per `src` in
+  plugin-instance state, never persisted: a corrupt data URI costs exactly
+  one attempt.
+- **Dispatch-time safety** (the dialog's async-dispatch rules, inherited):
+  the pass decodes asynchronously and the document can shift underneath it,
+  so dispatch never trusts schedule-time positions — targets are re-found
+  in the **live `view.state`** (rescan by `src`, not stale `pos`), and
+  only-if-null is rechecked per axis against the live node; a target that
+  moved, was deleted, or was filled meanwhile is silently skipped.
+- **History-invisible.** Every dispatched transaction carries
+  `setMeta('addToHistory', false)`: a backfill's visible effect is nil, so
+  it never surfaces as an undo step yet still persists in the document; the
+  no-dispatch case is trivially history-clean.
+
+The plugin draws nothing — `plugin-smoke.spec.md` is not its vehicle (that
+suite scopes itself to render verification); dispatch behavior is verified by
+the editor-gui figures e2e. Headless coverage: `imageNaturalSize.test.mjs`
+(the pure helper), run by this package's `test` script.
+
 ---
 
 ## 7. Node views
@@ -370,6 +411,11 @@ The component must not register node views for these by default.
 #### `ImageNodeView`
 - Atom leaf (`node.isAtom`); **no** `children`, **no** `contentDOMRef`.
 - Renders `<img src={node.attrs.src} alt={node.attrs.alt ?? ""} draggable />`.
+- **Sizing paint (§17.8): `toDOM` does not paint** — this node view is where
+  authored size reaches the editor canvas. A numeric `width`/`height` attr
+  becomes inline style `Npx`; a percent string passes through verbatim;
+  `null` leaves the dimension to the browser (intrinsic sizing). The
+  `x-natural-*` pair never paints (editor-only cache, §6 rule 5).
 - Spreads props onto the `<img>`; forwards `ref` to the `<img>`.
 - On empty `src`, renders a placeholder `<div class="mn-image-placeholder">`
   (it must not throw; runtime validation via `assertValidImageAttrs` happens at
@@ -379,6 +425,11 @@ The component must not register node views for these by default.
 - Renders `<figure class={CLASS.figure} data-id={node.attrs.id}>` containing
   `{children}` (the `figure_name` caption child, the `image` child, and any
   other blocks). `CLASS.figure` is `"mn-figure"` (schema §8.0).
+- **Sizing role paint (§17.8):** a non-null `width` role appends the matching
+  `--` modifier class (`CLASS.figureTextWidth` / `CLASS.figureFullPageWidth`)
+  **alongside** the base class and emits `data-width={role}` — mirroring
+  `figure`'s `toDOM`, but live on the canvas (a role-less figure keeps the
+  bare base class and no `data-width`).
 - Forwards `ref` to `<figure>`; forwards `nodeProps.contentDOMRef` to the same
   element (use `useMergedDOMRefs`).
 
@@ -482,6 +533,21 @@ cadence: design re-skin. A designer editing this file touches nothing the
 editor logic depends on. Consumes `var(--mn-*)` throughout.
 
 - `figure.mn-figure` — figure spacing and centring.
+- `figure.mn-figure img` — the overflow-safety cap (`max-width: 100%;
+  height: auto;`), plus `object-fit: contain` — **this base rule stays the
+  default for role-less figures** (removing it would strip the overflow cap
+  from every existing figure on upgrade), and an authored inline `height`
+  combined with the `max-width` clamp could distort aspect when a wide px
+  width is pane-clamped, so `contain` letterboxes the clamped box instead of
+  stretching it (§17.8).
+- `figure.mn-figure--text-width` / `figure.mn-figure--full-page-width` — the
+  sizing-role **analogues** (§17.8; classes from `CLASS`, schema §8.0):
+  `--text-width` carries the same content-width cap under the explicit class;
+  `--full-page-width` breaks out to the pane edges (negative inline margins
+  against the pane's padding — an analogue of full-bleed, **not** a
+  page-geometry simulation: the editor cannot know downstream page geometry,
+  of which there may be zero or many render targets). All sizing rules live
+  inside the existing `@layer document` block.
 - `.mn-formula` — formula panel (mono font, muted background).
 - `.mn-section-title` — section heading typography (the `section_title`
   textblock, schema §8.3), with an empty-heading placeholder (shown while the
@@ -550,6 +616,19 @@ export {
   FormulaNodeView,
   SourcecodeNodeView,
 } from "./nodeViews/index";
+
+/** Editor plugins (§6.2 base plugins; §6.3 backfill plugin; the table
+ *  column-resize plugin is specified by tables.md §8.6). */
+export { placeholderClickPlugin } from "./plugins/placeholderClick";
+export {
+  tableColumnResizePlugin,
+  tableColumnResizeKey,
+  tableColumnResizeDecorations,
+} from "./plugins/tableColumnResize";
+export {
+  imageNaturalSizePlugin,
+  needsNaturalSizeBackfill,
+} from "./plugins/imageNaturalSize";
 ```
 
 Types `MetanormaProseMirrorProps` and `NodeViewComponentProps` are also exported

@@ -23,15 +23,25 @@ export function FigureNodeView({ nodeProps, children, ref, ...props }: NodeViewC
   const mergedRef = useMergedDOMRefs(ref, nodeProps.contentDOMRef);
   const { node } = nodeProps;
   const id = node.attrs["id"] as string | null;
+  // The sizing role (§17.8) rides the CLASS `--` modifier classes (§8.0),
+  // appended to — never replacing — the base class.
+  const role = node.attrs["width"] as "text-width" | "full-page-width" | null;
+  const ownClass =
+    role === "text-width"
+      ? `${CLASS.figure} ${CLASS.figureTextWidth}`
+      : role === "full-page-width"
+        ? `${CLASS.figure} ${CLASS.figureFullPageWidth}`
+        : CLASS.figure;
   // Merge, never replace: the library's `className` (selection chrome) must
   // coexist with the node's own class.
-  const { className, rest } = mergeNodeViewProps(props, CLASS.figure);
+  const { className, rest } = mergeNodeViewProps(props, ownClass);
 
   return (
     <figure
       ref={mergedRef}
       className={className}
       {...(id != null ? { "data-id": id } : {})}
+      {...(role != null ? { "data-width": role } : {})}
       {...rest}
     >
       {children}

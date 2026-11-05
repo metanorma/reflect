@@ -18,6 +18,13 @@ import {
 import { baseAttrs, sectionAttrs, DATA_ATTR } from './attrs.js';
 import { CLASS } from './classes.js';
 import { parseColWidths } from './tableWidths.js';
+import {
+  formatImageSize,
+  isForeignSizeValue,
+  normalizeFigureWidth,
+  normalizeImageSize,
+} from './imageAttrs.js';
+import type { ImageSizeValue } from './imageAttrs.js';
 
 
 // ---------------------------------------------------------------------------
@@ -633,6 +640,70 @@ const tableNodes: Record<string, NodeSpec> = {
 // 6. Media nodes (§8.6)
 // ---------------------------------------------------------------------------
 
+/**
+ * Serialize a canonical size value for the intra-editor DOM encoding (§8.6):
+ * numbers through `formatImageSize` (`ImageSize`-conformant plain decimal at
+ * any magnitude — never exponential notation), percent strings verbatim.
+ */
+function imageSizeToDom(v: ImageSizeValue): string {
+  return typeof v === 'number' ? formatImageSize(v) : v;
+}
+
+/**
+ * Minimal structural interface for the size-reading DOM helper — a real
+ * element from `parseDOM` in production, plain objects in tests (the
+ * `tableWidths.ts` pattern).
+ */
+interface SizeElementLike {
+  getAttribute(name: string): string | null;
+  readonly style?: { readonly width?: string; readonly height?: string };
+}
+
+/**
+ * A percent-only inline `style` declaration for one axis (§8.6): non-percent
+ * declarations (`px`, `em`, `auto`) are ignored — foreign HTML carries px
+ * sizes on the `width`/`height` **attributes**, and the style channel is
+ * read for percent-only values (e.g. pasted `style="width: 50%"`).
+ */
+function percentStyle(
+  el: SizeElementLike,
+  axis: 'width' | 'height',
+): string | null {
+  const v = el.style?.[axis];
+  if (typeof v !== 'string') return null;
+  const s = v.trim();
+  return /^\d+(\.\d+)?%$/.test(s) ? s : null;
+}
+
+/**
+ * Read both size axes off an `<img>` element for `image`'s `parseDOM`
+ * (§8.6): per axis, the intra-editor `data-{axis}` attribute first, then a
+ * foreign raw `width`/`height` attribute, then a percent-only inline
+ * `style` value. Every candidate passes through `normalizeImageSize`
+ * (§17.8); a foreign (non-canonical, non-auto) original is banked verbatim
+ * under `data.{axis}` — merged across both axes into ONE `data` record so
+ * neither spread clobbers the other.
+ */
+function imageSizeAttrsFromDom(el: SizeElementLike): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const banked: Record<string, string> = {};
+  for (const axis of ['width', 'height'] as const) {
+    const raw =
+      el.getAttribute(`data-${axis}`) ??
+      el.getAttribute(axis) ??
+      percentStyle(el, axis);
+    if (raw === null) continue;
+    out[axis] = normalizeImageSize(raw);
+    if (isForeignSizeValue(raw)) {
+      banked[axis] = raw;
+    }
+  }
+  if (Object.keys(banked).length > 0) {
+    out['data'] = banked;
+  }
+  return out;
+}
+
 const mediaNodes: Record<string, NodeSpec> = {
   figure: {
     content: `figure_name? (image | ${BLOCK_GROUP})*`,
@@ -640,6 +711,10 @@ const mediaNodes: Record<string, NodeSpec> = {
     attrs: {
       id: { default: null },
       number: { default: null },
+      // §6.1: the page-relative role riding Metanorma's free-text
+      // `figure/@width` slot — never a numeric size, never `image/@width`
+      // (§17.8). Role⇔size exclusion is command-level (§17.8).
+      width: { default: null },
       ...DATA_ATTR,
     },
     toDOM: (node) => {
@@ -648,15 +723,64 @@ const mediaNodes: Record<string, NodeSpec> = {
       if (id !== null) {
         attrs['data-id'] = id;
       }
+      const role = node.attrs['width'] as
+        | 'text-width'
+        | 'full-page-width'
+        | null;
+      if (role === 'text-width' || role === 'full-page-width') {
+        // §8.0: the role class is a `--` modifier emitted ALONGSIDE the
+        // figure base class.
+        attrs['class'] =
+          role === 'text-width'
+            ? `${CLASS.figure} ${CLASS.figureTextWidth}`
+            : `${CLASS.figure} ${CLASS.figureFullPageWidth}`;
+        attrs['data-width'] = role;
+      }
       return ['figure', attrs, 0];
     },
-    parseDOM: [{ tag: 'figure' }],
+    parseDOM: [
+      {
+        tag: 'figure',
+        getAttrs: (el) => {
+          const attrs: Record<string, unknown> = {};
+          // §8.6: intra-editor `data-width` first, then a foreign `width`
+          // attribute — both through `normalizeFigureWidth`; keywords map to
+          // the role, non-keyword values bank verbatim into `data.width`
+          // (free-text slot, §17.8/§17.5).
+          const raw = el.getAttribute('data-width') ?? el.getAttribute('width');
+          if (raw !== null) {
+            const role = normalizeFigureWidth(raw);
+            if (role !== null) {
+              attrs['width'] = role;
+            } else if (raw.trim() !== '' && raw.trim().toLowerCase() !== 'auto') {
+              attrs['data'] = { width: raw };
+            }
+            // `auto`/absent → role stays null (default); nothing banked.
+          }
+          return attrs;
+        },
+      },
+    ],
   },
   image: {
     content: '',
     atom: true,
     draggable: true,
-    attrs: { src: { default: '' }, alt: { default: null }, ...DATA_ATTR },
+    attrs: {
+      src: { default: '' },
+      alt: { default: null },
+      // Sizing axis (§6.1, §17.8): normalized Metanorma ImageSize values;
+      // null ≡ auto/absent.
+      mimetype: { default: null },
+      width: { default: null },
+      height: { default: null },
+      // Editor-only intrinsic geometry (§6 rule 5 — first adopted pair):
+      // declared typed, never named in toDOM/parseDOM, stripped by
+      // `stripEditorOnlyAttrs` on conversion.
+      'x-natural-width': { default: null },
+      'x-natural-height': { default: null },
+      ...DATA_ATTR,
+    },
     toDOM: (node) => {
       const src = node.attrs['src'] as string;
       const alt = node.attrs['alt'] as string | null;
@@ -664,6 +788,19 @@ const mediaNodes: Record<string, NodeSpec> = {
       if (alt !== null) {
         attrs['alt'] = alt;
       }
+      const width = node.attrs['width'] as ImageSizeValue | null;
+      if (width !== null) {
+        attrs['data-width'] = imageSizeToDom(width);
+      }
+      const height = node.attrs['height'] as ImageSizeValue | null;
+      if (height !== null) {
+        attrs['data-height'] = imageSizeToDom(height);
+      }
+      const mimetype = node.attrs['mimetype'] as string | null;
+      if (mimetype !== null) {
+        attrs['data-mimetype'] = mimetype;
+      }
+      // No `x-*` key is ever emitted (§6 rule 5).
       return ['img', attrs];
     },
     parseDOM: [
@@ -672,6 +809,8 @@ const mediaNodes: Record<string, NodeSpec> = {
         getAttrs: (el) => ({
           src: el.getAttribute('src'),
           alt: el.getAttribute('alt'),
+          mimetype: el.getAttribute('data-mimetype'),
+          ...imageSizeAttrsFromDom(el),
         }),
       },
     ],

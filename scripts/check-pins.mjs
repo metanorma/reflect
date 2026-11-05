@@ -79,6 +79,12 @@ const SENSITIVITY = {
       'lib/metanorma/converter/base.rb',
       'lib/metanorma/converter/blocks.rb',
       'lib/metanorma/cleanup/inline.rb',
+      // Figure/image size family (ledger §4 rows + size-semantics note,
+      // verified 2026-11-05): converter emission sources + the corroborating
+      // spec fixture.
+      'lib/metanorma/converter/inline.rb',
+      'lib/metanorma/converter/blocks_image.rb',
+      'spec/metanorma/blocks_spec.rb',
     ],
     report: ['lib/metanorma/converter/**', 'lib/metanorma/cleanup/**'],
   },

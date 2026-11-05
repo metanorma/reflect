@@ -422,12 +422,44 @@
   /*
    * figure.mn-figure sets text-align: center; this is fine for small images
    * but a large <img> would overflow the viewport horizontally. Cap at the
-   * figure's content width.
+   * figure's content width. This base rule is ALSO the default for
+   * role-less figures — removing it would strip the overflow cap from
+   * every existing figure on upgrade (§17.8).
+   *
+   * object-fit: contain — an authored inline height combined with the
+   * max-width clamp could distort aspect when a wide px width is
+   * pane-clamped; contain letterboxes the clamped box instead of
+   * stretching it.
    */
 
   .mn-prosemirror figure.mn-figure img {
     max-width: 100%;
     height: auto;
+    object-fit: contain;
+  }
+
+  /* ---- figure sizing roles (§17.8; CLASS §8.0) ---- */
+  /*
+   * The role classes are editor-side ANALOGUES of the page-relative
+   * keywords, resolved against the editor pane — not page-geometry
+   * simulations (the editor cannot know downstream page geometry, of
+   * which there may be zero or many).
+   */
+
+  /* text-width: the same content-width cap, under the explicit class. */
+  .mn-prosemirror figure.mn-figure.mn-figure--text-width img {
+    max-width: 100%;
+  }
+
+  /* full-page-width: break out to the pane edges (the honest analogue of
+   * full-bleed — negative margins against the editor pane's inline
+   * padding, still capped at the pane). */
+  .mn-prosemirror figure.mn-figure.mn-figure--full-page-width {
+    margin-inline: calc(-1 * var(--mn-space-5));
+  }
+
+  .mn-prosemirror figure.mn-figure.mn-figure--full-page-width img {
+    max-width: 100%;
   }
 
 }

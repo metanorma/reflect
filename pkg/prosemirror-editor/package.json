@@ -5,7 +5,8 @@
   "packageManager": "yarn@4.17.0",
   "main": "index.ts",
   "scripts": {
-    "compile": "tsc --outdir compiled"
+    "compile": "tsc --outdir compiled",
+    "test": "yarn compile && yarn node --import ./test-register.mjs --test imageNaturalSize.test.mjs"
   },
   "dependencies": {
     "@handlewithcare/react-prosemirror": "3.2.7",

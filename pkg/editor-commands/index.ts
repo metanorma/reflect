@@ -79,7 +79,8 @@ export {
 } from './commands/tableWidths.js';
 
 // Images / figures (images-figures.md) — two-stage authoring: create the
-// figure, then add the image inside it.
+// figure, then add the image inside it. Sizing apply (§8):
+// `updateImageAttrs` in sizing scope — src/alt editing remains deferred.
 export {
   insertFigure,
   canInsertFigure,
@@ -87,6 +88,11 @@ export {
   canInsertImageIntoFigure,
 } from './commands/insertImage.js';
 export type { InsertImageAttrs } from './commands/insertImage.js';
+export {
+  updateImageAttrs,
+  canUpdateImageAttrs,
+} from './commands/updateImageAttrs.js';
+export type { ImageSizingUpdate, FigureRole } from './commands/updateImageAttrs.js';
 
 // Bibliography entries (Relaton integration).
 export { insertBibitem } from './commands/insertBibitem.js';

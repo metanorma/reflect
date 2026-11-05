@@ -44,9 +44,9 @@ defined in `schema.spec.md` §8.6 — implementation
 
 | Node | Content | Group | Atom | Draggable | Attrs |
 |---|---|---|---|---|---|
-| `figure` | `figure_name? (image \| block)*` | `block` | no | — | `id`, `number` (default `null`), plus `data` (default `{}`); the caption is the `figure_name` child node |
+| `figure` | `figure_name? (image \| block)*` | `block` | no | — | `id`, `number` (default `null`), `width` (role enum `'text-width'` \| `'full-page-width'`, default `null`), plus `data` (default `{}`); the caption is the `figure_name` child node |
 | `figure_name` | `inline*` | **none** | no | — | `data` (default `{}`) — the caption textblock |
-| `image` | *(empty)* | **none** | yes | yes | `src` (default `""`), `alt` (default `null`), plus `data` (default `{}`) |
+| `image` | *(empty)* | **none** | yes | yes | `src` (default `""`), `alt` (default `null`), `mimetype`/`width`/`height` (default `null` — the sizing axis, normalized per schema §17.8), `x-natural-width`/`x-natural-height` (editor-only, schema §6 rule 5), plus `data` (default `{}`) |
 
 Three consequences drive the entire design:
 
@@ -60,17 +60,26 @@ Three consequences drive the entire design:
    every attribute to declare a default; the image source is semantically
    required, so the schema uses `""` as the placeholder default and
    pushes the real requirement to a **runtime guard**, `assertValidImageAttrs`,
-   which throws when `src` is missing or empty. `insertImageIntoFigure`
+   which throws when `src` is missing or empty (the guard also shape-checks
+   `mimetype`/`width`/`height` — single-node only; see schema §6.1).
+   `insertImageIntoFigure`
    (§6.4) enforces this requirement before creating the node by validating
    `src` and returning `false` if invalid (§6.4 step 3).
 3. **`figure` and `image` split attribute responsibility.** `figure` owns
-   `id`/`number` and its caption lives in a `figure_name` child textblock
-   (schema §8.6); it has **no `alt`** and **no `src`** (`src` lives only
-   on the `image` child — see schema §17.1). `image` owns `alt` (the a11y text)
-   and `src`; it has **no caption**. There is therefore **no duplicated `alt`**
-   to mirror or ignore — the two nodes carry disjoint caption/a11y/source
-   attributes by design. The rendered image attributes (`src`, `alt`) live on
-   the `image` child; `figure` renders only `class="mn-figure"` and `data-id`.
+   `id`/`number`/the `width` **role** (the page-relative keyword riding
+   Metanorma's free-text `figure/@width` slot — never a numeric size, never
+   `image/@width`; schema §17.8) and its caption lives in a `figure_name` child
+   textblock (schema §8.6); it has **no `alt`** and **no `src`** (`src` lives
+   only on the `image` child — see schema §17.1). `image` owns `alt` (the a11y
+   text), `src`, and the sizing axis (`mimetype`, numeric `width`/`height`,
+   `x-natural-*`); it has **no caption**. There is therefore **no duplicated
+   `alt`** to mirror or ignore — the two nodes carry disjoint
+   caption/a11y/source/size attributes by design. The rendered image
+   attributes (`src`, `alt`) live on the `image` child; `figure` renders only
+   `class="mn-figure"` (plus the role class when set) and `data-id`. The
+   role⇔size pair is mutually exclusive, enforced at the command level
+   (`updateImageAttrs`, §8.1) — role on `figure` XOR numeric size on `image`
+   is cross-node and beyond any schema guard.
 
 ### 2.1 Relation to Standoc `FigureBody`
 
@@ -120,11 +129,24 @@ The guard, exported from both `@metanorma/prosemirror-schema` and
 
 ```typescript
 export function assertValidImageAttrs(
-  attrs: { src?: unknown },
-): asserts attrs is { src: string } {
-  if (typeof attrs.src !== "string" || attrs.src === "") {
-    throw new Error("assertValidImageAttrs: 'src' must be a non-empty string.");
-  }
+  attrs: {
+    src?: unknown;
+    mimetype?: unknown;
+    width?: unknown;
+    height?: unknown;
+  },
+): asserts attrs is {
+  src: string;
+  mimetype: string | null;
+  width: ImageSizeValue | null;
+  height: ImageSizeValue | null;
+} {
+  // Single-node shape validation only (schema.spec.md §6.1): non-empty src;
+  // mimetype string-or-null; width/height positive finite number, percent
+  // string, or null. The role⇔size exclusion is cross-node (command-level,
+  // §8.1) and non-null mimetype at insertion is an insertImageIntoFigure
+  // precondition (§6.4) — neither is a guard rule.
+  // …
 }
 ```
 
@@ -178,12 +200,13 @@ the command synchronously from `run`; see §7 for the async dispatch pattern.
 
 ## 4. The toolbar controls
 
-The `images` group renders two entries, in order:
+The `images` group renders three entries, in order:
 
 | Entry | Kind | Label | Title | Enabled when |
 |---|---|---|---|---|
 | Figure | plain `ToolbarButton` | `"Figure"` | `"Insert figure (caption + empty body)"` | `insertFigure(state) === true` (§6.2) |
 | Image | dialog control (`InsertImageButton`) | `"Image"` | `"Add image to figure"` | `canInsertImageIntoFigure(state)` (§6.3) |
+| Size | popover control (`ImageSizingButton`) | `"Size"` | `"Set image size / size mode"` | `canUpdateImageAttrs(state)` (§8.4) — the selection targets a figure that contains an image |
 
 ### 4.1 The Figure button
 
@@ -387,10 +410,18 @@ command takes **already-resolved** `{ src, alt }` and is synchronous.
 import type { EditorState, Transaction } from "prosemirror-state";
 // NOTE: NO import of EditorView — the pure commands never touch a view or DOM.
 
-/** Attributes gathered by the adapter (dialog / prompt). `src` must be non-empty. */
+/** Attributes gathered by the adapter (dialog / prompt). `src` must be
+ * non-empty; `mimetype` is an insertion precondition (§17.4) — a non-null
+ * string, satisfied by construction because the adapter always runs the
+ * total `inferMimetype` before dispatching. The `x-natural-*` pair is the
+ * commit-time intrinsic-size capture (§6 rule 5) — null on decode failure
+ * or non-positive natural size (SVG without intrinsic size). */
 export interface InsertImageAttrs {
   readonly src: string;
   readonly alt?: string | null;
+  readonly mimetype?: string;
+  readonly xNaturalWidth?: number | null;
+  readonly xNaturalHeight?: number | null;
 }
 
 /**
@@ -495,26 +526,35 @@ Rules the walk encodes:
    `false`, return `false` — whether or not `dispatch` is supplied.
 2. **No dispatch ⇒ pure predicate.** If `dispatch` is **not** supplied, return
    `true` here.
-3. **Validate `src` (non-throwing).** The throwing guard
+3. **Insertion precondition — non-null `mimetype` (§17.4).** If
+   `attrs.mimetype` is not a non-empty string, return `false` without
+   dispatching. This is an insertion-path requirement — satisfied by
+   construction (the adapter runs the total `inferMimetype`) — and
+   deliberately **not** part of `assertValidImageAttrs` (§6.1): legacy/
+   imported documents may legitimately carry `mimetype: null`.
+4. **Validate `src` (non-throwing).** The throwing guard
    `assertValidImageAttrs({ src: attrs?.src })` is wrapped in a `try`/`catch`;
    on throw (or if `attrs`/`src` is missing/empty), return `false` without
    dispatching (EditorCommands §1.5(4)). The assert also narrows `src` to
    `string` for the type system.
-4. **Resolve the target figure** (same walk as §6.3, re-run against the
+5. **Resolve the target figure** (same walk as §6.3, re-run against the
    passed `state`): the nearest ancestor `figure` with no `image` child (or
    the node-selected figure itself). Resolve its position (`figStart =
    $target.before(depth)`; for NodeSelection, `selection.from`).
-5. **Compute the insertion point: immediately after `figure_name`.** If the
+6. **Compute the insertion point: immediately after `figure_name`.** If the
    target figure's first child is a `figure_name`, insert at `figStart + 1 +
    figure_name.nodeSize`; if it has no caption child (a parsed/imported
    figure), insert at `figStart + 1`. Rationale: §2.1 — given the Standoc XOR,
    the slot after the caption is the only position valid in both models, and
    it is immune to whatever trailing content the figure has accumulated
    (paragraphs, notes, …).
-6. **Insert.** `tr.insert(pos, imageType.create({ src, alt: attrs.alt ?? null }))`
+7. **Insert.** `tr.insert(pos, imageType.create({ src, alt: attrs.alt ?? null,
+   mimetype, 'x-natural-width': attrs.xNaturalWidth ?? null,
+   'x-natural-height': attrs.xNaturalHeight ?? null }))`
    — one transaction. The selection is left unchanged (the cursor stays where
-   the author had it, e.g. in the caption).
-7. **Scroll into view + dispatch once.** `tr.scrollIntoView(); dispatch(tr);
+   the author had it, e.g. in the caption). Authored size (`width`/`height`)
+   is NOT set here — sizing is apply-time (`updateImageAttrs`, §8.1).
+8. **Scroll into view + dispatch once.** `tr.scrollIntoView(); dispatch(tr);
    return true;` — exactly one transaction, dispatched exactly once.
 
 ### 6.5 Position arithmetic
@@ -652,8 +692,14 @@ export function insertImageIntoFigure(
       ? target.node.firstChild.nodeSize : 0;
   }
 
-  // Insert immediately after figure_name (§6.4 step 5).
-  const image = imageType.create({ src, alt: attrs!.alt ?? null });
+  // Insert immediately after figure_name (§6.4 step 6).
+  const image = imageType.create({
+    src,
+    alt: attrs!.alt ?? null,
+    mimetype,
+    "x-natural-width": attrs!.xNaturalWidth ?? null,
+    "x-natural-height": attrs!.xNaturalHeight ?? null,
+  });
   const tr = state.tr.insert(figStart + 1 + captionSize, image);
   tr.scrollIntoView();
   dispatch(tr);
@@ -707,12 +753,22 @@ rules make this safe:
 // pkg/toolbar/ImageInsertDialog.tsx (commit handler)
 // The ADAPTER owns EditorView, async, and DOM. The pure command owns none.
 import { insertImageIntoFigure } from "@metanorma/editor-commands"; // re-exported through toolbar pkg
+import { inferMimetype } from "@metanorma/prosemirror-schema";
 
 const dispatchInsert = useEditorEventCallback(
-  async (view: EditorView | null, src: string, alt: string | null) => {
+  async (
+    view: EditorView | null,
+    src: string,
+    alt: string | null,
+    mimetype: string,
+    xNaturalWidth: number | null,
+    xNaturalHeight: number | null,
+  ) => {
     if (!view) return;                 // editor unmounted
     // Synchronous pure command with resolved attrs; view.state/dispatch stay here.
-    const ok = insertImageIntoFigure(view.state, view.dispatch, { src, alt });
+    const ok = insertImageIntoFigure(view.state, view.dispatch, {
+      src, alt, mimetype, xNaturalWidth, xNaturalHeight,
+    });
     if (!ok) return false;             // soft failure: selection moved out, or src invalid
     view.focus();                      // focus is the ADAPTER's concern, never the command's
     return true;
@@ -735,13 +791,23 @@ async function onCommit(file: File | null, url: string, alt: string): Promise<vo
     return;
   }
   if (src === null) return;            // nothing to insert
-  await dispatchInsert(src, alt.trim() === "" ? null : alt);
+  // Sizing axis at commit (§17.4, §6 rule 5): mimetype inference (total —
+  // the URL path has neither a Blob type nor a data: prefix, so it is the
+  // extension map or the UNKNOWN_MIMETYPE marker; all stored as-is), then
+  // intrinsic-size capture — which must never block insertion (timeout race;
+  // non-positive natural size, i.e. SVG without intrinsic size, yields null).
+  const mimetype = inferMimetype(src, file?.type);
+  const natural = await decodeNaturalSize(src);
+  await dispatchInsert(src, alt.trim() === "" ? null : alt, mimetype, natural.width, natural.height);
 }
 ```
 
 The boundary is thus: the adapter resolves `src`/`alt` (async, `File`,
-`FileReader.readAsDataURL`, `onImageUpload`) and holds the `EditorView`; the pure
-command takes already-resolved `{ src, alt }` plus `view.state`/`view.dispatch`
+`FileReader.readAsDataURL`, `onImageUpload`), derives the sizing axis
+(`inferMimetype`, `decodeNaturalSize` — both fail soft, never blocking
+insertion), and holds the `EditorView`; the pure
+command takes already-resolved `{ src, alt, mimetype, xNaturalWidth,
+xNaturalHeight }` plus `view.state`/`view.dispatch`
 and performs the synchronous, schema-aware insert. The
 `EditorView` reference is always current, and the transaction is built and
 dispatched from the live `view.state` inside `insertImageIntoFigure` at the
@@ -755,11 +821,14 @@ moment the resolved `src` is available.
 isActive: () => false;
 ```
 
-Neither control is a **toggle** — there is no "active" state, and neither
-button is ever rendered with `.mn-toolbar-btn--active`. (Selecting an existing
-figure or image to **edit** its `src`/`alt` via the same dialog is a plausible
-future enhancement; an `updateImageAttrs` helper is deferred. v1 is
-insert-only.)
+None of the controls is a **toggle** — there is no "active" state, and no
+button is ever rendered with `.mn-toolbar-btn--active`. **Sizing scope is
+live**: `updateImageAttrs` exists and backs the Size popover (§4) — it sets
+image `width`/`height` and the figure role in one transaction, enforcing the
+role⇔size exclusion (§17.8: choosing a role clears numeric size; entering a
+size clears the role; `auto` clears size only). **src/alt editing remains
+deferred** under the same `updateImageAttrs` name — the Image dialog is still
+insert-only.
 
 ### 8.2 Figure button enabled
 
@@ -802,6 +871,16 @@ directly into `useEditorStateSelector`.
   command passes `alt ?? null` explicitly to avoid an `undefined` value
   (forbidden for object literals under `exactOptionalPropertyTypes`).
 
+### 8.5 Size button enabled (and the popover's reset-on-close)
+
+`canUpdateImageAttrs(state)` — the selection sits inside (or node-selects the
+image or figure of) a figure that **contains an `image` child**. Outside any
+figure, in an image-less figure, or with nothing targeted → disabled. The
+popover's fields reset whenever it closes (commit, Escape, cancel, or
+light-dismiss): stale inputs are not cosmetic here — a leftover width would
+combine with a role-only Apply into mutually-cancelling updates under the
+exclusion.
+
 ## 9. Accessibility
 
 Feature-specific accessibility additions beyond the baseline
@@ -812,13 +891,17 @@ the WAI-ARIA **dialog** pattern:
 
 | Element | Role / attributes |
 |---|---|
-| Dialog root | `role="dialog"`, `aria-label="Add image to figure"`, `aria-modal="false"` (non-modal — `Escape`/outside-click dismiss it without trapping global focus). |
+| Dialog root (insert) | `role="dialog"`, `aria-label="Add image to figure"`, `aria-modal="false"` (non-modal — `Escape`/outside-click dismiss it without trapping global focus). |
 | Source URL input | `<label>` (or `aria-label="Image URL"`) associated via `htmlFor`/`id`; `type="url"`, `autocomplete="off"`. |
 | File input | Visually hidden `<input type="file" accept="image/*">` with an associated `<label>`/button labelled "Choose file"; the chosen filename is announced. |
 | Alt text input | `<label>` (or `aria-label="Alternative text"`) associated via `htmlFor`/`id`; `type="text"`. |
-| Inline error region | `aria-live="polite"` so an "Image URL is required" / "Insertion point is no longer inside a figure" message is announced. |
+| Inline error region | `aria-live="polite"` so an "Image URL is required" / "Insertion point is no longer inside a figure" / "Sizes accept…" message is announced. |
 | Figure (trigger) button | Standard `ToolbarButton` markup (base spec §5): `<button>` + `title` + `.mn-toolbar-btn`. |
 | Image (trigger) button | `aria-haspopup="dialog"`, `aria-expanded` when open, `aria-controls={dialogId}` when open. |
+| Sizing popover root | `role="dialog"`, `aria-label="Set image size"`, `aria-modal="false"` (same non-modal pattern; Popover API top layer). |
+| Width / Height inputs | `<label htmlFor>`-associated (`id="mn-img-size-w"` / `-h`), `type="text"`, `autocomplete="off"`, `placeholder="auto"`; empty = unchanged, `auto` = clear. |
+| Size-mode select | `<label htmlFor>`-associated `<select>` (`id="mn-img-size-role"`) with `—` / `text-width` / `full-page-width` options. |
+| Size (trigger) button | `aria-haspopup="dialog"`; same `ToolbarButton` markup. |
 
 ### 9.2 Keyboard operability
 
@@ -841,8 +924,9 @@ the WAI-ARIA **dialog** pattern:
 Pure commands are exported from `@metanorma/editor-commands` and re-exported
 through `@metanorma/toolbar`; see the consolidated export listing in
 README §5.6. The exports are `insertFigure`, `canInsertFigure`,
-`insertImageIntoFigure`, `canInsertImageIntoFigure`, and the
-`InsertImageAttrs` type. No combined `insertImage` command exists.
+`insertImageIntoFigure`, `canInsertImageIntoFigure`, `updateImageAttrs`,
+`canUpdateImageAttrs`, and the `InsertImageAttrs` / `ImageSizingUpdate` /
+`FigureRole` types. No combined `insertImage` command exists.
 
 ## 11. CSS classes
 
@@ -852,7 +936,11 @@ The group introduces feature-specific classes/uses under the existing
 ```
 .mn-toolbar-image              /* wrapper: Image trigger button + dialog */
   .mn-toolbar-btn              /* the trigger (reuses base class) */
-.mn-toolbar-dialog             /* absolutely-positioned dialog container */
+.mn-toolbar-image-sizing       /* wrapper: Size trigger button + popover */
+.mn-image-dialog               /* the insert dialog (Popover API, top layer) */
+.mn-image-sizing-dialog        /* the sizing popover (own class — sharing
+                                  .mn-image-dialog would break the strict-mode
+                                  dialog selectors in the e2e suite) */
   .mn-toolbar-dialog-field     /* a label + input row */
   .mn-toolbar-dialog-error     /* inline error text (aria-live) */
   .mn-toolbar-dialog-actions   /* commit / cancel button row */

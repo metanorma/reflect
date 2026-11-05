@@ -22,6 +22,7 @@ import { insertFigure } from "@metanorma/editor-commands";
 import type { ToolbarGroupDef } from "../types.js";
 import type { OnImageUpload } from "../AdvancedMetanormaToolbar.js";
 import { InsertImageButton } from "../ImageInsertDialog.js";
+import { ImageSizingButton } from "../ImageSizingPopover.js";
 
 /** The Figure button descriptor (images-figures.md §4.1). */
 const figureButton = {
@@ -53,6 +54,10 @@ export function imagesGroup(
       {
         kind: "control",
         render: () => <InsertImageButton onImageUpload={onImageUpload} />,
+      },
+      {
+        kind: "control",
+        render: () => <ImageSizingButton />,
       },
     ],
   };

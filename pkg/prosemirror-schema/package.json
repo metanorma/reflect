@@ -6,8 +6,7 @@
   "main": "index.ts",
   "scripts": {
     "compile": "tsc --outdir compiled",
-    "pretest": "yarn compile",
-    "test": "yarn node --test roundtrip.test.mjs"
+    "test": "yarn compile && yarn node --test roundtrip.test.mjs imageAttrs.test.mjs"
   },
   "dependencies": {
     "prosemirror-model": "^1.25.8"

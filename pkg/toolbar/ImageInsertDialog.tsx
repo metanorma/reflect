@@ -25,6 +25,7 @@ import {
 import type { EditorView } from "prosemirror-view";
 
 import { insertImageIntoFigure, canInsertImageIntoFigure } from "@metanorma/editor-commands";
+import { inferMimetype } from "@metanorma/prosemirror-schema";
 import type { OnImageUpload } from "./AdvancedMetanormaToolbar.js";
 import { toolbarButtonClass } from "./ToolbarButtonView.js";
 
@@ -47,6 +48,36 @@ function readAsDataURL(file: File): Promise<string> {
   });
 }
 
+/**
+ * Decode the intrinsic dimensions of a resolved `src` at commit (§6.1
+ * `x-natural-*` declaration): `new Image()` + `decode()`, raced against a
+ * timeout so a slow or hanging remote URL never blocks insertion — capture
+ * fails soft to `null`. A non-positive `naturalWidth`/`naturalHeight`
+ * (SVG without intrinsic size reports zero/default geometry) also yields
+ * `null` — never a bogus capture.
+ */
+const NATURAL_SIZE_TIMEOUT_MS = 3000;
+
+async function decodeNaturalSize(
+  src: string,
+): Promise<{ width: number | null; height: number | null }> {
+  try {
+    const img = new Image();
+    img.src = src;
+    const decoded = await Promise.race([
+      img.decode().then(() => img),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("decode timeout")), NATURAL_SIZE_TIMEOUT_MS);
+      }),
+    ]);
+    const width = decoded.naturalWidth;
+    const height = decoded.naturalHeight;
+    return { width: width > 0 ? width : null, height: height > 0 ? height : null };
+  } catch {
+    return { width: null, height: null };
+  }
+}
+
 /** The dialog itself (images-figures.md §5). */
 export function ImageInsertDialog({
   onImageUpload,
@@ -66,11 +97,21 @@ export function ImageInsertDialog({
   const urlRef = useRef<HTMLInputElement>(null);
 
   const dispatchInsert = useEditorEventCallback(
-    async (view: EditorView | null, resolvedSrc: string, resolvedAlt: string | null) => {
+    async (
+      view: EditorView | null,
+      resolvedSrc: string,
+      resolvedAlt: string | null,
+      resolvedMimetype: string,
+      xNaturalWidth: number | null,
+      xNaturalHeight: number | null,
+    ) => {
       if (view === null) return false;
       const ok = insertImageIntoFigure(view.state, view.dispatch, {
         src: resolvedSrc,
         alt: resolvedAlt,
+        mimetype: resolvedMimetype,
+        xNaturalWidth,
+        xNaturalHeight,
       });
       if (!ok) return false; // selection moved out / src invalid — soft failure
       view.focus();
@@ -96,8 +137,20 @@ export function ImageInsertDialog({
       setError("Image URL or file is required.");
       return;
     }
+    // Sizing axis at commit (§17.4, §6.1): mimetype inference (total — for
+    // the URL path, neither a Blob `type` nor a `data:` prefix exists, so
+    // this is the extension map or the UNKNOWN_MIMETYPE marker; all stored
+    // as-is), then intrinsic-size capture, which must never block insertion.
+    const mimetype = inferMimetype(src, file?.type);
+    const natural = await decodeNaturalSize(src);
     setError(null);
-    const ok = await dispatchInsert(src, alt.trim() === "" ? null : alt);
+    const ok = await dispatchInsert(
+      src,
+      alt.trim() === "" ? null : alt,
+      mimetype,
+      natural.width,
+      natural.height,
+    );
     if (ok === false) {
       // images-figures.md §7 rule 2 — validate at dispatch time: the
       // selection may have left the figure during an async upload.

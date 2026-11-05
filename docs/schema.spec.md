@@ -297,9 +297,10 @@ following rules:
    `data` is kept verbatim — data-interior contents are untouched Metanorma
    payload. The converter ignores `x-` keys in both positions (§17.7).
 
-The §6.1/§6.2 tables enumerate interchange attributes only; no `x-` attribute
-is adopted yet. When one is declared, its node's or mark's table row gains the
-entry with an explicit "editor-only (§6 rule 5)" marker.
+The §6.1/§6.2 tables enumerate interchange attributes; an adopted `x-`
+attribute appears in its node's or mark's table row with an explicit
+"editor-only (§6 rule 5)" marker. The first adopted pair is
+`x-natural-width`/`x-natural-height` on `image` (§6.1).
 
 ### 6.1 Attribute map by node
 
@@ -313,11 +314,11 @@ entry with an explicit "editor-only (§6 rule 5)" marker.
 | `bibitem` | `item` | A `BibliographicItem` JSON object (`@metanorma/relaton`). Default `null`. |
 | `formula` | `id`, `number`, `type` (enum `asciimath` \| `mathml`, default `'asciimath'`), `asciimath`, `mathml` | |
 | `stem` | `type` (enum `asciimath` \| `mathml`, default `'asciimath'`), `asciimath`, `mathml` | |
-| `figure` | `id`, `number` | `title` is not an attribute — the caption is a `figure_name` child node (§8.6). The `src` attr is dropped — `src` lives only on the `image` child, avoiding a dual source of truth (§17.1). |
+| `figure` | `id`, `number`, `width` (role enum `'text-width'` \| `'full-page-width'`, default `null`) | `width` is the **page-relative role** riding Metanorma's free-text `figure/@width` slot (grammar facts: [`metanorma-model.md`](./metanorma-model.md) §4) — never a numeric size, never emitted to `image/@width` (§17.8). The role⇔size exclusion is command-level (§6.1 note below, §17.8). `title` is not an attribute — the caption is a `figure_name` child node (§8.6). The `src` attr is dropped — `src` lives only on the `image` child, avoiding a dual source of truth (§17.1). |
 | `table` | `id`, `number` | `title` is not an attribute — the caption is a `table_name` child node (§8.5). |
 | `figure_name`, `table_name` | *(none beyond `data`)* | The caption text is inline content, not an attribute. |
 | `table_cell` | `colspan` (default `1`), `rowspan` (default `1`) | Real table-spanning values, hence `1` not `null` (§6 rule 3). |
-| `image` | `src` (default `''`), `alt` | `src` is required semantically → default `''` + the runtime guard below. |
+| `image` | `src` (default `''`), `alt`, `mimetype` (default `null`), `width`, `height` (positive number or percent string, default `null`), `x-natural-width`, `x-natural-height` (editor-only, §6 rule 5) | `src` is required semantically → default `''` + the runtime guard below. `mimetype`/`width`/`height` normalize Metanorma's `ImageSize` strings at every ingestion boundary (§17.8); `null` ≡ `auto`/absent. The `x-natural-*` pair is intrinsic bitmap geometry, never authored size (declaration below). |
 | `admonition` | `type` | |
 | `sourcecode` | `language` | A `text` attr is deliberately absent — the code text lives in the node's `text*` content, not an attribute; carrying both would be a dual source of truth on conversion (§1.1). |
 | `ordered_list` | `order` (default `1`) | |
@@ -325,10 +326,36 @@ entry with an explicit "editor-only (§6 rule 5)" marker.
 | `footnote_marker` | `id`, `target` | |
 | `paragraph`, `note`, `example`, `quote`, `review`, `bullet_list`, `list_item`, `dl`, `dt`, `dd`, `table_head`, `table_body`, `table_foot`, `table_row`, `footnotes`, `soft_break` | *(none beyond `data`)* | |
 
-**`image.src` validation.** The image source is semantically required, but
-ProseMirror needs an attr default, so `src` defaults to `''` and the module
-exports a runtime guard `assertValidImageAttrs(attrs)` used by input rules /
-paste handling to reject empty `src`.
+**`image` attribute validation (widened guard).** `src` is semantically
+required, but ProseMirror needs an attr default, so `src` defaults to `''`
+and the module exports a runtime guard `assertValidImageAttrs(attrs)` used by
+input rules / paste handling. The guard is **single-node shape validation
+only**: non-empty `src`; `mimetype` a string **or `null`**
+(legacy/imported documents may legitimately lack it); `width`/`height` a
+positive finite number, a percent string, or `null`. An **absent**
+(`undefined`) optional key is treated as `null` — callers may pass partial
+attr records (e.g. `{ src }` alone, as §14.10 does). Two rules deliberately
+sit **outside** the guard: the **role⇔size exclusion** (`figure.width` role
+XOR `image` numeric size) is cross-node — a command-level invariant of
+`updateImageAttrs` (§17.8) — and **non-null `mimetype` at insertion** is a
+precondition of `insertImageIntoFigure` (satisfied by construction:
+`inferMimetype` is total, §11), not a shape rule of loaded/parsed documents.
+
+**`x-natural-width` / `x-natural-height` (editor-only, §6 rule 5 — first
+adopted pair).** (1) *Derivability*: re-derivable from `src`,
+asynchronously (decode via `new Image()`); sound for data-URI `src`s,
+advisory for remote URLs (bytes can change behind a URL). (2) *Channel
+survival*: the DOM is also the clipboard and `x-*` never reaches the DOM, so
+copy/paste drops them — the paste path **re-derives** (the backfill plugin,
+[`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md)) rather than
+adding a `colwidths`-style clipboard encoding. (3) *Invalidation*: `src` is
+the cache key — the src-editing extension of `updateImageAttrs` (still
+deferred) clears both. (4) *Semantics*: intrinsic CSS px of the bitmap (the
+`<img>` element's `naturalWidth`/`naturalHeight`), never authored display
+size; a decode failure or non-positive natural size (SVG without intrinsic
+size reports zero/default geometry) stores `null` — never a bogus capture.
+(5) *Conversion*: stripped by `stripEditorOnlyAttrs` (§17.7) — never
+interchange.
 
 ### 6.2 Attribute map by mark
 
@@ -376,6 +403,8 @@ export const CLASS = {
   bibdata: 'mn-bibdata', bibitem: 'mn-bibitem',
   sectionTitle: 'mn-section-title',
   note: 'mn-note', formula: 'mn-formula', figure: 'mn-figure',
+  figureTextWidth: 'mn-figure--text-width',
+  figureFullPageWidth: 'mn-figure--full-page-width',
   smallcap: 'mn-smallcap', xref: 'mn-xref', /* … */
 } as const;
 ```
@@ -383,7 +412,10 @@ export const CLASS = {
 The node/mark `toDOM`/`parseDOM` rules in §8.1–§8.8 and §9 read their class
 from this const; the React node views (`pkg/prosemirror-editor`) and the
 document stylesheet (`document.css`) consume the same names. **All emitted
-classes carry the `mn-` prefix.** Renaming a class touches one symbol in
+classes carry the `mn-` prefix.** The two figure **role** classes
+(`figureTextWidth`, `figureFullPageWidth`) use a `--` modifier on the figure
+base class and are emitted by `figure`'s `toDOM` **alongside** (not instead
+of) `CLASS.figure`. Renaming a class touches one symbol in
 `CLASS`, with the schema's `toDOM`/`parseDOM` pairs updated in lockstep.
 
 **Scope.** `CLASS` covers ONLY classes emitted by a schema `toDOM`.
@@ -630,9 +662,9 @@ outside are renormalized proportionally, unrecoverable input parses as
 
 | Node | `content` | `atom`/leaf | `toDOM` | `parseDOM` |
 |---|---|---|---|---|
-| `figure` | `figure_name? (image \| block)*`, `group: 'block'` | — | `['figure', {class: CLASS.figure, 'data-id': id}, 0]` (function) | `[{tag: 'figure'}]` |
+| `figure` | `figure_name? (image \| block)*`, `group: 'block'` | — | `['figure', {class: CLASS.figure (+ `figureTextWidth`/`figureFullPageWidth` when role set), 'data-id': id, 'data-width': role}, 0]` (function; `data-width` only when the role is non-null; no `x-*` key — §6 rule 5) | `[{tag: 'figure'}]` — `data-width` (then foreign `width`) through `normalizeFigureWidth`; keywords map to the role, non-keyword values bank verbatim into `data.width` |
 | `figure_name` | `inline*` (no group) | — | `['figcaption', {class: CLASS.figureName}, 0]` | `[{tag: 'figcaption.mn-figure-name'}]` |
-| `image` | *(empty)* | atom, `draggable: true` | `['img', {src, alt, 'data-src': src}]` (function; **no content slot** — leaf) | `[{tag: 'img', getAttrs: el => ({ src: el.getAttribute('src'), alt: el.getAttribute('alt') })}]` |
+| `image` | *(empty)* | atom, `draggable: true` | `['img', {src, alt, 'data-src': src, 'data-width'?, 'data-height'?, 'data-mimetype'?}]` (function; **no content slot** — leaf; numeric dims serialized via `formatImageSize` (§11); each `data-*` only when the attr is set; no `x-*` key — §6 rule 5) | `[{tag: 'img', getAttrs: …}]` — reads the intra-editor set (`data-width`/`data-height`/`data-mimetype`) first, then foreign HTML (raw `width`/`height` attributes, percent-only inline `style`), every candidate through `normalizeImageSize` (§17.8); non-canonical originals bank verbatim into `data.width`/`data.height` |
 
 **Note.** `figure_name` serializes as `<figcaption>` — inside `<figure>` a
 `<caption>` is destroyed by the HTML parser (reduced to a bare text node), so
@@ -751,8 +783,47 @@ export const ANNEX_TYPES: readonly string[];
 export const BACK_TYPES: readonly string[];
 export function sameCohort(a: string, b: string): boolean;
 
-/** Runtime guard for image insertion (§6.1). */
-export function assertValidImageAttrs(attrs: { src?: unknown }): asserts attrs is { src: string };
+/**
+ * Runtime guard — single-node image shape validation (§6.1): non-empty
+ * `src`; `mimetype` string-or-null; `width`/`height` positive finite
+ * number, percent string, or null. Role⇔size exclusion and insertion-time
+ * mimetype presence are NOT guard rules (§6.1 note).
+ */
+export function assertValidImageAttrs(attrs: {
+  src?: unknown; mimetype?: unknown; width?: unknown; height?: unknown;
+}): asserts attrs is {
+  src: string;
+  mimetype: string | null;
+  width: ImageSizeValue | null;
+  height: ImageSizeValue | null;
+};
+
+/** Image sizing/mimetype normalization and serialization (§17.8). */
+/** A canonical size value: positive number (px) or percent string. */
+export type ImageSizeValue = number | `${number}%`;
+/** Normalize one dimension string/number → canonical value, or null (auto). */
+export function normalizeImageSize(raw: unknown): ImageSizeValue | null;
+/** Whether a raw value is a foreign (non-canonical, non-auto) size string
+ *  the caller should bank verbatim in `data` — the §17.8 banking test. */
+export function isForeignSizeValue(raw: unknown): boolean;
+/** Normalize a figure-width string → the role keyword, or null. */
+export function normalizeFigureWidth(
+  raw: unknown,
+): 'text-width' | 'full-page-width' | null;
+/**
+ * The not-determined mimetype marker (`'application/octet-stream'` — a real
+ * MIME constant, so the required-attr shape is always satisfied). The one
+ * stored value export-time inference may replace (§17.4).
+ */
+export const UNKNOWN_MIMETYPE: 'application/octet-stream';
+/** Total: Blob `type`, then `data:`-URL MIME prefix, then extension map,
+ *  else UNKNOWN_MIMETYPE — never null. */
+export function inferMimetype(source: string, fileType?: string | null): string;
+/** ImageSize-conformant plain-decimal serialization of a positive finite
+ *  number at any magnitude (never exponential notation — §17.8). */
+export function formatImageSize(v: number): string;
+/** Grammar-faithful ImageSize conformance: decimal, percent, or 'auto'. */
+export function isImageSizeConformant(raw: unknown): boolean;
 
 /** Editor-only `x-` attribute convention (§6 rule 5). */
 export const EDITOR_ONLY_ATTR_PREFIX: 'x-';
@@ -901,6 +972,22 @@ Inherits the root `tsconfig.json` (`strict`, `noImplicitAny`,
     that are all `x-` plus a non-object `data` pass through untouched (the
     §12 item 4 softening) while non-`x-` unknowns — alone or mixed with `x-`
     keys — plus a non-object `data` still throw `RangeError`.
+13. **Image sizing axis (§17.8).** `imageAttrs.test.mjs` (schema package
+    test script) covers every import-normalization row, every mimetype
+    source including the `UNKNOWN_MIMETYPE` marker path, `formatImageSize`
+    serialization conformance at exponential-prone magnitudes
+    (`1e21`-class → plain decimal), the grammar-faithful conformance gate
+    (decimal, percent, **and `auto`**), and each widened-guard rejection —
+    including §14.10's partial-call compatibility (`{ src }` alone passes).
+14. **Sizing attrs on the nodes (§8.6).** `roundtrip.test.mjs` covers the
+    full sizing axis round-tripping through `nodeFromJSON` → `toJSON`
+    (incl. the declared `x-natural-*` pair top-level, per §14.12's declared
+    path) and, headlessly, the `toDOM` `DOMOutputSpec` set: `data-width`/
+    `data-height` (formatter-canonical numbers, percent verbatim, omitted
+    when unset), `data-mimetype`, the figure role class **alongside** the
+    base class, and **no `x-*` key ever emitted**. The live `parseDOM`
+    direction (foreign HTML sizes, keyword roles, `data` banking) and paint
+    are covered by the editor-gui figures/image-sizing e2e.
 
 ---
 
@@ -1021,7 +1108,7 @@ subset, not ambiguities:
 
 | XML target | Required? | Converter strategy |
 |---|---|---|
-| `<image mimetype="…">` | required | Infer from `src` `data:`-URL MIME prefix, else from filename extension, else a fallback constant. |
+| `<image mimetype="…">` | required | Prefer the stored `mimetype` attr (set at insertion by `inferMimetype`, §11) **unless it is `UNKNOWN_MIMETYPE`** — the explicit not-determined marker, and the one stored value export-time inference may replace. Inference serves two populations: (a) pre-existing documents whose images carry `mimetype: null`, and (b) URL-inserted images whose commit-time inference had neither a Blob `type` nor a `data:` prefix to read and fell to the extension map or the marker (URL inserts keep URL `src`s — embed unification is out of scope). Inference re-runs the extension map against `src`; still unresolved exports the marker itself (a real MIME constant, so the required-attr shape is always satisfied). |
 | `<image id="…">` | required | Synthesise a content GUID (the editor does not model `id` on `image`). |
 | `<floating-title depth="…">` | required | Derive from heading level context, else a constant default. |
 | `<review reviewer="…">` | required | Default placeholder (the editor does not model `reviewer`). |
@@ -1045,6 +1132,7 @@ The following Metanorma features exist in the covered element families but have
 | `reference-clause` (the non-strict clause admitted inside `<bibliography>`) | `<bibliography>` | dropped — `bibliography` admits only `references` (strict variant) |
 | Term-entry subtree (`term`, `preferred`, `admitted`, `deprecated`, `definition`, `termdocsource`, …) | `<terms>` | dropped — `terms` holds prefatory blocks and nested `terms`/`definitions` only; the term-entry elements have no typed nodes |
 | Annex `inline-header` attribute | `<annex>` | carried via the `data` catch-all if present on import; not typed or editable |
+| Image/figure attrs outside the sizing axis (`title`, `filename`, `longdesc`, `media`, `altmedia`, `altsource`; non-keyword `figure/@width`/`@height` values) | `<image>`, `<figure>` | carried via the `data` catch-all if present on import; not typed or editable. Banked figure size values re-emit per §17.8's banked-original rules; the rest drop on export |
 | Doc-level `metanorma-extension`, `boilerplate`, `index`, `colophon` | root | dropped — `doc.content` admits only `bibdata`/`preface`/`sections`/`annex`/`bibliography`/`footnotes` |
 
 ### 17.6 Over-permissive content (coerced on export)
@@ -1091,4 +1179,58 @@ the top level of an attrs record, and keys inside the `data` catch-all — by
 applying `stripEditorOnlyAttrs` (§11) to each channel. The helper is
 **top-level-only**: scrubbing `data` contents is the converter's explicit
 per-channel step, not something the helper does recursively.
+
+### 17.8 Image sizing: normalization and the export contract
+
+The sizing axis — `image` numeric `width`/`height`, the `figure` role
+(`width` attr, §6.1), and `mimetype` — is normalized at **every ingestion
+boundary** (HTML `parseDOM`, clipboard, JSON load) by the pure module
+`imageAttrs.ts` (§11), the `tableWidths.ts` pattern: one read-side policy,
+headless-testable, shared by every path. Grammar facts live in
+[`metanorma-model.md`](./metanorma-model.md) §4: the figure size slots are
+free text; `ImageSize` (the image slots) is decimal, percent, or the literal
+`auto`; standoc actively emits `auto` for absent image dimensions and its
+keyword values are grammar-invalid at the image slot — `figure/@width` is the
+conformant home.
+
+**Import normalization** (`normalizeImageSize` for image dims and foreign
+HTML size attributes; `normalizeFigureWidth` for figure-width values;
+applies to both nodes):
+
+| Source value | Typed result | Banked original |
+|---|---|---|
+| absent / `""` / `"auto"` | `null` | — |
+| `"150"` / `"150px"` | `150` | — |
+| `"4.3"` | `4.3` | — |
+| `"50%"` / `" 50 % "` | `"50%"` | — |
+| `"text-width"` / `"full-page-width"` (figure width) | role `'text-width'` / `'full-page-width'` | — |
+| anything else (`"10cm"`, `"abc"`, …) | `null` | verbatim in `data.width` / `data.height` |
+
+Cleanly-normalized values are not banked — a value lives in one channel only
+(typed or `data`, never both).
+
+**Export contract.**
+This table is **contract documentation** for the external, not-yet-written
+converter; the only in-repo consumers of these serialization rules are the
+`toDOM` `data-*` attributes of §8.6 (`formatImageSize` serializes
+`data-width`/`data-height`; everything else here has no in-repo code path
+yet):
+
+| Editor state | Semantic-XML emission |
+|---|---|
+| role set | `figure/@width` = the keyword — **never** `image/@width` (grammar-invalid at the image slot; upstream's own converter emits it there and produces RNG-invalid XML — metanorma-model.md §4 size-semantics note) |
+| image `width`/`height` numeric | `image/@width`/`@height` = `formatImageSize(v)` — plain decimal, `ImageSize`-conformant at any magnitude; raw `String(number)` goes exponential at `1e21` and leaves the grammar, which is why the formatter is the sole number→string path |
+| exactly one numeric dim set | the other emitted as `"auto"` — matching standoc's active emission (`image_dim_attr`) |
+| both dims `null`, no role, no banked value | both attributes omitted — omission is valid and renders equivalently to `auto` (standoc itself omits figure size when unauthored); not identical to standoc's image serialization, which emits `auto` explicitly |
+| image dim `null` + banked original | re-emit the banked string only when it is `ImageSize`-conformant (decimal, percent, **or `auto`** — the grammar admits the literal) **and not `"auto"`** (typed `null` already means `auto` through omission); non-conformant banked values stay in `data` and are dropped from emission — verbatim re-emission would produce RNG-invalid XML |
+| figure role `null` + banked `figure/@width` or `figure/@height` value | re-emit **verbatim** to the figure slot — the figure size slots are grammar `text`, everything conforms; the conformance gate is image-only because only `ImageSize` needs it. When a role is set, the role wins and the banked value stays banked |
+
+**Role⇔size exclusion (command-level invariant).** The role lives on
+`figure`, the numeric size on `image` — a cross-node rule no schema or
+single-node guard can express. `updateImageAttrs`
+([`AdvancedMetanormaToolbar/images-figures.md`](./AdvancedMetanormaToolbar/images-figures.md),
+realized in sizing scope) enforces it in **one transaction**: choosing a
+role clears numeric size; entering a size clears the role; `auto` clears
+size only. `mimetype` rides the same command; its export-time rules are
+§17.4's.
 

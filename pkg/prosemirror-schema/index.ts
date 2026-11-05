@@ -121,24 +121,18 @@ export const MARK_NAMES: readonly string[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Runtime guard (§6.1)
+// Image attribute helpers (§6.1, §17.8) — implemented in imageAttrs.ts
 // ---------------------------------------------------------------------------
 
-/**
- * Assert that image attributes carry a non-empty `src`.
- *
- * Because `ImageAttrs.src` is required in TypeScript but ProseMirror needs a
- * default, `src` defaults to `""`; this guard is used by input rules / paste
- * handling to reject empty `src` before creating an `image` node.
- *
- * @throws {Error} when `src` is missing or empty.
- */
-export function assertValidImageAttrs(
-  attrs: { src?: unknown },
-): asserts attrs is { src: string } {
-  if (typeof attrs.src !== 'string' || attrs.src === '') {
-    throw new Error(
-      "assertValidImageAttrs: 'src' must be a non-empty string.",
-    );
-  }
-}
+export {
+  /** Single-node image shape guard (§6.1). */
+  assertValidImageAttrs,
+  normalizeImageSize,
+  isForeignSizeValue,
+  normalizeFigureWidth,
+  UNKNOWN_MIMETYPE,
+  inferMimetype,
+  formatImageSize,
+  isImageSizeConformant,
+} from './imageAttrs.js';
+export type { ImageSizeValue } from './imageAttrs.js';
