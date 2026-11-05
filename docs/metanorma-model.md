@@ -354,3 +354,23 @@ The Relaton bibliographic model grammars ship with standoc's runtime tree:
 JavaScript implementation exists (citation-js targets CSL-JSON, not Relaton).
 This repository's modeled subset is specified — with its coverage table — in
 [`pkg/relaton/README.spec.md`](../pkg/relaton/README.spec.md).
+
+## 7. Error IDs
+
+Upstream diagnostics are cited in this repository as `PREFIX_NN` identifiers —
+`STANDOC_NN` (metanorma-standoc content checks: the semantic checks that
+complement the RelaxNG pass, §2), alongside `RELATON_NN`, `METANORMA_NN`,
+`ISODOC_NN`, and flavor-prefixed forms (e.g. `ISO_NN`). An occurrence names a
+check; its message text, category, and severity are not reproduced here, as
+they drift with gem releases.
+
+To resolve what a given ID means, consult:
+
+- The public validation reference — Error ID scheme, categories, severity
+  scale (0 fatal … 3 informational), and filtering:
+  https://www.metanorma.org/author/topics/output/validation/
+  (`metanorma -L -t {flavor}` prints the full catalog at an installed
+  version).
+- The normative registry at this document's pin:
+  metanorma-standoc → `lib/metanorma/converter/log.rb`
+  (`STANDOC_LOG_MESSAGES`: code → category, message template, severity).
