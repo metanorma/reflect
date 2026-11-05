@@ -47,6 +47,15 @@ Revive it with a manual dispatch of the workflow.
 - Full Metanorma document model coverage
   (anchoring to Standoc model / Semantic XML).
 
+- File format versioning (both schema- and container-wise),
+  or using Metanorma XML (that comes with versioning) as internal format
+  (and then only versioning the container, if any).
+
+- Using OPFS, rather than data URIs, for handling embedded media
+  at editor runtime.
+
+- Editor versioning.
+
 - **Claim-named probes** over the drift-check substrate: ledger claims
   re-expressed as content predicates ("the engine is leptris, not jing"),
   so an alert names the falsified claim instead of "bytes differ" — plus a
