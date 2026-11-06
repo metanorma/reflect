@@ -95,8 +95,7 @@ label/class). **C2 demo half** — the statusbar `.live` save claim swaps
 to "layout NOT saved — storage unavailable" when `onDidFallback` signals
 `storage-unavailable` (never in the parity environment, so goldens pin
 the default string): Node ✔ (same file, byte-exact default + tail-only
-swap). demo.spec.md §2's F1n row still describes the pre-fix gap (spec is
-current-state; fold pending — see the demo-task report).
+swap). demo.spec.md §2's F1n and C2n rows are folded to current state.
 
 ## §4 Defaults
 

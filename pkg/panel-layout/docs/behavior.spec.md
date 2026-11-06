@@ -11,12 +11,13 @@ artifact of the [`@metanorma/panel-layout`](../index.ts)
 package. The module inventory implementing this contract is specified in
 [`api.spec.md`](./api.spec.md).
 
-All `:NNN` line references point into
-`editor-dockview7-floats.html`.
+Code references name module symbols and files (`handleWillDrop` in
+`unwrap.ts`; the suppression rules in `panel-layout.css`).
 
 **Scope.** Panel **chrome and layout behavior** is the reference contract.
-Panel **content is out of scope**: the panel bodies in the mock are
-illustrative static HTML (the `PANELS` map, :359), left to future panel
+Panel **content is out of scope**: the panel bodies are the demo
+consumer's illustrative static HTML (the `PANELS` map in
+[`demo/panels.tsx`](../demo/panels.tsx)), left to future panel
 implementers. Where the matrix touches panel interiors it specifies only the
 container contract (scroll/whitespace inside a pinned-height tabset) and
 chrome text (tab titles), never panel semantics or data states.
@@ -40,10 +41,12 @@ behavior only; panel content is opaque input the implementation must accept
 **HP1 — Open editor → preset layout renders.**
 1. Load with both storage keys absent and a default layout (consumer-supplied;
    demo: the 11-panel preset, §4).
-2. `fromJSON(default)` runs (:1325), then the pin pass (:1349).
+2. `fromJSON(default)` runs through the component's restore net
+   (`restoreLayout`, panelLayout.tsx), then the pin pass
+   (`pinAllWindows`, pinHeights.ts).
 *Outcome:* the main grid hosts the consumer's grid panels; every default
 floating window renders titlebar + grip + stacked tabsets at default heights
-(§4); the layout key is written immediately (`saveLayout`, :1326); the
+(§4); the layout key is written immediately (`saveLayout`, persistence.ts); the
 heights key stays empty on first load until the first layout change or
 takeover drag (§4). Serialization: one `floatingGroups[]` entry per window,
 all position forms `{left,top,width,height}`.
@@ -52,9 +55,9 @@ all position forms `{left,top,width,height}`.
 1. Pointer-drag a panel tab (e.g. from Navigation) over the doc grid
    surface — pasteboard or page, any zone.
 2. `.mn-unwrap-hover` suppresses doc-grid zone overlays; float-window
-   overlays remain (:148–155).
+   overlays remain (suppression rules, `panel-layout.css`).
 3. Release on the grid surface.
-*Outcome:* `handleWillDrop` claims the drop (:1233–1314): a new float
+*Outcome:* `handleWillDrop` (`unwrap.ts`) claims the drop: a new float
 window appears centered on the pointer, sized to the **source tabset's
 rect** (width + content height + 26px chrome), the new group pinned to the
 source height, `heightsMap[newGroupId]` set; the source window shrinks by
@@ -85,23 +88,24 @@ shrinks or disposes. Serialization: group id appears in the target's
 
 **HP5 — Move window via titlebar.**
 1. Pointer-drag the (text-free) titlebar grip.
-2. Drag: `windowDragLive` gates the pin pass off (:1335); transform move
-   with top/left containment, bottom free (:1140–1146).
+2. Drag: the window-drag gate (`createWindowDragGate`, windowDrag.ts)
+   gates the pin pass off; transform move with top/left containment,
+   bottom free (`clampDragBox`, windowDrag.ts).
 3. Release anywhere, including below the layout area's bottom edge.
 *Outcome:* window rests at the pointer, top-clamped so the titlebar stays
 reachable; a window parked half-below the bottom edge remains grabbable.
-`normalizeTops` re-anchors any bottom-anchored form to `{top}` (:1149–1158)
+`normalizeTops` (windowDrag.ts) re-anchors any bottom-anchored form to `{top}`
 before serialization. Storage: position updated, `{top}` form only.
 
 **HP6 — Resize a tabset via sash / window bottom edge.**
 1. Drag a sash inside a float window (resizes the tabset **above** it), or
    the window's bottom edge / bottom corners (resize the **last** tabset).
 2. Per pointermove: target group re-pinned to `max(MIN_TS_H, h)`, window
-   height follows (:933–993).
+   height follows (takeover drag — `resizeFrame`, dragTakeover.ts).
 3. Release.
 *Outcome:* only the target tabset's height changed; siblings byte-stable
-(pin model). Storage: heights key updated on pointerup (`saveHeights`,
-:985); layout key updated on the next structural change (takeover drags
+(pin model). Storage: heights key updated on pointerup (`commitHeights`,
+pinHeights.ts); layout key updated on the next structural change (takeover drags
 fire no `onDidLayoutChange`). Corner drags may also change width (min
 120px), shared by all members.
 
@@ -109,8 +113,8 @@ fire no `onDidLayoutChange`). Corner drags may also change width (min
 1. Turn the auto-wrap option off (library option; demo: the toolbar button,
    "Auto-wrap panels: ON" → loses `.on`, `autoWrapEnabled=false`).
 2. Drag a panel tab to the doc grid surface and release.
-*Outcome:* no unwrap; grid zone overlays now show (suppression gated on the
-toggle, :1470–1474); center-drop merges the panel as a doc sibling tab
+*Outcome:* no unwrap; grid zone overlays now show (suppression gated on
+the toggle — `useDropRules`, unwrap.ts); center-drop merges the panel as a doc sibling tab
 (stock path unclaimed — see F1); edge drops still vetoed. See §3 F1.
 
 **HP8 — Reload → persisted layout restores.**
@@ -123,7 +127,8 @@ settles via the pin pass (A4/A5). Serialization: round-trips `{top}` forms.
 1. Invoke the restore-to-default operation (library capability; demo: the
    Reset button).
 *Outcome:* both storage keys removed, `heightsMap={}` cleared,
-`api.clear()` → `fromJSON(default)` → re-pin (:1505–1513); DOM returns to
+`api.clear()` → `fromJSON(default)` → re-pin (restore composition,
+[api.spec.md](./api.spec.md) §2.6); DOM returns to
 the HP1 state (window identity, group ids, heights all reset). Recovery
 path from B1 (empty editor) and from any corrupted persisted state
 (A6/A7).
@@ -140,25 +145,25 @@ statusbar) intact; layout key reflects the emptied state. HP9 restores.
 | State | Trigger / data condition | What renders | Notes |
 |---|---|---|---|
 | **A. Loading** | | | |
-| A4 First hydration | No layout in storage | Preset; members 1–2 frames oversubscribed ([257,117,100] vs pins [244,132,74], :904) then pin pass settles | Grips may appear ≤500ms late (interval net, :1496) |
-| A5 Reload, persisted layout | Valid storage keys | Saved window rects + saved per-tabset heights (`loadHeights` → pin pass) | `normalizeTops` keeps serialization `{top}`-only (:1133) |
-| A6 Corrupted layout JSON | Parse throws / `j.grid` falsy | Silent fallback to default (:665–672) | min: notify the consumer of the fallback (demo: statusbar flash "layout restored to default") |
-| A7 Corrupted heights JSON | Heights key unparseable | `heightsMap={}` → preset heights (:920–922) | Same as A6 |
-| A8 Stale group ids in heights | Windows closed since save | Ignored; map rebuilt from live members (:898) | Cosmetic only |
-| A9 fromJSON throws mid-restore | Structurally bad saved JSON | **not implemented** — dockview logs 'failed to deserialize layout. Reverting changes', clears, rethrows → React unmounts → blank page | min: try/catch → `fromJSON(presetLayout())` |
+| A4 First hydration | No layout in storage | Preset; members 1–2 frames oversubscribed ([257,117,100] vs pins [244,132,74]; `pinAllWindows`, pinHeights.ts) then pin pass settles | Grips may appear ≤500ms late (interval net, `watchTitlebars`, titlebar.ts) |
+| A5 Reload, persisted layout | Valid storage keys | Saved window rects + saved per-tabset heights (`loadHeights` → pin pass) | `normalizeTops` (windowDrag.ts) keeps serialization `{top}`-only |
+| A6 Corrupted layout JSON | Parse throws / `j.grid` falsy | Silent fallback to default (decode seam, persistence.ts) | min: notify the consumer of the fallback (demo: statusbar flash "layout restored to default") |
+| A7 Corrupted heights JSON | Heights key unparseable | `heightsMap={}` → preset heights (decode seam, persistence.ts) | Same as A6 |
+| A8 Stale group ids in heights | Windows closed since save | Ignored; map rebuilt from live members (`collectStableHeights`, pinHeights.ts) | Cosmetic only |
+| A9 fromJSON throws mid-restore | Structurally bad saved JSON | Engine logs 'failed to deserialize layout. Reverting changes', clears, rethrows; the component's restore net catches (`restoreLayout`, panelLayout.tsx), signals `layout-restore-threw` ([api.spec.md](./api.spec.md) §2.2), and restores the default layout | The rethrow is engine-internal; recovery is component-level |
 | **B. Empty** | | | |
 | B1 All panels closed | Every tab ✕'d | Floats dispose as they empty; grid shows stock watermark = bare `div.dv-watermark`, zero text; app chrome (demo) remains | **Frame: `states/empty-editor.html`** — demo chrome + pasteboard + faint "Reset restores the preset" hint (hint itself not implemented) |
 | B2 Last float window closes | Last tab of a window | Window vanishes; layout auto-saves | No animation |
 | B3 Tabset just before disposal | Second-to-last tab closed | Normal tabset at pinned height; last close removes row + its sash | No intermediate state exists |
-| B4 Tabset at MIN_TS_H | Drag to 36px floor (:758) | 24px titlebar + 30px tab strip + ~6px content sliver | Sash hover accent is the only expand cue |
-| B5 Window at MIN_WIN_H | Drag to 150px (:759) | Members clamp at 36px each; overflow absorbed | Corner drag clamps width ≥120px (:974) |
+| B4 Tabset at MIN_TS_H | Drag to 36px floor (`CONSTANTS.MIN_TS_H`, tokens.ts) | 24px titlebar + 30px tab strip + ~6px content sliver | Sash hover accent is the only expand cue |
+| B5 Window at MIN_WIN_H | Drag to 150px (`CONSTANTS.MIN_WIN_H`, tokens.ts) | Members clamp at 36px each; overflow absorbed | Corner drag clamps width ≥120px (takeover width clamp, dragTakeover.ts) |
 | B6 Degenerate sash | Oversubscribed pins | 4px sashes; members overflow past window bottom | Only via corrupted persisted heights |
 | **C. Error** | | | |
-| C2 localStorage throws | Quota/private mode | All 4 calls swallowed → persistence silently off; session runs default + memory | Consumer should surface it (demo: statusbar "layout saved" claim is then false — swap that text) |
-| C3 Panel component throws in render | Component exception | **not implemented** — no error boundary in dockview-react v7.0.4; tree unmounts → blank page | min: per-panel boundary rendering "Panel failed: <id>" |
+| C2 localStorage throws | Quota/private mode | All 4 calls swallowed → persistence silently off; session runs default + memory | Consumer should surface it (the demo does: statusbar `.live` swaps to "layout NOT saved — storage unavailable" — [demo.spec.md](./demo.spec.md) §2 C2n) |
+| C3 Panel component throws in render | Component exception | Inline fallback "Panel failed: <id>" (`PanelErrorBoundary`, applied to every registry component); siblings and windows keep rendering — dockview-react v7.0.4 ships no boundary of its own | — |
 | C4 toJSON fails | Bad structure | Swallowed → stale layout kept | Invisible |
 | **D. Content vs container** (container behavior only) | | | |
-| D1 Content taller than tabset | Any panel above its pinned height | Internal scrollbar in `.panelwrap` (`overflow:auto`, :158) — stock | The contract panel content must expect: render into a fixed-height box |
+| D1 Content taller than tabset | Any panel above its pinned height | Internal scrollbar in `.panelwrap` (`overflow:auto`, demo/panel-content.css — demo-owned) | The contract panel content must expect: render into a fixed-height box |
 | D2 Content shorter than tabset | Any panel below its pinned height | White whitespace below (`.panelwrap` bg fills) | Panels own their empty space; no stretch/fill affordance |
 | (Panel-data states — empty lists, long strings, filtering results — out of scope for this spec) | | | |
 | **E. Long/short/missing chrome text** | | | |
@@ -166,21 +171,21 @@ statusbar) intact; layout key reflects the emptied state. HP9 restores.
 | E2 Missing title | Panel without `title` | Tab shows panel id | — |
 | E3 Grip/tooltips at narrow width | Min-width window | Text-free 44px grip — unaffected; toggle `title` unaffected | — |
 | **F. Disabled/read-only** | | | |
-| F1 Auto-wrap OFF | Toolbar toggle | No hint change; `.mn-unwrap-hover` no longer applied → doc-grid zone overlays reappear; panel center-drop on grid merges as doc sibling tab (unclaimed stock path); edge drops still vetoed | Toggle lacks `aria-pressed`; OFF leaks the merge-into-doc layout |
-| F2 Titlebar move-only | Always (T6, :720) | `grab`/`grabbing` cursors, grip darkens on hover; no redock from titlebar | Grip is decorative (`aria-hidden`, pointer-events:none) |
+| F1 Auto-wrap OFF | Toolbar toggle | No hint change; `.mn-unwrap-hover` no longer applied → doc-grid zone overlays reappear; panel center-drop on grid merges as doc sibling tab (unclaimed stock path); edge drops still vetoed | Toggle carries `aria-pressed` ([demo.spec.md](./demo.spec.md) §2 F1n); OFF leaks the merge-into-doc layout |
+| F2 Titlebar move-only | Always (`decorateTitlebars` + move-only enforcement, titlebar.ts) | `grab`/`grabbing` cursors, grip darkens on hover; no redock from titlebar | Grip is decorative (`aria-hidden`, pointer-events:none) |
 | F3 Float-excluded panel dragged | Drag a float-excluded panel (demo: `doc`) toward a float | Ghost follows, all float targets vetoed (`docIntoFloat`), snaps back | Affordance mismatch; min: default cursor on excluded panel's tab |
-| F4 Window drag live | Titlebar pointerdown | Pin pass gated off (:1335); transform move; top/left contained, bottom free (:1140) | Drawer park below bottom edge |
-| F5 Panel/group drag over grid | Drag over doc surface | `.mn-unwrap-hover` hides grid zone overlays, re-shows float ones (:148–155) | — |
+| F4 Window drag live | Titlebar pointerdown | Pin pass gated off (window-drag gate, windowDrag.ts); transform move; top/left contained, bottom free (`clampDragBox`) | Drawer park below bottom edge |
+| F5 Panel/group drag over grid | Drag over doc surface | `.mn-unwrap-hover` hides grid zone overlays, re-shows float ones (suppression rules, `panel-layout.css`) | — |
 | **G. Keyboard & focus** | | | |
 | G1 Tab-strip roving tabindex | Focus tab, arrows | Inherited, always on: arrows/Home/End move, Enter/Space activate, Delete/Backspace close+refocus | WAI-ARIA tabs, dockview `tabs.ts` |
-| G2 ctrl+] / ctrl+[ / F6 | Anytime | **not active** — needs `keyboardNavigation: true`, not passed (:1533–1552) | min: add the prop |
-| G3 Focus ring on tabs | Keyboard focus | None — no `:focus-visible` in mock or dockview.css; `.dv-groupview:focus{outline:none}` | min: `.dv-tab:focus-visible` accent outline |
-| G5 Focus after mouse-close | Click tab ✕ | MRU successor activates; DOM focus drops to body | Only keyboard-close path refocuses |
-| G6 Focus after unwrap | Drop on empty space | New window activates; focus not moved | — |
+| G2 ctrl+] / ctrl+[ / F6 | Consumer option | Off unless the consumer passes `keyboardNavigation` — it rides the `dockviewOptions` passthrough verbatim (`splitDockviewOptions`, focus.ts) | demo default: off (§4) |
+| G3 Focus ring on tabs | Keyboard focus | Accent `:focus-visible` rings on tabs and groups (`focus.css`); additive over dockview.css's group-`:focus` outline suppression — keyboard focus rings, mouse activation stays ring-less | No sash ring: engine sashes are unfocusable (pointer-only; the J5 hover accent is the affordance) |
+| G5 Focus after mouse-close | Click tab ✕ | MRU successor activates; the restore wiring (`wireFocusRestoration`, focus.ts) re-focuses the active group when DOM focus lands on body | No-op when the engine's keyboard-close path (or the consumer) already placed focus |
+| G6 Focus after unwrap | Drop on empty space | New window activates; focus moves to the minted window's group (claim-seam observer, panelLayout.tsx) | No public engine event isolates an unwrap — the claim seam is the only signal |
 | G7 Keyboard drag/undock | Any | **not implemented** — grip hidden, titlebar unfocusable, keyboard docking off (same option as G2) | — |
 | G8 Escape during drag | Esc mid-drag | **not implemented** — only `pointercancel` wired, and it commits | min: Esc → cancel + restore box |
 | **H. RTL** | | | |
-| H1 `dir=rtl` | Hypothetical | **not supported.** Tab strip order, `clampDragBox` physical left/top (:1140), float overlay positioning, gradient directions (:203, :310) all LTR | Bidirectional build: logical properties, direction-aware clamp, mirrored gradients, dockview RTL verification |
+| H1 `dir=rtl` | Hypothetical | **not supported.** Tab strip order, `clampDragBox` physical left/top (windowDrag.ts), float overlay positioning, gradient directions (titlebar/grip gradients, `panel-layout.css`) all LTR | Bidirectional build: logical properties, direction-aware clamp, mirrored gradients, dockview RTL verification |
 | **I. Narrow viewport** | | | |
 | I3 Touch | Touch device | Pointer DnD works; 24px titlebar under-tuned | Out of scope |
 | **J. Motion** | | | |
@@ -190,7 +195,7 @@ statusbar) intact; layout key reflects the emptied state. HP9 restores.
 | J4 Zone overlays | Drag over targets | Stock 70ms selection / 300ms anchor transitions; suppression is instant `display:none !important` | — |
 | J5 Sash hover accent | Hover sash | 0.1s fade after 0.5s delay (theme vars) | Stock |
 | J6 Maximize | — | Unused; no affordance | N/A |
-| J7 Reduced motion | `prefers-reduced-motion` | **not implemented** — no media query anywhere | min: kill J4/J5 transitions under the query |
+| J7 Reduced motion | `prefers-reduced-motion` | Motion-bearing theme transitions killed by var-zeroing under the media query (`panel-layout.css`): J4 zone fades and J5 sash accent drop to 0s | Engine's own reduced-motion block covers `.dv-tab`/`.dv-tab-group-chip` only |
 
 **Frames** (2 state frames of this spec captured from the live mock; build
 outputs — regenerate plus PNG siblings with
@@ -226,19 +231,19 @@ implementation agrees on.
 - **Floats** (`presetLayout.floatingGroups`): Navigation `{18,12} 252×450` — tabsets 244/132/74. Pinned `{292,12} 300×168` — 142. Inspector `{1050,12} 320×602` — 200/180/116/100. Panel tab titles per `panelTitles` (11 entries).
 - **Constants** (`constants`): MIN_TS_H 36, MIN_WIN_H 150, windowMinWidth 120, sashSize 4, titlebar 24px (`dvTokens['--dv-floating-titlebar-height']`), undockChrome 26, WRAP 260×200 (fallback).
 - **Design tokens** (`tokens`, `dvTokens`): mock `:root` custom properties (18) and the dockview theme overrides (20), including the tab strip height 30px, `--dv-border-radius` 8px, float shadow/border, and the sash transition vars (`0.1s`/`0.5s`, §3 J5).
-- **Dockview options** (`dndEdges`, `floatingGroupBounds`, plus verbatim in the mock): themeLight, `floatingGroupDragHandle:'titlebar'`, `dndStrategy:'pointer'`, `floatingGroupBounds` 0/0 (containment via `clampDragBox`: top/left only), dndEdges 160/26, `DockviewDefaultTab`. `keyboardNavigation` unset (off).
+- **Dockview options**: the library owns `dndStrategy:'pointer'`, `floatingGroupDragHandle:'titlebar'`, `floatingGroupBounds` 0/0 (containment via `clampDragBox`: top/left only) — consumer values for those three are ignored ([api.spec.md](./api.spec.md) §2.1); every other option is passthrough. Demo passes themeLight, dndEdges 160/26, `DockviewDefaultTab`; `keyboardNavigation` unset (demo default off, §3 G2).
 
 ## 5. Keyboard & focus behavior
 
-**Present**: roving tabindex per tab strip (arrows, Home/End, Enter/Space, Delete/Backspace close+refocus); native focusability of library-hosted controls (panel-internal native inputs remain focusable but are panel territory). Focus styles for library-owned controls (tabs, grips, sashes) are the G3 gap; app-chrome focus (toolbar buttons) is the consumer's — see [`demo.spec.md`](./demo.spec.md) G4.
+**Present**: roving tabindex per tab strip (arrows, Home/End, Enter/Space, Delete/Backspace close+refocus); native focusability of library-hosted controls (panel-internal native inputs remain focusable but are panel territory); accent `:focus-visible` rings on tabs and groups (G3, `focus.css` — grips are decorative and sashes pointer-only, so no ring there is by design); focus restoration after mouse-close (G5) and unwrap (G6). App-chrome focus (toolbar buttons) is the consumer's — see [`demo.spec.md`](./demo.spec.md) G4.
 
-**Missing**: `keyboardNavigation` off → no ctrl+]/[, F6/shift+F6, ctrl+shift+\, ctrl+M docking; no `:focus-visible` styles (group focus outline actively removed); grip `aria-hidden` + unfocusable titlebar → no keyboard move/undock/stack-drag; no Esc-cancel on drags; mouse-close and unwrap both leave DOM focus on body; auto-wrap toggle lacks `aria-pressed`.
+**Missing**: `keyboardNavigation` off by default → ctrl+]/[, F6/shift+F6, ctrl+shift+\, ctrl+M docking only when the consumer passes it (G2); grip `aria-hidden` + unfocusable titlebar → no keyboard window-move/undock/stack-drag (G7); no Esc-cancel on drags (G8).
 
 ## 6. Transitions
 
 - boot → layout: overlay removed after render; 1–2 frame height settle on floats.
 - corrupted-storage → preset: silent, immediate.
-- fromJSON-throw → blank: dockview revert + React unmount; no auto-recovery edge (A9 gap).
+- fromJSON-throw → default layout: engine clears and rethrows; the A9 net catches, signals `layout-restore-threw`, and restores the default.
 - drag → merge (center on float): stock; window grows by pinned height.
 - drag → unwrap (empty space): zones suppressed instantly → `addFloatingGroup` at clamped point, source height inherited + pinned, persisted; source window shrinks/disposes.
 - group-drag → dead zone (toolbar/outside): pointerup fallback unwraps identically.
