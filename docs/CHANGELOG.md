@@ -7,6 +7,50 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-11-05 — Validity oracle: the models-layer grammar composition, not the vendored runtime chain
+
+`docs/schema.spec.md` + `docs/metanorma-model.md` + `docs/README.md`;
+docs-only, no code or schema changes. **Commits: *(pending)***.
+
+- **Decision** — schema.spec.md gains **§1.2 "Validity oracle"**: a document
+  is valid Semantic XML iff it satisfies the composed Semantic grammar at the
+  grammar-sources layer — the composition rooted at
+  `standoc-models → grammars/standoc-compile.rnc` (structural +
+  bibliographic/Relaton + requirements + mathematical/MathML layers; include
+  graph and pins stated once in metanorma-model.md §1/§3). The vendored
+  runtime chain `lib/metanorma/validate/standoc-compile.rng` is demoted to a
+  watched compiled snapshot of that composition — a build artifact of the
+  model, not its definition (it lags the sources at the basicdoc layer —
+  ledger §4 — and its compiled model admits presentation-only constructs —
+  ledger §2). The spec header, §1.1, and the §17 intro now defer to §1.2.
+- **Why** — the sources are the artifact upstream edits when the model
+  changes; the snapshot is a compiled copy on a lagging vendoring cadence, so
+  keying the §1.1 guarantee to it would key the spec to upstream packaging
+  state (the `isodoc-compile.rng`→`standoc-compile.rng` filename churn being
+  the visible symptom). Coverage expansion (requirements, deeper
+  bibliography, structured mathematics, a flavour target) now grows inside
+  the oracle via §17 coverage rows; §1.2 is not reopened per feature. Four
+  structural exclusions are recorded with re-entry triggers (presentation:
+  never; flavours: on a declared flavour target; collections: if authored;
+  the snapshot: never — watched for convergence by the drift job, not
+  adopted).
+- **Ledger** — metanorma-model.md §3 gains "The composition root" paragraph
+  (the single full enumeration: `standoc-compile.rnc` = `biblio-standoc.rnc`
+  + `standoc.rnc`; `basicdoc.rnc` → MathML external; relaton-models;
+  metanorma-requirements-models; the `relaton-*-compile.rnc` wrapper
+  pattern; flavour/collection/presentation layers); §1 gains a "Compile
+  twins" note (`.rnc` composition root vs `.rng` gem snapshot); a scoped
+  re-verification paragraph records the MathML finding at the unmoved pins:
+  the six gem-side MathML `.rng` were embedded June–July 2026 (#1195 MathML
+  3 → #1214 MathML 4, `15ccdb4` 2026-07-16), untouched since — and untouched
+  by the 2026-10-01 refresh — while `basicdoc-models → grammars/mathml/` is
+  byte-identical across every tracked submodule pin, so **no mathml lag**
+  exists; direct compile-provenance is unverified-but-immaterial.
+- **Pointers** — the ledger header and `docs/README.md` upstream-reference
+  pointers move from "§1.1/§17" to "§1.1–§1.2/§17".
+
+---
+
 ## 2026-10-16 — Figure body as a typed slot: schema-enforced XOR, whole-body image fill, placeholder-click selection
 
 Multi-spec, multi-package feature (schema.spec.md, images-figures.md,

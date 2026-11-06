@@ -24,7 +24,8 @@ corpus; that file governs the code.
 **Upstream reference.** [`metanorma-model.md`](./metanorma-model.md) records
 commit-pinned, verified facts about the Metanorma pipeline and grammars that
 the corpus derives from — most directly the schema spec's Metanorma alignment
-([`schema.spec.md`](./schema.spec.md) §1.1/§17).
+and validity oracle
+([`schema.spec.md`](./schema.spec.md) §1.1–§1.2/§17).
 
 ```
 schema.spec.md            ← source of truth for the document model

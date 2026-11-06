@@ -1,14 +1,13 @@
 # Reflect — ProseMirror Schema Specification
 
 **Source of truth for the document model: the Metanorma document model**, as
-expressed in the Semantic XML that the Metanorma pipeline
-(`metanorma-standoc`) authors and validates (the compiled RelaxNG grammar
-`lib/metanorma/validate/standoc-compile.rng` in
-[`metanorma/metanorma-standoc`](https://github.com/metanorma/metanorma-standoc),
-human-authored source `grammars/standoc.rnc` in
-[`metanorma/standoc-models`](https://github.com/metanorma/standoc-models) —
-renamed from `isodoc.rnc` upstream on 2026-08-17; see the naming note in
-[`metanorma-model.md`](./metanorma-model.md) §1).
+expressed in its grammar sources: the composition rooted at
+`standoc-models → grammars/standoc-compile.rnc` (include graph and commit pins
+recorded once in [`metanorma-model.md`](./metanorma-model.md) §1/§3). The
+pipeline (`metanorma-standoc`) authors and validates Semantic XML against its
+own compiled snapshot of that composition,
+`lib/metanorma/validate/standoc-compile.rng` — a build artifact of the model,
+not its definition (§1.2; [`metanorma-model.md`](./metanorma-model.md) §2).
 The goal is **alignment**: every construct the editor models corresponds to a
 well-defined Semantic-XML construct, so documents convert unambiguously (§1.1).
 Presentation XML — the rendering-oriented layer with `fmt-*` elements and
@@ -39,7 +38,8 @@ a complex Metanorma document is generally *not* representable in this schema,
 and a lossless Metanorma-XML → ProseMirror → Metanorma-XML round-trip is **not**
 a goal. What the schema *does* guarantee is **unambiguous convertibility**: any
 document the editor can produce under this schema must convert to valid
-Metanorma **Semantic XML** (the authoring form the pipeline validates; §17)
+Metanorma **Semantic XML** (validity per the oracle defined in §1.2; the
+conversion contract is §17)
 without the converter having to guess between competing representations of the
 same fact (no dual source of truth). Attribute and element names in the schema
 need not match the XML names — a dedicated converter performs those renames and
@@ -61,6 +61,48 @@ the Semantic/Presentation layering test, element and identifier models — are
 pinned and stated once in
 [`metanorma-model.md`](./metanorma-model.md); this spec links there rather
 than restating them.
+
+### 1.2 Validity oracle
+
+**Validity is defined by the grammar sources, not by the runtime snapshot.**
+A document is valid Semantic XML if and only if it satisfies the composed
+Semantic grammar at the models layer — the composition rooted at
+`standoc-models → grammars/standoc-compile.rnc`, spanning the structural
+layer, the bibliographic (Relaton) layer, the requirements layer, and the
+mathematical (MathML) layer. The include graph and the commit pins it is
+verified against are stated once in
+[`metanorma-model.md`](./metanorma-model.md) (§1 ledger, §3 composition).
+
+Coverage is a separate fact from the oracle: the schema's vocabulary may
+cover any subset (§1.1), declared in §17 (§17.4 invented values, §17.5
+dropped features, §17.6 coerced content). An axis the schema does not model
+is a **coverage gap**, never an oracle exclusion — expanding coverage
+(requirements, deeper bibliography, structured mathematics, a flavour
+target) adds schema nodes and §17 rows; it does not reopen this section.
+
+**Structural exclusions.** Four grammar layers sit beside the oracle and are
+deliberately outside it, each with its re-entry trigger:
+
+| Layer | Position | Re-enters the oracle when |
+|---|---|---|
+| Presentation (`standoc-presentation.*`) | authored by the pipeline's presentation transform, never by the editor | never, by design |
+| Flavours (`iso.rnc`, `ietf.rnc`, …) | the editor targets flavour-neutral Standoc | the editor declares a flavour target |
+| Collections (`standoc-collection.*`) | a multi-document container, outside the single-document model | the editor authors collections |
+| Vendored runtime snapshot (`standoc-compile.rng`) | a compiled build artifact of this composition ([`metanorma-model.md`](./metanorma-model.md) §2, §4) | never — watched for convergence by the drift job, not adopted |
+
+#### Why the grammar sources
+
+The composition at the models layer is the artifact upstream edits when the
+document model changes; the vendored runtime chain is a compiled snapshot of
+it on a lagging vendoring cadence, and its compiled model also admits
+presentation-only constructs the editor must never emit
+([`metanorma-model.md`](./metanorma-model.md) §2–§4). Judging editor output
+against the snapshot would key this spec to upstream packaging state; judging
+it against the sources keys it to the model itself. The Semantic/Presentation
+layering test (ledger §3) and the drift watch over both layers are unchanged:
+the snapshot remains a pinned, watched fact and the practical acceptance
+test a user can run against the pipeline, but it is not the definition of
+validity.
 
 ---
 
@@ -1077,8 +1119,9 @@ Deferred and **not** required by this spec:
 As stated in §1.1, this schema covers a **subset** of the Metanorma document
 model. It is designed for **unambiguous convertibility**: every document the
 editor can produce must map to a single, well-defined Metanorma Semantic XML
-structure — the authoring form that `metanorma-standoc` validates
-(`standoc-compile.rng`; pipeline and grammar facts are pinned in
+structure — the authoring form the pipeline validates against its compiled
+grammar snapshot (`standoc-compile.rng`; validity itself is defined by the
+§1.2 oracle, and pipeline and grammar facts are pinned in
 [`metanorma-model.md`](./metanorma-model.md)). A dedicated converter performs attribute/element
 renames and structural reshapes (e.g. `cite` → `citeas`, `href` → `target`,
 `number` → `reference`, the `section_title` child node → a `<title>` child

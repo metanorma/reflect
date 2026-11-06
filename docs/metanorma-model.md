@@ -2,10 +2,11 @@
 
 This is a **reference document**, not a spec: it records verified facts about
 the upstream Metanorma pipeline and its grammars, pinned to immutable commits
-(§1). It is input to the corpus — [`schema.spec.md`](./schema.spec.md) §1.1/§17
-owns every editor-side decision derived from it — and it sits outside the
-source-of-truth hierarchy of [`CONVENTIONS.md`](./CONVENTIONS.md) §1: nothing
-"wins" against it because it states nothing about this repository's behaviour.
+(§1). It is input to the corpus — [`schema.spec.md`](./schema.spec.md)
+§1.1–§1.2/§17 owns every editor-side decision derived from it — and it sits
+outside the source-of-truth hierarchy of [`CONVENTIONS.md`](./CONVENTIONS.md)
+§1: nothing "wins" against it because it states nothing about this
+repository's behaviour.
 
 Reading rules: statements are **verified** (read in the cited source at the
 pinned commit) unless marked otherwise; file references use `repo → path`
@@ -46,6 +47,16 @@ content-neutral for the semantic grammar (one comment word); the standoc-layer
 drift recorded in §4 came from the intervening re-sync `8bb23fd5631e`, the
 basicdoc-layer drift from PR #46 after it.
 
+**Compile twins.** Two files share the `standoc-compile` stem and differ by
+one letter: `standoc-models → grammars/standoc-compile.rnc` is the
+**models-layer composition root** — the human-authored include wrapper whose
+transitive includes compose the Semantic grammar (§3) — while
+`lib/metanorma/validate/standoc-compile.rng` in metanorma-standoc is the
+**gem's compiled snapshot** of that composition, the file the pipeline
+validates against (§2). The corpus's validity oracle is the former
+([schema.spec.md](./schema.spec.md) §1.2); the latter is a watched build
+artifact (§4's lag paragraph).
+
 **Vendoring note.** The rename has now propagated through the vendoring
 layer. standoc-models' `grammars/copy.sh` (at the 2026-08-22 merged PR #46,
 "Cutover complete: grammar re-sync, standoc.\* rename, .lml source
@@ -84,6 +95,27 @@ needed the `figure/@width` slot recorded — see §4 and the size-family
 bullet in the drift log). Pins unmoved; the newly cited converter/spec
 paths joined the drift job's fail tier (cite-driven, per the job's
 sensitivity-map contract).
+
+A scoped re-verification on **2026-11-05** covered the grammar composition
+root and the MathML layer — `grammars/standoc-compile.rnc` and its includes
+at `standoc-models@7d5d737c`, the `relaton-*-compile.rnc` wrapper pattern,
+`basicdoc.rnc`'s MathML external at line 1164, and the gem-side MathML
+embedding at `metanorma-standoc@ba325b0e` (trigger: the corpus's
+validity-oracle decision — [schema.spec.md](./schema.spec.md) §1.2 — needed
+the composition recorded). Pins unmoved. MathML record: the six `.rng`
+files under `lib/metanorma/validate/` were embedded June–July 2026
+(#1195 `bd5f711` 2026-06-24, W3C MathML 3; regenerated `23e90b3`
+2026-06-30; swapped to MathML 4 by #1214 `15ccdb4` 2026-07-16, compiled
+from basicdoc-models#40, `metanorma-mathml.rng` keeping its name so
+`basicdoc.rng` was untouched) and have not moved since — they predate, and
+were untouched by, the 2026-10-01 refresh. `basicdoc-models →
+grammars/mathml/` is byte-identical (blob SHAs) across every submodule
+state this ledger tracks (`d2a94b1a`, `50fe9e85`, `3b408b71`), so **no
+mathml lag exists** at the current pins regardless of which state the gem
+files were cut from; direct compile-provenance (byte-level gem ← models
+correspondence) is unverified and immaterial given the immobility. Newly
+cited paths all fall inside existing `**` watches — no sensitivity-map
+change.
 
 ## 2. Pipeline and artifacts
 
@@ -136,6 +168,26 @@ grammar, combines basicdoc; named `isodoc.rnc` before the 2026-08-17 rename —
 runtime `lib/metanorma/validate/` tree ships only the compiled combination —
 the `.rnc` sources are model-level artifacts, not wired into runtime
 validation.
+
+**The composition root.** The Semantic grammar composes through
+`standoc-models → grammars/standoc-compile.rnc` (verified at `7d5d737c`):
+`include "biblio-standoc.rnc" { }` + `include "standoc.rnc" { }`. From
+there: `standoc.rnc` includes `basicdoc.rnc` (basicdoc-models submodule,
+§1), which externalizes MathML at `basicdoc.rnc` line 1164 — `mathml =
+external "mathml/metanorma-mathml.rnc"` — into the submodule's
+`grammars/mathml/` (the `metanorma-mathml.rnc` wrapper of the W3C MathML 4
+modules; wrapper per basicdoc-models#35, MathML 4 content per
+basicdoc-models#40). `biblio-standoc.rnc` resolves into the relaton-models
+submodule (`grammars/biblio-standoc.rnc`, §1) — the bibliographic layer. The
+requirements layer is `reqt.rnc` from the metanorma-requirements-models
+submodule (§1); the runtime chain ships its compiled product as `reqt.rng`
+(§1 vendoring note). Sibling wrappers `relaton-<flavour>-compile.rnc`
+compose per-flavour biblio grammars (`include "basicdoc.rnc" { }` +
+`include "relaton-<flavour>.rnc" { }`, `start = bibitem | bibdata`). The
+layer also carries the flavour grammars (`iso.rnc`, `ietf.rnc`, …),
+`standoc-collection.*` (multi-document collections), and
+`standoc-presentation.*`; their exclusion from the editor's validity oracle
+is [schema.spec.md](./schema.spec.md) §1.2's decision.
 
 `standoc-presentation.rnc` opens with `include "standoc.rnc" { … }`, then
 continues after the closing brace. The include block **redefines** base
