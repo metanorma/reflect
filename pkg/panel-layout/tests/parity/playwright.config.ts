@@ -3,19 +3,25 @@
  *
  * One command, staged targets: `yarn parity` boots the server and runs the
  * characterization specs under tests/parity/ against every configured
- * project. The 'mock' project drives the reference mock today; the 'twin'
- * project (the library implementation fed the demo registrations) is
- * placeholder-empty until it exists — same snapshot names will be used by
- * both, so a green run means the twin reproduces the mock's captured
- * reality (semantic-first: state-hp*.json `_normalized` diffs with ±1px
- * tolerance; pixels second: toHaveScreenshot).
+ * project. The 'mock' project drives the reference mock; the 'twin'
+ * project (tests/parity/twin.html — the library + demo from the
+ * /dist/twin/ bundles, mounted through the demo surface's mountDemoApp
+ * seam, D50/D51) drives the SAME flows through the SAME drivers and
+ * asserts against the SAME baselines — a green run means the twin
+ * reproduces the mock's captured reality (semantic-first: state-hp*.json
+ * `_normalized` diffs with ±1px tolerance; pixels second:
+ * toHaveScreenshot). Pixel baselines are per-project siblings
+ * (…-mock-linux.png / …-twin-linux.png); the twin set was minted once
+ * with --update-snapshots (D50: NEW files, never a regeneration).
  *
  * Environment caveats:
  * - The mock target needs network at RUNTIME: its importmap points at
- *   pinned esm.sh/unpkg URLs (deterministic, but not offline).
+ *   pinned esm.sh/unpkg URLs (deterministic, but not offline). The twin
+ *   bundles the engine + react from the yarn pins and needs the network
+ *   only for its dockview.css stylesheet link.
  * - Near-term redundancy with `capture-goldens.mjs --check-only` is
  *   intentional: the generator owns artifact production; this suite is the
- *   enforcer that survives and gains the second target.
+ *   enforcer that survives.
  *
  * Chromium-only, deliberately (assertions are pixel/paint + serialized
  * state, per the prosemirror-minimap e2e precedent); workers capped at 1
@@ -82,10 +88,17 @@ export default defineConfig({
       testMatch: 'synthetic*.spec.ts',
     },
     {
-      // Placeholder until the twin target exists; keep `yarn parity`
-      // stable so CI never needs a flag day when it lands.
+      // The twin target (D50/D51): twin.spec.ts drives tests/parity/
+      // twin.html — DemoApp mounted from /dist/twin/panel-layout-demo.js
+      // (engine + react bundled from the yarn pins: version truth) via
+      // the demo surface's mountDemoApp seam — through the same flows.mjs
+      // drivers, against the same state-hp*.json goldens and the same
+      // shared snapshot names (per-project pixel files). This project
+      // keeps its OWN browser context, like 'synthetic' (isolation is
+      // Playwright's default; the twin writes the same storage keys as
+      // the mock).
       name: 'twin',
-      testIgnore: '**/*',
+      testMatch: 'twin.spec.ts',
     },
   ],
 });

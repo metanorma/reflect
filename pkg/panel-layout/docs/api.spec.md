@@ -331,9 +331,10 @@ The captured artifacts are the acceptance targets for the component layer:
 - **Parity suite** — `yarn workspace @metanorma/panel-layout parity`
   (Playwright characterization run; browser one-time via `parity:install`)
   drives the HP flows against the configured targets with the shared
-  drivers in `tests/parity/flows.mjs` and asserts the mock — later the
-  twin, in the same run, against the same baselines — semantically against
-  the goldens above, plus a tolerance-bounded pixel layer. This is the
+  drivers in `tests/parity/flows.mjs` and asserts the mock and the twin,
+  in the same run, against the same baselines — semantically against the
+  goldens above, plus a tolerance-bounded pixel layer (per-target pixel
+  siblings; the twin's react build differs from the mock's CDN build). This is the
   enforcement command for the parity target.
 
 ### 5.1 Build flavors
@@ -355,13 +356,16 @@ script (`build-panel-layout.mjs`, a structural sibling of
 The mock-facing flavor asserts (via the esbuild metafile) that no
 `dockview`/`dockview-core` import survives as an external of any kind;
 the twin flavor asserts the resolved engine versions are exactly the
-pins. Layout and deferred end-states are recorded in
+pins. The twin bundles carry no page-usable react by design: hosts mount
+through the demo surface's `mountDemoApp` (`demo/index.ts`), the
+page-consumption contract. Layout and remaining caveats are recorded in
 [`pkg/panel-layout/dist/README.rst`](../dist/README.rst).
 
 **Token and stylesheet ownership.** `panel-layout.css` and
 `design-tokens.json` (at `mock/design-tokens.json`) are hand-owned
 sources of truth — their `_provenance` records the final extraction
 snapshot, and changes land directly in them. The reference mock links
-the stylesheet (plus `focus.css` and the demo's `panel-content.css`);
-its inline `<style>` carries only its own shell/boot/app-chrome CSS.
-The JSON↔CSS cross-check tests guard artifact consistency.
+the stylesheets (`panel-layout.css`, `focus.css`, and the demo's
+`app-chrome.css` + `panel-content.css`); its inline `<style>` is
+comment-only. The JSON↔CSS cross-check tests guard artifact
+consistency.

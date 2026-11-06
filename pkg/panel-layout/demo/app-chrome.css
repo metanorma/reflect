@@ -1,0 +1,46 @@
+/*
+ * demo/app-chrome.css — the demo consumer's app-chrome styles: the app
+ * shell (.window), the toolbar/statusbar chrome (demo/chrome.tsx), the
+ * boot overlay (#boot — shared by every host page), and the .layoutArea
+ * flex fill the shell grants the layout container. Migrated
+ * byte-identically from the reference mock's inline <style> (the
+ * contiguous rule region `*{box-sizing…}` … `.statusbar .live`):
+ * D41 resolved by D50 — these rules style demo-owned markup, so the
+ * sheet is shared by every DemoApp host; the mock links it where its
+ * inline block sat, and the twin parity page (tests/parity/twin.html)
+ * links the same sheet.
+ *
+ * The region consumes design tokens (--ink, --chrome, --line, …) defined
+ * by the library sheet panel-layout.css — link that sheet BEFORE this
+ * one (every host does; tests/demo.test.mjs cross-checks each var).
+ *
+ * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
+ */
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{background:var(--chrome);font-family:var(--sans);color:var(--ink);overflow:hidden}
+  #boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+        color:#cfd6dd;font:13px var(--sans);background:#22262c;z-index:99;
+        white-space:pre-line;text-align:center}
+  /* full-bleed editor surface (no mock browser-window chrome: the fake
+     titlebar/lights/rounded frame/backdrop were removed — the editor's own
+     toolbar + statusbar remain the app chrome) */
+  .window{width:100vw;height:100vh;max-width:100%;
+          background:var(--chrome);
+          display:flex;flex-direction:column;
+          position:relative}
+  .toolbar{display:flex;align-items:center;gap:4px;padding:7px 12px;background:#fff;
+           border-bottom:1px solid var(--line);font-size:12px}
+  .tb-btn{border:1px solid transparent;background:transparent;border-radius:6px;
+          padding:4px 8px;color:var(--ink);font-size:12px;cursor:pointer}
+  .tb-btn:hover{background:var(--chrome)}
+  .tb-btn.on{background:var(--accent-bg);color:var(--accent-ink);border-color:#c4d7f7}
+  .tb-sep{width:1px;height:18px;background:var(--line);margin:0 6px}
+  .tb-spacer{flex:1}
+  .layoutArea{flex:1;min-height:0;position:relative;background:#e3e7eb}
+  .statusbar{display:flex;align-items:center;gap:16px;padding:6px 14px;background:#fff;
+             border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+  .statusbar .dot{width:7px;height:7px;border-radius:50%;background:var(--warn-line);
+                  display:inline-block;margin-right:5px;vertical-align:-.5px}
+  .statusbar .grow{flex:1}
+  .statusbar .live{font-family:var(--mono);font-size:10px;color:var(--accent-ink)}

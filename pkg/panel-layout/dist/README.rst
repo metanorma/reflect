@@ -63,7 +63,9 @@ The DEMO artifacts (demo task, D38/D39 — one per flavor, entry
   from the bare ``'@metanorma/panel-layout'`` import to the PUBLIC entry
   ``index.ts`` (never ``internal.ts``) and bundled together with the
   engine from the yarn pins. Like its library sibling it is a test
-  artifact; its consumer (the twin harness) arrives with the twin loop.
+  artifact; its consumer is the twin parity target
+  (``tests/parity/twin.html``), which mounts via the demo surface's
+  ``mountDemoApp`` (D51) — the bundles carry no page-usable react.
 
 Deferred items that LANDED with the convergence task (module 1 +
 mock rewiring):
@@ -132,11 +134,14 @@ Extraction-pipeline decommission (D45):
   parity/goldens servers (rooted at ``pkg/panel-layout/``) resolve every
   link.
 
-Still deferred by design (twin loop, not this one):
+LANDED with the twin loop (D50–D54): twin assembly + first twin parity
+run (green out of the box — the twin reproduces every semantic golden
+the mock captured; 5 new twin pixel baselines minted, existing baselines
+bit-identical) and the app-chrome CSS decision (``demo/app-chrome.css``,
+D50).
 
-- Twin assembly + first twin parity run (D2/D38): the twin harness page
-  consuming ``DemoApp`` (and the twin flavor demo artifact above), plus
-  the decision of where the demo's app-chrome CSS lives outside the mock.
+Still open:
+
 - Synthetic-suite audit beyond the convergence rows (D2).
 - Regenerating the state frames from the thinned mock
   (``capture:states``) needs the demo stylesheet — and, since D45, the

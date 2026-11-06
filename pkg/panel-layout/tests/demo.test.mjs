@@ -34,6 +34,7 @@ import {
   LIVE_HINT_SAVED,
   LIVE_HINT_STORAGE_UNAVAILABLE,
 } from "../compiled/demo/chrome.js";
+import { mountDemoApp } from "../compiled/demo/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DEMO_DIR = join(here, "..", "demo");
@@ -134,8 +135,13 @@ describe("DEMO storage (§2.6)", () => {
 });
 
 describe("DEMO consumer firewall (D38)", () => {
-  it("DEMO-firewall: demo/ imports only react, the public package, or intra-demo relatives", () => {
-    const allowed = new Set(["react", "@metanorma/panel-layout"]);
+  it("DEMO-firewall: demo/ imports only react, react-dom/client, the public package, or intra-demo relatives", () => {
+    // 'react-dom/client' joined the allow-set at D51 (escalation E2): the
+    // consumer-mount seam mountDemoApp needs createRoot, and react-dom is
+    // a peer of the package — a consumer-mount concern, never an internal
+    // import (check-imports is unaffected: it polices engine runtime
+    // imports only).
+    const allowed = new Set(["react", "react-dom/client", "@metanorma/panel-layout"]);
     const files = readdirSync(DEMO_DIR).filter((f) => /\.(ts|tsx)$/.test(f));
     assert.ok(files.length >= 5, "demo sources present");
     for (const file of files) {
@@ -179,6 +185,55 @@ function leafSizes(floatGroup) {
   walk(floatGroup.grid.root);
   return sizes;
 }
+
+describe("DEMO app-chrome CSS (D41 resolved by D50)", () => {
+  const appChrome = readFileSync(join(DEMO_DIR, "app-chrome.css"), "utf8");
+  const mockHtml = readFileSync(join(here, "..", "mock", "editor-dockview7-floats.html"), "utf8");
+
+  it("DEMO-appchrome: the sheet carries the complete app-shell rule set moved from the mock", () => {
+    // Every selector of the moved region, pinned as literal rule starts
+    // (the byte-identity of the move is parity's pixel layer; this pins
+    // that the sheet is complete and nothing was dropped in transit).
+    for (const rule of [
+      "*{box-sizing:border-box}", "html,body{", "body{", "#boot{", ".window{",
+      ".toolbar{", ".tb-btn{", ".tb-btn:hover{", ".tb-btn.on{", ".tb-sep{",
+      ".tb-spacer{", ".layoutArea{", ".statusbar{", ".statusbar .dot{",
+      ".statusbar .grow{", ".statusbar .live{",
+    ]) {
+      assert.ok(appChrome.includes(rule), `demo/app-chrome.css must carry ${rule}`);
+    }
+  });
+
+  it("DEMO-appchrome/D50: the mock LINKS ../demo/app-chrome.css in the moved block's cascade position and inlines no app-chrome rule (the link is the sole source)", () => {
+    const iFocus = mockHtml.indexOf('href="/focus.css"');
+    const iChrome = mockHtml.indexOf('href="../demo/app-chrome.css"');
+    const iContent = mockHtml.indexOf('href="../demo/panel-content.css"');
+    assert.ok(iFocus >= 0, "mock links /focus.css");
+    assert.ok(iChrome > iFocus, "app-chrome link sits after the library sheets");
+    assert.ok(iContent > iChrome, "app-chrome link sits before panel-content.css (the inline block's original position)");
+    for (const rule of [".toolbar{", ".statusbar{", "#boot{", ".window{", ".tb-btn{", ".layoutArea{"]) {
+      assert.ok(!mockHtml.includes(rule), `mock must not inline ${rule} — the link is the sole source`);
+    }
+  });
+
+  it("DEMO-appchrome: every design token the sheet consumes is defined by the library sheet panel-layout.css (hosts link it first)", () => {
+    const libCss = readFileSync(join(here, "..", "panel-layout.css"), "utf8");
+    const used = [...new Set([...appChrome.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]))];
+    assert.ok(used.length >= 9, "expected the chrome's token consumption (9 at the D50 move)");
+    for (const name of used) {
+      assert.ok(new RegExp(name + "\\s*:").test(libCss),
+        `${name} must be defined in panel-layout.css — a host linking the demo sheet without the library sheet would render unstyled`);
+    }
+  });
+});
+
+describe("DEMO consumer-mount seam (D51 / escalation E2)", () => {
+  it("DEMO-mount: the demo surface exports mountDemoApp as a function — the twin host's only mount path (react stays internal to the bundle)", () => {
+    // Presence/type only: the live mount is parity territory (the twin
+    // page boots through it — tests/parity/twin.html + twin.spec.ts).
+    assert.equal(typeof mountDemoApp, "function");
+  });
+});
 
 describe("DEMO chrome fixes (F1n, C2 — D39 phase 4)", () => {
   const toolbar = (autoWrap) =>

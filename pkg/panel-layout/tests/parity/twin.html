@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metanorma editor — TWIN target (library + demo from /dist/twin)</title>
+
+<!-- Real dockview stylesheet — the same pinned URL the mock links. The
+     twin bundles the ENGINE JS from the yarn-pinned 7.0.4 chain, but
+     dockview's theme/structural CSS is a stylesheet link in BOTH hosts
+     (nothing in the twin graph imports CSS, so no css chunk accompanies
+     the bundles). -->
+<link rel="stylesheet" href="https://unpkg.com/dockview-core@7.0.4/dist/styles/dockview.css">
+
+<!-- Library chrome + demo sheets — the MOCK's link order, absolute paths
+     (the parity server, tests/parity/serve.mjs, is rooted at
+     pkg/panel-layout/): panel-layout.css (hand-owned library chrome,
+     D45) → focus.css (G3 rings, D28) → demo/app-chrome.css (D50: the
+     demo shell rules every DemoApp host shares — the mock links its copy
+     at the same cascade position its inline block held) →
+     demo/panel-content.css. -->
+<link rel="stylesheet" href="/panel-layout.css">
+<link rel="stylesheet" href="/focus.css">
+<link rel="stylesheet" href="/demo/app-chrome.css">
+<link rel="stylesheet" href="/demo/panel-content.css">
+</head>
+<body>
+<div id="boot">Loading the twin bundle (/dist/twin/panel-layout-demo.js)…</div>
+<div id="root"></div>
+
+<script type="module">
+// TWIN HOST GLUE — the mock's mount (mock/editor-dockview7-floats.html)
+// translated for the twin flavor. /dist/twin/panel-layout-demo.js is
+// FULLY SELF-CONTAINED: react + react-dom + scheduler + the engine are
+// bundled from the yarn pins (react 19.2.7 — the version truth this
+// target exists to prove), with the library aliased to the PUBLIC entry
+// (D43/D50). This page therefore supplies NO react of its own: an
+// importmap react — even at the identical 19.2.7 version — would load a
+// SECOND instance beside the bundled one, and React's per-copy internals
+// make that crash at DemoApp's first hook (live-probed: "Cannot read
+// properties of null (reading 'useState')", zero render).
+//
+// MOUNT SEAM (D51, resolving escalation E2): the demo surface exports
+// mountDemoApp(root) — createRoot().render(DemoApp) over the surface's
+// own react peers — and this page mounts through it (a host-side
+// createRoot would need a react binding the bundle does not export, and
+// any page-supplied react would be a SECOND instance beside the bundled
+// one). Hosts that supply the peers externally (the reference mock's
+// importmap flavor) may mount DemoApp directly instead.
+const boot = document.getElementById('boot');
+try {
+  const demo = await import('/dist/twin/panel-layout-demo.js');
+  if (typeof demo.mountDemoApp === 'function') {
+    // Resolution shape A: the demo surface mounts itself.
+    demo.mountDemoApp(document.getElementById('root'));
+    boot.remove();
+  } else {
+    throw new Error(
+      'twin mount seam missing: /dist/twin/panel-layout-demo.js exports ['
+      + Object.keys(demo).join(', ')
+      + '] — no react binding, no mountDemoApp '
+      + '(see this file\'s header; twin-loop escalation)');
+  }
+} catch (err) {
+  boot.textContent = 'twin host blocked: ' + (err && err.message || err);
+  console.error(err);
+}
+</script>
+</body>
+</html>

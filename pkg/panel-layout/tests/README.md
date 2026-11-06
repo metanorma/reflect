@@ -10,7 +10,7 @@ stays mechanically traceable).
 | Layer | Where | Runs | Covers |
 |---|---|---|---|
 | **Node** | `tests/*.test.mjs` | `yarn workspace @metanorma/panel-layout test` (via root `yarn test`) | Pure seams: injected storage, decision tables, math, token pins |
-| **Parity** | `tests/parity/mock.spec.ts` | `yarn workspace @metanorma/panel-layout parity` | The DOM-coupled behavior of the whole surface, characterized against `mock/goldens/` |
+| **Parity** | `tests/parity/mock.spec.ts` + `tests/parity/twin.spec.ts` | `yarn workspace @metanorma/panel-layout parity` | The DOM-coupled behavior of the whole surface, characterized against `mock/goldens/` — the same run drives the reference mock (CDN engine) and the twin (workspace engine + react, mounted via `mountDemoApp`) against the SAME baselines |
 | **Synthetic** | `tests/parity/synthetic-storage.spec.ts` + `synthetic-panel.spec.ts` | same `parity` run, `synthetic` project | Seeded-storage states (A6/A7/A8, HP9-from-dirty), the live error boundary (C3), late-window grip timing (A4), focus restoration (G5/G6) — driven against the rewired mock + the harness page (`tests/parity/harness.html`, tracked) that instantiates the built artifact with a test registry |
 
 Rule: **DOM rows are never faked in Node.** A faked `getBoundingClientRect`

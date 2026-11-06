@@ -40,38 +40,25 @@
      already flush to an edge, snapping another into the same band stacks
      them into an overlap (free-form float placement instead).
      ============================================================ */
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0;height:100%}
-  body{background:var(--chrome);font-family:var(--sans);color:var(--ink);overflow:hidden}
-  #boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-        color:#cfd6dd;font:13px var(--sans);background:#22262c;z-index:99;
-        white-space:pre-line;text-align:center}
-  /* full-bleed editor surface (no mock browser-window chrome: the fake
-     titlebar/lights/rounded frame/backdrop were removed — the editor's own
-     toolbar + statusbar remain the app chrome) */
-  .window{width:100vw;height:100vh;max-width:100%;
-          background:var(--chrome);
-          display:flex;flex-direction:column;
-          position:relative}
-  .toolbar{display:flex;align-items:center;gap:4px;padding:7px 12px;background:#fff;
-           border-bottom:1px solid var(--line);font-size:12px}
-  .tb-btn{border:1px solid transparent;background:transparent;border-radius:6px;
-          padding:4px 8px;color:var(--ink);font-size:12px;cursor:pointer}
-  .tb-btn:hover{background:var(--chrome)}
-  .tb-btn.on{background:var(--accent-bg);color:var(--accent-ink);border-color:#c4d7f7}
-  .tb-sep{width:1px;height:18px;background:var(--line);margin:0 6px}
-  .tb-spacer{flex:1}
-  .layoutArea{flex:1;min-height:0;position:relative;background:#e3e7eb}
-  .statusbar{display:flex;align-items:center;gap:16px;padding:6px 14px;background:#fff;
-             border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
-  .statusbar .dot{width:7px;height:7px;border-radius:50%;background:var(--warn-line);
-                  display:inline-block;margin-right:5px;vertical-align:-.5px}
-  .statusbar .grow{flex:1}
-  .statusbar .live{font-family:var(--mono);font-size:10px;color:var(--accent-ink)}
+  /* D50: every RULE this block carried moved byte-identically to
+     ../demo/app-chrome.css (linked directly below, in this block's
+     original cascade position) — the app-chrome rules style demo-owned
+     markup (DemoApp's .window shell, toolbar/statusbar, #boot, the
+     .layoutArea flex fill), so the sheet is shared with the twin parity
+     host page. This block keeps only this page's own documentation. */
 
   /* edge-snap indicator retired (snapping removed) — kept: none */
 
 </style>
+
+<!-- Demo app-chrome CSS — D50's byte-identical move of the inline rules
+     this page's <style> carried since inception (D41 resolved): they
+     style demo-owned markup, so every DemoApp host links the same sheet.
+     RELATIVE (like panel-content.css below) so it resolves on the parity
+     server and the goldens server (both rooted at pkg/panel-layout/);
+     cascade position unchanged — exactly where the inline block sat,
+     i.e. after the library sheets and before the panel-content sheet. -->
+<link rel="stylesheet" href="../demo/app-chrome.css">
 
 <!-- Demo panel-content CSS — the byte-identical migration of the
      panel-content region this file's <style> used to carry (D39). RELATIVE
