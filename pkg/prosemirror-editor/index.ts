@@ -82,6 +82,25 @@ export type { NodeViewComponentProps } from "@handlewithcare/react-prosemirror";
  */
 export { useEditorEffect } from "@handlewithcare/react-prosemirror";
 
+/**
+ * Re-exported for the same single-instance reason as `useEditorEffect`
+ * above: hosts that compose their own shell around the editor — e.g. a
+ * docking layout whose panels render inside a React portal subtree — need
+ * `<ProseMirror>` (the context provider + view owner) as an ANCESTOR of
+ * the host tree and `<ProseMirrorDoc/>` (the doc surface) at an arbitrary
+ * position inside that subtree (React context resolves through portals, so
+ * panel components inside the subtree still see the editor context). A
+ * second direct `@handlewithcare/react-prosemirror` dependency in the host
+ * resolves to a different virtual instance whose React contexts differ —
+ * the crash mode documented above. `MetanormaProseMirror` itself is
+ * unchanged; these serve hosts that need the composable primitives rather
+ * than the assembled component.
+ */
+export {
+  ProseMirror,
+  ProseMirrorDoc,
+} from "@handlewithcare/react-prosemirror";
+
 /** Re-exported so hosts can type the `history` option without a direct dep. */
 export type { HistoryOptions } from "@metanorma/editor-commands";
 

@@ -590,8 +590,8 @@ in sync via one symbol per class.
 
 Because `children` render inside the `ProseMirror` context (§5.2), toolbars and
 widgets may use the full `@handlewithcare/react-prosemirror` hook set directly.
-The component re-exports nothing for these; consumers import them from
-`@handlewithcare/react-prosemirror`:
+Only `useEditorEffect` is re-exported (§11); for every other hook, consumers
+import them from `@handlewithcare/react-prosemirror`:
 
 - `useEditorState()` / `useEditorStateSelector(selector)` — read state.
 - `useEditorEventCallback(cb)` — stable callback with the `EditorView`.
@@ -652,6 +652,27 @@ export {
   imageNaturalSizePlugin,
   needsNaturalSizeBackfill,
 } from "./plugins/imageNaturalSize";
+
+/**
+ * Re-exports from @handlewithcare/react-prosemirror, so a host never needs
+ * a second direct dependency on that package (under Yarn PnP a second
+ * virtual instance resolves to different React contexts, and context
+ * consumers crash — the single-instance rationale in index.ts):
+ *
+ * - `useEditorEffect` — the view-capturing layout-effect hook for children
+ *   (e.g. a minimap pane).
+ * - `ProseMirror` / `ProseMirrorDoc` — the composable primitives, for
+ *   hosts that place the provider and the doc surface separately in their
+ *   own tree (e.g. a docking layout: the provider as an ancestor of the
+ *   layout, the doc surface inside a panel — React context resolves
+ *   through portals). `MetanormaProseMirror` (above) remains the
+ *   assembled-component path.
+ */
+export {
+  useEditorEffect,
+  ProseMirror,
+  ProseMirrorDoc,
+} from "@handlewithcare/react-prosemirror";
 ```
 
 Types `MetanormaProseMirrorProps` and `NodeViewComponentProps` are also exported
