@@ -20,8 +20,9 @@ by parity (GREEN 1) and their task packages say so explicitly.
 ## Node harness mechanics
 
 - `node:test` + `node:assert/strict`, `.mjs` files importing
-  **`../compiled/*.js`** — never source TS. `pretest` (`yarn compile`)
-  refreshes `compiled/` so tests never run stale output.
+  **`../compiled/*.js`** — never source TS. The `test` script chains
+  `yarn compile` itself (Yarn 4 never auto-runs `pretest`), so tests
+  never run stale output.
 - `test-register.mjs` → `test-loader.mjs`: a `load` hook giving `.json`
   URLs the `json` module format. Required because tsc emits the
   `design-tokens.json` import without Node's mandatory

@@ -47,8 +47,8 @@ behavior only; panel content is opaque input the implementation must accept
 *Outcome:* the main grid hosts the consumer's grid panels; every default
 floating window renders titlebar + grip + stacked tabsets at default heights
 (§4); the layout key is written immediately (`saveLayout`, persistence.ts); the
-heights key stays empty on first load until the first layout change or
-takeover drag (§4). Serialization: one `floatingGroups[]` entry per window,
+heights key is absent (never written) on first load; the first write
+lands after the first layout change or takeover drag (§4). Serialization: one `floatingGroups[]` entry per window,
 all position forms `{left,top,width,height}`.
 
 **HP2 — Drag panel tab out of a tabset → new floating window (auto-wrap).**
@@ -224,7 +224,7 @@ follows is the same information as prose, for reading; the JSON is the
 shared source that the library consumes (via its typed views) and any
 implementation agrees on.
 
-- **Storage** (`storageKeys`): the serialization model — heights map keyed by group id, `{top}`-only window forms, layout JSON shape — is library contract. The storage medium and key names are consumer configuration (demo: localStorage, `mn-dockview7-floats-v1` / `mn-dockview7-heights-v1`); empty first load; written on layout change + takeover drags; wiped by restore-to-default.
+- **Storage** (`storageKeys`): the serialization model — heights map keyed by group id, `{top}`-only window forms, layout JSON shape — is library contract. The storage medium and key names are consumer configuration (demo: localStorage, `mn-dockview7-floats-v1` / `mn-dockview7-heights-v1`); absent (never written) on first load; written on layout change + takeover drags; wiped by restore-to-default.
 - **Toolbar**: Bold · Italic | Quote · Note | Xref · Eref | spacer | Auto-wrap panels: **ON** | Reset.
 - **Statusbar**: amber dot + status text | grow | `.live` hint | word count/saved line.
 - **Grid** (`presetLayout.grid`): HORIZONTAL 1200×800; `group-doc` / panel `doc`; `activeGroup:'group-doc'`; doc never floats.

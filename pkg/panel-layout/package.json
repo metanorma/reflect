@@ -11,8 +11,7 @@
   },
   "scripts": {
     "compile": "tsc --outdir compiled",
-    "pretest": "yarn compile",
-    "test": "yarn node --import ./test-register.mjs --test \"tests/*.test.mjs\"",
+    "test": "yarn compile && yarn node --import ./test-register.mjs --test \"tests/*.test.mjs\"",
     "imports:check": "node ../../scripts/check-imports.mjs .",
     "build": "yarn imports:check && yarn node ../../build-panel-layout.mjs",
     "build:dev": "yarn node ../../build-panel-layout.mjs --dev",

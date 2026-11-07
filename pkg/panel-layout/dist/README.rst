@@ -43,6 +43,13 @@ targets, one per consumption mode of the library:
   source/peer per its exports map. Duplicate-instance protection is
   yarn's own gate (``yarn check-for-multiple-instances``).
 
+Engine-pin drift note (D13): ``windowDrag.ts``'s ``normalizeTops`` takes
+its container rect from the overlay element's ``parentElement``, relying
+on the verified dockview-core 7.0.4 fact that the Overlay constructor
+appends its element to ``overlay.options.container`` (the function's
+comment records the equivalence to the mock's private ``options`` hop).
+Bumping the engine pins requires re-verifying that equivalence.
+
 The DEMO artifacts (demo task, D38/D39 — one per flavor, entry
 ``demo/index.ts``, output name ``panel-layout-demo.js``):
 
