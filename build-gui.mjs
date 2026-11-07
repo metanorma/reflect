@@ -125,11 +125,68 @@ await build({
   logLevel: 'info',
 });
 
+// ── Engine/library stylesheets (host-linked assets) ────────────────────
+//
+// `@metanorma/panel-layout`'s sheets (panel-layout.css, focus.css) are
+// deliberately NOT exposed through the package's exports map — they are
+// host-LINKED assets the consumer serves AFTER dockview.css (the package
+// index.ts header; api.spec.md §2.1; the parity harness links the same
+// order). This step copies the three sheets into dist/ so the generated
+// index.html can link them in the required cascade order:
+//
+//   dockview.css → panel-layout.css → focus.css → bootstrap.css
+//
+// bootstrap.css (the app's own extracted module CSS) comes last, mirroring
+// the demo's app-chrome position after the library sheets — host chrome
+// wins source-order ties. dockview.css is resolved through Yarn PnP from
+// editor-gui's exact 7.0.4 pin (fs is PnP-patched under `yarn node`, so
+// reading inside the zip archive works — same mechanism the pnpPlugin
+// above uses for every bundled file). The two library sheets are plain
+// workspace files (pkg/panel-layout/). Any sheet that cannot be resolved
+// or read fails the build loudly — a silently missing sheet would render
+// the layout chrome broken.
+
+async function copyLayoutStylesheets() {
+  // Root the require at the editor-gui workspace: under PnP strict mode,
+  // a package may only resolve what it declares (editor-gui declares the
+  // dockview trio; the root workspace does not).
+  const guiRequire = createRequire(
+    path.join(projectRoot, 'pkg', 'editor-gui') + '/');
+  const dockviewCssPath = guiRequire.resolve(
+    'dockview-core/dist/styles/dockview.css');
+
+  const sources = [
+    ['dockview.css', dockviewCssPath],
+    ['panel-layout.css', path.join(
+      projectRoot, 'pkg', 'panel-layout', 'panel-layout.css')],
+    ['focus.css', path.join(
+      projectRoot, 'pkg', 'panel-layout', 'focus.css')],
+  ];
+
+  for (const [name, src] of sources) {
+    const contents = await fs.readFile(src, 'utf8');
+    if (contents.length === 0) {
+      throw new Error(`layout stylesheet "${name}" is empty (${src})`);
+    }
+    await fs.writeFile(path.join(outdir, name), contents);
+  }
+  return sources.map(([name]) => name);
+}
+
+const layoutCssLinks = await copyLayoutStylesheets();
+
 // ── Generate index.html ────────────────────────────────────────────────
 
 // In dev mode, add data-use-react-strict="true" so bootstrap.tsx wraps the
 // app in <StrictMode>.
 const htmlAttr = dev ? ' data-use-react-strict="true"' : '';
+
+// Engine + library sheets first (cascade order above), then the app's own
+// extracted bootstrap.css.
+const cssLinks = [
+  ...layoutCssLinks.map((href) => `<link rel="stylesheet" href="./${href}">`),
+  '<link rel="stylesheet" href="./bootstrap.css">',
+].join('\n  ');
 
 const html = `<!DOCTYPE html>
 <html lang="en"${htmlAttr}>
@@ -137,7 +194,7 @@ const html = `<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Metanorma Editor</title>
-  <link rel="stylesheet" href="./bootstrap.css">
+  ${cssLinks}
 </head>
 <body>
   <div id="app"></div>

@@ -52,7 +52,7 @@ const RAW_RUNTIME_STATE =
   "pnpZipBackend": "libzip",\
   "fallbackExclusionList": [\
     ["@metanorma/editor-commands", ["workspace:pkg/editor-commands"]],\
-    ["@metanorma/panel-layout", ["workspace:pkg/panel-layout"]],\
+    ["@metanorma/panel-layout", ["virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/panel-layout", "workspace:pkg/panel-layout"]],\
     ["@metanorma/prosemirror-editor", ["workspace:pkg/prosemirror-editor"]],\
     ["@metanorma/prosemirror-minimap", ["virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/prosemirror-minimap", "workspace:pkg/prosemirror-minimap"]],\
     ["@metanorma/prosemirror-schema", ["workspace:pkg/prosemirror-schema"]],\
@@ -192,7 +192,7 @@ const RAW_RUNTIME_STATE =
     ],\
     [\
       "@metanorma/panel-layout",\
-      "workspace:pkg/panel-layout"\
+      "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/panel-layout"\
     ],\
     [\
       "@metanorma/prosemirror-editor",\
@@ -284,7 +284,7 @@ const RAW_RUNTIME_STATE =
     ],\
     [\
       "dockview-react",\
-      "virtual:e676b03fa02430453a868a7e88d227544463cd440264cafff8eeb0355fa067f374ec21f7b247cb7761ecf5d67f1b20d9ea7c4b0be6ca0f23215457abbb59ba6f#npm:7.0.4"\
+      "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#npm:7.0.4"\
     ],\
     [\
       "editor-gui",\
@@ -845,6 +845,35 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["@metanorma/panel-layout", [\
+      ["virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/panel-layout", {\
+        "packageLocation": "./.yarn/__virtual__/@metanorma-panel-layout-virtual-564c99a29f/1/pkg/panel-layout/",\
+        "packageDependencies": [\
+          ["@metanorma/panel-layout", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/panel-layout"],\
+          ["@playwright/test", "npm:1.62.1"],\
+          ["@types/dockview", null],\
+          ["@types/dockview-core", null],\
+          ["@types/dockview-react", null],\
+          ["@types/react", "npm:19.2.14"],\
+          ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
+          ["dockview", "npm:7.0.4"],\
+          ["dockview-core", "npm:7.0.4"],\
+          ["dockview-react", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#npm:7.0.4"],\
+          ["react", "npm:19.2.7"],\
+          ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+        ],\
+        "packagePeers": [\
+          "@types/dockview-core",\
+          "@types/dockview-react",\
+          "@types/dockview",\
+          "dockview-core",\
+          "dockview-react",\
+          "dockview",\
+          "react-dom",\
+          "react"\
+        ],\
+        "linkType": "SOFT"\
+      }],\
       ["workspace:pkg/panel-layout", {\
         "packageLocation": "./pkg/panel-layout/",\
         "packageDependencies": [\
@@ -854,7 +883,7 @@ const RAW_RUNTIME_STATE =
           ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
           ["dockview", "npm:7.0.4"],\
           ["dockview-core", "npm:7.0.4"],\
-          ["dockview-react", "virtual:e676b03fa02430453a868a7e88d227544463cd440264cafff8eeb0355fa067f374ec21f7b247cb7761ecf5d67f1b20d9ea7c4b0be6ca0f23215457abbb59ba6f#npm:7.0.4"],\
+          ["dockview-react", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#npm:7.0.4"],\
           ["react", "npm:19.2.7"],\
           ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
@@ -1188,13 +1217,13 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "SOFT"\
       }],\
-      ["virtual:e676b03fa02430453a868a7e88d227544463cd440264cafff8eeb0355fa067f374ec21f7b247cb7761ecf5d67f1b20d9ea7c4b0be6ca0f23215457abbb59ba6f#npm:7.0.4", {\
-        "packageLocation": "./.yarn/__virtual__/dockview-react-virtual-354b3d18f0/0/cache/dockview-react-npm-7.0.4-766f58f77e-3ea0180d02.zip/node_modules/dockview-react/",\
+      ["virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#npm:7.0.4", {\
+        "packageLocation": "./.yarn/__virtual__/dockview-react-virtual-398b8a4c99/0/cache/dockview-react-npm-7.0.4-766f58f77e-3ea0180d02.zip/node_modules/dockview-react/",\
         "packageDependencies": [\
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
           ["dockview", "npm:7.0.4"],\
-          ["dockview-react", "virtual:e676b03fa02430453a868a7e88d227544463cd440264cafff8eeb0355fa067f374ec21f7b247cb7761ecf5d67f1b20d9ea7c4b0be6ca0f23215457abbb59ba6f#npm:7.0.4"],\
+          ["dockview-react", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#npm:7.0.4"],\
           ["react", "npm:19.2.7"],\
           ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"]\
         ],\
@@ -1212,6 +1241,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./pkg/editor-gui/",\
         "packageDependencies": [\
           ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
+          ["@metanorma/panel-layout", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/panel-layout"],\
           ["@metanorma/prosemirror-editor", "workspace:pkg/prosemirror-editor"],\
           ["@metanorma/prosemirror-minimap", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/prosemirror-minimap"],\
           ["@metanorma/relaton", "virtual:198bdf7ace3892bf39afae733499df37bb92cdd06f52131186864ca14d2e2646e1d4d369d20e5fc1d8695f59ea21aa96e6bd9ec691de53b3de0c61d7563e10dc#workspace:pkg/relaton"],\
@@ -1220,6 +1250,9 @@ const RAW_RUNTIME_STATE =
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.3"],\
           ["browser-fs-access", "npm:0.38.0"],\
+          ["dockview", "npm:7.0.4"],\
+          ["dockview-core", "npm:7.0.4"],\
+          ["dockview-react", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#npm:7.0.4"],\
           ["editor-gui", "workspace:pkg/editor-gui"],\
           ["prosemirror-commands", "npm:1.7.1"],\
           ["prosemirror-keymap", "npm:1.2.3"],\

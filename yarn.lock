@@ -264,7 +264,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metanorma/panel-layout@workspace:pkg/panel-layout":
+"@metanorma/panel-layout@workspace:^, @metanorma/panel-layout@workspace:pkg/panel-layout":
   version: 0.0.0-use.local
   resolution: "@metanorma/panel-layout@workspace:pkg/panel-layout"
   dependencies:
@@ -534,6 +534,7 @@ __metadata:
   resolution: "editor-gui@workspace:pkg/editor-gui"
   dependencies:
     "@metanorma/editor-commands": "workspace:^"
+    "@metanorma/panel-layout": "workspace:^"
     "@metanorma/prosemirror-editor": "workspace:^"
     "@metanorma/prosemirror-minimap": "workspace:^"
     "@metanorma/relaton": "workspace:^"
@@ -542,6 +543,9 @@ __metadata:
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
     browser-fs-access: "npm:^0.38.0"
+    dockview: "npm:7.0.4"
+    dockview-core: "npm:7.0.4"
+    dockview-react: "npm:7.0.4"
     prosemirror-commands: "npm:^1.7.1"
     prosemirror-keymap: "npm:^1.2.2"
     prosemirror-model: "npm:^1.25.8"
