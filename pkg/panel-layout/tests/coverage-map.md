@@ -24,15 +24,15 @@ knowingly uncovered (spec'd "min:" candidate or hypothetical) · **N/A**.
 
 | Row | Coverage |
 |---|---|
-| HP1 preset renders | parity ✔ (test 1, `state-hp1`) + Node §4 pins + Node §2.3 settled composition (`settled-signal.test.mjs`: ready-time load stand-in unobservable through the signal — it attaches at onReady) |
+| HP1 preset renders | parity ✔ (test 1, `state-hp1`) + Node §4 pins + Node §2.3 settled composition (`settled-signal.test.mjs`: ready-time load stand-in unobservable through the signal — it attaches at onReady) + Node wiring timing (`persistence-wiring.test.mjs`: HP1 init write once, heights key absent until the first pass, pass re-saves suppressed — two-key `wiring-Node` per D9) |
 | HP2 unwrap | parity ✔ (tests 1, `state-hp2`, `trace-geometry-hp2`, `trace-zones`) + Node claim-composition (declined claim falls through to the veto backstop — mock two-listener semantics; foreign-viewId untouched) + Node `panelEdgeDropVeto` grid-target exemption (mock :1400). `elementFromPoint` hit-test + `unwrapAtPointer` sizing stay parity/synthetic |
 | HP3 merge | parity ✔ (test 1, `state-hp3`) + Node veto tables (merge stays; float-target left/right vetoed) |
 | HP4 group stack | parity ✔ (test 2, `state-hp4`) + Node `groupGridDropVeto`/`panelEdgeDropVeto` tables + Node fallback guards (`maybeUnwrapGroupAtPointer`: latch cleared at entry, relocated/docked/autoWrap-off declines) |
 | HP5 window drag / park | parity ✔ (test 2, `state-hp5`) + Node `clampDragBox` table (incl. tall-window flip-guard cap) + Node gate retire-order sequence + Node §2.3 release net (mid-drag suppression → one `'layout'/'user'` at the flush, `settled-signal.test.mjs`) |
 | HP6 resize | parity ✔ (test 2, `state-hp6`) + Node `pinGroup` guards + Node `commitHeights` (heights-only persist, §2.3 `'heights'` emit) + Node §2.3 composed-signal seam (`settled-signal.test.mjs`: `'heights'/'user'` delivered through the multicast emitter, no scheduled pass) + Node `dragTakeover` (target selection sash-above/bottom-last, frame math + 36/150/120 floors, §2.5 registry floors) — capture-phase DOM routing stays parity/synthetic (`wiring-Node` per D9) |
 | HP7 auto-wrap OFF | parity ✔ (test 4, `state-hp7`) + Node veto tables (OFF branch values, `handleWillDrop` OFF path preventDefaults) |
-| HP8 reload round-trip | parity ✔ (test 3, `state-hp8`) + Node persistence round-trip (envelope + two-key) |
-| HP9 reset | parity ✔ (test 5, `state-hp9`) + Node `clear()` (both formats) |
+| HP8 reload round-trip | parity ✔ (test 3, `state-hp8`) + Node persistence round-trip (envelope + two-key) + Node wiring composition (`persistence-wiring.test.mjs`: envelope dual-net interleave — change + heights-only commit keep both halves fresh, reload decodes both; two-key sync-write-before-pass timing) |
+| HP9 reset | parity ✔ (test 5, `state-hp9`) + Node `clear()` (both formats) + the sync layout-save net the reset's layout-key rewrite re-emerges through is Node-pinned at the wiring seam (`persistence-wiring.test.mjs`, `wiring-Node` per D9) |
 | HP10 empty | parity ✔ (test 5, `state-hp10`) |
 
 ## §3 State matrix (library rows)
@@ -40,7 +40,7 @@ knowingly uncovered (spec'd "min:" candidate or hypothetical) · **N/A**.
 | Row | Coverage |
 |---|---|
 | A4 first hydration settle | parity-indirect (HP1); grip timing via A4 row → Node ✔ (`titlebar.test.mjs`: safety-net structure — immediate paint + injected MutationObserver root `{childList,subtree}` + interval net, disposer, root/500ms defaults — `wiring-Node` per D9) + parity ✔ (`gotoLoaded` grip wait, `trace-chrome`); real late-window DOM timing is synthetic ✔ (`synthetic-panel.spec.ts` A4: an unwrap-minted window gains its grip within the interval-net bound) |
-| A5 reload restore | parity ✔ (HP8) + Node load round-trip + Node wiring seeding (`loadHeights()` seed, preset walk) |
+| A5 reload restore | parity ✔ (HP8) + Node load round-trip + Node wiring seeding (`loadHeights()` seed, preset walk) + Node facade seeding (`persistence-wiring.test.mjs`: HP1 init write pairs the restored layout with stored heights) |
 | A6 corrupt layout | Node ✔ (`A6:` 4 tests incl. falsy-grid + signal event) + synthetic ✔ (`synthetic-storage.spec.ts`: seeded key → preset renders, storage healed; falsy-grid payload variant) |
 | A7 corrupt heights | Node ✔ (`A7:` 4 tests, incl. array-payload + non-number rejection + signal event) + synthetic ✔ (array payload + non-number values → preset heights, session survives) |
 | A8 stale group ids | Node ✔ (wiring rebuild: map rebuilt from live members on every pass) + synthetic ✔ (real closed windows: stale ids drop from the persisted map) + parity-indirect via HP8 |
@@ -51,7 +51,7 @@ knowingly uncovered (spec'd "min:" candidate or hypothetical) · **N/A**.
 | B4 tabset floor 36 | Node ✔ (`pinGroup` clamp + §2.5 registry floor) + parity-indirect (HP6) |
 | B5 window floor 150 | parity-indirect (HP6 corner clamps) + Node ✔ (`resizeFrame` MIN_WIN_H clamp in dragTakeover tests) |
 | B6 degenerate sash | documented-gap (only reachable via poisoned persisted heights; the sample guard prevents persisting such a frame — synthetic follow-up if a seedable path emerges) |
-| C2 storage throws | Node ✔ (throwing storage, all ops + once-per-session `storage-unavailable` signal); page session survival → synthetic follow-up (needs a quota-exhausted context) |
+| C2 storage throws | Node ✔ (throwing storage, all ops + once-per-session `storage-unavailable` signal; the wiring facade relays the synchronous layout net's write failures through the same once-per-session signal — `persistence-wiring.test.mjs`); page session survival → synthetic follow-up (needs a quota-exhausted context) |
 | C3 panel render throw | Node ✔ (`panelErrorBoundary.test.mjs`: derived-state→classless "Panel failed: <id>" fallback element, `componentDidCatch` console.error diagnostic, `wrapPanelComponent` registry-application seam — api.id→panelId, consumer as child — no-reset prop-change semantics, .tsx load smoke) — `wiring-Node` per D9; the live-dockview throw is synthetic ✔ (`synthetic-panel.spec.ts` C3: a throwing registry panel renders "Panel failed: <id>" inline through `wrapPanelComponent`, siblings + windows survive) |
 | C4 toJSON fails | Node ✔ (stale-kept assertion + no storage signal) |
 | D1/D2 container contract | parity-indirect (panels render at pinned heights); overflow assertion → synthetic follow-up |

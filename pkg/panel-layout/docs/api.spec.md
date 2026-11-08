@@ -165,18 +165,21 @@ The two halves persist on different clocks, and both are pinned by the
 captured goldens:
 
 - **Layout** saves are synchronous on the change event — the component
-  subscribes `saveLayout` on `api.onDidLayoutChange`, and the initial
-  `fromJSON` write passes through once at ready. The maintenance pass
-  does not re-save the layout.
+  subscribes a synchronous layout save on `api.onDidLayoutChange`, and the
+  initial `fromJSON` write passes through once at ready. The maintenance
+  pass does not re-save the layout.
 - **Heights** saves ride the rAF-debounced maintenance pass and the
   takeover pointerup commit; a mid-drag save cannot race the window-drag
   gate.
 
-The component realizes this split through a persistence facade over the
-`Persistence` instance (init pass-through, pass re-saves suppressed,
-synchronous layout net), so the observable storage timing — including the
-lag between a live layout and its stored counterpart at any intermediate
-checkpoint — is the goldens' captured shape.
+The component realizes this split through a persistence facade over a
+single `Persistence` instance (init pass-through, pass re-saves
+suppressed, synchronous layout net writing through the same shared
+memory), so the observable storage timing — including the lag between a
+live layout and its stored counterpart at any intermediate checkpoint —
+is the goldens' captured shape, and envelope-mode halves always persist
+as a pair: a heights-only save pairs with the freshest saved layout, and
+a layout save keeps the current heights.
 
 ### 2.4 Engine type re-exports
 

@@ -305,25 +305,73 @@ export function wireSettledPinPass(
 }
 
 
-/* ---- A9: fromJSON net -------------------------------------------------- */
+/* ---- persistence facade (§2.3 layout-save timing) ---------------------- */
 
 /**
- * A `Persistence`-shaped adapter over the consumer's options that ONLY
- * saves layouts (the component's synchronous-change net): same format,
- * same storage adapter, same fallback signaling. Sharing the facade's
- * `loadLayout`/`saveHeights` state is unnecessary — persistence writes
- * are stateless per call for the two-key format the parity mock pins.
+ * The wiring's persistence facade: the `Persistence` the pin pass sees,
+ * plus the synchronous layout net's write seam. ONE `createPersistence`
+ * instance backs both nets — envelope-mode writes carry both halves from
+ * one shared last-known-good memory, so a heights-only save pairs with
+ * the freshest saved layout and a layout save keeps the current heights.
+ * (Two instances with independent memory corrupt the envelope: heights
+ * saves pair with an init-frozen layout half, layout saves blank the
+ * heights half to `{}`.)
  */
-function persistenceSaver(
-  options: PersistenceOptions,
-): (api: DockviewApi) => void {
-  const { onFallback: _unused, ...rest } = options;
-  void _unused;
-  const saver = createPersistence(rest);
-  return (api) => {
-    saver.saveLayout(api);
+export interface WiringPersistence extends Persistence {
+  /**
+   * The component's synchronous layout net (§2.3): writes through the
+   * shared instance, bypassing (and retiring) the init-once
+   * pass-through of `saveLayout`.
+   */
+  saveLayoutNow(api: DockviewApi): SerializedDockview | null;
+}
+
+/**
+ * Build the facade over ONE `createPersistence` instance. `saveLayout`
+ * lets the wiring's INIT write through once (HP1's immediate first save,
+ * from the pin pass's init) and is a no-op afterwards — the debounced
+ * pass's re-saves are suppressed; layout saves belong to the synchronous
+ * change-event net, whose write is `saveLayoutNow`. Exported for the
+ * Node wiring tests (`tests/persistence-wiring.test.mjs`); not on the
+ * public or dev re-export surfaces.
+ */
+export function createWiringPersistence(
+  persistence: PersistenceOptions,
+  onDidFallback: ((event: PanelLayoutFallbackEvent) => void) | undefined,
+): WiringPersistence {
+  const base = createPersistence({
+    ...persistence,
+    onFallback: (event) => {
+      onDidFallback?.(event);
+      persistence.onFallback?.(event);
+    },
+  });
+  let initSaveDone = false;
+  return {
+    saveLayout: (api) => {
+      // Init write passes through (HP1); the debounced pass's re-saves
+      // are suppressed — the synchronous net owns layout saves.
+      if (initSaveDone) {
+        return null;
+      }
+      initSaveDone = true;
+      return base.saveLayout(api);
+    },
+    saveLayoutNow: (api) => {
+      // Always writes through the shared instance; whichever write comes
+      // first retires the init pass-through (in wiring order that is
+      // always HP1's init write inside the pin pass).
+      initSaveDone = true;
+      return base.saveLayout(api);
+    },
+    loadLayout: () => base.loadLayout(),
+    saveHeights: (h) => base.saveHeights(h),
+    loadHeights: () => base.loadHeights(),
+    clear: () => base.clear(),
   };
 }
+
+/* ---- A9: fromJSON net -------------------------------------------------- */
 
 /**
  * `fromJSON` with the A9 net: a structurally bad saved layout makes dockview
@@ -429,34 +477,14 @@ function wirePanelLayout(
   // restores it without touching module 3: a persistence facade whose
   // `saveLayout` lets the wiring's INIT write through once (HP1's immediate
   // first save) and is a no-op afterwards (its pass-saves are suppressed),
-  // plus the component's own synchronous saveLayout on
-  // `api.onDidLayoutChange`.
-  const persistence: Persistence | undefined = options.persistence
-    ? (() => {
-      const base = createPersistence({
-        ...options.persistence,
-        onFallback: (event) => {
-          options.onDidFallback?.(event);
-          options.persistence?.onFallback?.(event);
-        },
-      });
-      let initSaveDone = false;
-      return {
-        saveLayout: (api) => {
-          // Init write passes through (HP1); the debounced pass's re-saves
-          // are suppressed — the synchronous net owns the layout key.
-          if (initSaveDone) {
-            return null;
-          }
-          initSaveDone = true;
-          return base.saveLayout(api);
-        },
-        loadLayout: () => base.loadLayout(),
-        saveHeights: (h) => base.saveHeights(h),
-        loadHeights: () => base.loadHeights(),
-        clear: () => base.clear(),
-      };
-    })()
+  // plus the component's own synchronous saveLayoutNow on
+  // `api.onDidLayoutChange`. Both nets write through the facade's ONE
+  // `createPersistence` instance — `saveLayoutNow` delegates to the same
+  // last-known-good memory `saveHeights` writes — so envelope-mode halves
+  // always persist as a pair (a second instance corrupts them; see
+  // createWiringPersistence).
+  const persistence: WiringPersistence | undefined = options.persistence
+    ? createWiringPersistence(options.persistence, options.onDidFallback)
     : undefined;
 
   // ---- A6/A7/A9 restore (mock :1323–1325) — BEFORE the wiring subscribes,
@@ -538,11 +566,9 @@ function wirePanelLayout(
   // the rAF pin pass — so the stored layout carries the pre-pin geometry
   // the goldens pin. HP9's restore path re-emerges through this same net:
   // clear()+fromJSON(preset) fires it and the layout key re-writes.
-  const consumerPersistence = options.persistence;
-  if (persistence && consumerPersistence) {
-    const saveNow = persistenceSaver(consumerPersistence);
+  if (persistence) {
     const unwireSave = api.onDidLayoutChange(() => {
-      saveNow(api);
+      persistence.saveLayoutNow(api);
     });
     disposers.push(() => unwireSave.dispose());
   }
