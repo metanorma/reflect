@@ -24,12 +24,12 @@ knowingly uncovered (spec'd "min:" candidate or hypothetical) · **N/A**.
 
 | Row | Coverage |
 |---|---|
-| HP1 preset renders | parity ✔ (test 1, `state-hp1`) + Node §4 pins |
+| HP1 preset renders | parity ✔ (test 1, `state-hp1`) + Node §4 pins + Node §2.3 settled composition (`settled-signal.test.mjs`: ready-time load stand-in unobservable through the signal — it attaches at onReady) |
 | HP2 unwrap | parity ✔ (tests 1, `state-hp2`, `trace-geometry-hp2`, `trace-zones`) + Node claim-composition (declined claim falls through to the veto backstop — mock two-listener semantics; foreign-viewId untouched) + Node `panelEdgeDropVeto` grid-target exemption (mock :1400). `elementFromPoint` hit-test + `unwrapAtPointer` sizing stay parity/synthetic |
 | HP3 merge | parity ✔ (test 1, `state-hp3`) + Node veto tables (merge stays; float-target left/right vetoed) |
 | HP4 group stack | parity ✔ (test 2, `state-hp4`) + Node `groupGridDropVeto`/`panelEdgeDropVeto` tables + Node fallback guards (`maybeUnwrapGroupAtPointer`: latch cleared at entry, relocated/docked/autoWrap-off declines) |
-| HP5 window drag / park | parity ✔ (test 2, `state-hp5`) + Node `clampDragBox` table (incl. tall-window flip-guard cap) + Node gate retire-order sequence |
-| HP6 resize | parity ✔ (test 2, `state-hp6`) + Node `pinGroup` guards + Node `commitHeights` (heights-only persist, §2.3 `'heights'` emit) + Node `dragTakeover` (target selection sash-above/bottom-last, frame math + 36/150/120 floors, §2.5 registry floors) — capture-phase DOM routing stays parity/synthetic (`wiring-Node` per D9) |
+| HP5 window drag / park | parity ✔ (test 2, `state-hp5`) + Node `clampDragBox` table (incl. tall-window flip-guard cap) + Node gate retire-order sequence + Node §2.3 release net (mid-drag suppression → one `'layout'/'user'` at the flush, `settled-signal.test.mjs`) |
+| HP6 resize | parity ✔ (test 2, `state-hp6`) + Node `pinGroup` guards + Node `commitHeights` (heights-only persist, §2.3 `'heights'` emit) + Node §2.3 composed-signal seam (`settled-signal.test.mjs`: `'heights'/'user'` delivered through the multicast emitter, no scheduled pass) + Node `dragTakeover` (target selection sash-above/bottom-last, frame math + 36/150/120 floors, §2.5 registry floors) — capture-phase DOM routing stays parity/synthetic (`wiring-Node` per D9) |
 | HP7 auto-wrap OFF | parity ✔ (test 4, `state-hp7`) + Node veto tables (OFF branch values, `handleWillDrop` OFF path preventDefaults) |
 | HP8 reload round-trip | parity ✔ (test 3, `state-hp8`) + Node persistence round-trip (envelope + two-key) |
 | HP9 reset | parity ✔ (test 5, `state-hp9`) + Node `clear()` (both formats) |

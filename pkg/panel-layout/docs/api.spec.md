@@ -147,6 +147,18 @@ over the preset seeds — the restore-to-default path (HP9) is
 wipe-keys → `clear()` → `fromJSON(default)`, and the fromJSON net is what
 makes the stored layout post-pin.
 
+The settled signal is composed by the pin-pass wiring and attached to the
+api at `onReady`; its emitter lives exactly as long as the wiring, so
+subscriptions made during or after `onReady` receive every later net until
+the layout unmounts. The mutate bracket and the window-drag release both
+mark one `'layout'` net — compound transactions collapse into a single
+emission at the settle flush, and the release's origin is `'user'` — while
+the takeover pointerup commit emits `'heights'`/`'user'` without a
+scheduled pass. A programmatic `fromJSON` after `onReady` re-fires the
+load transaction and surfaces as `'layout'`/`'api'` at its flush; the
+ready-time load's stand-in emission fires inside the wiring, before the
+signal is attached, so it is not observable through the api.
+
 ### Persistence timing (wiring)
 
 The two halves persist on different clocks, and both are pinned by the

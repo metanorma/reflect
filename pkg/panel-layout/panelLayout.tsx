@@ -79,6 +79,7 @@ import type {
   GroupFloor,
   MinHeights,
   PinnedHeightsHandle,
+  PinnedHeightsOptions,
 } from './pinHeights.js';
 import { wireTabsetEdges } from './dragTakeover.js';
 import { clampDragBox } from './windowDrag.js';
@@ -261,6 +262,49 @@ function createSettledEmitter(): {
 }
 
 
+/**
+ * The pin-pass handle with the library-composed settled signal attached:
+ * `settledEvent` is the `onDidLayoutSettled` surface (§2.3), and it lives
+ * exactly as long as this wiring — `dispose()` tears the emitter and the
+ * pin wiring down together, so subscriptions made during OR after the
+ * consumer's `onReady` keep receiving nets until the layout unmounts.
+ */
+export interface SettledPinPass extends PinnedHeightsHandle {
+  /** §2.3 signal — multicast, one disposable per subscription. */
+  readonly settledEvent: DockviewEvent<PanelLayoutSettledEvent>;
+}
+
+/**
+ * The pin pass with the §2.3 settled signal composed onto it: every net
+ * the wiring observes — the mutate/release bracket and the takeover
+ * commit — forwards to `settledEvent`, one emission per net. This is
+ * module 1's only DOM-free §2.3 seam, kept separate from
+ * `wirePanelLayout` (whose titlebar/takeover/gate modules are
+ * browser-only) so the composition is exercisable headless;
+ * `wirePanelLayout` is its only caller and attaches `settledEvent` to
+ * the api as `onDidLayoutSettled`.
+ */
+export function wireSettledPinPass(
+  options: Omit<PinnedHeightsOptions, 'onDidSettled'>,
+): SettledPinPass {
+  const settled = createSettledEmitter();
+  const pins = usePinnedHeights({
+    ...options,
+    onDidSettled: (event) => settled.fire(event),
+  });
+  return {
+    commitHeights: (heights) => pins.commitHeights(heights),
+    heights: () => pins.heights(),
+    settledEvent: settled.event,
+    dispose() {
+      // Emitter first: nothing reaches consumers mid-teardown.
+      settled.dispose();
+      pins.dispose();
+    },
+  };
+}
+
+
 /* ---- A9: fromJSON net -------------------------------------------------- */
 
 /**
@@ -314,6 +358,8 @@ function restoreLayout(
 /* ---- the wiring (the mock's onReady, translated) ------------------------ */
 
 interface Wired {
+  /** §2.3 settled signal — lives exactly as long as the wiring. */
+  readonly settledEvent: DockviewEvent<PanelLayoutSettledEvent>;
   dispose(): void;
 }
 
@@ -478,7 +524,7 @@ function wirePanelLayout(
     )
     : undefined;
 
-  const pins: PinnedHeightsHandle = usePinnedHeights({
+  const pins: SettledPinPass = wireSettledPinPass({
     api,
     defaultLayout: options.defaultLayout,
     ...(persistence ? { persistence } : {}),
@@ -540,7 +586,7 @@ function wirePanelLayout(
   const focusRestoration: FocusRestoration = wireFocusRestoration(api);
   disposers.push(() => focusRestoration.dispose());
 
-  return { dispose };
+  return { settledEvent: pins.settledEvent, dispose };
 }
 
 /** The panel a will-drop event's payload names, with its live group. */
@@ -614,7 +660,6 @@ export const PanelLayout: FC<PanelLayoutProps> = (props) => {
   // wiring (the registry/autoWrap seams re-derive per event by design).
   const wiringRef = useRef<Wired | null>(null);
   const onReadyDv = useCallback((event: DockviewReadyEvent): void => {
-    const emitter = createSettledEmitter();
     const wired = wirePanelLayout(event.api, {
       container: containerRef.current,
       registry,
@@ -625,17 +670,16 @@ export const PanelLayout: FC<PanelLayoutProps> = (props) => {
     });
     wiringRef.current = wired;
     const api = event.api as PanelLayoutApi;
+    // The §2.3 emitter is created inside the wiring and disposed with it
+    // on unmount — subscriptions made during OR after this callback
+    // receive every later net.
     Object.defineProperty(api, 'onDidLayoutSettled', {
-      value: emitter.event,
+      value: wired.settledEvent,
       enumerable: true,
       configurable: true,
       writable: false,
     });
-    try {
-      onReady({ api });
-    } finally {
-      emitter.dispose();
-    }
+    onReady({ api });
   }, [registry, defaultLayout, persistence, onReady, onDidFallback]);
 
   useEffect(() => {
