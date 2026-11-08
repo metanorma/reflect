@@ -1,13 +1,19 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  MetanormaProseMirror,
+  ProseMirror,
   createInitialEditorState,
   DEFAULT_HISTORY_OPTIONS,
+  nodeViewComponents,
   tableColumnResizePlugin,
   imageNaturalSizePlugin,
 } from '@metanorma/prosemirror-editor';
 import type { EditorState, MetanormaDocument } from '@metanorma/prosemirror-editor';
-import { AdvancedMetanormaToolbar } from '@metanorma/toolbar';
+import { PanelLayout } from '@metanorma/panel-layout';
+import type {
+  PanelLayoutApi,
+  PanelLayoutFallbackEvent,
+  PanelLayoutReadyEvent,
+} from '@metanorma/panel-layout';
 import { createMinimap } from '@metanorma/prosemirror-minimap';
 import type { MinimapClassifier, RowSpec } from '@metanorma/prosemirror-minimap';
 import type { BibliographicItem } from '@metanorma/relaton';
@@ -34,8 +40,11 @@ import {
 } from '@metanorma/editor-commands';
 import { fileSave, fileOpen } from 'browser-fs-access';
 import classNames from './style.module.css';
-import { Sidebar } from './Sidebar.jsx';
-import { MinimapPane } from './MinimapPane.jsx';
+import { ChromeBar } from './ChromeBar.jsx';
+import { panelRegistry } from './panels.jsx';
+import { presetLayout } from './presetLayout.js';
+import { layoutPersistence } from './panelPersistence.js';
+import { DocEpochContext } from './panelContexts.js';
 
 /**
  * Metanorma minimap classifier (ProseMirrorMinimap.spec.md §5.3 — consumer
@@ -167,6 +176,10 @@ function ({ onDoneLoading }) {
 
   const [status, setStatus] = useState<string | null>(null);
 
+  // The layout engine api, captured at `<PanelLayout>`'s onReady and
+  // passed to the ChromeBar (Panels control). Null until the layout is up.
+  const [layoutApi, setLayoutApi] = useState<PanelLayoutApi | null>(null);
+
   // Increments on every document LOAD (`loadDocFromJson`): a fresh
   // `EditorState` carries a fresh plugins array, so ProseMirror destroys and
   // re-creates every plugin view — including the minimap controller the
@@ -176,8 +189,9 @@ function ({ onDoneLoading }) {
   const [docEpoch, setDocEpoch] = useState(0);
 
   // Keep a ref to the latest editor state so handleSave can read it without
-  // depending on editorState in its useCallback deps — this prevents the
-  // Sidebar from re-rendering on every keystroke.
+  // depending on editorState in its useCallback deps — this keeps the
+  // ChromeBar (memoized on the stable callback) out of per-keystroke
+  // re-renders.
   const editorStateRef = React.useRef(editorState);
   editorStateRef.current = editorState;
 
@@ -287,21 +301,72 @@ function ({ onDoneLoading }) {
     };
   }, [loadDocFromJson]);
 
-  // Derive the document title from bibdata for the Sidebar's vertical label.
+  // Derive the document title from bibdata for the chrome bar's label.
   // This is a cheap property access on doc.firstChild, not a doc walk.
   const bibdataItem = editorState.doc.firstChild?.type.name === 'bibdata'
     ? (editorState.doc.firstChild.attrs['item'] as BibliographicItem | null)
     : null;
   const docTitle = bibdataItem ? (mainTitle(bibdataItem)?.content ?? null) : null;
 
-  return <div className={classNames.app}>
-    <Sidebar onSave={handleSave} onLoad={handleLoad} docTitle={docTitle} />
-    {status && <div className={classNames.status} role="alert">{status}</div>}
-      <MetanormaProseMirror
-          state={editorState}
-          onStateChange={setEditorState}>
-        <MinimapPane key={docEpoch} />
-        <AdvancedMetanormaToolbar className="mn-toolbar mn-toolbar--vertical" />
-      </MetanormaProseMirror>
-  </div>;
+  // ---- <PanelLayout> props (STABLE identities — the engine re-renders on
+  // prop churn, so nothing here may be re-created per keystroke) ---------
+
+  const defaultLayout = useMemo(() => presetLayout(), []);
+  const handleLayoutFallback = useCallback(
+    (event: PanelLayoutFallbackEvent) => {
+      setStatus(event.reason === 'storage-unavailable'
+        ? 'Layout changes cannot be saved (storage unavailable).'
+        : 'Saved layout could not be restored; the default layout was used.');
+    },
+    [],
+  );
+  const persistence = useMemo(
+    () => layoutPersistence(handleLayoutFallback),
+    [handleLayoutFallback],
+  );
+  const dockviewOptions = useMemo(() => ({
+    // The library sheet themes `.dockview-theme-light` (panel-layout.css);
+    // every other engine option stays at its default for this consumer.
+    theme: { name: 'light', className: 'dockview-theme-light',
+      colorScheme: 'light' } as const,
+  }), []);
+  const handleLayoutReady = useCallback((event: PanelLayoutReadyEvent) => {
+    setLayoutApi(event.api);
+  }, []);
+
+  return (
+    // Provider-lift composition (integration ruling): `<ProseMirror>` (the
+    // re-exported context provider + view owner) is the ANCESTOR of the
+    // whole shell, and the doc surface lives INSIDE the doc panel
+    // (`panels.tsx` renders `<ProseMirrorDoc/>` there). Dockview renders
+    // panels through React portals, and context resolves through portals,
+    // so the minimap pane (`useEditorEffect`) and the toolbar's internal
+    // selector hooks see the editor context from inside their panels.
+    <ProseMirror
+      state={editorState}
+      dispatchTransaction={(tr) => setEditorState((prev) => prev.apply(tr))}
+      nodeViewComponents={nodeViewComponents}
+      editable={() => true}
+    >
+      <DocEpochContext.Provider value={docEpoch}>
+        <div className={classNames.app}>
+          <ChromeBar
+            docTitle={docTitle}
+            onSave={handleSave}
+            onLoad={handleLoad}
+            layoutApi={layoutApi}
+          />
+          {status && <div className={classNames.status} role="alert">{status}</div>}
+          <PanelLayout
+            registry={panelRegistry}
+            defaultLayout={defaultLayout}
+            persistence={persistence}
+            dockviewOptions={dockviewOptions}
+            onReady={handleLayoutReady}
+            onDidFallback={handleLayoutFallback}
+          />
+        </div>
+      </DocEpochContext.Provider>
+    </ProseMirror>
+  );
 };

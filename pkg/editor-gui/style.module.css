@@ -23,98 +23,159 @@
     position: absolute;
     inset: 0;
   }
+
+  /*
+   * The layout area: `<PanelLayout>` renders its own container carrying
+   * the `layoutArea` class (library contract — panel-layout.css scopes its
+   * chrome to it). The CONSUMER sizes it (the library's rule: "consumers
+   * size it"): here it is the flex child that fills the column below the
+   * chrome bar. `.app` is position:absolute/inset:0, so the column has a
+   * definite height for flex:1 to resolve against.
+   */
+  .layoutArea {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+  }
+
+  /*
+   * The doc panel's scroll container (`panels.tsx` DocumentPanel). The
+   * library hosts panel components in a fixed-height box; the editor
+   * content scrolls inside this container. Plain (unhashed) class — the
+   * e2e locators key on it.
+   */
+  .mn-doc-panel {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
 }
 
+/*
+ * App shell: a COLUMN — chrome bar on top (app actions + Panels control),
+ * layout area filling the rest. (Was a row: sidebar rail + editor surface;
+ * the panel layout replaced both.)
+ */
 .app {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
 }
 
 /*
- * AdvancedMetanormaToolbar — vertical right-dock layout.
- *
- * Pure consumer-side override. The toolbar package ships a horizontal
- * `.mn-toolbar` (MetanormaToolbar.spec.md §8.3 minimum styles); editor-gui
- * opts into a vertical variant through the public `className` prop
- * (AdvancedMetanormaToolbar §5.2) and reflows the editor wrapper so the bar
- * docks to the right of the contenteditable. No source in `pkg/toolbar/` or
- * `pkg/prosemirror-editor/` is touched, and DOM ancestry — hence the
- * `@handlewithcare/react-prosemirror` context used by the toolbar — is
- * unchanged: the bar remains a descendant of `MetanormaProseMirror`.
+ * Top chrome bar (ChromeBar.tsx). Integration ruling: app actions (Save /
+ * Open) and the Panels control live HERE; document manipulation lives in
+ * the floating toolbar panel. Sits above `<PanelLayout>` — never inside.
  */
-
-/* Make the editor wrapper a horizontal flex container so the toolbar docks to
- * the right of the document. `.app` is position:absolute/inset:0, so its
- * definite height lets `height:100%` resolve and the bar stretch full height
- * via the default `align-items: stretch`.
- *
- * `height: 100%` (not `min-height`) bounds the flex container to a *definite*
- * height — which is what each child's `overflow-y: auto` needs to trigger
- * independent scrolling: the children cannot overflow-scroll unless their
- * parent's cross/block size is constrained. */
-:global(.mn-prosemirror) {
-  flex: 1 1 auto;
-  min-width: 0; /* allow shrink so the sidebar gets its space */
+.chromeBar {
+  flex: 0 0 auto;
   display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: 0.5em;
-  height: 100%;
-  overflow: hidden; /* the children scroll, not the wrapper */
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--mn-border, #ccc);
+  background: var(--mn-surface-muted, #f6f7f8);
 }
 
-/* Editor pane: scrolls independently of the toolbar. `min-height: 0` defeats
- * the flex default (`min-height: auto` = content size) so the pane can shrink
- * below its content and `overflow-y: auto` can engage. */
-:global(.mn-prosemirror .ProseMirror) {
-  flex: 1 1 auto;
-  min-width: 0;  /* allow shrink so the docked toolbar gets its space */
-  min-height: 0; /* allow shrink so this pane scrolls rather than grows */
-  overflow-y: auto;
+/* Document title (from bibdata). Truncates instead of pushing the bar. */
+.chromeTitle {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: #444;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+  margin-right: auto;
+  user-select: none;
+}
+
+.chromePanelsLabel {
+  font-size: 0.8em;
+  color: #666;
+  user-select: none;
+}
+
+.chromePanels {
+  display: flex;
+  gap: 4px;
+}
+
+/* A chrome button: icon and/or label, horizontal. Panels-control buttons
+ * pass no children beyond text. */
+.chromeButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.9em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chromeButton:hover:not(:disabled) {
+  background: #ececec;
+}
+
+.chromeButton:focus-visible {
+  outline: 2px solid #4a90d9;
+  outline-offset: -2px;
+}
+
+.chromeButton:disabled {
+  color: #999;
+  cursor: default;
+}
+
+.chromeButtonIcon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.chromeDivider {
+  width: 1px;
+  height: 20px;
+  background: var(--mn-border, #ccc);
+  margin: 0 4px;
 }
 
 /*
- * Minimap pane (pkg/editor-gui/MinimapPane.tsx).
- *
- * Placement: a fixed-width column docked LEFT of the editor surface —
- * i.e. between the 48px sidebar rail (`.app` row) and the `.ProseMirror`
- * scroll container. `order: -1` reorders it ahead of the editor inside the
- * `.mn-prosemirror` flex row (document order stays
- * [ProseMirrorDoc, MinimapPane, toolbar] because ProseMirrorDoc renders
- * first as the editor surface; order sorts only the flex placement).
- *
- * The pane must NOT scroll itself (the minimap owns scrolling semantics
- * through its viewport overlay); it just sizes the minimap's container,
- * which fills it (`.mn-minimap-canvas` is width/height 100%).
- * `overflow: hidden` + `min-height: 0` keep it from growing past the flex
- * row's definite height.
- *
- * Tokens (background/border) come from the editor token palette so the pane
- * follows the editor's light/dark theming (the canvas background itself is
- * theme-driven via MinimapPane's `options.theme`).
+ * Minimap pane (pkg/editor-gui/MinimapPane.tsx) — now hosted inside the
+ * minimap floating panel: fills the panel's content box instead of the
+ * old flex-column placement. The pane must NOT scroll itself (the minimap
+ * owns scrolling semantics through its viewport overlay); it just sizes
+ * the minimap's container, which fills it.
  */
 .minimapPane {
-  order: -1;              /* left of the editor, inside .mn-prosemirror */
-  flex: 0 0 96px;         /* fixed width; full height via align-self */
-  align-self: stretch;
-  min-height: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  border-right: 1px solid var(--mn-border);
   background: var(--mn-surface-muted);
 }
 
-/* Reorient the toolbar vertically. Keeps `mn-toolbar` (base button/group
- * styles) and adds the `--vertical` modifier to flip both the group stack and
- * the buttons within each group. */
+/*
+ * The document toolbar inside its floating panel (ToolbarPanel,
+ * panels.tsx): the vertical consumer variant, filling the window's content
+ * box. Kept from the pre-panel layout, minus the old flex-row docking
+ * rules. `overflow-y: auto` lets the full advanced set scroll when the
+ * window is short (the library's 150px window floor bounds the minimum).
+ */
 :global(.mn-toolbar--vertical) {
-  flex: 0 0 auto;
-  align-self: stretch;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
   flex-direction: column;
   border-bottom: none;
-  border-left: 1px solid var(--mn-border);
-  min-height: 0;  /* allow shrink so this pane scrolls rather than grows */
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -134,12 +195,6 @@
  * stateful controls (Footnote, Table, Image, Type) wrap their button inside a
  * container div (.mn-toolbar-footnote, .mn-toolbar-table, etc.) — the wrapper
  * stretches, but the button inside it shrink-to-fits its content. Make every
- * button fill its container so all buttons share the same width. */
-/* Uniform button widths in the vertical layout. Plain buttons (.mn-toolbar-btn)
- * are direct flex children of .mn-toolbar-group and stretch by default. But
- * stateful controls (Footnote, Table, Image, Type) wrap their button inside a
- * container div (.mn-toolbar-footnote, .mn-toolbar-table, etc.) — the wrapper
- * stretches, but the button inside it shrink-to-fits its content. Make every
  * button fill its container so all buttons share the same width.
  *
  * Exception: the Clause split-button's caret (.mn-clause-split-caret) is a
@@ -149,152 +204,13 @@
   text-align: left;
 }
 
-/*
- * Left hover-expand sidebar (document-level actions: Save / Open).
- *
- * The rail (`.sidebar`) is a fixed-width flex child of `.app`. Its inner panel
- * (`.sidebarPanel`) is absolutely positioned so it can widen on hover WITHOUT
- * reflowing the editor — the panel overlays the editor's left edge in the
- * expanded state. Collapsed (48px) shows icons only; expanded (168px) reveals
- * the labels. Colour/spacing values come from the editor token palette
- * (pkg/prosemirror-editor/tokens.css).
- *
- * `pointer-events: none` on the panel (with `auto` re-enabled on buttons)
- * ensures the overlay area never steals clicks from the editor — important
- * because the panel expands on `:hover` and can momentarily overlay the
- * editor surface during mouse transit.
- *
- * NOTE: colours use plain values (not --mn-* tokens) because the rest of the
- * editor-gui doesn't yet apply the token theme. This keeps the sidebar
- * visually consistent with the editor surface.
- */
-
-.sidebar {
-  flex: 0 0 48px;
-  position: relative;
-  height: 100%;
-}
-
-.sidebarPanel {
-  position: absolute;
-  inset: 0;
-  width: 48px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: width 120ms ease, box-shadow 120ms ease;
-  z-index: 10;
-  border-right: 1px solid #ccc;
-  pointer-events: none; /* let clicks pass through to editor; buttons re-enable */
-}
-
-/* TEMPORARILY DISABLED — sidebar is fixed in collapsed state until
- * functionality above the buttons is added. Re-enable by un-commenting.
- .sidebar:hover .sidebarPanel {
-  width: 168px;
-  box-shadow: var(--mn-shadow);
-}
-*/
-
-/* Vertical document title in the top region of the sidebar.
- * The text is large — the sidebar is 48px wide, and rotated text uses that
- * width as its line-height, so a 1.2em font fills the bar comfortably. */
-.sidebarTitleContainer {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 6px 0;
-  overflow: hidden;
-}
-
-.sidebarTitle {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-size: 1.2em;
-  font-weight: 600;
-  color: #555;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-height: 100%;
-  pointer-events: none;
-  user-select: none;
-}
-
-/* Button group anchored to the bottom of the panel. */
-.sidebarButtonGroup {
-  margin-top: auto;
-  padding-bottom: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* A sidebar button: fills the panel width so it grows from icon-only (48px
- * panel) to full icon+label (168px panel). The left padding (15px) centers the
- * 18px icon in the 48px collapsed panel: (48 - 18) / 2 = 15. The same padding
- * is kept in the expanded state so the icon never shifts position. The label
- * is hidden (display:none) when collapsed and revealed when expanded. */
-.sidebarButton {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  width: 100%;
-  min-height: 32px;
-  padding: 6px 8px 6px 15px; /* 15px left centers the icon in 48px */
-  box-sizing: border-box;
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  border-radius: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  pointer-events: auto; /* re-enable on buttons (panel is click-through) */
-}
-
-.sidebarButton:hover {
-  background: #f0f0f0;
-}
-
-.sidebarButton:focus-visible {
-  outline: 2px solid #4a90d9;
-  outline-offset: -2px;
-}
-
-/* Icon: fixed 18px, never shrinks so the size is identical in collapsed and
- * expanded states. */
-.sidebarButtonIcon {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-}
-
-/* The label span. Hidden (display:none) in collapsed state so the icon can
- * center; revealed as an inline label when the panel expands on hover. */
-.sidebarButtonLabel {
-  font-size: 0.85em;
-  color: inherit;
-  display: none;
-}
-
-/* TEMPORARILY DISABLED — sidebar is fixed in collapsed state until
- * functionality above the buttons is added. Re-enable by un-commenting.
-.sidebar:hover .sidebarButtonLabel {
-  display: inline;
-}
-*/
-
-/* Inline status line for Save/Load errors (rendered in App.tsx). Left
- * offset clears both the 48px sidebar rail and the 96px minimap pane
- * (48 + 96 = 144, plus a 12px gutter). */
+/* Inline status line for Save/Load/layout messages (rendered in App.tsx,
+ * absolutely positioned under the chrome bar so it never reflows the
+ * shell). */
 .status {
   position: absolute;
-  top: 4px;
-  left: 156px;
+  top: 46px;
+  left: 12px;
   z-index: 20;
   padding: 4px 8px;
   background: #f0f0f0;

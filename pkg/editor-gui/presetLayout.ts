@@ -29,13 +29,6 @@
 import type { SerializedDockview } from '@metanorma/panel-layout';
 import { CONSTANTS } from '@metanorma/panel-layout';
 
-/** Panel titles (serialized on the panel — layout-first precedence). */
-const TITLES = {
-  doc: 'Document',
-  minimap: 'Minimap',
-  toolbar: 'Toolbar',
-} as const;
-
 /**
  * A tabset's serialized state (engine `GroupPanelViewState` shape), with
  * the group-policy fields the doc group uses (`CoreGroupOptions`).
@@ -69,24 +62,43 @@ const branch = (data: PresetNode[], size: number): PresetNode =>
   ({ type: 'branch', data, size });
 
 /**
- * Floating-window geometry (top-left area, clear of the document's
- * editing center on narrow viewports). `position` carries the WINDOW
- * rect; the nested leaf size is the TABSET height = window height minus
- * the titlebar chrome constant (`undockChrome`).
+ * Floating-window geometry + titles (top-left area, clear of the
+ * document's editing center on narrow viewports). `position` carries the
+ * WINDOW rect; the nested leaf size is the TABSET height = window height
+ * minus the titlebar chrome constant (`undockChrome`).
+ *
+ * Single source of truth: the chrome bar's Panels control reopens a
+ * closed panel with this same geometry (`addPanel` + `floating`).
  */
-const TOOLBAR_WINDOW = { x: 18, y: 12, width: 116, height: 480 };
-const MINIMAP_WINDOW = { x: 146, y: 12, width: 104, height: 420 };
+export interface FloatPanelSeed {
+  readonly title: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export const FLOAT_PANELS: Record<'toolbar' | 'minimap', FloatPanelSeed> = {
+  toolbar: { title: 'Toolbar', x: 18, y: 12, width: 116, height: 480 },
+  minimap: { title: 'Minimap', x: 146, y: 12, width: 104, height: 420 },
+};
+
+/** Doc title (serialized; the doc tab is hidden — carried for completeness). */
+const DOC_TITLE = 'Document';
 
 export function presetLayout(): SerializedDockview {
   const panels: Record<string, { id: string; contentComponent: string;
     title: string; params: Record<string, never> }> = {};
-  for (const id of Object.keys(TITLES) as Array<keyof typeof TITLES>) {
+  for (const id of ['doc', 'minimap', 'toolbar'] as const) {
     // Panel id doubles as the contentComponent name (registry key).
-    panels[id] = { id, contentComponent: id, title: TITLES[id], params: {} };
+    const title = id === 'doc'
+      ? DOC_TITLE
+      : FLOAT_PANELS[id].title;
+    panels[id] = { id, contentComponent: id, title, params: {} };
   }
 
-  const toolbarTabsetH = TOOLBAR_WINDOW.height - CONSTANTS.undockChrome;
-  const minimapTabsetH = MINIMAP_WINDOW.height - CONSTANTS.undockChrome;
+  const toolbarTabsetH = FLOAT_PANELS.toolbar.height - CONSTANTS.undockChrome;
+  const minimapTabsetH = FLOAT_PANELS.minimap.height - CONSTANTS.undockChrome;
 
   return {
     grid: {
@@ -96,6 +108,16 @@ export function presetLayout(): SerializedDockview {
         data: {
           ...G('group-doc', ['doc'], 'doc'),
           hideHeader: true,
+          // ENGINE FACT (dockview-core 7.0.4, dockviewComponent.js
+          // `createGroupFromSerializedState`): deserialization passes
+          // `locked: !!locked`, so this string coerces to `true` on every
+          // fromJSON — the stored/restored value is `locked: true` (no
+          // drops into the group's center/tabs; edge splits beside it
+          // remain possible, which only ever ADDS a sibling group — the
+          // doc tab itself stays hidden and undraggable). 'no-drop-target'
+          // (all drop zones off) is expressed here for intent but never
+          // survives a round-trip; behavioral safety does not depend on
+          // it.
           locked: 'no-drop-target',
         },
         size: 1200,
@@ -110,12 +132,14 @@ export function presetLayout(): SerializedDockview {
           root: branch([
             leaf(G('group-toolbar', ['toolbar'], 'toolbar'), toolbarTabsetH),
           ], toolbarTabsetH),
-          width: TOOLBAR_WINDOW.width, height: TOOLBAR_WINDOW.height,
+          width: FLOAT_PANELS.toolbar.width,
+          height: FLOAT_PANELS.toolbar.height,
           orientation: VERTICAL,
         },
         position: {
-          left: TOOLBAR_WINDOW.x, top: TOOLBAR_WINDOW.y,
-          width: TOOLBAR_WINDOW.width, height: TOOLBAR_WINDOW.height,
+          left: FLOAT_PANELS.toolbar.x, top: FLOAT_PANELS.toolbar.y,
+          width: FLOAT_PANELS.toolbar.width,
+          height: FLOAT_PANELS.toolbar.height,
         },
       },
       { // Document minimap.
@@ -123,12 +147,14 @@ export function presetLayout(): SerializedDockview {
           root: branch([
             leaf(G('group-minimap', ['minimap'], 'minimap'), minimapTabsetH),
           ], minimapTabsetH),
-          width: MINIMAP_WINDOW.width, height: MINIMAP_WINDOW.height,
+          width: FLOAT_PANELS.minimap.width,
+          height: FLOAT_PANELS.minimap.height,
           orientation: VERTICAL,
         },
         position: {
-          left: MINIMAP_WINDOW.x, top: MINIMAP_WINDOW.y,
-          width: MINIMAP_WINDOW.width, height: MINIMAP_WINDOW.height,
+          left: FLOAT_PANELS.minimap.x, top: FLOAT_PANELS.minimap.y,
+          width: FLOAT_PANELS.minimap.width,
+          height: FLOAT_PANELS.minimap.height,
         },
       },
     ],
