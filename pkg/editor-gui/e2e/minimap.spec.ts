@@ -6,8 +6,9 @@
  * e2e suite against its harness (pkg/prosemirror-minimap/e2e — spec
  * §15.3). This file keeps only what the CONSUMER owns:
  *
- *  1. placement — the pane sits between the sidebar and the editor
- *     (MinimapPane.tsx's docking);
+ *  1. placement — the pane lives in a floating panel window over the
+ *     layout area (panel-layout integration; the old sidebar-adjacent
+ *     docking is gone);
  *  2. integration smoke — the minimap renders and drag scrolls in the
  *     real app (Metanorma theme at the consumer zoom);
  *  3. state-swap wiring — loading a fresh document (docEpoch re-key of
@@ -53,27 +54,41 @@ function tallDoc(clauseCount: number): Record<string, unknown> {
 
 test.describe('minimap (consumer integration)', () => {
 
-  test('minimap pane sits between the sidebar and the editor', async ({ page }) => {
+  test('minimap renders in a floating window over the layout area', async ({ page }) => {
     await openEditor(page);
     const minimap = page.locator('.mn-minimap');
     await expect(minimap).toBeVisible();
 
-    const sidebarBox = await page.locator('aside').boundingBox();
     const minimapBox = await minimap.boundingBox();
+    // The editor surface, measured through the doc panel (the doc panel
+    // fills the main grid).
     const editorBox = await page
-      .locator('.appwrapper .mn-prosemirror .ProseMirror')
+      .locator('.appwrapper .mn-doc-panel .ProseMirror')
       .boundingBox();
+    const layoutBox = await page.locator('.layoutArea').boundingBox();
 
-    expect(sidebarBox).not.toBeNull();
     expect(minimapBox).not.toBeNull();
     expect(editorBox).not.toBeNull();
+    expect(layoutBox).not.toBeNull();
 
-    // Immediately right of the sidebar rail…
-    expect(minimapBox!.x).toBeGreaterThanOrEqual(sidebarBox!.x + sidebarBox!.width - 1);
-    // …and left of the editor surface.
-    expect(minimapBox!.x + minimapBox!.width).toBeLessThanOrEqual(editorBox!.x + 1);
-    // Full height (docked, not floating).
-    expect(minimapBox!.height).toBeGreaterThan(200);
+    // The minimap pane sits INSIDE a dockview group (floating window)…
+    const group = page.locator('.dv-groupview:has(.mn-minimap)');
+    await expect(group).toHaveCount(1);
+
+    // …within the layout area's bounds…
+    expect(minimapBox!.x).toBeGreaterThanOrEqual(layoutBox!.x - 1);
+    expect(minimapBox!.y).toBeGreaterThanOrEqual(layoutBox!.y - 1);
+    expect(minimapBox!.x + minimapBox!.width)
+      .toBeLessThanOrEqual(layoutBox!.x + layoutBox!.width + 1);
+
+    // …and it OVERLAYS the editor surface (the doc panel still spans the
+    // main grid — the float does not dock beside it and reflow the grid).
+    expect(minimapBox!.x).toBeGreaterThan(editorBox!.x);
+    expect(editorBox!.width).toBeGreaterThan(layoutBox!.width * 0.9);
+
+    // The pane fills its window's content box (the preset seeds a
+    // 420px-tall window; the library's 150px floor bounds the minimum).
+    expect(minimapBox!.height).toBeGreaterThan(100);
   });
 
   test('minimap renders and drag scrolls the editor (integration smoke)', async ({ page }) => {
@@ -98,7 +113,7 @@ test.describe('minimap (consumer integration)', () => {
     expect(canvasBox!.height).toBeGreaterThan(10);
 
     const scrollTopBefore = await page.evaluate(
-      () => document.querySelector('.ProseMirror')?.scrollTop ?? 0,
+      () => document.querySelector('.mn-doc-panel')?.scrollTop ?? 0,
     );
 
     // Drag the viewport strip toward the bottom of the pane. The drag
@@ -118,7 +133,7 @@ test.describe('minimap (consumer integration)', () => {
     await page.mouse.up();
 
     const scrollTopAfter = await page.evaluate(
-      () => document.querySelector('.ProseMirror')?.scrollTop ?? 0,
+      () => document.querySelector('.mn-doc-panel')?.scrollTop ?? 0,
     );
     expect(scrollTopAfter).toBeGreaterThan(scrollTopBefore);
   });

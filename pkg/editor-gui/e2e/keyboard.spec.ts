@@ -10,7 +10,7 @@ import {
   clickBodyParagraph,
   clickEditor,
   getDoc,
-  openEditor,
+  openParkedEditor,
   toolbarButton,
   typeInEditor,
 } from './helpers.js';
@@ -18,7 +18,7 @@ import {
 test.describe('keyboard', () => {
 
   test('Enter continues a bullet list; empty + Enter exits', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     // Navigate past the section_title into the paragraph.
     await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
@@ -45,7 +45,7 @@ test.describe('keyboard', () => {
   });
 
   test('Backspace in empty paragraph after exiting section_title: joins to title or re-seeds', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     // The default doc is clause > [section_title, paragraph]. Navigate to the
     // body paragraph and press Backspace. Whether the empty paragraph is
     // deleted (joining to section_title) or the doc is re-seeded depends on
@@ -62,7 +62,7 @@ test.describe('keyboard', () => {
   });
 
 test('Def list preserves the paragraph text; Backspace deletes pairs atomically', async ({ page }) => {
-  await openEditor(page);
+  await openParkedEditor(page);
   // Ensure the caret is in the body paragraph (not the section_title
   // heading, where Def list is disabled by design).
   await clickBodyParagraph(page);
@@ -103,7 +103,7 @@ test('Def list preserves the paragraph text; Backspace deletes pairs atomically'
 });
 
 test('Backspace in an empty dt deletes the whole pair despite dd content', async ({ page }) => {
-  await openEditor(page);
+  await openParkedEditor(page);
   // The default doc's body paragraph is empty; Def list on a bare caret
   // replaces it with an (empty dt, dd) pair, caret in the empty dt.
   await clickBodyParagraph(page);
@@ -127,7 +127,7 @@ test('Backspace in an empty dt deletes the whole pair despite dd content', async
 });
 
 test('Backspace deletes only the empty paragraph in a multi-block dd', async ({ page }) => {
-  await openEditor(page);
+  await openParkedEditor(page);
   // Load a dl whose dd has two paragraphs (the second empty) — building it
   // by UI choreography is fragile (Enter in the last dd starts a new pair),
   // so drive the rehydration path instead.
@@ -151,7 +151,7 @@ test('Backspace deletes only the empty paragraph in a multi-block dd', async ({ 
     });
   });
   // Navigate: click the dd's second (empty) paragraph.
-  await page.locator('.appwrapper .mn-prosemirror .ProseMirror dd p').nth(1).click({ force: true });
+  await page.locator('.appwrapper .mn-doc-panel .ProseMirror dd p').nth(1).click({ force: true });
   await page.waitForTimeout(300); // selectionchange settle
 
   await page.keyboard.press('Backspace');
@@ -162,7 +162,7 @@ test('Backspace deletes only the empty paragraph in a multi-block dd', async ({ 
 });
 
   test('Def list button is disabled while the cursor is in a section heading', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await typeInEditor(page, 'body text');
 
     // Move into the section_title (ArrowUp from the first body paragraph).
@@ -174,7 +174,7 @@ test('Backspace deletes only the empty paragraph in a multi-block dd', async ({ 
   });
 
   test('Shift-Enter inserts a soft_break inside a paragraph', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await typeInEditor(page, 'line one');
     await page.keyboard.press('Shift+Enter');
     await typeInEditor(page, 'line two');
@@ -186,7 +186,7 @@ test('Backspace deletes only the empty paragraph in a multi-block dd', async ({ 
   });
 
   test('Bold button toggles the strong mark', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     // Toggle Bold on (stored-mark), then type — the typed text inherits the
     // mark. This avoids the selection-loss that occurs when clicking a
     // toolbar button after Ctrl+A on existing text.
@@ -200,7 +200,7 @@ test('Backspace deletes only the empty paragraph in a multi-block dd', async ({ 
   });
 
   test('Enter inside a floating title exits to a new clause (last child)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     // Blocks-only clause → FT inserts at sections level (after the clause).
     await toolbarButton(page, 'Floating title').click();
@@ -228,7 +228,7 @@ test('Backspace deletes only the empty paragraph in a multi-block dd', async ({ 
   });
 
   test('Enter inside a floating title jumps to the next sibling when one exists', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await toolbarButton(page, 'Floating title').click();
     // First FT is last child; Enter creates a clause (cursor in its heading).

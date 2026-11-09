@@ -1,54 +1,49 @@
 /**
- * Sidebar tests — the left hover-expand rail with Save/Open document buttons.
+ * Chrome bar tests — the top application chrome (ChromeBar.tsx): Save/Open
+ * document actions and the Panels control (reopen affordance for closed
+ * floating panels).
  *
- * The sidebar is a consumer-local component whose classes are CSS-Module-scoped
- * (hashed at build time), so tests select elements structurally (by tag name,
- * role, and accessible name) rather than by class name.
+ * Replaces `sidebar.spec.ts` (the Sidebar rail was removed by the
+ * panel-layout integration: app actions moved into the chrome bar; the
+ * `load-via-hook` test carries over unchanged — it drives the
+ * `window.__mnLoadDoc` rehydration hook, never the removed Sidebar DOM).
  *
- * Three concerns:
- *  1. smoke — the sidebar and both buttons render and are visible;
- *  2. hover-expand — the panel widens on hover (labels appear);
- *  3. load-via-hook — the `window.__mnLoadDoc` rehydration hook replaces the
- *     editor content (the native file picker can't be driven by Playwright, so
- *     the hook exercises the same `loadDocFromJson` path the Open button uses).
+ * Selectors are structural (roles, accessible names, engine classes) —
+ * see the selector-discipline note in helpers.ts.
  */
 import { expect, test } from '@playwright/test';
 import { getDoc, openEditor, typeInEditor, clickEditor } from './helpers.js';
 
-test.describe('sidebar', () => {
+test.describe('chrome', () => {
 
-  test('sidebar and both Save/Open buttons are visible', async ({ page }) => {
+  test('Save and Open buttons are visible in the chrome bar', async ({ page }) => {
     await openEditor(page);
-    // The sidebar is the sole <aside> on the page.
-    const sidebar = page.locator('aside');
-    await expect(sidebar).toBeVisible();
     await expect(page.getByRole('button', { name: 'Save…', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Open…', exact: true })).toBeVisible();
   });
 
-  // TEMPORARILY DISABLED — sidebar is fixed in collapsed state until
-  // functionality above the buttons is added. Re-enable by un-commenting.
-  // test('hovering the sidebar expands the panel', async ({ page }) => {
-  //   await openEditor(page);
-  //
-  //   // The panel is the first <div> child of the <aside>.
-  //   const panel = page.locator('aside > div').first();
-  //
-  //   // Capture the collapsed width, then hover the sidebar and assert the panel
-  //   // widens (the CSS :hover rule grows it from 48px to 168px).
-  //   const widthBefore = await panel.evaluate(
-  //     (el) => parseFloat(getComputedStyle(el).width),
-  //   );
-  //
-  //   await page.locator('aside').hover();
-  //
-  //   const widthAfter = await panel.evaluate(
-  //     (el) => parseFloat(getComputedStyle(el).width),
-  //   );
-  //
-  //   // The panel should have grown significantly on hover.
-  //   expect(widthAfter).toBeGreaterThan(widthBefore);
-  // });
+  test('Panels control lists Minimap and Toolbar, disabled while open', async ({ page }) => {
+    await openEditor(page);
+    // Both panels ship open (preset) → both reopen buttons disabled, with
+    // the "is open" accessible labels.
+    const minimap = page.getByRole('button', { name: 'Minimap panel is open' });
+    const toolbar = page.getByRole('button', { name: 'Toolbar panel is open' });
+    await expect(minimap).toBeVisible();
+    await expect(toolbar).toBeVisible();
+    await expect(minimap).toBeDisabled();
+    await expect(toolbar).toBeDisabled();
+
+    // Close the toolbar window via its tab close action; the control
+    // re-enables and reopens the panel.
+    await page.locator('.dv-groupview:has([role="toolbar"])')
+      .locator('.dv-default-tab-action').first().click();
+    const reopen = page.getByRole('button', { name: 'Reopen the Toolbar panel' });
+    await expect(reopen).toBeEnabled();
+    await reopen.click();
+    await expect(page.getByRole('toolbar')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Toolbar panel is open' })).toBeDisabled();
+  });
 
   test('load-via-hook replaces editor content', async ({ page }) => {
     await openEditor(page);

@@ -7,7 +7,7 @@
  * contains the `section_title` node type.
  */
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, getDoc, clickEditor } from './helpers.js';
+import { openParkedEditor, toolbarButton, getDoc, clickEditor } from './helpers.js';
 
 /** Load a two-clause doc: first clause titled "Foo" with body "Bar", second
  * clause titled "Tail". Returns nothing; the caret is placed separately. */
@@ -53,7 +53,7 @@ async function caretIntoFooTitle(page: import('@playwright/test').Page): Promise
 test.describe('section title', () => {
 
   test('clause insertion places cursor in empty section_title; typing fills it', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     // Navigate to the body paragraph, type content.
     await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
@@ -73,7 +73,7 @@ test.describe('section title', () => {
   });
 
   test('bold mark applies inside the section_title', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     // Navigate to the body paragraph, type content.
     await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
@@ -123,7 +123,7 @@ test.describe('section title', () => {
   });
 
   test('Enter inside a title exits to the body paragraph', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     // Navigate to the body paragraph, type content.
     await clickEditor(page);
     await page.keyboard.press('Enter'); // exit section_title → body paragraph
@@ -169,7 +169,7 @@ test.describe('section title', () => {
   });
 
   test('Enter at start of a non-empty title inserts an empty clause ABOVE (caret stays)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await loadFooTailDoc(page);
 
     // Caret into "Foo"'s title at offset 0 (helper settles after navigation).
@@ -206,7 +206,7 @@ test.describe('section title', () => {
   });
 
   test('Enter in an EMPTY title still exits to the body (staged-caret regression)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     // Load the Foo clause with an ALREADY-EMPTY title (deterministic — no
     // in-test deletion needed). ArrowUp from the body lands at the empty
     // title's only caret position, which is offset 0 by definition.
@@ -247,7 +247,7 @@ test.describe('section title', () => {
   });
 
   test('Enter mid-title still exits to the body (non-zero offset regression)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await loadFooTailDoc(page);
 
     // Caret into "Foo"'s title at offset 1 (after "F").
@@ -269,7 +269,7 @@ test.describe('section title', () => {
   });
 
   test('doc JSON contains section_title node type after clause insertion', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
 
     const docBefore = JSON.stringify(await getDoc(page));
     // The default doc should already contain a section_title (from DEFAULT_MN_DOC).
@@ -277,7 +277,7 @@ test.describe('section title', () => {
   });
 
   test('empty section_title shows the styled placeholder; typing replaces it', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
 
     // The default doc's clause ships an EMPTY section_title, so the placeholder
     // must render immediately. It is a ::before overlay — assert via computed
@@ -329,7 +329,7 @@ test.describe('section title', () => {
   });
 
   test('clicking the placeholder focuses the empty title (Firefox caret regression)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
 
     // Regression (Firefox 153): clicking the ::before placeholder of an empty
     // section_title produced NO caret position — neither the browser's native

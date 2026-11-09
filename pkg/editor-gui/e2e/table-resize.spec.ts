@@ -11,7 +11,7 @@
  */
 import { expect, test } from '@playwright/test';
 import {
-  openEditor,
+  openParkedEditor,
   toolbarButton,
   getDoc,
   clickBodyParagraph,
@@ -94,7 +94,7 @@ async function dragEdge(
 
 test.describe('table column resizing', () => {
   test('new table is autowidth: no colgroup, auto layout, handles present', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await insertTable(page, 3, 3);
 
@@ -107,7 +107,7 @@ test.describe('table column resizing', () => {
   });
 
   test('drag materializes fixed widths in one transaction; undo restores autowidth', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await insertTable(page, 3, 3);
 
@@ -141,7 +141,7 @@ test.describe('table column resizing', () => {
   });
 
   test('drag below the 3px threshold commits nothing', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await insertTable(page, 2, 2);
 
@@ -151,7 +151,7 @@ test.describe('table column resizing', () => {
   });
 
   test('toolbar: Distribute evenly materializes; Auto widths removes', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await insertTable(page, 3, 3);
     await page.locator('table > caption').click({ force: true });
@@ -171,7 +171,7 @@ test.describe('table column resizing', () => {
   });
 
   test('min-width stall: a far drag never shrinks a column below ~40px', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await insertTable(page, 3, 3);
     await page.locator('table > caption').click({ force: true });
@@ -199,7 +199,7 @@ test.describe('table column resizing', () => {
 
 test.describe('colgroup ingest', () => {
   test('legacy <col width> HTML paste parses to the attr and re-renders in style form', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
 
     const html =
@@ -259,7 +259,7 @@ test.describe('spanning headers', () => {
   }
 
   test('grid counted as 2 (not the head row cell count); drag-seeding measures body rows', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await loadSpanningDoc(page);
 
     // Handles: interior edges of a 2-col grid → exactly 1.
@@ -284,7 +284,7 @@ test.describe('spanning headers', () => {
 
 test.describe('clipboard', () => {
   test('whole-table copy/paste round-trips colwidths via data-colwidths', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await insertTable(page, 3, 3);
     await page.locator('table > caption').click({ force: true });
@@ -313,7 +313,7 @@ test.describe('clipboard', () => {
     // the copy — a stale PM selection can swallow the paste transaction.
     let tables: any[] = [];
     for (let attempt = 0; attempt < 3 && tables.length < 2; attempt++) {
-      await page.locator('.mn-prosemirror .ProseMirror p').first().click({ force: true });
+      await page.locator('.mn-doc-panel .ProseMirror p').first().click({ force: true });
       await page.keyboard.press('End');
       await dispatchPasteHtml(page, html);
       const doc = (await getDoc(page)) as any;
@@ -329,7 +329,7 @@ test.describe('clipboard', () => {
   });
 
   test('row-level copy serializes rows without widths; paste leaves the resized table intact', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await insertTable(page, 2, 2);
     await page.locator('table > caption').click({ force: true });
@@ -384,7 +384,7 @@ test.describe('clipboard', () => {
 
 test.describe('drag hygiene', () => {
   test('pointer events on a handle do not move the caret', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await page.keyboard.type('caret probe');
     await insertTable(page, 2, 2);

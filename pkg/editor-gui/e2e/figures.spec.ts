@@ -11,7 +11,7 @@
  * refusal).
  */
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, getDoc, clickBodyParagraph } from './helpers.js';
+import { openParkedEditor, toolbarButton, getDoc, clickBodyParagraph } from './helpers.js';
 
 /** The data-URL src the tests commit through the dialog. */
 const SRC = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>';
@@ -47,7 +47,7 @@ async function commitImageDialog(page: import('@playwright/test').Page, alt = ''
 
 test.describe('two-stage figure authoring', () => {
   test('Figure button seeds caption + placeholder; Image fills the same figure', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await page.keyboard.type('intro ');
 
@@ -80,7 +80,7 @@ test.describe('two-stage figure authoring', () => {
   });
 
   test('deleting the image recovers: caption-only figure can be refilled (regression)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
 
     // Build the complete figure, then delete the image atom.
@@ -114,7 +114,7 @@ test.describe('two-stage figure authoring', () => {
   });
 
   test('triple-clicking the placeholder node-selects the figure without losing it (class merge)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
 
     await toolbarButton(page, 'Figure').click();
@@ -141,7 +141,7 @@ test.describe('two-stage figure authoring', () => {
   });
 
   test('text-figure (paragraphs, no image) shows no placeholder — the label names empty, not image-less', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
 
     // Seed a figure, type a caption, then Enter — exitName inserts a
@@ -161,7 +161,7 @@ test.describe('two-stage figure authoring', () => {
   });
 
   test('Image disabled outside figures; Figure disabled inside them (nesting refusal)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
 
     // Outside any figure: Image disabled, Figure enabled. Disabled means BOTH
@@ -192,7 +192,7 @@ test.describe('two-stage figure authoring', () => {
   });
 
   test('single-click on the placeholder node-selects the figure (figureSlotClickPlugin)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
 
     await toolbarButton(page, 'Figure').click();
@@ -219,7 +219,7 @@ test.describe('two-stage figure authoring', () => {
   });
 
   test('text-branch figure: Image silently replaces the paragraph run (undoable)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
 
     // Seed a figure, type a caption, Enter — the paragraph branch — and type
@@ -242,7 +242,7 @@ test.describe('two-stage figure authoring', () => {
   });
 
   test('Enter on a node-selected image exits: paragraph after the figure', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
 
     await toolbarButton(page, 'Figure').click();
@@ -265,7 +265,7 @@ test.describe('two-stage figure authoring', () => {
   });
 
   test('imported subfigure document: loads; Image refuses the figure+ run, fills the empty subfigure', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await page.evaluate(() => {
       (window).__mnLoadDoc?.({
         type: 'doc',

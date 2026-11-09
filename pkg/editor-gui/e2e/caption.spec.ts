@@ -10,7 +10,7 @@
  * serializations survive the HTML parser (§14.11 of schema.spec.md).
  */
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, getDoc, clickBodyParagraph } from './helpers.js';
+import { openParkedEditor, toolbarButton, getDoc, clickBodyParagraph } from './helpers.js';
 
 /** Load a doc with one figure ([figure_name, image]) and one 1x1 table
  * ([table_name, body]) in the clause body, for caret-driven tests. */
@@ -33,7 +33,7 @@ async function loadCaptionDoc(page: import('@playwright/test').Page): Promise<vo
 
 test.describe('table captions', () => {
   test('insertTable seeds a caption; typing fills it; bold applies (rich markup); Enter lands in first cell', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await page.keyboard.type('before ');
 
@@ -93,7 +93,7 @@ test.describe('table captions', () => {
   });
 
   test('Backspace on empty table caption deletes the caption, not the table', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await loadCaptionDoc(page);
     await clickBodyParagraph(page);
 
@@ -111,7 +111,7 @@ test.describe('table captions', () => {
 
 test.describe('figure captions', () => {
   test('Figure+Image seeds a caption; Enter with only the image following EXITS the figure', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await page.keyboard.type('intro ');
 
@@ -151,7 +151,7 @@ test.describe('figure captions', () => {
   });
 
   test('Backspace on empty figure caption (image present) deletes only the caption', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
 
     await toolbarButton(page, 'Figure').click();
@@ -177,7 +177,7 @@ test.describe('figure captions', () => {
 
 test.describe('caption serialization survives the HTML parser (§14.11)', () => {
   test('figcaption survives inside figure; caption stays table first child; nothing foster-parented', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     // Build the exact serialization the schema emits for both captioned
     // parents and re-parse it through the browser's HTML parser.
     const result = await page.evaluate(() => {

@@ -30,11 +30,21 @@ import type { Locator, Page } from '@playwright/test';
  *
  * `bootstrap.tsx` removes the original `#app` after mount and renders into a
  * `.appwrapper` div, so the editor surface lives under `.appwrapper` — not
- * `#app`. The contenteditable itself is the `.ProseMirror` inside
- * `.mn-prosemirror`.
+ * `#app`. The contenteditable itself is the `.ProseMirror` inside the
+ * layout's doc panel (`.mn-doc-panel`, a deliberate GLOBAL class on the
+ * panel's scroll container — `panels.tsx`).
+ *
+ * ## Selector discipline (verified the hard way)
+ *
+ * NEVER select on CSS-module classes (`style.module.css` exports like
+ * `minimapPane`): production minification renames them to bare hashes
+ * (esbuild local-css emitted `minimapPane` as `"s"` — the name does not
+ * survive), so class/substring selectors silently match nothing. Stable
+ * selectors: GLOBAL classes (`.mn-doc-panel`, `.mn-minimap`, engine
+ * `.dv-*`), the engine's `.ProseMirror`, and ARIA roles.
  */
 export function editor(page: Page): Locator {
-  return page.locator('.appwrapper .mn-prosemirror .ProseMirror');
+  return page.locator('.appwrapper .mn-doc-panel .ProseMirror');
 }
 
 /**
@@ -53,7 +63,7 @@ export async function clickEditor(page: Page): Promise<void> {
   // Focus the editor surface first.
   await pm.focus();
   // Then click on the first paragraph to place the selection in editable text.
-  const p = page.locator('.appwrapper .mn-prosemirror .ProseMirror p').first();
+  const p = page.locator('.appwrapper .mn-doc-panel .ProseMirror p').first();
   await p.click({ force: true });
 }
 
@@ -72,7 +82,7 @@ export async function clickEditor(page: Page): Promise<void> {
 export async function clickBodyParagraph(page: Page): Promise<void> {
   const pm = editor(page);
   await pm.focus();
-  const p = page.locator('.appwrapper .mn-prosemirror .ProseMirror p').first();
+  const p = page.locator('.appwrapper .mn-doc-panel .ProseMirror p').first();
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const box = await p.boundingBox();
@@ -118,6 +128,72 @@ export async function openEditor(page: Page): Promise<void> {
   await editor(page).waitFor({ state: 'visible' });
 }
 
+/**
+ * Drag the toolbar floating window to the RIGHT edge of the layout area,
+ * via its titlebar drag-grip (the library's drag affordance — a product
+ * gesture, not an engine back door).
+ *
+ * Why: the preset seeds the floats at the TOP-LEFT, directly over the
+ * document's opening content, and `clickBodyParagraph` deliberately
+ * clicks near the paragraph's LEFT edge (x+10) — squarely under the
+ * toolbar window. Specs that BOTH click early document content AND use
+ * toolbar buttons cannot dismiss the toolbar (its buttons are their
+ * subject) — they park it right instead. The drag's release runs the
+ * library's settle sequence; each Playwright test gets a fresh context
+ * (fresh localStorage → preset floats), so parking never leaks across
+ * tests.
+ */
+export async function parkToolbarRight(page: Page): Promise<void> {
+  const win = page.locator('.dv-resize-container:has([role="toolbar"])').first();
+  const winBox = await win.boundingBox();
+  const gripBox = await win.locator('.mn-drag-grip').boundingBox();
+  if (winBox === null || gripBox === null) return;
+  const dx = Math.round(1148 - winBox.x);
+  if (Math.abs(dx) < 4) return;
+  const cx = gripBox.x + gripBox.width / 2;
+  const cy = gripBox.y + gripBox.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + dx, cy, { steps: 10 });
+  await page.mouse.up();
+  // Let the library's drag-retire + pin pass + persist settle.
+  await page.waitForTimeout(150);
+}
+
+/**
+ * Close a floating window via its tab close action (product gesture).
+ * No-op if no visible close button exists (already closed).
+ */
+export async function closeFloatWindow(
+  page: Page,
+  within: string,
+): Promise<void> {
+  const btn = page
+    .locator(`.dv-groupview:has(${within})`)
+    .locator('.dv-default-tab-action:visible')
+    .first();
+  if (await btn.count() === 0) return;
+  await btn.click();
+  await page.waitForTimeout(150);
+}
+
+/**
+ * Open the editor with the toolbar parked at the right edge and the
+ * minimap window CLOSED — the standard setup for specs that interact
+ * with early document content and toolbar buttons.
+ *
+ * The minimap must ALSO go (not just move): a right-parked minimap
+ * covers wide tables' right-edge cells and column handles
+ * (table-resize), and any left position covers the left-edge paragraph
+ * clicks. No parked spec reads the minimap — only minimap.spec does, and
+ * it uses plain openEditor (the floats are its subject).
+ */
+export async function openParkedEditor(page: Page): Promise<void> {
+  await openEditor(page);
+  await closeFloatWindow(page, '.mn-minimap');
+  await parkToolbarRight(page);
+}
+
 /** Click into the editor body (targeting a paragraph, not the bibdata strip)
  * and type text via real keyboard events. */
 export async function typeInEditor(page: Page, text: string): Promise<void> {
@@ -149,7 +225,7 @@ export async function getDoc(page: Page): Promise<unknown> {
  */
 export async function selectAllInEditor(page: Page): Promise<void> {
   await page.evaluate(() => {
-    document.querySelector('.mn-prosemirror .ProseMirror')?.focus();
+    document.querySelector('.mn-doc-panel .ProseMirror')?.focus();
     document.execCommand('selectAll');
   });
   await expect
@@ -182,7 +258,7 @@ export async function selectAllInEditor(page: Page): Promise<void> {
 export async function dispatchCopy(page: Page): Promise<string> {
   return page.evaluate(() => {
     const dt = new DataTransfer();
-    const target = document.querySelector('.mn-prosemirror .ProseMirror');
+    const target = document.querySelector('.mn-doc-panel .ProseMirror');
     if (target === null) throw new Error('dispatchCopy: editor root not found');
     const ev = new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true });
     target.dispatchEvent(ev);
@@ -212,7 +288,7 @@ export async function dispatchCopy(page: Page): Promise<string> {
 export async function dispatchPasteHtml(page: Page, html: string): Promise<void> {
   await page.evaluate((payload: string) => {
     const dt = new DataTransfer();
-    const target = document.querySelector('.mn-prosemirror .ProseMirror');
+    const target = document.querySelector('.mn-doc-panel .ProseMirror');
     if (target === null) throw new Error('dispatchPasteHtml: editor root not found');
     const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
     // Firefox: the event's own store (the init-dict dt is discarded);

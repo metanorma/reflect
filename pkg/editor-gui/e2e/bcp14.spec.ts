@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor, toolbarButton, typeInEditor, getDoc } from './helpers.js';
+import { openParkedEditor, toolbarButton, typeInEditor, getDoc } from './helpers.js';
 
 /** Locator for the RAC prompt popover. */
 function promptPopover(page: import('@playwright/test').Page) {
@@ -8,7 +8,7 @@ function promptPopover(page: import('@playwright/test').Page) {
 
 test.describe('bcp14', () => {
   test('empty selection: dialog inserts the keyword text with the mark', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await typeInEditor(page, 'hello ');
 
     await toolbarButton(page, 'Bcp14').click();
@@ -26,7 +26,7 @@ test.describe('bcp14', () => {
   });
 
   test('non-empty selection: dialog wraps the selection with the mark', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await typeInEditor(page, 'this MUST be done');
     // Select "MUST" by double-clicking the word (real user behaviour, and
     // deterministic: a keyboard Home/ArrowRight dance races ProseMirror's
@@ -46,7 +46,7 @@ test.describe('bcp14', () => {
   });
 
   test('cancel: dismissed dialog leaves the document unchanged', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await typeInEditor(page, 'plain text');
 
     const before = JSON.stringify(await getDoc(page));

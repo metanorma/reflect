@@ -15,7 +15,7 @@
  * `toBeHidden()` — not `toHaveCount(0)`.
  */
 import { expect, test } from '@playwright/test';
-import { getDoc, openEditor, toolbarButton, typeInEditor, clickEditor, clickBodyParagraph } from './helpers.js';
+import { getDoc, openParkedEditor, toolbarButton, typeInEditor, clickEditor, clickBodyParagraph } from './helpers.js';
 
 test.describe('popovers', () => {
 
@@ -24,7 +24,7 @@ test.describe('popovers', () => {
   // -------------------------------------------------------------------------
   test.describe('TableSizePicker', () => {
     test('grid hover updates the readout; clicking a cell inserts a table', async ({ page }) => {
-      await openEditor(page);
+      await openParkedEditor(page);
       // Caret in the body paragraph (Table is disabled in a heading).
       await clickBodyParagraph(page);
       await page.keyboard.type('before ');
@@ -58,7 +58,7 @@ test.describe('popovers', () => {
   // -------------------------------------------------------------------------
   test.describe('FootnotePicker', () => {
     test('first click creates a marker; second click opens picker; "Create new" inserts another', async ({ page }) => {
-      await openEditor(page);
+      await openParkedEditor(page);
       await typeInEditor(page, 'footnoted');
 
       // First click: no entries exist → creates immediately without a dialog.
@@ -92,7 +92,7 @@ test.describe('popovers', () => {
   // -------------------------------------------------------------------------
   test.describe('ImageInsertDialog', () => {
     test('URL + alt text flow adds an image to the figure under the caret', async ({ page }) => {
-      await openEditor(page);
+      await openParkedEditor(page);
       // Caret in the body paragraph (needed for the Figure button).
       await clickBodyParagraph(page);
       await page.keyboard.type('intro ');
@@ -131,7 +131,7 @@ test.describe('popovers', () => {
   // -------------------------------------------------------------------------
   test.describe('XrefPicker', () => {
     test('pick a doc target applies the xref mark', async ({ page }) => {
-      await openEditor(page);
+      await openParkedEditor(page);
       await typeInEditor(page, 'see ');
       // Select the typed text so the mark applies to it.
       await page.keyboard.press('Shift+Home');
@@ -156,7 +156,7 @@ test.describe('popovers', () => {
     });
 
     test('free-text entry commits a typed id', async ({ page }) => {
-      await openEditor(page);
+      await openParkedEditor(page);
       await typeInEditor(page, 'forward ');
       await page.keyboard.press('Shift+Home');
 
@@ -183,7 +183,7 @@ test.describe('popovers', () => {
   // -------------------------------------------------------------------------
   test.describe('ConceptPicker', () => {
     test('pick a doc target applies the concept mark with kind "xref"', async ({ page }) => {
-      await openEditor(page);
+      await openParkedEditor(page);
       await typeInEditor(page, 'term ');
       await page.keyboard.press('Shift+Home');
 

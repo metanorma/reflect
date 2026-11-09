@@ -36,13 +36,24 @@ import { MinimapPane } from './MinimapPane.jsx';
 import { DocEpochContext } from './panelContexts.js';
 
 /**
- * The document surface: the doc-surface component inside a full-height
- * scroll container. All editor wiring (state, plugins, e2e hooks) lives
- * in App around `<ProseMirror>`; this panel only places the surface.
+ * The document surface: the doc-surface component inside the scroll
+ * container. The inner `mn-prosemirror` wrapper is REQUIRED — the editor
+ * package's document stylesheet scopes its content styles to it
+ * (`@layer document { .mn-prosemirror table:has(colgroup…) … }` in
+ * document.css: table-layout/fixed colgroups, figure/formula/title/
+ * sourcecode styling). Dropping it (as a Phase-4 iteration briefly did)
+ * silently disables every `.mn-prosemirror`-scoped rule — plugin-smoke's
+ * computed-style assertions catch it; text-level smokes cannot. The base
+ * rule is benign (`min-height` + `outline:none`), so the wrapper adds no
+ * layout constraints of its own. All editor wiring (state, plugins, e2e
+ * hooks) lives in App around `<ProseMirror>`; this panel only places the
+ * surface.
  */
 const DocumentPanel: FC<IDockviewPanelProps> = () => (
   <div className="mn-doc-panel">
-    <ProseMirrorDoc />
+    <div className="mn-prosemirror">
+      <ProseMirrorDoc />
+    </div>
   </div>
 );
 

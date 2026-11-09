@@ -11,7 +11,7 @@
  */
 import { expect, test } from '@playwright/test';
 import {
-  openEditor,
+  openParkedEditor,
   toolbarButton,
   getDoc,
   clickBodyParagraph,
@@ -60,7 +60,7 @@ async function pasteFigure(
 
 test.describe('image sizing — live parseDOM normalization (paste)', () => {
   test('intra-editor data-* round to typed attrs; keyword figure width maps to the role', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await pasteFigure(page, ' data-width="text-width"', ' data-width="150px" data-height="50%" data-mimetype="image/png"', PNG_1x1_DATAURL);
     const doc = await getDoc(page);
@@ -78,7 +78,7 @@ test.describe('image sizing — live parseDOM normalization (paste)', () => {
   });
 
   test('foreign HTML sizes: raw attrs normalize, garbage banks verbatim, style percent accepted', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await pasteFigure(page, ' width="full-page-width"', ' width="10cm" style="height:33%"', 'x.png');
     const doc = await getDoc(page);
@@ -90,7 +90,7 @@ test.describe('image sizing — live parseDOM normalization (paste)', () => {
   });
 
   test('foreign non-keyword figure width banks into figure data (free-text slot)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await pasteFigure(page, ' data-width="60%"', '', 'x.png');
     const doc = await getDoc(page);
@@ -102,7 +102,7 @@ test.describe('image sizing — live parseDOM normalization (paste)', () => {
 
 test.describe('image sizing — node-view paint', () => {
   test('authored size paints inline; role class rides the figure', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await pasteFigure(page, ' data-width="text-width"', ' data-width="150" data-height="50%"', PNG_1x1_DATAURL);
     const img = page.locator('figure.mn-figure img');
@@ -120,7 +120,7 @@ test.describe('image sizing — node-view paint', () => {
 test.describe('image sizing — Size popover flows (updateImageAttrs)', () => {
   /** Build a filled figure via the two-stage flow, caret ends near it. */
   async function buildFilledFigure(page: import('@playwright/test').Page): Promise<void> {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
@@ -186,7 +186,7 @@ test.describe('image sizing — Size popover flows (updateImageAttrs)', () => {
 
 test.describe('image sizing — backfill plugin (§6.3)', () => {
   test('pasted data-URI image lacking x-natural-* is backfilled; undo steps onto the PASTE, not the backfill', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await pasteFigure(page, '', '', PNG_1x1_DATAURL);
     // The idle pass backfills 1×1 (real decodable bytes).
@@ -205,7 +205,7 @@ test.describe('image sizing — backfill plugin (§6.3)', () => {
   });
 
   test('remote-URL images are never backfilled (no editor-initiated fetches)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await pasteFigure(page, '', '', 'https://example.org/cat.png');
     // Generous idle window; the attrs must stay null.
@@ -216,7 +216,7 @@ test.describe('image sizing — backfill plugin (§6.3)', () => {
   });
 
   test('undecodable data URI stays null (failure memo — no poison pill)', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await pasteFigure(page, '', '', 'data:image/png;base64,!!!not-a-png!!!');
     await page.waitForTimeout(800);
@@ -229,7 +229,7 @@ test.describe('image sizing — backfill plugin (§6.3)', () => {
 
 test.describe('image dialog — commit-time mimetype + natural size (§17.4)', () => {
   test('file insert stores the Blob-derived mimetype and captured natural size', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
@@ -248,7 +248,7 @@ test.describe('image dialog — commit-time mimetype + natural size (§17.4)', (
   });
 
   test('URL insert with a recognized extension stores the map value; capture fails soft', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
@@ -262,7 +262,7 @@ test.describe('image dialog — commit-time mimetype + natural size (§17.4)', (
   });
 
   test('URL insert without a recognized extension stores the UNKNOWN_MIMETYPE marker', async ({ page }) => {
-    await openEditor(page);
+    await openParkedEditor(page);
     await clickBodyParagraph(page);
     await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();

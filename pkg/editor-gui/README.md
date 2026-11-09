@@ -21,15 +21,33 @@ node pkg/editor-gui/e2e/serve.mjs     # → http://localhost:3333
 
 ## End-to-end tests (Playwright)
 
-The `e2e/` directory holds a Playwright suite with five spec files:
+The `e2e/` directory holds a Playwright suite with sixteen spec files:
 
 | Spec | What it covers |
 |------|----------------|
 | `smoke` | Build boots, editor renders, typing works, doc-JSON hook live, bootstrap mount quirk. |
-| `popovers` | TableSizePicker, FootnotePicker, ImageInsertDialog are reachable and not occluded by the editor. Each test performs a real click inside the dialog, which fails loudly if the editor intercepts it. |
+| `chrome` | Top chrome bar: Save/Open buttons; Panels control disabled while a panel is open, reopening a closed float; doc rehydration via the test hook. |
+| `layout` | Panel-layout integration regressions: doc panel full-bleed and non-closable, the two floating panels over the grid, close→reopen at preset geometry, layout envelope persistence across reload. |
+| `minimap` | Consumer-owned minimap integration: floating-window placement, drag-scrolls-the-editor smoke, doc-load state swap. |
+| `popovers` | Toolbar pickers (TableSizePicker, FootnotePicker, ImageInsertDialog, XrefPicker, ConceptPicker) are reachable and clickable; popover flows apply their edits. |
 | `prompts` | The five `window.prompt` flows (link / xref / eref / concept / clause heading) plus the cancel path; guards the async stale-view fix. |
-| `keyboard` | Enter / Shift-Enter / Backspace chains through real `keydown`; Bold toggle via the toolbar. |
-| `section-title-isolation` | Section title `<input>` keeps its keystrokes and focus; commits on blur. |
+| `keyboard` | Enter / Shift-Enter / Backspace chains through real `keydown`; Bold toggle via the toolbar; definition-list enter/backspace behavior. |
+| `section-title` | Section title `<input>` keeps its keystrokes and focus; commits on blur. |
+| `section-insert` | Section-type popover: every insertion kind lands at the right structural level (clause/abstract/references/annex, promote/demote edge cases). |
+| `table-resize` | Fixed-width table colgroups, column drag resizing, clipboard round-trips with `data-colwidths`, drag hygiene. |
+| `figures` | Two-stage figure authoring (Figure button seeds caption + placeholder; Image fills it), deletion recovery, node-selection clicks. |
+| `caption` | Table and figure caption seeding, rich markup in captions, backspace semantics on empty captions. |
+| `image-sizing` | Image parseDOM size normalization on paste, node-view paint of authored sizes, Size popover flows, natural-size backfill plugin. |
+| `bcp14` | Bcp14 picker dialog wraps a selection with MUST/SHOULD-style keywords. |
+| `stem-formula` | Stem block flows (asciimath/mathml source entry and rendering). |
+| `plugin-smoke` | Rendering-only assertions for the DOM-rendering plugins (colgroup widgets, resize handles, placeholders) — plugin rendering is verified here per repo rule. |
+
+Two setup conventions (see `helpers.ts`): specs whose subject is the
+layout surface (`layout`, `minimap`, `chrome`'s Panels test) use
+`openEditor` with the preset floats in place; everything else uses
+`openParkedEditor`, which closes the minimap window and parks the toolbar
+window at the right edge — the preset parks both floats over the
+document's opening content, where left-edge caret clicks land.
 
 ### Running the suite
 
@@ -110,22 +128,27 @@ absent — it has no effect in normal use.
 
 ### Current status
 
-The suite currently surfaces two real product bugs (the suite is doing its job):
+No known failing tests at this writing (chromium project, full suite,
+98 tests green). Two bugs this section previously recorded no longer
+reproduce, and the stale claims are retired:
 
-1. **Popover occlusion** (`popovers.spec.ts`, all 3 tests fail): in the vertical
-   toolbar layout, `.mn-toolbar--vertical` has `overflow-y: auto`, which forces
-   `overflow-x` to compute to `auto` as well (per CSS spec, when one axis is
-   `visible` and the other isn't, `visible` becomes `auto`). This clips the
-   absolutely-positioned popovers (`.mn-toolbar-popover`, `.mn-toolbar-dialog`)
-   that open leftward via `right: 100%`, so they are unclickable over the
-   editor area. Playwright reports: `<div class="ProseMirror"> intercepts
-   pointer events`. The `FootnotePicker` (HTML Popover API, top-layer) is the
-   intended fix pattern.
+1. **Popover occlusion** (was "all 3 tests fail"): in the old right-docked
+   vertical-toolbar layout, `.mn-toolbar--vertical`'s `overflow-y: auto`
+   forced `overflow-x: auto`, clipping the absolutely-positioned
+   leftward-opening popovers. The panel-layout integration moved the
+   toolbar into a floating window and the symptom does not reproduce —
+   all six picker/dialog tests in `popovers.spec.ts` click through their
+   popovers successfully. (Two of the six initially failed after the
+   integration from a different cause — the preset's top-left floating
+   windows intercepting caret-placement clicks — fixed by the
+   `openParkedEditor` setup, not by toolbar changes. The spec has also
+   grown from the three tests the old text described to six.)
 
-2. **`canInsertBlock` always returns false inside a paragraph**
-   (`keyboard.spec.ts`, 1 test skipped): `canInsertBlock` in
-   `pkg/editor-commands/commands/definitionList.ts` checks
-   `$from.parent.contentMatchAt($from.index()).matchType(dlType)`, but the
-   paragraph's contentMatch only accepts inline content, so `dl` (a block) never
-   matches. The predicate should check the clause parent's contentMatch, not the
-   paragraph's. This makes the `Def list` button permanently disabled.
+2. **`canInsertBlock` always false inside a paragraph** (was "1 test
+   skipped"): `keyboard.spec.ts` contains no skipped test, and the
+   definition-list tests click the `Def list` button unguarded — a live
+   bug would surface as a failure. The full keyboard spec passes, so the
+   button enables and inserts correctly from paragraph context. Nothing
+   in the panel-layout integration touches `editor-commands`; the
+   discrepancy is retired as a stale record, not attributed to a fix
+   here.
