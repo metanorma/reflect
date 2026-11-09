@@ -28,6 +28,7 @@ import {
   splitDockviewOptions,
   wireFocusRestoration,
 } from "../compiled/focus.js";
+import { clampDragBox } from "../compiled/windowDrag.js";
 
 const focusCss = readFileSync(
   fileURLToPath(new URL("../focus.css", import.meta.url)),
@@ -39,11 +40,12 @@ const focusCss = readFileSync(
 // ---------------------------------------------------------------------------
 
 describe("focus: splitDockviewOptions (G2, api.spec §2.1)", () => {
-  it("G2: consumer values for the three OWNED keys are ignored — owned half is always the library's", () => {
-    const { owned } = splitDockviewOptions({
+  it("G2: consumer values for the OWNED keys are ignored — owned half is always the library's", () => {
+    const { owned, passed } = splitDockviewOptions({
       dndStrategy: "html5", // must NOT pass through
       floatingGroupBounds: "boundedWithinViewport", // must NOT pass through
       floatingGroupDragHandle: "tabbar", // must NOT pass through
+      transformFloatingGroupDrag: () => ({ top: 0, left: 0 }), // must NOT pass through
       keyboardNavigation: true,
     });
     assert.equal(owned.dndStrategy, "pointer");
@@ -52,12 +54,18 @@ describe("focus: splitDockviewOptions (G2, api.spec §2.1)", () => {
       minimumHeightWithinViewport: 0,
       minimumWidthWithinViewport: 0,
     });
+    assert.equal("transformFloatingGroupDrag" in passed, false);
   });
 
-  it("G2: owned values are pinned to the mock's engine options (:1537–1546) and FLOATING_GROUP_BOUNDS", () => {
+  it("G2: owned values are pinned to the mock's engine options (extraction @ 94d4b8307e5f0db2a1b32e14ceb8754207a51f27) and FLOATING_GROUP_BOUNDS", () => {
     assert.deepEqual(
       [...OWNED_DOCKVIEW_OPTION_KEYS],
-      ["dndStrategy", "floatingGroupBounds", "floatingGroupDragHandle"],
+      [
+        "dndStrategy",
+        "floatingGroupBounds",
+        "floatingGroupDragHandle",
+        "transformFloatingGroupDrag",
+      ],
     );
     assert.equal(LIBRARY_DOCKVIEW_OPTIONS.dndStrategy, "pointer");
     assert.equal(LIBRARY_DOCKVIEW_OPTIONS.floatingGroupDragHandle, "titlebar");
@@ -65,6 +73,11 @@ describe("focus: splitDockviewOptions (G2, api.spec §2.1)", () => {
       minimumHeightWithinViewport: 0,
       minimumWidthWithinViewport: 0,
     });
+    // reference identity — module 1 spreads this exact clamp into the engine
+    assert.strictEqual(
+      LIBRARY_DOCKVIEW_OPTIONS.transformFloatingGroupDrag,
+      clampDragBox,
+    );
   });
 
   it("G2: keyboardNavigation rides the passthrough VERBATIM, boolean and keymap-object forms", () => {
@@ -81,19 +94,27 @@ describe("focus: splitDockviewOptions (G2, api.spec §2.1)", () => {
   it("G2: every non-owned option passes through verbatim (same reference, no cloning)", () => {
     const dndEdges = { size: { value: 160, type: "pixels" } };
     const themeLight = { name: "light" };
+    // a react-layer prop smuggled into dockviewOptions RIDES passed verbatim
+    // (the split is core-options-scoped); the engineProps force that
+    // overrides it lives in the component render — Node-unreachable, parity
+    // covers the default path
+    const myTab = () => null;
     const { passed } = splitDockviewOptions({
       dndEdges,
       theme: themeLight,
       disableDnd: false,
       locked: true,
+      defaultTabComponent: myTab,
     });
     assert.equal(passed.dndEdges, dndEdges);
     assert.equal(passed.theme, themeLight);
     assert.equal(passed.disableDnd, false);
     assert.equal(passed.locked, true);
+    assert.strictEqual(passed.defaultTabComponent, myTab);
     assert.equal("dndStrategy" in passed, false);
     assert.equal("floatingGroupBounds" in passed, false);
     assert.equal("floatingGroupDragHandle" in passed, false);
+    assert.equal("transformFloatingGroupDrag" in passed, false);
   });
 
   it("G2: undefined and empty consumer input → owned defaults, empty passed half", () => {

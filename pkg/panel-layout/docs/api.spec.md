@@ -63,8 +63,12 @@ export interface PanelLayoutProps {
   readonly autoWrap?: boolean;
   /**
    * Engine option passthrough. The library owns `dndStrategy`,
-   * `floatingGroupBounds`, `floatingGroupDragHandle` — consumer values
-   * for those three are ignored.
+   * `floatingGroupBounds`, `floatingGroupDragHandle`,
+   * `transformFloatingGroupDrag` — consumer values for those four are
+   * ignored (§2.1/D26). The component also always renders the stock
+   * dockview-react tab (`defaultTabComponent: DockviewDefaultTab`): a
+   * react-layer prop, outside this passthrough contract, forced because
+   * G1/G3/HP10 target the stock tab.
    */
   readonly dockviewOptions?: Partial<DockviewOptions>;
   readonly onReady: (event: PanelLayoutReadyEvent) => void;

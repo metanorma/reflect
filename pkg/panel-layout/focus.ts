@@ -67,6 +67,7 @@
 import type { DockviewApi, DockviewOptions } from 'dockview';
 
 import { FLOATING_GROUP_BOUNDS } from './tokens.js';
+import { clampDragBox } from './windowDrag.js';
 
 
 
@@ -74,7 +75,7 @@ import { FLOATING_GROUP_BOUNDS } from './tokens.js';
 
 /**
  * The engine option keys the library OWNS (api.spec.md §2.1): consumer
- * values for exactly these three are ignored. Each backs a behavior
+ * values for exactly these four are ignored. Each backs a behavior
  * module, so the ownership is load-bearing:
  *
  * - `dndStrategy: 'pointer'` — the drag-takeover claim paths (module 4)
@@ -83,9 +84,12 @@ import { FLOATING_GROUP_BOUNDS } from './tokens.js';
  * - `floatingGroupDragHandle: 'titlebar'` — the titlebar chrome module (7)
  *   decorates and enforces move-only on the TITLEBAR handle (mock :1537).
  * - `floatingGroupBounds: FLOATING_GROUP_BOUNDS` (0/0 minimums) — the
- *   containment model: the engine's stock clamp is a no-op and module 5's
- *   `clampDragBox` re-imposes top/left bounds per frame, leaving the
- *   bottom edge free (mock :1543–1546).
+ *   containment model's precondition: 0-minimums make the engine's own
+ *   container clamp a no-op (every position in range), so containment
+ *   policy lives entirely with the library.
+ * - `transformFloatingGroupDrag: clampDragBox` — the containment clamp
+ *   proper (module 5): re-imposes top/left bounds on every drag frame,
+ *   leaving the bottom edge free (HP5/F4).
  *
  * Frozen: a behavior module taking ownership of another option extends
  * this tuple and `LIBRARY_DOCKVIEW_OPTIONS` together.
@@ -94,6 +98,7 @@ export const OWNED_DOCKVIEW_OPTION_KEYS = [
   'dndStrategy',
   'floatingGroupBounds',
   'floatingGroupDragHandle',
+  'transformFloatingGroupDrag',
 ] as const;
 
 /** The library's values for {@link OWNED_DOCKVIEW_OPTION_KEYS}. */
@@ -103,6 +108,7 @@ export const LIBRARY_DOCKVIEW_OPTIONS: Readonly<
   dndStrategy: 'pointer',
   floatingGroupBounds: { ...FLOATING_GROUP_BOUNDS },
   floatingGroupDragHandle: 'titlebar',
+  transformFloatingGroupDrag: clampDragBox,
 });
 
 /**

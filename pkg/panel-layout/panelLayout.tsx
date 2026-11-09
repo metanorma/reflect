@@ -29,7 +29,8 @@
  *   `wrapPanelComponent` (D23: reads props.api.id, renders consumer as the
  *   boundary child).
  * - focus (module 9) — `splitDockviewOptions` owns dndStrategy/
- *   floatingGroupBounds/floatingGroupDragHandle (D26); `wireFocusRestoration`
+ *   floatingGroupBounds/floatingGroupDragHandle/
+ *   transformFloatingGroupDrag (D26); `wireFocusRestoration`
  *   closes G5; the G6 convergence amendment queues a focus call at module
  *   4's claim seam (a follow-up panel unwrap focuses the minted window).
  * - theming (module 10) — the container carries `layoutArea` so
@@ -82,7 +83,6 @@ import type {
   PinnedHeightsOptions,
 } from './pinHeights.js';
 import { wireTabsetEdges } from './dragTakeover.js';
-import { clampDragBox } from './windowDrag.js';
 import { createWindowDragGate } from './windowDrag.js';
 import type { WindowDragGate } from './windowDrag.js';
 import { useDropRules } from './unwrap.js';
@@ -209,8 +209,12 @@ export interface PanelLayoutProps {
   readonly autoWrap?: boolean;
   /**
    * Engine option passthrough. The library owns `dndStrategy`,
-   * `floatingGroupBounds`, `floatingGroupDragHandle` — consumer values for
-   * those three are ignored (§2.1/D26).
+   * `floatingGroupBounds`, `floatingGroupDragHandle`,
+   * `transformFloatingGroupDrag` — consumer values for those four are
+   * ignored (§2.1/D26). The component also always renders the stock
+   * dockview-react tab (`defaultTabComponent: DockviewDefaultTab`): a
+   * react-layer prop, outside this passthrough contract, forced because
+   * G1/G3/HP10 target the stock tab.
    */
   readonly dockviewOptions?: Partial<DockviewOptions>;
   readonly onReady: (event: PanelLayoutReadyEvent) => void;
@@ -659,10 +663,10 @@ export const PanelLayout: FC<PanelLayoutProps> = (props) => {
   const [autoWrapOn, setAutoWrapOn] = useState(autoWrap);
 
   // The engine options, split per §2.1/D26: owned keys always the
-  // library's; everything the consumer passed spreads through verbatim
-  // (`keyboardNavigation` among them, G2). `theme`/`dndEdges`/
-  // `transformFloatingGroupDrag` carry the mock's pinned values — they are
-  // part of the captured behavior, not consumer configuration.
+  // library's (the four, `transformFloatingGroupDrag` among them);
+  // everything the consumer passed spreads through verbatim
+  // (`keyboardNavigation` among them, G2 — `theme`/`dndEdges` are
+  // demo-passed passthrough values, not library-forced).
   const { owned, passed } = useMemo(
     () => splitDockviewOptions(dockviewOptions),
     [dockviewOptions],
@@ -727,8 +731,9 @@ export const PanelLayout: FC<PanelLayoutProps> = (props) => {
     ...(passed as IDockviewReactProps),
     ...owned,
     components,
+    // library-forced stock tab (§2.1): a react-layer prop, outside the
+    // dockviewOptions passthrough — G1/G3/HP10 target the stock tab
     defaultTabComponent: DockviewDefaultTab,
-    transformFloatingGroupDrag: clampDragBox,
     onReady: onReadyDv,
   };
 

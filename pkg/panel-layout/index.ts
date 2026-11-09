@@ -30,7 +30,8 @@
  * door — renders `DockviewReact` with every behavior module wired, and
  * always exposes the engine (`onReady({ api })`, option passthrough; the
  * library owns `dndStrategy`/`floatingGroupBounds`/
- * `floatingGroupDragHandle`). Registry, default layout, persistence,
+ * `floatingGroupDragHandle`/`transformFloatingGroupDrag`). Registry,
+ * default layout, persistence,
  * auto-wrap and the two §2.2 callbacks are its complete prop surface.
  * behavior.spec.md rows HP1, F1, G2, HP7 (module-1 rows; every other row
  * flows through the composed modules).
