@@ -68,10 +68,10 @@ const DEFAULT_OUT_DIR = '.drift';
 const API = 'https://api.github.com';
 
 // Cite-driven two-tier watch map. fail = paths the ledger cites as
-// verification sources for recorded facts (docs/metanorma-model.md §2/§4/§5);
-// report = enclosing subtrees, for restructure awareness (e.g. the 2026-09
-// lib flattening class of path-set events). Files matching both tiers count
-// as fail.
+// verification sources for recorded facts at the §1 pins
+// (docs/metanorma-model.md); report = enclosing subtrees, for restructure
+// awareness (e.g. the 2026-09 lib flattening class of path-set events).
+// Files matching both tiers count as fail.
 const SENSITIVITY = {
   'metanorma/metanorma-standoc': {
     fail: [
@@ -85,6 +85,8 @@ const SENSITIVITY = {
       'lib/metanorma/converter/inline.rb',
       'lib/metanorma/converter/blocks_image.rb',
       'spec/metanorma/blocks_spec.rb',
+      // Error-ID registry (ledger §7; verified 2026-11-09)
+      'lib/metanorma/converter/log.rb',
     ],
     report: ['lib/metanorma/converter/**', 'lib/metanorma/cleanup/**'],
   },
@@ -544,8 +546,9 @@ function renderReport(entries) {
 // fact citing another unpinned source.
 const COVERAGE_NOTE = [
   'Coverage — not watched: facts citing unpinned sources:',
-  '  metanorma/metanorma-utils  (§5: random_uuid / contenthash algorithms)',
-  '  metanorma/plurimath        (§2: MathML content check)',
+  '  metanorma/metanorma-utils      (§5: random_uuid / contenthash algorithms)',
+  '  metanorma/plurimath            (§2: MathML content check)',
+  '  metanorma.org validation page  (§7: error-ID scheme/categories/severity)',
 ].join('\n');
 
 const CHECKLIST = `## Human interpretation loop

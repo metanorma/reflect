@@ -82,7 +82,8 @@ This cycle's drift is one gem-side change: generated ids now come from
 `Metanorma::Utils.random_uuid` (buffered v4-UUID pool) instead of per-call
 UUIDTools entropy — recorded in §5. Drift against these pins is checked
 daily by the scheduled drift-check job (`scripts/check-pins.mjs`, watched
-paths = the paths cited above); re-verification is the interpretation
+paths = the paths this document cites at the §1 pins); re-verification is
+the interpretation
 procedure embedded in the job's drift tracking issue — a pin bump always
 travels with its interpretation.
 
@@ -116,6 +117,12 @@ files were cut from; direct compile-provenance (byte-level gem ← models
 correspondence) is unverified and immaterial given the immobility. Newly
 cited paths all fall inside existing `**` watches — no sensitivity-map
 change.
+
+A scoped re-verification on **2026-11-09** covered the error-ID registry
+at the §1 pin (`lib/metanorma/converter/log.rb`) and the public validation
+page (§7; trigger: completing §7's watch coverage under the same-PR rule).
+Pins unmoved; the registry path cited in §7 newly joined the drift job's
+fail tier (cite-driven, per the job's sensitivity-map contract).
 
 ## 2. Pipeline and artifacts
 
@@ -418,7 +425,8 @@ they drift with gem releases.
 
 To resolve what a given ID means, consult:
 
-- The public validation reference — Error ID scheme, categories, severity
+- The public validation reference (upstream-maintained, unpinned
+  *(2026-11-09)*) — Error ID scheme, categories, severity
   scale (0 fatal … 3 informational), and filtering:
   https://www.metanorma.org/author/topics/output/validation/
   (`metanorma -L -t {flavor}` prints the full catalog at an installed
