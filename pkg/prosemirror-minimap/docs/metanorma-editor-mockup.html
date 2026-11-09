@@ -1,0 +1,3091 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Semantic Canvas — Metanorma WYSIWYM editor mock-up</title>
+<style>
+/* ============================================================
+   DESIGN TOKENS  (W3C Design Tokens style: one source, 3 themes)
+   ============================================================ */
+:root, html[data-theme="light"]{
+  --bg:#f2f1ed; --bg-soft:#e9e7e1; --surface:#faf9f6; --surface-2:#f6f4ef;
+  --ink:#26231e; --ink-2:#5d584d; --ink-3:#8d8779;
+  --line:#ddd9d0; --line-2:#c7c2b6;
+  --accent:#33569c; --accent-soft:rgba(51,86,156,.10);
+  --shall:#b03a2e; --should:#9a6b00; --may:#2e7d4f;
+  --note:#3f6fa6; --warn:#b03a2e; --example:#2e7d4f;
+  --err-bg:#fbeae7;
+  --ok:#2e7d4f;
+  --shadow:0 10px 30px rgba(30,25,15,.12);
+}
+html[data-theme="dark"]{
+  --bg:#15171b; --bg-soft:#1a1d22; --surface:#1e2126; --surface-2:#22262c;
+  --ink:#ddd8ce; --ink-2:#a8a294; --ink-3:#797468;
+  --line:#2b2f36; --line-2:#3b4049;
+  --accent:#8fb0e8; --accent-soft:rgba(143,176,232,.14);
+  --shall:#ef9184; --should:#e3b45c; --may:#85cf9f;
+  --note:#83aede; --warn:#ef9184; --example:#85cf9f;
+  --err-bg:#3a2723;
+  --ok:#85cf9f;
+  --shadow:0 10px 30px rgba(0,0,0,.5);
+}
+html[data-theme="contrast"]{
+  --bg:#ffffff; --bg-soft:#ffffff; --surface:#ffffff; --surface-2:#ffffff;
+  --ink:#000000; --ink-2:#000000; --ink-3:#222222;
+  --line:#000000; --line-2:#000000;
+  --accent:#0b3bd6; --accent-soft:#dce4ff;
+  --shall:#8b0000; --should:#5a4500; --may:#0a5c33;
+  --note:#0b3bd6; --warn:#8b0000; --example:#0a5c33;
+  --err-bg:#ffe9e6;
+  --ok:#0a5c33;
+  --shadow:none;
+}
+html[data-theme="contrast"] .clause, html[data-theme="contrast"] .req,
+html[data-theme="contrast"] .admonition, html[data-theme="contrast"] #topbar,
+html[data-theme="contrast"] #ctxheader, html[data-theme="contrast"] #statusbar,
+html[data-theme="contrast"] #clausetree{ border-width:2px !important; }
+
+/* ============================================================
+   SHELL
+   ============================================================ */
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:13.5px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  overflow:hidden;
+}
+button{ font:inherit; color:inherit; background:none; border:none; cursor:pointer; padding:0; }
+button:focus-visible, a:focus-visible, [contenteditable]:focus-visible, input:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px; border-radius:4px;
+}
+kbd{
+  font:11px ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  border:1px solid var(--line-2); border-bottom-width:2px; border-radius:4px;
+  padding:1px 5px; background:var(--surface);
+}
+::selection{ background:var(--accent-soft); }
+
+#topbar{
+  height:52px; display:flex; align-items:center; gap:14px; padding:0 14px;
+  background:var(--surface); border-bottom:1px solid var(--line); position:relative; z-index:30;
+}
+.tb-left{ display:flex; align-items:center; gap:10px; min-width:0; }
+.app-mark{ color:var(--accent); font-size:17px; }
+.doc-title{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.doc-id{ color:var(--ink-3); font-family:ui-monospace,Menlo,monospace; font-size:11.5px; white-space:nowrap; }
+.chip{
+  font-size:10.5px; letter-spacing:.04em; border:1px solid var(--line-2); border-radius:99px;
+  padding:2px 8px; color:var(--ink-2); background:var(--surface-2); white-space:nowrap;
+}
+.tb-center{ flex:1; display:flex; justify-content:center; }
+.tb-right{ display:flex; align-items:center; gap:8px; }
+
+/* visibility dial (segmented control) */
+.dial{ display:flex; border:1px solid var(--line-2); border-radius:9px; overflow:hidden; background:var(--surface-2); }
+.dial button{ padding:5px 12px; font-size:12.5px; color:var(--ink-2); }
+.dial button + button{ border-left:1px solid var(--line); }
+.dial button[aria-checked="true"]{ background:var(--accent); color:#fff; }
+html[data-theme="dark"] .dial button[aria-checked="true"]{ color:#10131a; }
+
+/* measure control (viewer preference — no print-preview, by design) */
+.measure-ctl{ display:flex; align-items:center; border:1px solid var(--line-2); border-radius:9px; overflow:hidden; background:var(--surface-2); }
+.measure-ctl>button{ padding:5px 9px; font-size:12px; color:var(--ink-2); }
+.measure-ctl>button+button{ border-left:1px solid var(--line); }
+.measure-ctl>button[aria-pressed="true"]{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+
+.ibtn{
+  border:1px solid var(--line-2); border-radius:8px; background:var(--surface-2);
+  padding:5px 9px; font-size:12.5px; color:var(--ink-2); white-space:nowrap;
+}
+.ibtn:hover{ color:var(--ink); border-color:var(--ink-3); }
+#problemsBtn .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; background:var(--ok); }
+#problemsBtn.has-issues .dot{ background:var(--shall); }
+#problemsBtn.sev-warn .dot{ background:var(--should); }
+
+#layout{ display:grid; grid-template-columns:262px 1fr 236px; height:calc(100vh - 52px); }
+
+/* ============================================================
+   NODE OUTLINE (left sidebar) — the structure pane
+   Modes: CLAUSES (classic outline) / BLOCKS (node-level, reorderable)
+   ============================================================ */
+#clausetree{
+  border-right:1px solid var(--line); background:var(--surface);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.outline-modes{
+  display:flex; gap:4px; padding:10px 10px 6px;
+}
+.omode{
+  flex:1; text-align:center; font:600 10.5px -apple-system,"Segoe UI",sans-serif; letter-spacing:.06em;
+  padding:5px 4px; border-radius:7px; border:1px solid var(--line-2); color:var(--ink-2);
+  background:var(--surface-2); text-transform:uppercase; cursor:pointer;
+}
+.omode[aria-pressed="true"]{ background:var(--accent); color:#fff; border-color:var(--accent); }
+html[data-theme="dark"] .omode[aria-pressed="true"]{ color:#10131a; }
+.omode .cnt{
+  display:block; font:400 8.5px ui-monospace,Menlo,monospace; letter-spacing:0; margin-top:1px; opacity:.8;
+}
+.outline-scroll{ overflow-y:auto; overflow-x:hidden; flex:1; padding:2px 8px 30px; }
+.tree-file{
+  font:600 10.5px ui-monospace,Menlo,monospace; letter-spacing:.05em; color:var(--ink-3);
+  padding:8px 10px 4px; text-transform:uppercase;
+}
+#treeList, #treeList ul{ list-style:none; margin:0; padding:0; }
+#treeList ul{ padding-left:14px; border-left:1px solid var(--line); margin-left:10px; }
+#treeList.body-outline ul{ border-left-color:transparent; padding-left:4px; }
+.tree-item{
+  display:flex; align-items:center; gap:7px; width:100%; text-align:left;
+  padding:4px 8px; border-radius:7px; font-size:12.8px; color:var(--ink-2);
+  cursor:pointer; position:relative;
+}
+.tree-item:hover{ background:var(--bg-soft); color:var(--ink); }
+.tree-item[aria-current="true"]{ background:var(--accent-soft); color:var(--ink); box-shadow:inset 2px 0 0 var(--accent); }
+.ti-num{ font-family:ui-monospace,Menlo,monospace; font-size:11px; color:var(--ink-3); min-width:30px; text-align:right; }
+.tree-item[aria-current="true"] .ti-num{ color:var(--accent); }
+.ti-title{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ti-title .cutoff{ color:var(--ink-3); font-size:10px; }
+.ti-icons{ display:flex; gap:4px; font-size:10px; }
+.ti-warn{ color:var(--shall); } .ti-note{ color:var(--note); } .ti-ok{ color:var(--ok); }
+.tree-hint{ color:var(--ink-3); font-size:11px; padding:10px; line-height:1.5; }
+.tree-drop-before{ box-shadow:0 -2px 0 0 var(--accent); }
+.tree-drop-after{ box-shadow:0 2px 0 0 var(--accent); }
+.tree-drop-into{ outline:2px dashed var(--accent); outline-offset:-2px; }
+/* drag grip on every row (both modes) — visible only on hover, quiet otherwise */
+#treeList .tree-item .ti-grip{
+  flex:none; width:12px; color:var(--ink-3); font-size:9px; letter-spacing:-1px;
+  opacity:0; transition:opacity .12s; cursor:grab; align-self:center; line-height:1;
+}
+#treeList .tree-item:hover .ti-grip{ opacity:.9; }
+#treeList .tree-item .ti-grip:active{ cursor:grabbing; }
+#treeList .tree-item[draggable="true"]{ cursor:pointer; }
+/* node rows (non-clause blocks) render lighter than clause rows */
+#treeList .tree-item.node-row{ font-size:11.8px; opacity:.92; }
+#treeList .tree-item.node-row .ti-num{ min-width:26px; font-size:10px; }
+
+/* ============================================================
+   CANVAS + DOCUMENT COLUMN (pageless semantic canvas)
+   ============================================================ */
+#canvas{ overflow-y:auto; overflow-x:hidden; position:relative; }
+@media (prefers-reduced-motion: no-preference){ #canvas{ scroll-behavior:smooth; } }
+
+#ctxheader{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; gap:8px; padding:7px 18px;
+  background:color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+  font-size:12.5px; color:var(--ink-2);
+}
+body.ctx-hidden #ctxheader{ display:none; }
+#ctxRestore{
+  position:sticky; top:0; z-index:20; display:none;
+  margin-left:auto; margin-right:14px; width:fit-content;
+  font-size:11px; color:var(--ink-3); border:1px solid var(--line); border-radius:0 0 8px 8px;
+  border-top:none; padding:2px 10px; background:var(--surface);
+}
+body.ctx-hidden #ctxRestore{ display:block; }
+.crumb-sep{ color:var(--ink-3); }
+.crumb{ color:var(--ink-2); }
+.crumb:last-of-type{ color:var(--ink); font-weight:600; }
+.ctx-actions{ margin-left:auto; display:flex; gap:4px; }
+.ctx-x{ color:var(--ink-3); padding:2px 6px; border-radius:6px; }
+.ctx-x:hover{ background:var(--bg-soft); color:var(--ink); }
+
+#doc{
+  --colw:70ch;
+  max-width:var(--colw); margin:0 auto; padding:26px 30px 140px;
+  font-family:Georgia,"Iowan Old Style","Times New Roman",serif;
+  font-size:17px; line-height:1.66; color:var(--ink);
+}
+body[data-measure="s"] #doc{ --colw:58ch; }
+body[data-measure="m"] #doc{ --colw:70ch; }
+body[data-measure="l"] #doc{ --colw:92ch; }
+
+/* clause containers: rule per numbered clause, NOT per paragraph */
+section.clause{ position:relative; border-radius:10px; padding:2px 14px 10px 18px; }
+section.clause[data-depth="1"]{ margin-top:38px; border-top:1px solid var(--line); padding-top:16px; }
+section.clause[data-depth="1"]:first-child{ margin-top:6px; border-top:none; padding-top:4px; }
+section.clause[data-depth="2"]{ margin-top:20px; border-left:2px solid var(--line-2); }
+section.clause[data-depth="3"]{ margin-top:16px; border-left:2px solid var(--line); margin-left:6px; }
+section.clause[data-depth="4"]{ margin-top:14px; border-left:2px dashed var(--line); margin-left:12px; }
+section.clause:hover{ background:color-mix(in srgb, var(--ink) 3.5%, transparent); }
+section.clause.collapsed > .clause-body{ display:none; }
+section.clause.collapsed{ opacity:.75; }
+
+.clause-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.clnum{ font:600 14px ui-monospace,Menlo,monospace; color:var(--accent); }
+h2.cltitle, h3.cltitle{
+  font-family:inherit; margin:0; font-size:1.35em; line-height:1.3; font-weight:700;
+}
+section.clause[data-depth="2"] h3.cltitle{ font-size:1.12em; }
+section.clause[data-depth="3"] h3.cltitle{ font-size:1.03em; }
+section.clause[data-depth="4"] h3.cltitle{ font-size:1em; font-style:italic; }
+.clause-tools{ display:flex; gap:2px; opacity:0; transition:opacity .15s; margin-left:4px; align-self:center; }
+section.clause:hover .clause-tools, body.vis-full .clause-tools{ opacity:1; }
+.tool{
+  font-size:12px; color:var(--ink-3); padding:2px 6px; border-radius:6px; line-height:1.4;
+}
+.tool:hover{ background:var(--bg-soft); color:var(--ink); }
+.tool.drag-handle{ cursor:grab; }
+.tool.drag-handle:active{ cursor:grabbing; }
+
+/* generic small pills */
+.role-pill, .anchor-chip{
+  font:10.5px ui-monospace,Menlo,monospace; color:var(--ink-3);
+  border:1px dashed var(--line-2); border-radius:5px; padding:1px 6px; white-space:nowrap;
+  align-self:center;
+}
+.anchor-chip{ color:var(--accent); }
+.pill{
+  font:11px -apple-system,"Segoe UI",sans-serif; border:1px solid var(--line-2);
+  border-radius:99px; padding:1px 8px; color:var(--ink-2); white-space:nowrap; background:var(--surface);
+}
+
+/* requirement cards */
+.req{
+  position:relative; border:1px solid var(--line-2); border-radius:11px; background:var(--surface);
+  padding:11px 14px; margin:16px 0;
+}
+.req-head{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-bottom:7px; }
+.req-id{ font:600 12px -apple-system,"Segoe UI",sans-serif; letter-spacing:.02em; color:var(--ink-2); }
+.chip-ob{
+  font:600 11px -apple-system,"Segoe UI",sans-serif; border-radius:99px; padding:2px 10px; letter-spacing:.02em;
+}
+.chip-ob.shall{ background:var(--shall); color:#fff; }
+html[data-theme="dark"] .chip-ob.shall{ color:#1a0e0c; }
+.chip-ob.should{ border:1.5px solid var(--should); color:var(--should); }
+.chip-ob.may{ border:1.5px solid var(--may); color:var(--may); }
+.tag{
+  font:11px ui-monospace,Menlo,monospace; color:var(--ink-2); background:var(--surface-2);
+  border-radius:5px; padding:1.5px 7px;
+}
+.req-text{ margin:0; }
+.req-parts{ margin-top:9px; border-top:1px solid var(--line); padding-top:6px; font-size:14px; }
+.req-parts summary{ cursor:pointer; font:600 12px -apple-system,"Segoe UI",sans-serif; color:var(--ink-2); }
+.req-parts dl{ margin:6px 0 2px; display:grid; grid-template-columns:auto 1fr; gap:4px 12px; }
+.req-parts dt{ font:600 11.5px ui-monospace,Menlo,monospace; color:var(--ink-3); }
+.req-parts dd{ margin:0; }
+
+/* terms */
+.term{ position:relative; margin:20px 0; padding-left:14px; border-left:3px solid var(--line-2); }
+.term-head{ display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+.tnum{ font:600 13px ui-monospace,Menlo,monospace; color:var(--accent); }
+.tword{ font-weight:700; font-size:1.06em; }
+.tmark{ font:11px -apple-system,"Segoe UI",sans-serif; border-radius:99px; padding:1px 8px; white-space:nowrap; }
+.tmark.preferred{ border:1.5px solid var(--may); color:var(--may); }
+.tmark.alt{ border:1px solid var(--line-2); color:var(--ink-2); }
+.tmark.deprecated{ border:1.5px dashed var(--shall); color:var(--shall); text-decoration:line-through; }
+.tdef{ margin:6px 0 2px; }
+.tsource{ margin:2px 0; font-size:.82em; color:var(--ink-2); }
+.tused{ margin:4px 0 0; font:12px -apple-system,"Segoe UI",sans-serif; color:var(--ink-3); }
+.tused .xref{ color:var(--note); }
+
+/* admonitions */
+.admonition{
+  display:flex; gap:10px; margin:14px 0; padding:9px 13px; border-radius:0 9px 9px 0;
+  border-left:3px solid var(--note); background:color-mix(in srgb, var(--note) 7%, transparent);
+  font-size:.94em;
+}
+.admonition.example{ border-left-color:var(--example); background:color-mix(in srgb, var(--example) 7%, transparent); }
+.admonition.warning{ border-left-color:var(--warn); background:color-mix(in srgb, var(--warn) 8%, transparent); }
+.admo-label{
+  flex:none; font:700 10.5px -apple-system,"Segoe UI",sans-serif; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--note); padding-top:3px; white-space:nowrap;
+}
+.admonition.example .admo-label{ color:var(--example); }
+.admonition.warning .admo-label{ color:var(--warn); }
+.admo-body{ flex:1; }
+.admo-drag{ flex:none; opacity:0; cursor:grab; color:var(--ink-3); padding-top:3px; font-size:11px; }
+.admonition:hover .admo-drag{ opacity:1; }
+.warnflag{
+  color:var(--shall); font-size:13px; padding:0 3px; vertical-align:middle;
+}
+
+/* tables / figures / equations */
+figure.tbl-fig, figure.fig{ margin:18px 0; }
+figcaption{
+  display:flex; align-items:baseline; gap:8px; font-size:.86em; color:var(--ink-2);
+  font-family:-apple-system,"Segoe UI",sans-serif; margin-top:7px; flex-wrap:wrap;
+}
+.capnum{ font-weight:700; color:var(--ink); white-space:nowrap; }
+.scrollblock{
+  overflow-x:auto; border:1px solid var(--line); border-radius:10px; background:var(--surface);
+  position:relative; max-width:100%;
+}
+.scrollblock table{ border-collapse:collapse; font:13px/1.5 -apple-system,"Segoe UI",sans-serif; min-width:max-content; }
+.scrollblock th, .scrollblock td{ border:1px solid var(--line); padding:6px 11px; text-align:left; white-space:nowrap; }
+.scrollblock th{ background:var(--surface-2); font-weight:600; }
+.scrollblock tr:nth-child(even) td{ background:color-mix(in srgb, var(--ink) 2.5%, transparent); }
+.scrollhint{
+  position:sticky; right:0; top:0; float:right; font-size:10px; color:var(--ink-3);
+  padding:2px 7px; background:var(--surface); border-left:1px solid var(--line); border-bottom:1px solid var(--line);
+  border-radius:0 8px 0 8px;
+}
+.fig-svg{ width:100%; height:auto; color:var(--ink); }
+.fig{ cursor:zoom-in; }
+.equation{
+  display:flex; align-items:center; gap:14px; margin:16px 0; padding:10px 6px;
+  border-block:1px solid var(--line);
+}
+.eq-body{ font-style:italic; font-size:1.05em; }
+.frac{ display:inline-flex; flex-direction:column; text-align:center; vertical-align:middle; margin:0 4px; }
+.frac .fr-n{ border-bottom:1.5px solid var(--ink); padding:0 6px 1px; }
+.frac .fr-d{ padding:1px 6px 0; }
+.eq-src{ font:11.5px ui-monospace,Menlo,monospace; color:var(--ink-3); }
+.eqnum{ margin-left:auto; font:600 13px ui-monospace,Menlo,monospace; color:var(--ink-2); }
+
+/* cross-references */
+.xref{ color:var(--note); text-decoration:none; border-bottom:1px dotted var(--note); cursor:pointer; }
+.xref:hover{ color:var(--accent); border-bottom-color:var(--accent); }
+.xref.broken{
+  color:var(--shall); border-bottom:none; text-decoration:underline wavy var(--shall);
+  background:var(--err-bg); padding:0 3px; border-radius:4px; font-family:ui-monospace,Menlo,monospace; font-size:.85em;
+}
+/* bibliographic references (informative erefs) */
+.eref{ color:var(--ink-2); text-decoration:none; border-bottom:1px dotted var(--ink-3); cursor:help; }
+.eref:hover{ color:var(--note); }
+.vbadge{
+  font:10px ui-monospace,Menlo,monospace; color:var(--shall); border:1px solid var(--shall);
+  border-radius:5px; padding:0 4px; margin-left:5px; white-space:nowrap;
+}
+
+/* margin annotations (EDITOR:) */
+.mn-note{
+  position:absolute; left:calc(100% + 20px); top:2px; width:195px;
+  font:12px/1.5 -apple-system,"Segoe UI",sans-serif; color:var(--ink-2);
+  border-left:3px solid var(--should); background:color-mix(in srgb, var(--should) 8%, transparent);
+  border-radius:0 8px 8px 0; padding:7px 10px;
+}
+.mn-note b{ color:var(--should); letter-spacing:.04em; }
+@media (max-width:1180px){
+  .mn-note{ position:static; width:auto; margin:8px 0 2px; }
+}
+
+/* insertion points (slash menu) */
+.insert-pt{
+  font:13.5px/1.5 -apple-system,"Segoe UI",sans-serif; color:var(--ink);
+  border:1.5px dashed var(--line-2); border-radius:9px; padding:9px 13px; margin:14px 0; min-height:38px;
+}
+.insert-pt:empty::before{ content:attr(data-placeholder); color:var(--ink-3); }
+.insert-pt:focus{ border-color:var(--accent); background:var(--surface); outline:none; }
+
+/* lists, refs, and further standoc node kinds */
+.doc-list{ margin:8px 0; padding-left:24px; }
+.doc-list ul{ margin:4px 0; padding-left:22px; }
+.doc-ol{ margin:8px 0; padding-left:26px; }
+.doc-ol li{ margin:4px 0; }
+.refs{ margin:8px 0; padding-left:0; list-style:none; counter-reset:ref; }
+.refs li{ counter-increment:ref; margin:5px 0; padding-left:34px; position:relative; }
+.refs li::before{ content:"[" counter(ref) "]"; position:absolute; left:0; color:var(--ink-2); }
+/* symbols & abbreviated terms (dl) */
+.dl-defs{ display:grid; grid-template-columns:max-content 1fr; gap:6px 16px; margin:12px 0; }
+.dl-defs dt{ font-weight:650; white-space:nowrap; }
+.dl-defs dd{ margin:0; }
+/* sourcecode */
+.src-block{
+  position:relative; margin:14px 0; padding:12px 14px; border:1px solid var(--line);
+  border-left:3px solid var(--accent); border-radius:0 9px 9px 0; background:var(--surface-2);
+  overflow-x:auto;
+}
+.src-block code{ font:12.5px/1.55 ui-monospace,Menlo,monospace; white-space:pre; color:var(--ink); }
+.src-block .role-pill{ position:absolute; top:6px; right:8px; }
+/* passthrough raw block (read-only; no SXML mapping) */
+.raw-block{ margin:14px 0; border:1px dashed var(--line-2); border-radius:10px; overflow:hidden; }
+.raw-head{
+  font:600 10.5px ui-monospace,Menlo,monospace; letter-spacing:.05em; color:var(--shall);
+  background:var(--err-bg); padding:5px 10px; text-transform:uppercase;
+}
+.raw-block pre{ margin:0; padding:10px 12px; font:12px/1.5 ui-monospace,Menlo,monospace; color:var(--ink-2); white-space:pre-wrap; user-select:none; }
+/* footnotes */
+sup.fn{ color:var(--accent); cursor:help; font-size:.7em; padding:0 2px; }
+ol.footnotes{ margin:10px 0 4px; padding-left:20px; font-size:.86em; color:var(--ink-2); border-top:1px solid var(--line); padding-top:8px; }
+ol.footnotes li{ margin:2px 0; }
+/* index-see marks (informative, Full-structure only visibility) */
+.idx{ font-size:.75em; color:var(--ink-3); cursor:help; }
+/* unusually long table: scrolls vertically INSIDE its block too */
+.scrollblock.tall{ max-height:340px; overflow-y:auto; }
+.scrollblock.tall table thead th{ position:sticky; top:0; z-index:2; }
+/* cross-doc reference chip */
+.cref{ cursor:help; }
+/* floating title (unnumbered) */
+h4.floating-title{ font-family:Georgia,serif; font-size:1.05em; margin:20px 0 6px; }
+h4.floating-title .role-pill{ margin-left:8px; }
+
+/* flash target */
+@keyframes flashKf{ 0%{ background:var(--accent-soft); } 100%{ background:transparent; } }
+.flash{ animation:flashKf 1.4s ease-out; border-radius:8px; }
+
+/* ============================================================
+   STATUS BAR
+   ============================================================ */
+#statusbar{
+  position:sticky; bottom:0; z-index:20; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  padding:6px 18px; font:11.5px ui-monospace,Menlo,monospace; color:var(--ink-2);
+  background:color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-top:1px solid var(--line);
+}
+#statusbar .grow{ flex:1; }
+#statusValidation{ cursor:pointer; }
+#statusValidation:hover{ color:var(--shall); }
+#statusValidation .dot{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; background:var(--ok); }
+#statusValidation.has-issues .dot{ background:var(--shall); }
+#statusValidation.sev-warn .dot{ background:var(--should); }
+
+/* ============================================================
+   SEMANTIC MINIMAP (from semantic-minimap-mockup.html, integrated)
+   structure-proportional strip · semantic type coloring · landmark
+   labels (stable spine + in-band detail) · marker lanes
+   (diagnostics / editor notes / search / read-wear) · panning
+   canvas (reflect-style) · draggable viewport · resize grip.
+   ============================================================ */
+#minimapWrap{
+  border-left:1px solid var(--line); background:var(--surface);
+  display:flex; flex-direction:column; padding:10px 10px 10px; gap:0;
+}
+.mm-head{ display:flex; align-items:baseline; gap:6px; padding:2px 4px 6px; }
+.mm-head .t{ font:700 10px -apple-system,"Segoe UI",sans-serif; letter-spacing:.14em; color:var(--ink-3); }
+.mm-head .hint{ font-size:9px; color:var(--ink-3); margin-left:auto; }
+.mm-body{ display:flex; gap:5px; position:relative; flex:1; min-height:0; overflow:hidden; }
+/* panning map canvas: height = max(pane, doc-height × ratio); translated
+   so the viewport indicator stays placed by the shared scroll fraction */
+#mmCanvas{ position:absolute; inset:0; display:flex; gap:5px; will-change:transform; }
+.mm-labels{ flex:1; position:relative; min-width:0; overflow:hidden; }
+.lbl{
+  position:absolute; right:0; transform:translateY(-1px); white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; max-width:100%; font-size:9.5px; color:var(--ink-2); display:none; cursor:pointer;
+}
+.lbl.show{ display:block; }
+.lbl.lv1{ font-weight:600; }
+.lbl.lv2{ color:var(--ink-3); font-size:9px; }
+/* deeper levels: progressively smaller and fainter — reads as receding */
+.lbl.lv3{ color:var(--ink-3); font-size:8.5px; }
+.lbl.lv4{ color:var(--ink-3); font-size:8px; opacity:.9; }
+.lbl.lv5, .lbl.lv6, .lbl.lv7{ color:var(--ink-3); font-size:8px; opacity:.75; }
+.lbl.active{ color:var(--ink); font-weight:inherit; text-shadow:0 0 4.5px currentColor; }  /* width-neutral emphasis */
+.mm-strip{
+  width:52px; position:relative; background:var(--surface-2); border:1px solid var(--line);
+  border-radius:5px; cursor:pointer;
+}
+/* whitespace-gutter rendering: one rect per contiguous piece; nesting =
+   background gutter (left), shared right edge — deep blocks stay wide */
+.blk{
+  position:absolute; border-radius:2px; background:var(--blk-bg,var(--surface));
+  box-shadow:inset 2px 0 0 var(--blk-edge,var(--ink-3));
+}
+.blk:hover{ filter:brightness(.92); }
+/* no z-index on .blk.active — children paint above parents (sibling DOM
+   order); lifting the active parent above its children hid the subtree */
+.blk.active{ outline:1.5px solid var(--accent); outline-offset:0; }
+/* same element, non-current piece: faint continuation mark — distinct in
+   KIND (dashed, faint) from the solid "you are here" outline */
+.blk.co-piece{ outline:1px dashed var(--accent); outline-offset:0; opacity:.45; }
+.lane{ width:10px; position:relative; border-radius:3px; background:var(--surface-2); }
+.lane.off{ opacity:.15; pointer-events:none; }
+.tick{ position:absolute; left:1.5px; right:1.5px; border-radius:2px; }
+.mm-vp{
+  position:absolute; border:1.5px solid var(--accent); background:color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius:4px; cursor:grab; z-index:5; pointer-events:auto;
+}
+.mm-vp:active{ cursor:grabbing; }
+/* resize grip at the window's bottom edge: dragging down grows the window
+   (more map detail), up shrinks it (more map at a glance). Double-click
+   resets to the default ratio. */
+.mm-vp .rsz{
+  position:absolute; left:0; right:0; bottom:0; height:7px; cursor:ns-resize;
+}
+.mm-vp .rsz::after{
+  content:''; position:absolute; left:50%; bottom:2px; transform:translateX(-50%);
+  width:26px; height:3px; border-radius:2px; background:var(--accent); opacity:.65;
+}
+.mm-vp .rsz:hover::after{ opacity:1; }
+.mm-foot{ border-top:1px solid var(--line); margin-top:8px; padding-top:7px; display:flex; flex-direction:column; gap:5px; flex:none; }
+.legend{ display:flex; flex-wrap:wrap; gap:3px 8px; font-size:8.5px; color:var(--ink-3); max-height:3.2em; overflow-y:auto; }
+.lg{ display:inline-flex; align-items:center; gap:4px; cursor:pointer; user-select:none; }
+.lg .d{ width:7px; height:7px; border-radius:2px; }
+.lg.off{ opacity:.35; text-decoration:line-through; }
+/* semantic type colors on the strip */
+html:not([data-theme="contrast"]) .blk[data-type="clause"]{ --blk-bg:#e7eaf0; --blk-edge:#9aa4bb; }
+html:not([data-theme="contrast"]) .blk[data-type="front"]{ --blk-bg:#eff1f5; --blk-edge:#c3c9d6; }
+html:not([data-theme="contrast"]) .blk[data-type="term"]{ --blk-bg:#dfefe4; --blk-edge:#5fa377; }
+html:not([data-theme="contrast"]) .blk[data-type="req"]{ --blk-bg:#f8e9cf; --blk-edge:#d9962f; }
+html:not([data-theme="contrast"]) .blk[data-type="float"]{ --blk-bg:#e1e9f4; --blk-edge:#6488be; }
+html:not([data-theme="contrast"]) .blk[data-type="note"]{ --blk-bg:#fcf0da; --blk-edge:#e0903c; }
+html[data-theme="dark"] .blk[data-type="clause"]{ --blk-bg:#282c34; --blk-edge:#5a6477; }
+html[data-theme="dark"] .blk[data-type="term"]{ --blk-bg:#1f2e26; --blk-edge:#3f7a58; }
+html[data-theme="dark"] .blk[data-type="req"]{ --blk-bg:#33291a; --blk-edge:#8a6a2a; }
+html[data-theme="dark"] .blk[data-type="float"]{ --blk-bg:#1d2634; --blk-edge:#4c648e; }
+html[data-theme="dark"] .blk[data-type="note"]{ --blk-bg:#33281c; --blk-edge:#8a6435; }
+html[data-theme="contrast"] .blk{ --blk-bg:#fff; --blk-edge:#000; }
+
+/* ============================================================
+   OVERLAYS
+   ============================================================ */
+.overlay{ position:fixed; inset:0; background:rgba(20,17,12,.35); z-index:75; display:flex; }
+[hidden]{ display:none !important; }
+
+#cmdk{ align-items:flex-start; justify-content:center; padding-top:12vh; }
+.ck-box{
+  width:min(600px,92vw); background:var(--surface); border:1px solid var(--line-2); border-radius:14px;
+  box-shadow:var(--shadow); overflow:hidden;
+}
+#ckInput{
+  width:100%; border:none; outline:none; background:transparent; color:var(--ink);
+  font:15px -apple-system,"Segoe UI",sans-serif; padding:14px 16px; border-bottom:1px solid var(--line);
+}
+#ckList{ list-style:none; margin:0; padding:6px; max-height:46vh; overflow-y:auto; }
+.ck-item{
+  display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; cursor:pointer;
+  font-size:13.5px;
+}
+.ck-item.sel{ background:var(--accent-soft); }
+.ck-ico{ width:20px; text-align:center; color:var(--ink-3); }
+.ck-label b{ color:var(--accent); font-weight:600; }
+.ck-sub{ color:var(--ink-3); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ck-kind{ margin-left:auto; font:10px ui-monospace,Menlo,monospace; color:var(--ink-3); border:1px solid var(--line); border-radius:5px; padding:1px 6px; flex:none;}
+
+#problems{ justify-content:flex-end; }
+.prob-box{
+  width:min(400px,94vw); height:100%; background:var(--surface); border-left:1px solid var(--line-2);
+  box-shadow:var(--shadow); display:flex; flex-direction:column;
+}
+.prob-head{
+  display:flex; align-items:center; gap:8px; padding:13px 16px; border-bottom:1px solid var(--line);
+  font-weight:600;
+}
+.prob-head .ibtn{ margin-left:auto; }
+#probList{ list-style:none; margin:0; padding:10px; overflow-y:auto; flex:1; }
+.prob-item{
+  display:flex; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+  margin-bottom:8px; cursor:pointer; background:var(--surface-2);
+}
+.prob-item:hover{ border-color:var(--shall); }
+.prob-sev{ font-size:15px; }
+.prob-item .pt{ font-weight:600; font-size:13px; }
+.prob-item .pd{ color:var(--ink-2); font-size:12px; margin-top:2px; }
+.sev-error .prob-sev{ color:var(--shall); } .sev-warn .prob-sev{ color:var(--should); }
+
+#slash{
+  position:fixed; z-index:70; width:330px; background:var(--surface); border:1px solid var(--line-2);
+  border-radius:12px; box-shadow:var(--shadow); overflow:hidden;
+}
+#slashList{ list-style:none; margin:0; padding:5px; max-height:280px; overflow-y:auto; }
+.sl-item{ display:flex; align-items:center; gap:9px; padding:7px 9px; border-radius:8px; cursor:pointer; font-size:13px; }
+.sl-item.sel{ background:var(--accent-soft); }
+.sl-ico{ width:18px; text-align:center; }
+.sl-sub{ color:var(--ink-3); font-size:11px; }
+.sl-item.disabled{ opacity:.45; cursor:not-allowed; }
+.sl-why{ margin-left:auto; font-size:10px; color:var(--shall); text-align:right; max-width:130px; }
+
+#floatbar{
+  position:fixed; z-index:60; display:flex; gap:2px; padding:4px; background:var(--surface);
+  border:1px solid var(--line-2); border-radius:10px; box-shadow:var(--shadow);
+}
+#floatbar button{ padding:4px 9px; border-radius:7px; font-size:13px; color:var(--ink-2); }
+#floatbar button:hover{ background:var(--bg-soft); color:var(--ink); }
+#floatbar .fb-b{ font-weight:700; } #floatbar .fb-i{ font-style:italic; font-family:Georgia,serif; }
+
+#hover{
+  position:fixed; z-index:65; width:290px; background:var(--surface); border:1px solid var(--line-2);
+  border-radius:11px; box-shadow:var(--shadow); padding:11px 13px; pointer-events:none;
+}
+.hv-kind{ font:600 10px ui-monospace,Menlo,monospace; color:var(--accent); letter-spacing:.05em; text-transform:uppercase; }
+.hv-title{ font-weight:700; font-family:Georgia,serif; margin:3px 0 4px; font-size:14.5px; }
+.hv-snip{ font-size:12px; color:var(--ink-2); line-height:1.5; }
+
+#lightbox{ align-items:center; justify-content:center; z-index:85; }
+.lb-box{
+  width:min(860px,92vw); background:var(--surface); border:1px solid var(--line-2); border-radius:16px;
+  box-shadow:var(--shadow); padding:26px;
+}
+.lb-close{ float:right; font-size:16px; color:var(--ink-3); padding:4px 8px; }
+#lbCap{ font:13px -apple-system,"Segoe UI",sans-serif; color:var(--ink-2); margin-top:12px; }
+
+#about{ align-items:center; justify-content:center; z-index:90; }
+.about-box{
+  width:min(680px,93vw); max-height:86vh; overflow-y:auto; background:var(--surface);
+  border:1px solid var(--line-2); border-radius:16px; box-shadow:var(--shadow); padding:26px 30px;
+}
+.about-box h1{ font:700 19px -apple-system,"Segoe UI",sans-serif; margin:0 0 4px; }
+.about-box .sub{ color:var(--ink-2); font-size:13px; margin-bottom:14px; }
+.about-box ul{ margin:0 0 16px; padding-left:20px; font-size:13.5px; line-height:1.75; }
+.about-box .keys{ font-size:12.5px; color:var(--ink-2); border-top:1px solid var(--line); padding-top:10px; }
+.about-box .go{
+  background:var(--accent); color:#fff; border-radius:9px; padding:9px 18px; font-weight:600; font-size:14px;
+}
+html[data-theme="dark"] .about-box .go{ color:#10131a; }
+
+#toasts{ position:fixed; bottom:46px; left:50%; transform:translateX(-50%); z-index:95; display:flex; flex-direction:column; gap:8px; align-items:center; }
+.toast{
+  background:var(--ink); color:var(--bg); border-radius:10px; padding:9px 16px; font-size:13px;
+  box-shadow:var(--shadow); max-width:min(560px,90vw);
+}
+#dragTip{
+  position:fixed; z-index:96; pointer-events:none; background:var(--ink); color:var(--bg);
+  font:11.5px ui-monospace,Menlo,monospace; border-radius:8px; padding:5px 9px; display:none;
+}
+
+/* drop indicators */
+section.clause.drop-before{ box-shadow:0 -3px 0 0 var(--accent); }
+section.clause.drop-after{ box-shadow:0 3px 0 0 var(--accent); }
+.clause-body.drop-inside{ outline:2px dashed var(--accent); outline-offset:4px; border-radius:8px; }
+.dragging{ opacity:.4; }
+
+/* ============================================================
+   VISIBILITY DIAL — the three semantic layers
+   prose  : numbers + resolved cross-references only
+   annotated (default) : + chips, admonition styling, pins, margin notes
+   full : + role pills, anchors, badges, reuse/profile markers
+   ============================================================ */
+body.vis-prose .sem-annotated, body.vis-prose .sem-full{ display:none !important; }
+body.vis-annotated .sem-full{ display:none !important; }
+
+body.vis-prose .req{ border:none; background:none; padding:0; margin:12px 0; }
+body.vis-prose .req .req-head, body.vis-prose .req .req-parts{ display:none; }
+body.vis-prose .admonition{ border:none; background:none; padding:0; display:block; }
+body.vis-prose .admonition .admo-label{ display:none; }
+body.vis-prose .term{ border-left:none; padding-left:0; }
+body.vis-prose .tmark{ display:none; }
+body.vis-prose .tsource{ display:none; }
+body.vis-prose .clause-tools{ display:none; }
+body.vis-prose .scrollhint{ display:none; }
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ transition:none !important; animation:none !important; scroll-behavior:auto !important; }
+}
+@media (max-width:960px){
+  #layout{ grid-template-columns:1fr; }
+  #clausetree, #minimapWrap{ display:none; }
+}
+</style>
+</head>
+<body class="vis-annotated" data-measure="m">
+
+<header id="topbar">
+  <div class="tb-left">
+    <span class="app-mark" aria-hidden="true">◆</span>
+    <span class="doc-title">Roadside telemetry data exchange (RTDE)</span>
+    <span class="doc-id">Q/WD 26000:2026</span>
+    <span class="chip">ISO flavor</span>
+    <span class="chip" id="fileChip" title="File context of the clause you are viewing (collection-aware outline)">📄 rtde.xml</span>
+  </div>
+  <div class="tb-center">
+    <div class="dial" role="radiogroup" aria-label="Semantic visibility" title="Semantic visibility dial — same document, three layers of meaning (V cycles)">
+      <button data-vis="prose"  title="Clean reading view — numbers and resolved cross-references only">Prose</button>
+      <button data-vis="annotated" aria-checked="true" title="Default — semantic chrome: obligation chips, admonitions, anchor pins">Annotated</button>
+      <button data-vis="full" title="Everything — role pills, anchors, validation badges, reuse &amp; profile markers">Full structure</button>
+    </div>
+  </div>
+  <div class="tb-right">
+    <div class="measure-ctl" role="group" aria-label="Text width (viewer preference)">
+      <button data-measure="s" title="Narrow measure (~58 ch)">S</button>
+      <button data-measure="m" aria-pressed="true" title="Medium measure (~70 ch)">M</button>
+      <button data-measure="l" title="Wide measure (~92 ch)">L</button>
+    </div>
+    <button class="ibtn" id="themeBtn" title="Cycle theme: light / dark / high contrast (design tokens)">◐ Theme</button>
+    <button class="ibtn" id="problemsBtn" aria-expanded="false" title="Problems panel"><span class="dot"></span><span id="probBtnLabel">OK</span></button>
+    <button class="ibtn" id="cmdBtn" title="Command palette">⌘K</button>
+    <button class="ibtn" id="aboutBtn" title="About this mock-up">ⓘ</button>
+  </div>
+</header>
+
+<div id="layout">
+
+  <!-- ============ NODE OUTLINE ============ -->
+  <nav id="clausetree" aria-label="Document outline">
+    <div class="outline-modes" role="group" aria-label="Outline mode">
+      <button class="omode" id="omClauses" aria-pressed="true" title="Classic clause outline (clauses only)">Clauses</button>
+      <button class="omode" id="omBlocks" aria-pressed="false" title="Node-level outline — every block, drag to reorder any node, long-distance moves">Blocks <span class="cnt" id="omBlocksCnt"></span></button>
+    </div>
+    <div class="outline-scroll">
+      <ul id="treeList"></ul>
+      <p class="tree-hint" id="treeHint"></p>
+    </div>
+  </nav>
+
+  <!-- ============ CANVAS ============ -->
+  <main id="canvas">
+    <div id="ctxheader" aria-label="Current context">
+      <span class="chip" id="ctxFile">📄 rtde.xml</span>
+      <span id="ctxcrumbs"></span>
+      <span class="chip" id="ctxType">scope</span>
+      <span class="ctx-actions">
+        <button class="tool" id="ctxPin" title="Copy deep link to this clause">#=</button>
+      </span>
+      <button class="ctx-x" id="ctxDismiss" title="Dismiss context header (never covers content — restores from ▾)">✕</button>
+    </div>
+    <button id="ctxRestore" title="Restore context header">▾ context</button>
+
+    <div id="doc"><!-- document injected by buildDocument() at load --></div>
+
+    <footer id="statusbar">
+      <span id="statusExtent">—</span>
+      <span class="grow"></span>
+      <span id="statusCounts">—</span>
+      <span id="statusValidation" role="button" tabindex="0" title="Open problems panel"><span class="dot"></span><span id="statusValidationLabel">OK</span></span>
+    </footer>
+  </main>
+
+  <!-- ============ SEMANTIC MINIMAP (integrated from semantic-minimap-mockup.html) ============ -->
+  <aside id="minimapWrap" aria-label="Semantic minimap">
+    <div class="mm-head">
+      <span class="t">STRUCTURE</span>
+      <span class="hint">click · drag · grip resizes</span>
+    </div>
+    <div class="mm-body" id="mmBody">
+      <!-- PANNING MAP CANVAS (reflect-style): taller than the pane for long
+           documents; translated by the shared scroll fraction so the
+           viewport indicator sweeps the pane top→bottom. Labels/strip/lanes
+           all live on this canvas. -->
+      <div id="mmCanvas">
+        <div class="mm-labels" id="mmLabels"></div>
+        <div class="mm-strip" id="mmStrip"></div>
+        <!-- lanes injected -->
+      </div>
+      <div class="mm-vp" id="mmVpBox" hidden></div>
+    </div>
+    <div class="mm-foot">
+      <div class="legend" id="mmLegend"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- ============ OVERLAYS ============ -->
+<div class="overlay" id="cmdk" hidden>
+  <div class="ck-box" role="dialog" aria-label="Command palette">
+    <input id="ckInput" placeholder="Jump to clause, requirement, term, table, anchor — or run an action…" autocomplete="off">
+    <ul id="ckList"></ul>
+  </div>
+</div>
+
+<div class="overlay" id="problems" hidden>
+  <div class="prob-box" role="dialog" aria-label="Problems">
+    <div class="prob-head">Problems <button class="ibtn" id="probClose">Close</button></div>
+    <ul id="probList"></ul>
+  </div>
+</div>
+
+<div id="slash" hidden>
+  <ul id="slashList"></ul>
+</div>
+
+<div id="floatbar" hidden>
+  <button class="fb-b" data-fmt="strong" title="Strong emphasis (semantic)">B</button>
+  <button class="fb-i" data-fmt="em" title="Emphasis (semantic)">i</button>
+  <button data-fmt="copy" title="Copy selection">⧉ Copy</button>
+</div>
+
+<div id="hover" hidden></div>
+
+<div class="overlay" id="lightbox" hidden>
+  <div class="lb-box">
+    <button class="lb-close" id="lbClose">✕</button>
+    <div id="lbBody"></div>
+    <div id="lbCap"></div>
+  </div>
+</div>
+
+<div class="overlay" id="about" hidden>
+  <div class="about-box" role="dialog" aria-label="About this mock-up">
+    <h1>Semantic Canvas — a WYSIWYM presentation mock-up</h1>
+    <div class="sub">Implements the §5.1–5.5 recommendations for a Metanorma editor (2026 research synthesis), on a generated <b>~110-page fixture standard</b>: 49 clauses nesting from flat to 7 levels deep, 26 terms, 16 obligation blocks (incl. nested requirement + components/classification/inheritance/profile), symbols&nbsp;dl, sourcecode, a read-only passthrough, footnotes, index marks, 3 figures, 4 tables (a 100-row register map scrolling in-block; a 14-column field table), 3 annexes, bibliography erefs, and two deliberate defects (a broken cross-reference, a “shall” inside a note). AI and collaboration are out of scope. Nothing is print-faithful — meaning is the interface. The editor loads <b>one Semantic XML document per file</b> (<code>&lt;metanorma&gt;</code> root, annexes and clauses internal); <code>.adoc</code> sources are converted first via <b>⌘K → Import</b>; multi-document works load as collections.</div>
+    <ul>
+      <li><b>Visibility dial</b> (top) — <i>Prose / Annotated / Full structure</i>: one document, three layers of semantic chrome.</li>
+      <li><b>Node outline</b> (left) — two modes: <b>Clauses</b> (classic) and <b>Blocks</b> — a node-level hierarchy of <i>every</i> block (¶ paragraphs, • list items, terms, requirements, notes, figures/tables/equations). Drag any row to reorder, at any distance, with flavor-model enforcement. <b>Drag a clause's ⋮⋮ handle from the document into the outline</b> for long-distance moves. <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> moves the node holding your caret.</li>
+      <li><b>Reorder with confidence</b> — drag the <code>⋮⋮</code> handle on any clause heading (or ▲▼): numbering, outline, minimap and <i>every cross-reference</i> update live; anchors stay stable.</li>
+      <li><b>Honest defects</b> — a broken cross-reference and a “shall” inside a note: inline squiggle, tree badge, minimap tick and the Problems panel all point at them.</li>
+      <li><b>Semantic minimap</b> (right) — <b>panning map</b> (reflect-style): for long documents the canvas is taller than the pane (~1:8 floor) and slides as you scroll; the thumb sweeps the pane with the document. Whitespace-gutter nesting, stable landmark spine + detail labels near the viewport, marker lanes: diagnostics · editor notes · search hits · read-wear. Click blocks/labels; drag the thumb; <b>drag the thumb's grip to resize</b> (fit-all ↔ default, double-click resets).</li>
+      <li><b>Search</b> — <kbd>⌘F</kbd>: highlighting in the document plus a search lane on the minimap; Enter cycles hits.</li>
+      <li><b>Slash menu</b> — type <kbd>/</kbd> in a dashed insertion paragraph; the menu offers only blocks the flavor model allows there.</li>
+      <li><b>Command palette</b> — <kbd>⌘K</kbd>.</li>
+      <li><b>Selection toolbar</b> — select text for semantic emphasis.</li>
+      <li><b>Measure</b> — S/M/L is a pure viewer preference. The editor deliberately offers <b>no print-measure preview</b>: it does not typeset like the PDF toolchain. For print truth, compile via the toolchain.</li>
+      <li><b>Wide content</b> — the register table scrolls inside its own block; the document never scrolls sideways. Figures open in a lightbox.</li>
+      <li><b>Margin lane</b> — EDITOR notes live in the margin, never inline. Sticky context header (dismissible, ▾ restores).</li>
+      <li><b>Themes</b> — light / dark / high contrast, all from design tokens.</li>
+    </ul>
+    <div class="keys">
+      <kbd>⌘K</kbd> palette · <kbd>⌘F</kbd> search · <kbd>V</kbd> visibility · <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> clauses · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> move node · <kbd>Alt</kbd>+<kbd>←</kbd> parent · <kbd>Esc</kbd> close
+    </div>
+    <p><button class="go" id="aboutGo">Start exploring</button></p>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<div id="dragTip"></div>
+
+<noscript><div style="padding:20px">This mock-up needs JavaScript.</div></noscript>
+
+<script>
+/* =====================================================================
+   DOCUMENT GENERATOR — builds a ~110-page standards-document fixture
+   covering a representative subset of the Metanorma standoc model:
+   preface (foreword/introduction), scope, normative references, terms
+   (preferred/admitted/deprecated/domain/source/termnote), symbols dl,
+   deep clause nesting (to depth 7) and flat clauses, requirements with
+   components/classification/inheritance/profiles (incl. nesting),
+   notes/examples/warnings, figures, equations, long & wide tables,
+   sourcecode, passthrough raw block, footnotes, index marks, internal
+   xrefs (incl. one deliberately broken), bibliography erefs, a
+   cross-document reference chip, annexes (informative/normative, nested).
+   Deterministic (seeded LCG): the same document on every load.
+   ===================================================================== */
+function buildDocument(){
+  let seed = 20260930;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+  const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const N = n => Math.max(1, Math.round(n * 2.2));            // volume knob (~110 pages)
+
+  const QUAL = ['under normal operating conditions','within the latency window','before the next synchronisation epoch','using the framing given in 8.2','as defined in 3.4','without operator intervention','at the nominal duty cycle','during degraded-mode operation','for every deployment profile','in accordance with the security policy in Clause 13'];
+  function sent(){
+    let s = pick(['The roadside unit','The telemetry gateway','The data platform','The management interface','The frame scheduler','The diagnostics subsystem','The latency monitor','The firmware loader','The compliance engine','The operator console']) + ' ' +
+      pick(['shall buffer','should checksum','may compress','transmits','validates','enumerates','synchronises','archives','surveys','negotiates']) + ' ' +
+      pick(['telemetry frames','register banks','latency windows','downlink commands','diagnostic records','firmware images','clock domains','session keys','coverage maps','audit trails']) + ' ' + pick(QUAL);
+    if (rnd() < 0.3) s += ' ' + pick(QUAL);
+    return s + '.';
+  }
+  const paras = n => Array.from({ length: N(n) }, () => '<p>' + Array.from({ length: ri(3, 6) }, sent).join(' ') + '</p>').join('');
+  const xr = t => '<a class="xref" data-target="' + t + '"></a>';
+  const eref = i => '<a class="eref" data-target="bib-' + i + '" title="Bibliography [' + i + ']">[' + i + ']</a>';
+  const idx = k => ' <span class="idx sem-full" title="index-term: ' + k + '">∥</span>';
+  const fn = (n, txt) => '<sup class="fn" title="' + txt + '">' + n + '</sup>';
+  const insertPt = hint => '<p class="insert-pt" contenteditable="true" spellcheck="false" data-placeholder="' + hint + '"></p>';
+
+  function tools(anchor){
+    return '<span class="clause-tools">' +
+      '<button class="tool pinbtn" data-copy-anchor title="Copy deep link">#</button>' +
+      '<button class="tool drag-handle" data-drag="clause" title="Drag to reorder">⋮⋮</button>' +
+      '<button class="tool movebtn" data-move="-1" title="Move up">▲</button>' +
+      '<button class="tool movebtn" data-move="1" title="Move down">▼</button>' +
+      '<button class="tool collapsebtn" title="Collapse/expand">⌃</button>' +
+      '<span class="anchor-chip sem-full">#' + anchor + '</span></span>';
+  }
+  function clause(anchor, depth, numbering, cltype, title, body, extra){
+    const tag = depth === 1 ? 'h2' : 'h3';
+    return '<section class="clause" data-anchor="' + anchor + '" data-depth="' + depth + '" data-numbering="' + numbering + '" data-cltype="' + cltype + '" data-file="rtde.xml"' + (extra && extra.state ? ' data-state="' + extra.state + '"' : '') + '>' +
+      '<header class="clause-head"><span class="clnum"></span><' + tag + ' class="cltitle">' + title + '</' + tag + '>' + tools(anchor) +
+      (extra && extra.chip ? '<span class="chip sem-annotated">' + extra.chip + '</span>' : '') + '</header>' +
+      '<div class="clause-body">' + body + '</div></section>';
+  }
+  function admon(kind, body, extra){
+    return '<aside class="admonition ' + kind + '" data-drag="admonition">' +
+      '<span class="admo-drag sem-annotated" title="Drag to another clause">⋮⋮</span>' +
+      '<span class="admo-label"></span><div class="admo-body">' + body + '</div>' +
+      (extra || '') + '</aside>';
+  }
+  function term(a, word, def, o){
+    o = o || {};
+    return '<div class="term" data-anchor="' + a + '"><div class="term-head"><span class="tnum"></span><span class="tword">' + word + '</span>' +
+      (o.domain ? '<span class="pill sem-annotated" title="domain">⌂ ' + o.domain + '</span>' : '') +
+      (o.alt ? '<span class="tmark alt">admitted: ' + o.alt + '</span>' : '') +
+      (o.dep ? '<span class="tmark deprecated">deprecated: ' + o.dep + '</span>' : '') +
+      (o.warn ? '<button class="warnflag sem-annotated" data-open-problems title="1 style warning — open Problems">⚠</button><span class="vbadge sem-full">⚠ W12</span>' : '') +
+      '<span class="role-pill sem-full">term-entry</span><span class="anchor-chip sem-full">#' + a + '</span></div>' +
+      '<p class="tdef">' + def + '</p>' +
+      (o.src ? '<p class="tsource">' + o.src + '</p>' : '<div class="mn-note sem-annotated"><b>EDITOR:</b> add a [SOURCE: …] attribution or mark as self-defined.</div>') +
+      (o.note ? admon('note', o.note) : '') +
+      '<p class="tused sem-annotated"></p></div>';
+  }
+  function req(a, obligation, text, o){
+    o = o || {};
+    const cls = obligation === 'requirement' ? 'shall' : (obligation === 'recommendation' ? 'should' : 'may');
+    const sym = obligation === 'requirement' ? '●' : (obligation === 'recommendation' ? '○' : '◇');
+    let parts = '';
+    if (o.components){
+      parts = '<details class="req-parts sem-annotated" open><summary>Components</summary><dl>' +
+        '<dt>specification</dt><dd>' + o.components[0] + '</dd>' +
+        '<dt>measurement-target</dt><dd>' + o.components[1] + '</dd>' +
+        '<dt>verification</dt><dd>' + o.components[2] + '</dd></dl></details>';
+    }
+    return '<div class="req" data-anchor="' + a + '" data-obligation="' + obligation + '">' +
+      '<div class="req-head"><span class="req-id"></span>' +
+      '<span class="chip-ob ' + cls + ' sem-annotated">' + sym + ' ' + cls + '</span>' +
+      (o.subject ? '<span class="tag sem-annotated">subject: ' + o.subject + '</span>' : '') +
+      (o.tags || []).map(t => '<span class="tag sem-annotated">' + t + '</span>').join('') +
+      (o.inherit ? '<span class="tag sem-annotated">inherit: ' + o.inherit + '</span>' : '') +
+      (o.profile ? '<span class="pill sem-full">profile: ' + o.profile + '</span>' : '') +
+      '<button class="tool pinbtn sem-annotated" data-copy-anchor title="Copy deep link">#</button>' +
+      '<span class="role-pill sem-full">' + obligation + '[@obligation=&quot;' + cls + '&quot;]</span>' +
+      '<span class="anchor-chip sem-full">#' + a + '</span></div>' +
+      '<p class="req-text">' + text + '</p>' + parts +
+      (o.note ? '<div class="mn-note sem-annotated"><b>EDITOR:</b> ' + o.note + '</div>' : '') +
+      (o.nested || '') + '</div>';
+  }
+  function eq(a, src, body){
+    return '<div class="equation" data-anchor="' + a + '">' +
+      '<span class="eq-src sem-full">[stem] ' + src + '</span><span class="eq-body">' + body + '</span>' +
+      '<span class="eqnum"></span><button class="tool pinbtn sem-annotated" data-copy-anchor title="Copy deep link">#</button>' +
+      '<span class="anchor-chip sem-full">#' + a + '</span></div>';
+  }
+  function fig(a, title, kind){
+    const svgs = {
+      arch: '<svg class="fig-svg" viewBox="0 0 640 150" role="img" aria-label="' + title + '"><rect x="20" y="35" width="150" height="70" rx="9" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.4"/><text x="95" y="64" text-anchor="middle" font-size="12" font-family="-apple-system,Segoe UI,sans-serif" fill="var(--ink)">roadside unit</text><text x="95" y="82" text-anchor="middle" font-size="10" font-family="ui-monospace,Menlo,monospace" fill="var(--ink-3)">(3.1)</text><rect x="245" y="35" width="150" height="70" rx="9" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.4"/><text x="320" y="64" text-anchor="middle" font-size="12" font-family="-apple-system,Segoe UI,sans-serif" fill="var(--ink)">RTDE gateway</text><rect x="470" y="35" width="150" height="70" rx="9" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.4"/><text x="545" y="64" text-anchor="middle" font-size="12" font-family="-apple-system,Segoe UI,sans-serif" fill="var(--ink)">data platform</text><line x1="174" y1="58" x2="241" y2="58" stroke="var(--accent)" stroke-width="1.6"/><line x1="174" y1="84" x2="241" y2="84" stroke="var(--ink-3)" stroke-width="1.1" stroke-dasharray="5 4"/><line x1="399" y1="58" x2="466" y2="58" stroke="var(--accent)" stroke-width="1.6"/><line x1="399" y1="84" x2="466" y2="84" stroke="var(--ink-3)" stroke-width="1.1" stroke-dasharray="5 4"/><text x="320" y="130" text-anchor="middle" font-size="10" font-family="ui-monospace,Menlo,monospace" fill="var(--ink-3)">solid: telemetry uplink · dashed: authenticated management</text></svg>',
+      wave: '<svg class="fig-svg" viewBox="0 0 640 150" role="img" aria-label="' + title + '"><polyline points="20,110 80,110 80,40 140,40 140,110 200,110 200,60 260,60 260,110 320,110 320,30 380,30 380,110 440,110 440,75 500,75 500,110 620,110" fill="none" stroke="var(--accent)" stroke-width="2"/><line x1="20" y1="110" x2="620" y2="110" stroke="var(--ink-3)" stroke-width="1"/><text x="320" y="140" text-anchor="middle" font-size="10" font-family="ui-monospace,Menlo,monospace" fill="var(--ink-3)">frame burst profile B-1 — 3× nominal for 30 s</text></svg>',
+      topo: '<svg class="fig-svg" viewBox="0 0 640 140" role="img" aria-label="' + title + '"><rect x="30" y="25" width="230" height="90" rx="10" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.4"/><text x="145" y="57" text-anchor="middle" font-size="12" font-family="-apple-system,Segoe UI,sans-serif" fill="var(--ink)">junction A</text><circle cx="115" cy="80" r="7" fill="var(--accent)"/><circle cx="175" cy="80" r="7" fill="var(--accent)"/><rect x="380" y="25" width="230" height="90" rx="10" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.4"/><text x="495" y="57" text-anchor="middle" font-size="12" font-family="-apple-system,Segoe UI,sans-serif" fill="var(--ink)">junction B</text><circle cx="495" cy="80" r="7" fill="var(--accent)"/><line x1="264" y1="70" x2="376" y2="70" stroke="var(--ink-3)" stroke-width="1.2" stroke-dasharray="5 4"/></svg>'
+    };
+    return '<figure class="fig" data-anchor="' + a + '">' + svgs[kind] +
+      '<figcaption><span class="capnum"></span> — ' + title +
+      '<button class="tool pinbtn sem-annotated" data-copy-anchor title="Copy deep link">#</button>' +
+      '<button class="tool sem-annotated" data-lightbox title="Enlarge (lightbox)">⤢</button>' +
+      '<span class="anchor-chip sem-full">#' + a + '</span></figcaption></figure>';
+  }
+  function td(v){ return '<td>' + v + '</td>'; }
+  function tbl(a, title, cols, rowsHtml, o){
+    o = o || {};
+    const head = Array.isArray(cols[0])
+      ? '<thead><tr>' + cols[0].map(c => '<th colspan="' + c[1] + '">' + c[0] + '</th>').join('') + '</tr><tr>' + cols[1].map(c => '<th>' + c + '</th>').join('') + '</tr></thead>'
+      : '<thead><tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead>';
+    return '<figure class="tbl-fig" data-anchor="' + a + '">' +
+      '<div class="scrollblock' + (o.tall ? ' tall' : '') + '" tabindex="0" aria-label="' + title + ', scrolls within its block">' +
+      (o.tall ? '<span class="scrollhint sem-annotated">↔↕ scroll</span>' : '<span class="scrollhint sem-annotated">↔ scroll</span>') +
+      '<table>' + head + '<tbody>' + rowsHtml + '</tbody></table></div>' +
+      '<figcaption><span class="capnum"></span> — ' + title +
+      '<button class="tool pinbtn sem-annotated" data-copy-anchor title="Copy deep link">#</button>' +
+      '<span class="anchor-chip sem-full">#' + a + '</span></figcaption></figure>';
+  }
+  function hex(n, w){ return '0x' + n.toString(16).toUpperCase().padStart(w || 4, '0'); }
+
+  /* ---- register table: 10 cols × 100 rows (unusually long, in-block scroll) ---- */
+  const REGS = ['TX_CFG','RX_CFG','STATUS','IRQ_MASK','FIFO_CTL','CLK_DIV','PWR_LVL','SEC_KEY','MGMT_ID','DIAG_CTL','SEQ_NO','CRC_POLY','RTS_THR','AGE_LIM','LINK_TMO','PROF_SEL'];
+  let regRows = '';
+  for (let i = 0; i < 100; i++){
+    const name = REGS[i % REGS.length] + (i >= REGS.length ? '_' + (Math.floor(i / REGS.length) + 1) : '');
+    regRows += '<tr>' + [name, hex(i * 4), hex(ri(0, 65535), 4), pick(['8-bit','16-bit','32-bit']), pick(['RW','RO','WO','RW1C']),
+      'bank ' + ri(0, 3), pick(['volatile','sticky','shadow']), pick(['plain','AES-128','AES-256']), 'v' + ri(1, 3) + '.' + ri(0, 9), sent().slice(0, 60) + '…'].map(td).join('') + '</tr>';
+  }
+  /* ---- field table: 14 cols (unusually wide, horizontal scroll) ---- */
+  const WCOLS = [['Field',2],['Layout',4],['Semantics',8]];
+  const WSUB = ['name','offset','size','type','units','range','default','scaling','endian','access','volatile','persistence','since','notes'];
+  let wideRows = '';
+  for (let i = 0; i < 40; i++){
+    wideRows += '<tr>' + ['fld_' + i, hex(i * 8), pick(['8','16','32','64']) + '-bit', pick(['uint','sint','fixed','enum','bitmap']),
+      pick(['ms','µs','Hz','dBm','count','—']), '0…' + ri(2, 65535), hex(ri(0, 255), 2), pick(['1e-3','1e-6','2^n','—']),
+      pick(['LE','BE']), pick(['RW','RO']), pick(['yes','no']), pick(['RAM','flash','both']), 'v' + ri(1, 3)].map(td).join('') + '</tr>';
+  }
+  /* ---- compliance matrix (Annex B): 30 rows ---- */
+  let mxRows = '';
+  for (let i = 0; i < 30; i++){
+    mxRows += '<tr>' + ['REQ-' + String(i + 1).padStart(2, '0'), pick(['shall','should','may']), pick(['transmission','timing','security','diagnostics','management']),
+      'T-' + String(ri(1, 12)).padStart(2, '0'), pick(['verified','pending','n/a']), sent().slice(0, 50) + '…'].map(td).join('') + '</tr>';
+  }
+  /* ---- conformance table (Clause 10): 8 rows ---- */
+  let convRows = '';
+  const PROFILES = ['EU-urban','EU-motorway','NA-arterial','JP-express','AU-regional','DE-autobahn','KR-smart','generic'];
+  for (let i = 0; i < 8; i++){
+    convRows += '<tr>' + [PROFILES[i], pick(['7.1, 7.2','7.2, 7.4','7.1–7.3','7.3, 7.5']), pick(['7.5','—','7.4','7.5, A.2']), pick(['—','legacy B-1','legacy B-2']),
+      pick(['14.1','14.2','14.3','14.4'])].map(td).join('') + '</tr>';
+  }
+  /* ---- symbols dl ---- */
+  const SYM = [['RTDE','roadside telemetry data exchange (this document)'],['RSU','roadside unit'],['FER','frame error ratio'],['MTU','maximum transmission unit'],
+    ['PTP','precision time protocol'],['CRC','cyclic redundancy check'],['QoS','quality of service'],['p95','95th percentile of a distribution'],
+    ['Δt','nominal slot duration'],['T<sub>cycle</sub>','frame cycle interval'],['B-1, B-2','burst load profiles'],['SXL','semantic XML serialisation'],
+    ['DIS','draft international standard'],['WG 7','working group 7 — maintenance'],['OBP','online browsing platform'],['SDoC','supplier&rsquo;s declaration of conformity']];
+  const dlSym = '<dl class="dl-defs">' + SYM.map(p => '<dt>' + p[0] + '</dt><dd>' + p[1] + '</dd>').join('') + '</dl>';
+
+  /* ---- terms: 26 entries, varied standoc features ---- */
+  const TWORDS = ['roadside unit','telemetry frame','latency window','gateway','data platform','frame scheduler','register bank','burst profile',
+    'degraded mode','coverage map','audit trail','session key','clock domain','firmware image','operator console','latency monitor',
+    'diagnostics record','downlink command','synchronisation epoch','duty cycle','retry budget','conformance class','deployment profile','legacy payload',
+    'measurement target','verification'];
+  let terms = '';
+  TWORDS.forEach((w, i) => {
+    const n = i + 1;
+    const def = pick(['equipment or process that ' + sent().charAt(0).toLowerCase() + sent().slice(1, -1),
+      'parameter constraining ' + pick(['telemetry frames','management traffic','diagnostics']),
+      'state of the ' + pick(['interface','link','subsystem']) + ' in which ' + sent().slice(0, -1).toLowerCase() + ' applies']);
+    terms += term('term-' + n, w, def, {
+      domain: i % 7 === 4 ? 'roadside telemetry' : '',
+      alt: i % 5 === 1 ? pick(['RSU', 'data frame', 'T<sub>win</sub>', 'mgmt plane']) : '',
+      dep: i === 2 ? 'beacon pole' : '',
+      warn: i === 6 ? 1 : '',
+      src: i === 6 ? '' : '[SOURCE: ISO&nbsp;24102-1:2025, 3.' + (i % 20 + 1) + (i % 3 ? ', modified' : '') + ']',
+      note: i % 9 === 8 ? 'In bilingual deployments the French equivalent takes precedence for labelling only.' : ''
+    });
+  });
+
+  /* ---- sourcecode + raw passthrough ---- */
+  const srcBlock = '<pre class="src-block" data-anchor="src-1"><code>profile eu-urban {\n  latency-window  = 100 ms\n  retry-budget    = 3\n  burst-profile   = B-1\n  security {\n    mgmt-auth     = aes-256\n    key-rotation  = 24h\n  }\n}</code><span class="role-pill sem-full">sourcecode</span></pre>';
+  const rawBlock = '<div class="raw-block" data-anchor="raw-1"><div class="raw-head">🔒 passthrough — read-only (no SXML mapping; preserved verbatim from source)</div><pre>[pass]\n+++++\n&lt;div class="legacy-banner" data-vendor="acme"&gt;…&lt;/div&gt;\n+++++</pre></div>';
+
+  /* ---- assemble ---- */
+  let h = '';
+
+  h += clause('cl-fore', 1, 'none', 'front', 'Foreword',
+    paras(2) + admon('warning', 'The attention of participating bodies is drawn to the possibility that some of the elements of this document may be the subject of patent rights.'));
+
+  h += clause('cl-intro', 1, 'none', 'front', 'Introduction',
+    paras(4) + '<p>Roadside telemetry is central to cooperative traffic management. The reference architecture is specified in ' + xr('cl-5') +
+    ', requirements in ' + xr('cl-7') + ', the data model in ' + xr('cl-8') + ', and deployment examples are collected in ' + xr('cl-a') +
+    '. Every cross-reference resolves from structure — never from page numbers.' + idx('introduction') + '</p>');
+
+  h += clause('cl-1', 1, 'normal', 'scope', 'Scope',
+    paras(6) +
+    '<ul class="doc-list"><li>telemetry acquisition at the roadside unit;<ul><li>burst profiles B-1 and B-2;</li><li>degraded-mode acquisition.</li></ul></li>' +
+    '<li>uplink framing and transport;</li><li>management interface security;</li><li>conformance test methods.</li></ul>' +
+    paras(2) +
+    '<p>Offline analytics of stored telemetry is outside the scope of this document.' + fn(1, 'Storage retention is a deployment matter; see Annex A.') +
+    fn(2, 'Analytics interfaces may be specified in a future part.') + idx('scope') + '</p>' +
+    '<ol class="footnotes"><li>Storage retention is a deployment matter; see Annex A.</li><li>Analytics interfaces may be specified in a future part.</li></ol>');
+
+  h += clause('cl-2', 1, 'normal', 'refs', 'Normative references',
+    '<p>There are no normative references in this document.</p>' +
+    '<ol class="refs"><li>ISO&nbsp;24102-1:2025, <i>Intelligent transport systems — CALM — Part 1: Architecture</i></li>' +
+    '<li>ISO/IEC&nbsp;27001:2022, <i>Information security management systems</i></li></ol>' +
+    admon('note', 'Documents cited bibliographically in Clause 13 are informative only — see the Bibliography.'));
+
+  h += clause('cl-3', 1, 'normal', 'terms', 'Terms and definitions',
+    '<p>For the purposes of this document, the terms and definitions given in ' + xr('term-1') + ' and the following apply.</p>' +
+    terms + insertPt('Type / here — the flavour model allows only term entries, notes, examples and paragraphs in a Terms clause'));
+
+  h += clause('cl-4', 1, 'normal', 'normative', 'Symbols and abbreviated terms',
+    '<p>For the purposes of this document, the following symbols and abbreviated terms apply.' + idx('symbols') + '</p>' + dlSym +
+    admon('note', 'Quantities are expressed in SI units unless otherwise indicated in ' + xr('cl-8') + '.'));
+
+  h += clause('cl-5', 1, 'normal', 'normative', 'Protocol architecture',
+    paras(12) + fig('fig-1', 'RTDE reference architecture', 'arch') +
+    '<h4 class="floating-title">Design principles<span class="role-pill sem-full">floating-title (unnumbered)</span></h4>' +
+    paras(12) + admon('example', 'A dual-RSU junction instantiates the architecture with overlapping coverage; each unit reports independently.'));
+
+  /* Clause 6 — nesting to depth 7, plus flat siblings for contrast */
+  const c6inner = clause('cl-6-1-1-1-1-1-1', 7, 'normal', 'normative', 'Conformance sub-profiles',
+      paras(6) + admon('note', 'At this depth the flavour model permits no further subdivision — restructure the clause instead.'));
+  const c6d6 = clause('cl-6-1-1-1-1-1', 6, 'normal', 'normative', 'Legacy interoperability', paras(5) + c6inner);
+  const c6d5 = clause('cl-6-1-1-1-1', 5, 'normal', 'normative', 'Profile negotiation', paras(5) + c6d6);
+  const c6d4 = clause('cl-6-1-1-1', 4, 'normal', 'normative', 'Retry policy', paras(4) + c6d5 +
+      clause('cl-6-1-1-2', 4, 'normal', 'normative', 'Suppression rules', paras(2)));
+  const c6d3 = clause('cl-6-1-1', 3, 'normal', 'normative', 'Session control', paras(4) + c6d4 +
+      clause('cl-6-1-2', 3, 'normal', 'normative', 'Datagram mode', paras(2) +
+        clause('cl-6-1-2-1', 4, 'normal', 'normative', 'Checksums', paras(2)) +
+        clause('cl-6-1-2-2', 4, 'normal', 'normative', 'Sequence numbers', paras(2))));
+  const c6d2 = clause('cl-6-1', 2, 'normal', 'normative', 'Physical and framing stack', paras(4) + c6d3);
+  h += clause('cl-6', 1, 'normal', 'normative', 'Protocol layering', paras(3) + c6d2 +
+      clause('cl-6-2', 2, 'normal', 'normative', 'Management plane', paras(4)) +
+      clause('cl-6-3', 2, 'normal', 'normative', 'Diagnostics plane', paras(2)));
+
+  /* Clause 7 — long requirements clause (16 obligation blocks incl. nesting) */
+  h += clause('cl-7', 1, 'normal', 'normative', 'Requirements',
+    paras(3) + '<p>In this clause, “shall” indicates a requirement, “should” a recommendation and “may” a permission. The transmission interface requirements apply to the architecture of ' +
+    xr('cl-6') + ' and are verified in accordance with Clause ' + xr('cl-99') +
+    '<span class="vbadge sem-full" title="E30 — unresolved cross-reference">⚠ E30</span>.</p>' +
+
+    clause('cl-7-1', 2, 'normal', 'normative', 'General requirements',
+      paras(2) +
+      req('req-1', 'requirement', 'The roadside unit shall transmit telemetry frames at intervals not greater than the latency window (' + xr('term-3') + ') under normal operating conditions.',
+        { subject: 'RSU', tags: ['class: transmission'], components: ['frame interval ≤ latency window', 'p95 ≤ 100 ms at 99 % availability', 'test T-01 per '], note: 'confirm the 100 ms target with WG 7 before the DIS ballot' }) +
+      paras(2) +
+      req('req-2', 'recommendation', 'The roadside unit should include a CRC-32 checksum in every telemetry frame header.', { tags: ['class: diagnostics'] }) +
+      insertPt('Type / here — /requirement, /recommendation, /permission, /note, /example, /term (not allowed in a normative clause)…') +
+      req('req-3', 'permission', 'Implementations may compress telemetry payloads using the scheme given in ' + xr('tbl-wide') + '.', { tags: ['class: efficiency'] }) +
+      admon('note', 'Where compression is applied, the measurement target of ' + xr('req-1') + ' is assessed before decompression.')) +
+
+    clause('cl-7-2', 2, 'normal', 'normative', 'Transmission requirements',
+      paras(3) +
+      req('req-4', 'requirement', 'The roadside unit shall authenticate commands received on the management interface before acting on them.', { tags: ['class: security'], inherit: 'ISO/IEC 27001' }) +
+      req('req-5', 'requirement', 'The roadside unit shall honour the retry budget of ' + xr('term-21') + ' without operator intervention.', { tags: ['class: transmission'], profile: 'EU' }) +
+      paras(4) +
+      req('req-6', 'recommendation', 'Transmissions should be staggered across the synchronisation epoch to smooth aggregate load.', { tags: ['class: efficiency'] }) +
+      req('req-7', 'requirement', 'The frame error ratio observed over any rolling 60 s window shall not exceed the limit derived from ' + xr('eq-1') + '.',
+        { subject: 'RSU', tags: ['class: transmission'], components: ['FER ≤ 1e-6 at p95', 'window 60 s rolling', 'test T-03 per '], note: '' }) +
+      admon('example', 'An acceptance report lists p95 interval, FER and the ratio of authenticated to rejected commands.')) +
+
+    clause('cl-7-3', 2, 'normal', 'normative', 'Timing requirements',
+      paras(2) +
+      req('req-8', 'requirement', 'The latency window shall not exceed 100 ms for urban profiles and 250 ms for motorway profiles.', { tags: ['class: timing'] }) +
+      paras(5) +
+      req('req-9', 'requirement', 'Time synchronisation shall converge within two epochs of ' + xr('term-19') + '.', { tags: ['class: timing'] }) +
+      paras(5) +
+      req('req-10', 'permission', 'Deployments may trade latency margin for retransmission budget under the profiles of ' + xr('cl-14') + '.', { tags: ['class: timing'] }) +
+      req('req-11', 'requirement', 'Degraded-mode operation shall be entered within one latency window of the triggering condition.', { tags: ['class: timing', 'class: resilience'] }) +
+      admon('warning', 'Timing budgets are absolute; aggregation across chained gateways is out of scope.')) +
+
+    clause('cl-7-4', 2, 'normal', 'normative', 'Security requirements',
+      paras(4) +
+      req('req-12', 'requirement', 'Session keys shall rotate at least every 24 h; see the security policy in Clause 13 and ' + eref(3) + '.', { tags: ['class: security'], inherit: 'ISO/IEC 27001' }) +
+      req('req-13', 'requirement', 'Rejected management commands shall be logged with cause codes to the audit trail (' + xr('term-11') + ').', { tags: ['class: security', 'class: diagnostics'] }) +
+      paras(6)) +
+
+    clause('cl-7-5', 2, 'normal', 'normative', 'Management interface requirements',
+      paras(8) +
+      req('req-14', 'requirement', 'The management interface shall expose the register map of ' + xr('tbl-reg') + ' through the field encoding of ' + xr('tbl-wide') + '.',
+        { subject: 'gateway', tags: ['class: management'],
+          components: ['all mandatory registers addressable', 'read within one latency window', 'test T-07 per '],
+          nested: req('req-15', 'requirement', 'Register writes shall be idempotent for the duration of a session.', { tags: ['class: management'] }) }) +
+      req('req-16', 'recommendation', 'Diagnostics counters should be resettable only by an authenticated operator.', { tags: ['class: management'] }) +
+      paras(8)));
+
+  /* Clause 8 — the long + wide tables */
+  h += clause('cl-8', 1, 'normal', 'normative', 'Data model',
+    paras(4) +
+    clause('cl-8-1', 2, 'normal', 'normative', 'Register map',
+      paras(2) + tbl('tbl-reg', 'RTDE register map (extract, 100 of 4 096 registers)',
+        ['Register','Offset','Reset','Width','Access','Bank','Persistence','Security','Since','Description'], regRows, { tall: true }) +
+      paras(2) + admon('note', 'The register table scrolls within its own block — the document itself never scrolls sideways.')) +
+    clause('cl-8-2', 2, 'normal', 'normative', 'Interface field encodings',
+      paras(2) + tbl('tbl-wide', 'Interface field encodings (14 fields)', [WCOLS, WSUB], wideRows) +
+      paras(2)));
+
+  /* Clause 9 — equations, nested lists, shall-in-note defect, figure */
+  h += clause('cl-9', 1, 'normal', 'normative', 'Test methods',
+    paras(3) +
+    eq('eq-1', 'FER = N_err / N_total', 'FER&nbsp;=&nbsp;<span class="frac"><span class="fr-n">N<sub>err</sub></span><span class="fr-d">N<sub>total</sub></span></span>&nbsp;×&nbsp;100&nbsp;%') +
+    paras(2) +
+    '<ul class="doc-list"><li>steady-state load: nominal traffic profile at 100 % duty cycle<ul><li>burst profile B-1: 3× nominal for 30 s</li><li>burst profile B-2: 10× nominal for 3 s</li></ul></li>' +
+    '<li>degraded mode: single-antenna operation, management interface active</li></ul>' +
+    admon('example', 'An acceptance report lists p95 interval, FER and the ratio of authenticated to rejected commands.') +
+    admon('note', 'Where the latency window is exceeded because of radio congestion, the roadside unit <b>shall</b> defer transmission to the next window.',
+      '<button class="warnflag sem-annotated" data-open-problems title="1 style warning — “shall” inside a note">⚠</button><span class="vbadge sem-full" title="W07 — requirement term inside a note (ISO/IEC Directives, Part 2, 24.5)">⚠ W07</span>') +
+    eq('eq-2', 'T_cycle <= N_slot * dt', 'T<sub>cycle</sub>&nbsp;≤&nbsp;N<sub>slot</sub>&nbsp;⋅&nbsp;Δt') +
+    fig('fig-2', 'Burst profile B-1 timing', 'wave') +
+    paras(4) +
+    '<div class="mn-note sem-annotated"><b>EDITOR:</b> align the apparatus list with the 2026 round of interlab measurements.</div>' +
+    clause('cl-9-1', 2, 'normal', 'normative', 'Test apparatus', paras(6)) +
+    clause('cl-9-2', 2, 'normal', 'normative', 'Procedure',
+      '<ol class="doc-ol">' + ['configure the unit under test with the profile of 14.1','apply nominal load for 15 min','capture the interval distribution','compute FER per ' + '<span class="xref" data-target="eq-1"></span>','inject burst profile B-1','repeat steps 2–5 for B-2','enter degraded mode and repeat','record p95, FER and rejection ratio']
+        .map(s => '<li>' + s + '</li>').join('') + '</ol>' + paras(4)));
+
+  h += clause('cl-10', 1, 'normal', 'conformance', 'Conformance',
+    paras(4) + tbl('tbl-conv', 'Profile conformance sets', ['Profile','Mandatory','Optional','Forbidden','Reference'], convRows) + paras(2),
+    { state: 'reviewed' });
+
+  h += clause('cl-11', 1, 'normal', 'normative', 'Marking and labelling',
+    '<p>Equipment claiming conformance to this document shall be marked with the document identifier and the deployed profile.</p>');
+
+  h += clause('cl-12', 1, 'normal', 'normative', 'Documentation requirements',
+    paras(4) + srcBlock + paras(4) +
+    admon('note', 'The profile block above is authoritative for configuration parsing; prose in 14.x is informative.'));
+
+  h += clause('cl-13', 1, 'normal', 'normative', 'Security management',
+    paras(10) + '<p>Key management follows the practices catalogued in ' + eref(1) + ' and ' + eref(5) + '.' + idx('key management') + '</p>' +
+    paras(10) +
+    '<p>Alignment with the companion collection document is tracked at compile time: <span class="pill sem-annotated cref" title="Cross-document reference — resolves at collection compile time (metanorma.yml)">⧉ RTDE-2:2026, 5.2</span></p>' +
+    paras(2));
+
+  h += clause('cl-14', 1, 'normal', 'normative', 'Interoperability profiles',
+    paras(2) +
+    clause('cl-14-1', 2, 'normal', 'normative', 'Urban profiles', paras(3)) +
+    clause('cl-14-2', 2, 'normal', 'normative', 'Motorway profiles', paras(3)) +
+    clause('cl-14-3', 2, 'normal', 'normative', 'Regional profiles', paras(3)) +
+    clause('cl-14-4', 2, 'normal', 'normative', 'Constrained-device profiles', paras(3)));
+
+  h += clause('cl-a', 1, 'annex', 'annex', 'Deployment examples',
+    paras(6) + fig('fig-3', 'Dual-RSU junction deployment', 'topo') +
+    admon('example', 'Two roadside units per junction provide overlapping coverage; each reports independently under ' + xr('req-1') + '.') +
+    clause('cl-a-1', 2, 'annex', 'annex', 'Urban corridors', paras(6)) +
+    clause('cl-a-2', 2, 'annex', 'annex', 'Motorway corridors', paras(6)),
+    { chip: 'informative' });
+
+  h += clause('cl-b', 1, 'annex', 'annex', 'Compliance matrices',
+    paras(2) +
+    clause('cl-b-1', 2, 'annex', 'annex', 'Requirement-to-test matrix',
+      paras(2) + tbl('tbl-matrix', 'Requirement-to-test compliance matrix', ['Requirement','Obligation','Class','Test','Status','Remark'], mxRows) +
+      clause('cl-b-1-1', 3, 'annex', 'annex', 'Matrix maintenance', paras(3))),
+    { chip: 'normative' });
+
+  h += clause('cl-c', 1, 'annex', 'annex', 'Legacy payload notes',
+    paras(2) + rawBlock + paras(2), { chip: 'informative' });
+
+  h += clause('cl-bib', 1, 'none', 'biblio', 'Bibliography',
+    '<ol class="refs">' + [
+      'ETSI&nbsp;TR&nbsp;102&nbsp;961, <i>Intelligent Transport Systems — reporting</i>',
+      'IETF&nbsp;RFC&nbsp;7559, <i>Packet Loss and Delay Measurement</i>',
+      'ISO/IEC&nbsp;27002:2022, <i>Information security controls</i>',
+      'ITU-T&nbsp;Y.1540, <i>IP packet transfer performance</i>',
+      'NIST&nbsp;SP&nbsp;800-57, <i>Key management recommendations</i>',
+      'ISO&nbsp;19091:2023, <i>Cooperative ITS — V2X messages</i>',
+      'IEC&nbsp;61850-90-2, <i>Communication networks — usage of GOT</i>',
+      'ISO&nbsp;10303-11, <i>Industrial automation — EXPRESS language</i>',
+      'CEN/TS&nbsp;17244, <i>Roadside telematics — field trials</i>',
+      'RFC&nbsp;8174, <i>Ambiguity of uppercase vs lowercase in RFC 2119</i>'
+    ].map((r, i) => '<li data-anchor="bib-' + (i + 1) + '">' + r + '</li>').join('') + '</ol>');
+
+  return h;
+}
+</script>
+<script>
+/* =====================================================================
+   Semantic Canvas mock-up — vanilla JS, no dependencies.
+   ===================================================================== */
+'use strict';
+const $  = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
+const canvas = $('#canvas'), doc = $('#doc'), treeList = $('#treeList');
+
+/* ---------- toasts & clipboard ---------- */
+function toast(msg, ms){
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  $('#toasts').appendChild(t);
+  setTimeout(() => t.remove(), ms || 2800);
+}
+function copyText(text, okMsg){
+  const done = () => toast(okMsg);
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { toast('Copy blocked by the browser'); }
+    ta.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(text).then(done, fallback);
+  else fallback();
+}
+
+/* ---------- viewer preferences (scoped to the viewer, not the doc) ---------- */
+const prefs = {
+  get(k, d){ try { return localStorage.getItem('mnmock-' + k) || d; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem('mnmock-' + k, v); } catch(e){} }
+};
+let measureSize = prefs.get('measure', 'm');
+let visMode     = prefs.get('vis', 'annotated');
+let themeIdx    = ['light','dark','contrast'].indexOf(prefs.get('theme', 'light')); if (themeIdx < 0) themeIdx = 0;
+
+function applyMeasure(){
+  document.body.dataset.measure = measureSize;
+  $$('.measure-ctl [data-measure]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.measure === measureSize)));
+  requestAnimationFrame(buildMinimap);
+}
+function applyTheme(){
+  document.documentElement.dataset.theme = ['light','dark','contrast'][themeIdx];
+  prefs.set('theme', ['light','dark','contrast'][themeIdx]);
+}
+function applyVis(){
+  document.body.classList.remove('vis-prose','vis-annotated','vis-full');
+  document.body.classList.add('vis-' + visMode);
+  $$('.dial [data-vis]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.vis === visMode)));
+  prefs.set('vis', visMode);
+}
+
+/* =====================================================================
+   NUMBERING — one pass computes every derived number in the document
+   (clause positions, annex letters, terms, captions, obligation labels,
+   notes/examples) — then resolves every cross-reference against them.
+   Anchors NEVER change: identity is stable, numbers are derived.
+   ===================================================================== */
+let numberMap = {};      /* anchor -> {el, kind, num, label, title} */
+let problems  = [];
+
+function sections(){ return $$('section.clause', doc); }
+function secTitle(s){ const h = $('.cltitle', s); return h ? h.textContent : ''; }
+function secLabel(s){ return s._num ? (s._num + ' ' + secTitle(s)) : secTitle(s); }
+
+function renumberAll(){
+  numberMap = {};
+  /* -- clauses: positional numbering by depth (annexes lettered) -- */
+  const secs = sections();
+  const counters = [];
+  let annexIdx = 0;
+  secs.forEach(s => {
+    const d = +s.dataset.depth;
+    counters.length = d;
+    counters[d - 1] = (counters[d - 1] || 0) + 1;
+    let num = '';
+    if (s.dataset.numbering === 'annex'){
+      if (d === 1){ annexIdx += 1; s._annex = String.fromCharCode(64 + annexIdx); }
+      if (d === 1){
+        num = s._annex;
+      } else {
+        /* nearest depth-1 annex ancestor + full counter path below it */
+        const anc = s.parentElement.closest('section.clause[data-numbering="annex"][data-depth="1"]');
+        const letter = anc ? anc._annex : 'A';
+        const ancDepth = anc ? +anc.dataset.depth : 0;
+        num = letter + '.' + counters.slice(ancDepth, d).join('.');
+      }
+    } else if (s.dataset.numbering !== 'none'){
+      num = counters.slice(0, d).join('.');
+    }
+    s._num = num || null;
+    const ne = $('.clnum', s); if (ne) ne.textContent = num ? num : '';
+    numberMap[s.dataset.anchor] = { el: s, kind: 'clause', num: num, title: secTitle(s), label: num ? ('Clause ' + num) : secTitle(s) };
+  });
+
+  /* -- terms: <clause>.<i> -- */
+  let tSec = null, ti = 0;
+  $$('.term', doc).forEach(t => {
+    const sec = t.closest('section.clause');
+    if (sec !== tSec){ tSec = sec; ti = 0; }
+    ti += 1;
+    const num = (sec._num || '') + '.' + ti;
+    t._num = num;
+    $('.tnum', t).textContent = num;
+    numberMap[t.dataset.anchor] = { el: t, kind: 'term', num: num, title: $('.tword', t).textContent, label: num };
+  });
+
+  /* -- captions: tables, figures, equations (document order) -- */
+  let nT = 0, nF = 0, nE = 0;
+  $$('figure.tbl-fig, figure.fig, .equation', doc).forEach(el => {
+    if (el.classList.contains('tbl-fig')){
+      nT += 1;
+      $('.capnum', el).textContent = 'Table ' + nT;
+      numberMap[el.dataset.anchor] = { el: el, kind: 'table', num: 'Table ' + nT, title: capTitle(el), label: 'Table ' + nT };
+    } else if (el.tagName === 'FIGURE'){
+      nF += 1;
+      $('.capnum', el).textContent = 'Figure ' + nF;
+      numberMap[el.dataset.anchor] = { el: el, kind: 'figure', num: 'Figure ' + nF, title: capTitle(el), label: 'Figure ' + nF };
+    } else {
+      nE += 1;
+      $('.eqnum', el).textContent = '(' + nE + ')';
+      numberMap[el.dataset.anchor] = { el: el, kind: 'equation', num: 'Equation ' + nE, title: 'Equation ' + nE, label: '(' + nE + ')' };
+    }
+  });
+
+  /* -- bibliography entries (eref targets), numbered per list -- */
+  $$('.refs').forEach(list => {
+    let n = 0;
+    $$('li[data-anchor]', list).forEach(li => {
+      n += 1;
+      numberMap[li.dataset.anchor] = { el: li, kind: 'eref', num: '[' + n + ']', title: li.textContent.slice(0, 80), label: '[' + n + ']' };
+    });
+  });
+
+  /* -- requirement-type blocks: per type -- */
+  const typeLabel = { requirement: 'Requirement', recommendation: 'Recommendation', permission: 'Permission' };
+  const perType = {};
+  $$('.req', doc).forEach(r => {
+    const ob = r.dataset.obligation;
+    perType[ob] = (perType[ob] || 0) + 1;
+    const lbl = typeLabel[ob] + ' ' + perType[ob];
+    r._num = lbl;
+    $('.req-id', r).textContent = lbl;
+    numberMap[r.dataset.anchor] = { el: r, kind: 'req', num: lbl, title: $('.req-text', r).textContent.slice(0, 90), label: lbl };
+  });
+
+  /* -- notes & examples: per enclosing clause -- */
+  secs.forEach(s => { s._notes = 0; s._examples = 0; });
+  $$('.admonition', doc).forEach(a => {
+    const sec = a.closest('section.clause'); if (!sec) return;
+    let lbl;
+    if (a.classList.contains('warning')) lbl = 'WARNING';
+    else if (a.classList.contains('example')){ sec._examples += 1; lbl = 'EXAMPLE ' + (sec._examples > 1 ? sec._examples : ''); }
+    else { sec._notes += 1; lbl = 'NOTE ' + (sec._notes > 1 ? sec._notes : ''); }
+    a._label = lbl.trim();
+    const le = $('.admo-label', a); if (le) le.textContent = lbl;
+  });
+
+  rebuildTree();
+  updateXrefs();
+  renderTermUsage();
+  renderProblems();
+  buildMinimap();
+  updateStatusCounts();
+  updateBreadcrumb();
+}
+function capTitle(f){
+  const c = $('figcaption', f);
+  return c ? c.textContent.replace(/^(Table|Figure)\s*\d+\s*[—-]\s*/, '').trim() : '';
+}
+
+function resolveXref(x){
+  const t = numberMap[x.dataset.target];
+  if (t){
+    x.classList.remove('broken');
+    x.textContent = t.num || t.label;
+    x.title = t.kind === 'clause' ? (t.num ? t.num + ' ' + t.title : t.title) : (t.num + ' — ' + t.title);
+    x.dataset.kind = t.kind;
+  } else {
+    x.classList.add('broken');
+    x.textContent = '✖ ' + x.dataset.target;
+    x.title = 'Unresolved reference: no anchor “' + x.dataset.target + '” in this collection';
+  }
+}
+function updateXrefs(){ $$('.xref, .eref', doc).forEach(resolveXref); }
+
+/* "used-at" back-links on terms (dynamic, integrity-checked) */
+function renderTermUsage(){
+  $$('.term', doc).forEach(t => {
+    const spots = $$('.xref', doc).filter(x => x.dataset.target === t.dataset.anchor && !x.closest('.term'));
+    const el = $('.tused', t); if (!el) return;
+    el.textContent = '';
+    if (!spots.length) return;
+    el.append('↩ used in ');
+    spots.forEach((x, i) => {
+      if (i) el.append(', ');
+      const sec = x.closest('section.clause');
+      const a = document.createElement('a');
+      a.className = 'xref'; a.dataset.target = sec.dataset.anchor;
+      el.appendChild(a); resolveXref(a);
+    });
+  });
+}
+
+/* =====================================================================
+   NODE OUTLINE — dual mode: CLAUSES (classic) / BLOCKS (node-level,
+   drag-to-reorder any node, long-distance moves). Supersedes the
+   clause-only outline: clause view is a mode of the node hierarchy.
+   ===================================================================== */
+let outlineMode = (prefs.get('outline', 'blocks') === 'clauses') ? 'clauses' : 'blocks';
+let treeNodes = [];          /* [{row, el, kind}] — rows ↔ document elements */
+
+function firstWords(el, n){
+  const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? t.slice(0, n) + '…' : t;
+}
+function nodeKind(el){
+  if (el.classList.contains('clause')) return 'clause';
+  if (el.classList.contains('term')) return 'term';
+  if (el.classList.contains('req')) return 'req';
+  if (el.classList.contains('admonition')) return 'note';
+  if (el.tagName === 'FIGURE') return 'float';
+  if (el.classList.contains('equation')) return 'float';
+  if (el.classList.contains('src-block')) return 'sourcecode';
+  if (el.classList.contains('raw-block')) return 'raw';
+  if (el.classList.contains('dl-defs')) return 'dl';
+  if (el.classList.contains('doc-list')) return 'list';
+  if (el.classList.contains('doc-ol')) return 'list';
+  if (el.classList.contains('footnotes')) return 'fn';
+  if (el.tagName === 'UL' || el.tagName === 'OL') return 'list';
+  if (el.tagName === 'LI') return 'li';
+  return 'p';
+}
+function nodeLabel(el){
+  const kind = nodeKind(el);
+  const m = numberMap[el.dataset.anchor];
+  if (kind === 'clause') return { num: el._num || '·', text: secTitle(el) };
+  if (kind === 'term')   return { num: el._num || '', text: $('.tword', el).textContent };
+  if (kind === 'req'){
+    const short = { requirement:'R', recommendation:'C', permission:'P' }[el.dataset.obligation] || 'R';
+    const n = m ? m.label.replace(/^\D+/, '') : '';
+    return { num: short + n, text: firstWords($('.req-text', el), 34) };
+  }
+  if (kind === 'note')   return { num: el._label.replace('WARNING','!').replace('EXAMPLE','EX').replace('NOTE','N').trim(), text: firstWords($('.admo-body', el), 30) };
+  if (kind === 'float'){
+    if (el.classList.contains('tbl-fig')) return { num: 'T' + ((m && m.num || '').replace(/\D/g,'')), text: capTitle(el) };
+    if (el.classList.contains('equation')) return { num: m ? m.label : '()', text: 'equation' };
+    return { num: 'F' + ((m && m.num || '').replace(/\D/g,'')), text: capTitle(el) };
+  }
+  if (kind === 'list')   return { num: '≡', text: $$(':scope > li', el).length + ' items' };
+  if (kind === 'li')     return { num: '•', text: firstWords(el, 30) };
+  if (kind === 'sourcecode') return { num: '{ }', text: 'sourcecode — profile configuration' };
+  if (kind === 'raw')    return { num: '🔒', text: 'passthrough — read-only' };
+  if (kind === 'dl')     return { num: '≔', text: $$('dt', el).length + ' symbols & abbreviations' };
+  if (kind === 'fn')     return { num: 'ⁿ', text: $$('li', el).length + ' footnotes' };
+  return { num: '¶', text: firstWords(el, 34) };
+}
+function nodeIcons(el, kind){
+  const n = problems.filter(p => p.el && el.contains(p.el)).length;
+  if (!n) return '';
+  return '<span class="ti-warn" title="' + n + ' problem(s) here">⚠' + n + '</span>';
+}
+
+function rebuildTree(){
+  treeList.innerHTML = ''; treeNodes = [];
+  treeList.classList.toggle('body-outline', outlineMode === 'blocks');
+  $('#omClauses').setAttribute('aria-pressed', String(outlineMode === 'clauses'));
+  $('#omBlocks').setAttribute('aria-pressed', String(outlineMode === 'blocks'));
+  const blocks = outlineMode === 'blocks';
+  $('#treeHint').innerHTML = blocks
+    ? 'Node-level outline — every block is a row: clauses, paragraphs (¶), list items (•, nested lists too), terms, obligation blocks, notes, figures/tables/equations. Hover a row for its grip ⣿; drag to reorder anything, at any distance, with flavor-model enforcement. Document-view handles can be dropped here for long-distance moves.'
+    : 'Clause outline — nesting to seven levels (8.1.1.1.1.1.1). Hover a row for its grip ⣿ and drag to reorder clauses; drop <i>into</i> a clause (middle band) to nest, before/after to reorder among siblings.';
+
+  function addRow(ul, el, kind, num, text, icons, draggable){
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.className = 'tree-item' + (kind === 'clause' ? '' : ' node-row');
+    btn.dataset.kind = kind;
+    if (el.dataset.anchor) btn.dataset.anchor = el.dataset.anchor;
+    btn.innerHTML = '<span class="ti-grip" aria-hidden="true">⣿</span>' +
+      '<span class="ti-num">' + num + '</span>' +
+      '<span class="ti-title">' + text + '</span>' +
+      '<span class="ti-icons">' + (icons || '') + '</span>';
+    btn.title = kind + (el._num ? ' ' + el._num : '') + ' — ' + text;
+    if (draggable) btn.setAttribute('draggable', 'true');
+    btn.addEventListener('click', () => revealEl(el));
+    li.appendChild(btn); ul.appendChild(li);
+    treeNodes.push({ row: li, el: el, kind: kind });
+    return li;
+  }
+  /* child <ul> MUST be appended to its parent <li> — a detached ul renders nothing */
+  function childUl(li){
+    if (!li.__ul){ li.__ul = document.createElement('ul'); li.appendChild(li.__ul); }
+    return li.__ul;
+  }
+  function addListNodeRows(parentLi, listEl, depth){
+    $$(':scope > li', listEl).forEach(liEl => {
+      const ll = nodeLabel(liEl);
+      const rowLi = addRow(childUl(parentLi), liEl, 'li', ll.num, ll.text, '', true);
+      nodeCount++;
+      if (depth < 2) $$(':scope > ul, :scope > ol', liEl).forEach(sub => addListNodeRows(rowLi, sub, depth + 1));
+    });
+  }
+
+  let curFile = null;
+  const liByDepth = [];
+  let nodeCount = 0;
+  sections().forEach(s => {
+    if (s.parentElement.closest('.clause.collapsed')) return;   /* hidden by an ancestor's collapse */
+    if (s.dataset.file !== curFile){
+      curFile = s.dataset.file;
+      liByDepth.length = 0;
+      const li = document.createElement('li');
+      li.className = 'tree-file';
+      li.textContent = '📄 ' + curFile;
+      treeList.appendChild(li);
+    }
+    const d = +s.dataset.depth;
+    liByDepth.length = d;
+    const parentLi = liByDepth[d - 2];
+    const ul = parentLi ? childUl(parentLi) : treeList;
+
+    const myProblems = problems.filter(p => p.el && p.el.closest && p.el.closest('section.clause') === s).length;
+    const hasNote = !!$('.mn-note', s);
+    const icons = [];
+    if (myProblems) icons.push('<span class="ti-warn" title="' + myProblems + ' problem(s) in this clause">⚠' + myProblems + '</span>');
+    if (hasNote) icons.push('<span class="ti-note" title="editor annotation">✎</span>');
+    if (s.dataset.state === 'reviewed') icons.push('<span class="ti-ok" title="review state: reviewed">✓</span>');
+    if (s.classList.contains('collapsed')) icons.push('<span title="collapsed">⌄</span>');
+
+    const li = addRow(ul, s, 'clause', s._num || '·', secTitle(s), icons.join(''), true);
+    liByDepth[d - 1] = li;
+    nodeCount++;
+
+    if (blocks && !s.classList.contains('collapsed')){
+      $$(':scope > .clause-body > *', s).forEach(ch => {
+        if (ch.classList.contains('clause')) return;      /* sub-clauses come from sections() */
+        if (ch.classList.contains('insert-pt')) return;
+        const kind = nodeKind(ch);
+        const lbl = nodeLabel(ch);
+        const nli = addRow(childUl(li), ch, kind, lbl.num, lbl.text, nodeIcons(ch, kind), true);
+        nodeCount++;
+        if (kind === 'list') addListNodeRows(nli, ch, 1);
+      });
+    }
+  });
+  $('#omBlocksCnt').textContent = nodeCount ? nodeCount + '' : '';
+}
+
+/* ---------- outline drag & drop (reorder any node, at any distance) ---------- */
+let treeDrag = null;
+treeList.addEventListener('dragstart', e => {
+  const row = e.target.closest('.tree-item'); if (!row) return;
+  const rec = treeNodes.find(t => t.row === row.closest('li'));
+  if (!rec){ e.preventDefault(); return; }
+  treeDrag = rec;
+  row.classList.add('dragging');
+  try { e.dataTransfer.setData('text/plain', rec.kind); e.dataTransfer.effectAllowed = 'move'; } catch (err){}
+});
+treeList.addEventListener('dragend', e => {
+  $$('.tree-item.dragging', treeList).forEach(r => r.classList.remove('dragging'));
+  $$('.tree-drop-before, .tree-drop-after, .tree-drop-into', treeList).forEach(r => r.classList.remove('tree-drop-before','tree-drop-after','tree-drop-into'));
+  treeDrag = null;
+});
+function treeValidate(rec, targetRec){
+  /* flavor-model rules mirrored from the slash menu */
+  const kind = rec.kind;
+  if (kind === 'clause'){
+    if (+targetRec.el.dataset.depth !== +rec.el.dataset.depth) return 'clauses reorder among siblings of the same level';
+    if (targetRec.el.dataset.file !== rec.el.dataset.file) return 'cross-file moves are disabled in this mock-up';
+    return null;
+  }
+  if (kind === 'li'){
+    if (targetRec.kind !== 'li') return 'list items reorder within a list';
+    if (targetRec.el.parentElement !== rec.el.parentElement) return 'list items move within their own list (drag the list itself to move it whole)';
+    return null;
+  }
+  if (kind === 'term' || kind === 'req'){
+    const host = targetRec.kind === 'clause' ? targetRec.el : targetRec.el.closest('section.clause');
+    const t = host ? host.dataset.cltype : '';
+    if (kind === 'term' && t !== 'terms') return 'term entries belong in “Terms and definitions”';
+    if (kind === 'req' && t !== 'normative') return 'obligation blocks belong in normative clauses';
+    return null;
+  }
+  return null;   /* p / note / float / list go anywhere */
+}
+/* a document-view drag (dragCtx) and a tree drag (treeDrag) share this:
+   dragging a clause handle from the document into the outline is how you
+   move nodes across long distances without scrolling. */
+function srcRec(){
+  if (treeDrag) return treeDrag;
+  if (typeof dragCtx !== 'undefined' && dragCtx){
+    if (dragCtx.scope === 'clause') return { kind: 'clause', el: dragCtx.el };
+    if (dragCtx.scope === 'admonition') return { kind: 'note', el: dragCtx.el };
+  }
+  return null;
+}
+treeList.addEventListener('dragover', e => {
+  const row = e.target.closest('.tree-item');
+  $$('.tree-drop-before, .tree-drop-after, .tree-drop-into', treeList).forEach(r => r.classList.remove('tree-drop-before','tree-drop-after','tree-drop-into'));
+  $$('.tree-item', treeList).forEach(r => r.style.opacity = '');
+  const src = srcRec();
+  if (!row || !src) return;
+  e.preventDefault();
+  const li = row.closest('li');
+  const rec = treeNodes.find(t => t.row === li); if (!rec) return;
+  if (rec.el === src.el || rec.el.contains(src.el) || src.el.contains(rec.el)) return;
+  const why = treeValidate(src, rec);
+  if (why){ row.style.opacity = .45; row.title = '✖ ' + why; return; }
+  row.title = rec.kind + ' — drop here';
+  const r = row.getBoundingClientRect();
+  const into = rec.kind === 'clause' && (e.clientY - r.top) > r.height * .3 && (e.clientY - r.top) < r.height * .7;
+  if (into) li.classList.add('tree-drop-into');
+  else li.classList.add((e.clientY - r.top) < r.height / 2 ? 'tree-drop-before' : 'tree-drop-after');
+});
+treeList.addEventListener('drop', e => {
+  const row = e.target.closest('.tree-item');
+  const src = srcRec();
+  if (!row || !src) return;
+  e.preventDefault();
+  const rec = treeNodes.find(t => t.row === row.closest('li')); if (!rec) return;
+  const why = treeValidate(src, rec);
+  if (why){ toast('✖ ' + why); return; }
+  const el = src.el, target = rec.el;
+  const r = row.getBoundingClientRect();
+  const into = rec.kind === 'clause' && (e.clientY - r.top) > r.height * .3 && (e.clientY - r.top) < r.height * .7;
+  const oldLabel = el.classList.contains('clause') ? secLabel(el) : (numberMap[el.dataset.anchor] || {}).label || nodeLabel(el).text;
+  if (src.kind === 'clause'){
+    if (into){
+      const body = $('.clause-body', target);
+      const pt = $('.insert-pt', body);
+      if (pt) body.insertBefore(el, pt); else body.appendChild(el);
+    } else {
+      const before = (e.clientY - r.top) < r.height / 2;
+      if (before) target.parentElement.insertBefore(el, target);
+      else target.parentElement.insertBefore(el, target.nextSibling);
+    }
+  } else if (src.kind === 'li'){
+    const before = (e.clientY - r.top) < r.height / 2;
+    if (before) target.parentElement.insertBefore(el, target);
+    else target.parentElement.insertBefore(el, target.nextSibling);
+  } else {
+    const anchor = rec.kind === 'clause' ? null : target;
+    if (anchor){
+      const before = (e.clientY - r.top) < r.height / 2;
+      if (before) anchor.parentElement.insertBefore(el, anchor);
+      else anchor.parentElement.insertBefore(el, anchor.nextSibling);
+    } else {
+      const body = $('.clause-body', target);
+      const pt = $('.insert-pt', body);
+      if (pt) body.insertBefore(el, pt); else body.appendChild(el);
+    }
+  }
+  if (typeof dragCtx !== 'undefined' && dragCtx){ dragCtx.el.classList.remove('dragging'); dragCtx = null; }
+  treeDrag = null;
+  renumberAll(); onScroll();
+  revealEl(el);
+  toast('Moved “' + oldLabel + '” — numbering, cross-references, tree and minimap updated');
+});
+
+/* ---------- mode switch ---------- */
+function setOutlineMode(m){
+  outlineMode = m; prefs.set('outline', m);
+  rebuildTree();
+  onScroll();
+}
+$('#omClauses').addEventListener('click', () => setOutlineMode('clauses'));
+$('#omBlocks').addEventListener('click', () => setOutlineMode('blocks'));
+
+/* =====================================================================
+   PROBLEMS (ambient validation)
+   ===================================================================== */
+function collectProblems(){
+  const list = [];
+  $$('.xref.broken', doc).forEach(x => {
+    list.push({ sev: 'error', code: 'E30', title: 'Unresolved cross-reference',
+      detail: 'target “' + x.dataset.target + '” not found — in ' + secLabel(x.closest('section.clause')) + '. Did you mean 5.2 (test methods)?', el: x });
+  });
+  $$('.admonition', doc).forEach(a => {
+    if (/\bshall\b/.test($('.admo-body', a) ? $('.admo-body', a).textContent : a.textContent)){
+      list.push({ sev: 'warn', code: 'W07', title: '“shall” inside a note',
+        detail: 'Requirements are not permitted in notes (ISO/IEC Directives, Part 2, 24.5) — ' + a._label + ' in ' + secLabel(a.closest('section.clause')), el: a });
+    }
+  });
+  $$('.term', doc).forEach(t => {
+    if (!$('.tsource', t)){
+      list.push({ sev: 'warn', code: 'W12', title: 'Term without [SOURCE: …]',
+        detail: t._num + ' “' + $('.tword', t).textContent + '” — add a source attribution or mark as self-defined', el: t });
+    }
+  });
+  return list;
+}
+function renderProblems(){
+  problems = collectProblems();
+  const nErr = problems.filter(p => p.sev === 'error').length;
+  const nWarn = problems.length - nErr;
+  const btn = $('#problemsBtn');
+  btn.className = 'ibtn' + (problems.length ? (nErr ? ' has-issues' : ' sev-warn') : '');
+  $('#probBtnLabel').textContent = problems.length ? String(problems.length) : 'OK';
+  const sv = $('#statusValidation');
+  sv.className = problems.length ? (nErr ? 'has-issues' : 'sev-warn') : '';
+  $('#statusValidationLabel').textContent = problems.length
+    ? problems.length + ' problem' + (problems.length > 1 ? 's' : '') + ' (' + nErr + ' error' + (nErr === 1 ? '' : 's') + ', ' + nWarn + ' warning' + (nWarn === 1 ? '' : 's') + ')'
+    : 'validation clean';
+  const ul = $('#probList'); ul.innerHTML = '';
+  problems.forEach(p => {
+    const li = document.createElement('li');
+    li.className = 'prob-item sev-' + p.sev;
+    li.innerHTML = '<span class="prob-sev">' + (p.sev === 'error' ? '⛔' : '⚠️') + '</span>' +
+      '<span><div class="pt">' + p.title + ' <span class="vbadge">' + p.code + '</span></div><div class="pd">' + p.detail + '</div></span>';
+    li.addEventListener('click', () => { revealEl(p.el); });
+    ul.appendChild(li);
+  });
+  rebuildTree();      /* refresh badges */
+  buildMinimap();     /* refresh diagnostic ticks */
+}
+
+/* =====================================================================
+   STATUS BAR — honest structural extent
+   ===================================================================== */
+const visited = new Set();
+function updateStatusCounts(){
+  const words = (doc.innerText || '').trim().split(/\s+/).length;
+  const nR = $$('.req', doc).length, nT = $$('.term', doc).length;
+  const nF = $$('figure.fig', doc).length, nTb = $$('figure.tbl-fig', doc).length, nE = $$('.equation', doc).length;
+  $('#statusCounts').textContent = words.toLocaleString() + ' words · ' + nR + ' obligation blocks · ' + nT + ' terms · ' + nTb + ' tables · ' + nF + ' figures · ' + nE + ' equations';
+}
+function updateExtent(){
+  const secs = sections();
+  const cur = currentSection();
+  const idx = secs.indexOf(cur);
+  const pct = Math.round(visited.size / Math.max(1, secs.length) * 100);
+  $('#statusExtent').textContent = (cur ? ('#' + cur.dataset.anchor + ' · ' + secLabel(cur)) : '—') +
+    ' · clause ' + (idx + 1) + ' of ' + secs.length + ' · ' + pct + '% read';
+}
+
+/* =====================================================================
+   SCROLL-SPY, breadcrumb, read-wear
+   ===================================================================== */
+let currentAnchor = null;
+function currentSection(){
+  const top = canvas.getBoundingClientRect().top + 96;
+  let cur = sections()[0] || null;
+  sections().forEach(s => { if (s.getBoundingClientRect().top <= top) cur = s; });
+  return cur;
+}
+const TYPE_LABEL = { front:'front matter', scope:'scope', refs:'normative refs', terms:'terms & definitions',
+  normative:'normative', conformance:'conformance', annex:'informative annex', biblio:'bibliography' };
+function updateBreadcrumb(){
+  const cur = currentSection(); if (!cur) return;
+  $('#ctxFile').textContent = '📄 ' + (cur.dataset.file || 'rtde.xml');
+  $('#fileChip').textContent = '📄 ' + (cur.dataset.file || 'rtde.xml');
+  $('#ctxType').textContent = TYPE_LABEL[cur.dataset.cltype] || cur.dataset.cltype;
+  const chain = [];
+  let s = cur;
+  while (s){ chain.unshift(s); s = s.parentElement.closest('section.clause'); }
+  const shown = chain.length > 3 ? chain.slice(-3) : chain;
+  const bc = $('#ctxcrumbs'); bc.textContent = '';
+  if (chain.length > shown.length){ const e = document.createElement('span'); e.className = 'crumb'; e.textContent = '…'; bc.appendChild(e); bc.append(' '); }
+  shown.forEach((s, i) => {
+    if (i){ const sep = document.createElement('span'); sep.className = 'crumb-sep'; sep.textContent = '▸'; bc.appendChild(sep); bc.append(' '); }
+    const c = document.createElement('span'); c.className = 'crumb';
+    c.textContent = s._num ? (s._num + ' ' + secTitle(s)) : secTitle(s);
+    bc.appendChild(c); bc.append(' ');
+  });
+}
+function onScroll(){
+  const cur = currentSection();
+  if (!cur) return;
+  if (cur.dataset.anchor !== currentAnchor){
+    currentAnchor = cur.dataset.anchor;
+    $$('.tree-item').forEach(b => b.setAttribute('aria-current', String(b.dataset.anchor === currentAnchor)));
+    updateBreadcrumb();
+    updateExtent();
+  }
+  updateViewport();
+  updateMinimapRead();
+}
+canvas.addEventListener('scroll', () => requestAnimationFrame(onScroll));
+
+/* read-wear via IntersectionObserver */
+if ('IntersectionObserver' in window){
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (en.isIntersecting && en.target.dataset.anchor){ visited.add(en.target.dataset.anchor); }
+    });
+    updateExtent(); updateMinimapRead();
+  }, { root: canvas, threshold: 0.45 });
+  observeSections();
+  function observeSections(){ sections().forEach(s => { if (s.dataset.anchor) io.observe(s); }); }
+  window.__observeSections = observeSections;
+}
+
+/* =====================================================================
+   SEMANTIC MINIMAP (integrated from semantic-minimap-mockup.html)
+   structure-proportional strip · semantic type coloring · landmark
+   labels (stable spine + in-band detail reveal) · marker lanes
+   (diagnostics / editor notes / search hits / read-wear) ·
+   PANNING CANVAS (reflect-style, ratio-floored) · shared linear thumb
+   mapping (drag and scroll are exact inverses) · user-resizable window
+   (grip, clamped [fit-all, default]; double-click resets).
+   ===================================================================== */
+const mmBody = $('#mmBody'), mmStrip = $('#mmStrip'), mmLabels = $('#mmLabels'),
+      mmCanvas = $('#mmCanvas'), mmVpBox = $('#mmVpBox'),
+      mmLegendEl = $('#mmLegend');
+const mmS = { blocks: [], lanes: {}, vp: null, els: null, spineSel: [], active: null, total: 1, H: 1 };
+const MM_CAP = 18;      /* landmark label cap */
+const MM_SPINE_MIN = 8; /* guaranteed minimum spine (level-1) labels */
+const MM_BAND_MIN = 3;  /* reserved in-band detail budget (in the spine split) */
+const MM_NEAR = 90;     /* map-px around the viewport extent where detail labels appear */
+const MM_RATIO = 0.12;  /* MAX canvas height = doc-height × ratio (~1:8): the
+                           default and the cap for user resizing. Users may
+                           shrink the window to fit the whole map (canvas ==
+                           pane, no panning) or up to this default detail. */
+let mmZoom = parseFloat(prefs.get('mmzoom', ''));  /* user zoom override: target canvas height in px (NaN = default) */
+
+function docY(el){
+  return el.getBoundingClientRect().top - doc.getBoundingClientRect().top;
+}
+function mmTypeOf(el){
+  if (el.classList.contains('clause'))
+    return (el.dataset.cltype === 'front' || el.dataset.cltype === 'biblio') ? 'front' : 'clause';
+  if (el.classList.contains('term')) return 'term';
+  if (el.classList.contains('req')) return 'req';
+  if (el.classList.contains('admonition')) return 'note';
+  return 'float';      /* figure / table / equation */
+}
+function mmLabelOf(b){
+  const el = b.el;
+  if (el.classList.contains('clause')) return (el._num ? el._num + '  ' : '') + secTitle(el);
+  if (el.classList.contains('term')) return (el._num ? el._num + '  ' : '') + $('.tword', el).textContent;
+  if (el.classList.contains('req')) return (numberMap[el.dataset.anchor] || {}).label || 'requirement';
+  if (el.classList.contains('admonition')) return el._label || 'NOTE';
+  const m = numberMap[el.dataset.anchor];
+  return m ? m.num : 'block';
+}
+function mmBlockFor(el){
+  /* finest-grained containing element: the element itself, then its
+     nearest labelled ancestor (a diagnostic inside 8.1.1's text marks
+     8.1.1's rect, not the whole of 8). */
+  if (mmS.els && mmS.els.has(el)) return mmS.els.get(el);
+  let p = el.parentElement;
+  while (p && p !== doc){
+    if (mmS.els && mmS.els.has(p)) return mmS.els.get(p);
+    p = p.parentElement;
+  }
+  return null;
+}
+function mmDocToMap(t){
+  t = Math.max(0, Math.min(mmS.total, t));
+  const b = mmS.blocks.find(x => t < x.d1) || mmS.blocks[mmS.blocks.length - 1];
+  if (!b) return 0;
+  /* trailing-extrapolation clamp: positions past a block's d1 (trailing
+     doc padding) previously extrapolated BEYOND m1 — overshooting the last
+     block's canvas end (m0 > H) and defeating the piece-local highlight at
+     the doc-end margin; positions in a leading gap back-extrapolated below
+     m0 into the previous element's territory. Clamp the in-block fraction
+     to [0,1]: gap/padding positions snap to the neighbouring block edge —
+     monotonic, bounded, and never outside the canvas. */
+  const f = Math.max(0, Math.min(1, (t - b.d0) / Math.max(1, b.dh)));
+  return b.m0 + f * (b.m1 - b.m0);
+}
+function mmMapToDoc(y){
+  const b = mmS.blocks.find(x => y < x.m1) || mmS.blocks[mmS.blocks.length - 1];
+  if (!b) return 0;
+  /* fraction clamp: y inside a canvas GAP (between blocks — gaps now occupy
+     real canvas space under B′) must snap to the next block's d0, not
+     back-extrapolate into the previous block's doc range */
+  const f = Math.max(0, Math.min(1, (y - b.m0) / Math.max(1, b.m1 - b.m0)));
+  return b.d0 + f * b.dh;
+}
+
+function buildMinimap(){
+  ['diag','com','search','wear'].forEach(k => {
+    if (!mmS.lanes[k]){
+      const lane = document.createElement('div');
+      lane.className = 'lane';
+      lane.title = { diag:'diagnostics', com:'editor notes', search:'search hits', wear:'read-wear' }[k] + ' lane';
+      mmCanvas.appendChild(lane);                      /* lanes live on the panning canvas */
+      mmS.lanes[k] = lane;
+    }
+  });
+  buildMMLegend();   /* footer FIRST — its wrapped height determines the strip's budget */
+  mmS.blocks.forEach(b => { if (b.wearEl) b.wearEl.remove(); });
+  if (mmS.els) mmS.els.forEach(e => { (e.blkEls || []).forEach(b => b.remove()); if (e.lblEl) e.lblEl.remove(); });
+  mmS.els = new Map(); mmS.active = null;
+  Object.values(mmS.lanes).forEach(l => l.querySelectorAll('.tick').forEach(t => t.remove()));
+  mmS.blocks = [];
+
+  /* -- model: DISJOINT segments. A clause block spans only its header +
+        intro, up to its first child; each subclause is its own segment;
+        semantic blocks carve their own segments out of the enclosing
+        intro. Consequence: a parent is never inflated by its children's
+        heights, Σsegments tiles the document, and scrolling inside a
+        deep subclause maps into that subclause's own segment. -- */
+  const SEM_SEL = '.term, .req, figure.tbl-fig, figure.fig, .equation, .admonition, .dl-defs, .src-block, .raw-block';
+  const model = [];
+  function segsOf(cl){
+    const top = docY(cl);
+    /* depth 1..7 → minimap level, clamped: the strip indents 4px per level */
+    const clLvl = Math.min(7, Math.max(1, +cl.dataset.depth || 1));
+    if (cl.classList.contains('collapsed')){
+      model.push({ el: cl, type: mmTypeOf(cl), lvl: clLvl, d0: top, dh: Math.max(4, cl.offsetHeight), d1: top + Math.max(4, cl.offsetHeight) });
+      return;
+    }
+    let cur = top, first = true;
+    $$(':scope > .clause-body > *', cl).forEach(ch => {
+      const isClause = ch.classList.contains('clause');
+      if (!isClause && !ch.matches(SEM_SEL)) return;    /* prose folds into the intro segment */
+      const t = docY(ch);
+      if (t > cur)                                       /* intro text preceding this child */
+        model.push({ el: cl, type: mmTypeOf(cl), lvl: clLvl, d0: cur, dh: t - cur, d1: t });
+      if (isClause){
+        segsOf(ch);
+        cur = t + ch.offsetHeight;
+      } else {
+        const dh = Math.max(4, ch.offsetHeight);
+        model.push({ el: ch, type: mmTypeOf(ch), lvl: Math.min(7, clLvl + 1), d0: t, dh: dh, d1: t + dh });
+        cur = t + dh;
+      }
+      first = false;
+    });
+    const bot = top + cl.offsetHeight;
+    if (bot > cur)                                       /* trailing prose */
+      model.push({ el: cl, type: mmTypeOf(cl), lvl: clLvl, d0: cur, dh: bot - cur, d1: bot });
+  }
+  $$('section.clause', doc).filter(s => +s.dataset.depth === 1).forEach(segsOf);
+
+  /* -- USER-RESIZABLE WINDOW: canvas height derives from the user's zoom
+        (mmZoom, set by the grip) clamped to [fit-height, doc × MM_RATIO]:
+          · minimum = pane height (the ENTIRE map fits — no panning),
+          · maximum = the default ~1:8 ratio.
+        Shorter window ⇒ more map at a glance; larger ⇒ more per-block
+        detail. NaN zoom = default. -- */
+  const paneH = Math.max(60, mmBody.clientHeight - 4);
+  const maxH = Math.round(doc.offsetHeight * MM_RATIO);
+  const targetH = isNaN(mmZoom) ? maxH : Math.round(mmZoom);
+  const H = Math.max(paneH, Math.min(maxH, targetH));
+  mmZoom = H;   /* persist the effective value (re-points NaN → default) */
+  mmCanvas.style.height = H + 'px';
+  Object.values(mmS.lanes).forEach(l => { l.style.height = H + 'px'; });
+  mmStrip.style.height = H + 'px';
+  mmLabels.style.height = H + 'px';
+
+  /* -- B′ PROPORTIONAL PLACEMENT (block-only; no gap segments):
+        Each segment's canvas position = H × (d0 / total) — proportional to
+        its DOCUMENT coordinate. Every inter-block margin therefore gets its
+        proportional canvas space implicitly, as the gap BETWEEN blocks
+        (~0.3px each at fit-all, ~6px at default 1:8 — hairline separations,
+        no gap objects, no phantom structure). Consequences:
+        · the doc→canvas map is ≈ LINEAR (exactly linear at every block
+          start), so the linearly-placed thumb and the content-anchored pan
+          agree at EVERY zoom — including fit-all, where pan has no freedom
+          to correct. (Replaces stacked water-filling, whose collapsed
+          whitespace let linear thumb and piecewise content drift apart by
+          up to ~56px at fit-all.)
+        · water-filling machinery is GONE: no Σshares==H invariant, no MIN
+          floors applied to gaps (no gap segments exist), no subsample guard
+          (degenerate panes degrade to sub-pixel block sizes instead of
+          dropping blocks). Block size = proportional share, floored at MIN,
+          clamped to the room before the next block; share ≤ room always,
+          since room = share + gap share, and the floor exceeds room only in
+          degenerate dense regions, where size = room.
+        · the accepted trade: blocks keep only (total−gaps)/total (~92 %)
+          of the canvas — the whitespace share — in exchange for a map whose
+          positions are truthful at every zoom.
+        · leading/trailing document padding is folded into the first/last
+          segment so the map spans [0, H] exactly (end-drift otherwise). -- */
+  const total = Math.max(1, doc.offsetHeight);
+  const MIN = 1.5;
+  if (model.length){
+    model[0].d0 = 0; model[0].dh = model[0].d1 - model[0].d0;            /* fold leading padding */
+    const L = model[model.length - 1];
+    L.d1 = total; L.dh = L.d1 - L.d0;                                    /* fold trailing padding */
+  }
+  model.forEach((m, i) => {
+    const next = model[i + 1];
+    const m0 = Math.round(H * m.d0 / total);
+    const room = next ? Math.max(1, Math.round(H * next.d0 / total) - m0)
+                      : Math.max(1, H - m0);
+    const share = m.dh / total * H;
+    m.m0 = m0;
+    m.mh = Math.max(1, Math.min(Math.max(MIN, share), room));
+    m.m1 = m0 + m.mh;
+  });
+  mmS.total = total; mmS.H = H; mmS.blocks = model;
+  mmS.docTop0 = null;   /* #doc's offset within the scroll container — recompute (fix #3) */
+
+  /* -- strip blocks + labels — WHITESPACE-GUTTER rendering: each element
+        draws one solid rect per CONTIGUOUS RUN of its own segments; a
+        parent's rect stops where its first child begins, so nothing ever
+        paints behind a child. Nesting reads as background gutter to the
+        left (lvl × 4px); all blocks share the right edge — deep blocks
+        stay wide. Labels/active/lanes key off the ELEMENT map (byEl)
+        spanning first→last piece. -- */
+  const byEl = new Map();
+  model.forEach(m => {
+    let e = byEl.get(m.el);
+    if (!e){ e = { el: m.el, type: m.type, lvl: m.lvl, m0: m.m0, m1: m.m1, pieces: [] }; byEl.set(m.el, e); }
+    else { e.m0 = Math.min(e.m0, m.m0); e.m1 = Math.max(e.m1, m.m1); }
+    const prev = e.pieces[e.pieces.length - 1];
+    if (prev && prev.m1 >= m.m0 - 0.5){ prev.m1 = m.m1; }   /* contiguous: extend the run */
+    else e.pieces.push({ m0: m.m0, m1: m.m1 });             /* new run (child intervened) */
+  });
+  const strip = Array.from(byEl.values()).sort((a, b) => a.m0 - b.m0);
+  strip.forEach(e => {
+    e.blkEls = [];
+    e.pieces.forEach(p => {
+      const blk = document.createElement('div');
+      blk.className = 'blk';
+      blk.dataset.type = e.type;
+      blk.style.left = (1 + (e.lvl - 1) * 4) + 'px';        /* nesting = background gutter */
+      blk.style.right = '2px';                              /* shared right edge */
+      blk.style.top = p.m0 + 'px';
+      blk.style.height = Math.max(2, p.m1 - p.m0 - 1) + 'px';
+      blk.title = mmLabelOf(e) + ' · depth ' + (e.el.dataset ? (e.el.dataset.depth || '?') : '?') + ' · ' + e.type;
+      blk.addEventListener('click', ev => { ev.stopPropagation(); revealEl(e.el); });
+      mmStrip.appendChild(blk);
+      blk._seg = p;                                        /* piece bounds for piece-local highlighting */
+      e.blkEls.push(blk);
+    });
+    /* element↔rect map for active highlight */
+    (mmS.els = mmS.els || new Map()).set(e.el, e);
+
+    /* label EVERY element: clauses at all depths + semantic blocks —
+       anti-collision and the in-band policy remain the real filters */
+    const lbl = document.createElement('div');
+    lbl.className = 'lbl lv' + Math.min(7, e.lvl);
+    lbl.textContent = mmLabelOf(e);
+    lbl.title = mmLabelOf(e);
+    lbl.style.top = e.m0 + 'px';
+    lbl.addEventListener('click', () => revealEl(e.el));
+    mmLabels.appendChild(lbl); e.lblEl = lbl;
+  });
+
+  /* wear per segment (tracks attention, not structure) */
+  model.forEach(m => {
+    const wear = document.createElement('div');
+    wear.className = 'tick';
+    wear.style.background = 'var(--may)';
+    wear.style.opacity = '0';
+    wear.style.top = m.m0 + 'px';
+    wear.style.height = Math.max(3, m.m1 - m.m0 - 1) + 'px';
+    mmS.lanes.wear.appendChild(wear); m.wearEl = wear; m.heat = 0;
+  });
+
+  /* -- lane ticks: diagnostics + editor notes -- */
+  problems.forEach(p => {
+    if (!p.el || !p.el.getBoundingClientRect) return;
+    addLaneTick('diag', p.el, p.sev === 'error' ? 'var(--shall)' : 'var(--should)', p.code + ' — ' + p.title);
+  });
+  $$('.mn-note', doc).forEach(n => addLaneTick('com', n, 'var(--note)', 'EDITOR note'));
+
+  /* -- STABLE SPINE — viewport-independent even sample of level-1 clause
+        labels, computed ONCE per build AFTER the element map is populated.
+        Spine pitch is even; because selection doesn't depend on the
+        viewport, scrolling cannot change which spine labels are shown. -- */
+  const lvl1 = Array.from(mmS.els.values()).filter(e => e.lvl === 1);
+  const spineN = Math.max(MM_SPINE_MIN, Math.min(MM_CAP - MM_BAND_MIN, lvl1.length));
+  mmS.spineSel = [];
+  if (lvl1.length){
+    const step = lvl1.length / spineN;
+    for (let i = 0; i < spineN; i++)
+      mmS.spineSel.push(lvl1[Math.min(lvl1.length - 1, Math.floor(i * step))]);
+  }
+
+  /* -- viewport indicator: lives OUTSIDE the canvas (screen-fixed, in the
+     pane); the canvas pans beneath it by the shared scroll fraction -- */
+  const vp = mmVpBox;
+  vp.hidden = false;
+  vp.title = 'drag to travel · drag bottom grip to resize · double-click grip to reset';
+  if (!vp.querySelector('.rsz')){
+    const grip = document.createElement('div');
+    grip.className = 'rsz';
+    grip.title = 'resize minimap window (double-click: reset)';
+    grip.addEventListener('dblclick', () => {
+      mmZoom = NaN; prefs.set('mmzoom', '');
+      const frac = mmDocFrameScroll() / mmScrollableDoc();                       /* doc frame, exact range */
+      buildMinimap();
+      canvas.scrollTop = frac * mmScrollableDoc() + (mmS.docTop0 || 0);
+      toast('Minimap window reset to default detail (~1:' + Math.round(1 / MM_RATIO) + ')');
+    });
+    vp.appendChild(grip);
+  }
+  mmS.vp = vp;
+
+  mmLastH = H;   /* baseline for the ResizeObserver guard */
+  updateViewport();
+  updateMinimapRead();
+}
+
+function addLaneTick(laneKey, el, color, title){
+  const lane = mmS.lanes[laneKey]; if (!lane) return;
+  const b = mmBlockFor(el);
+  const top = b ? b.m0 : mmDocToMap(docY(el));
+  const t = document.createElement('div');
+  t.className = 'tick';
+  t.style.background = color;
+  t.style.top = top + 'px';
+  t.style.height = Math.max(5, Math.min(14, (b ? b.m1 - b.m0 : 8) - 1)) + 'px';
+  t.title = title;
+  t.addEventListener('click', ev => { ev.stopPropagation(); revealEl(b ? b.el : el); });
+  lane.appendChild(t);
+}
+function buildMMLegend(){
+  mmLegendEl.innerHTML = '';
+  const types = [['clause','#9aa4bb'],['term','#5fa377'],['req','#d9962f'],['float','#6488be'],['note','#e0903c']];
+  types.forEach(([n, c]) => {
+    const s = document.createElement('span');
+    s.className = 'lg'; s.title = 'block type colouring';
+    s.innerHTML = '<span class="d" style="background:' + c + '"></span>' + n;
+    mmLegendEl.appendChild(s);
+  });
+  [['diag','var(--shall)','diag'],['com','var(--note)','notes'],['search','var(--should)','search'],['wear','var(--may)','wear']].forEach(([k, c, n]) => {
+    const s = document.createElement('span');
+    s.className = 'lg';
+    s.innerHTML = '<span class="d" style="background:' + c + '"></span>' + n;
+    s.addEventListener('click', () => {
+      const lane = mmS.lanes[k]; if (!lane) return;
+      lane.classList.toggle('off'); s.classList.toggle('off');
+    });
+    mmLegendEl.appendChild(s);
+  });
+}
+
+/* =====================================================================
+   PANNING + THUMB — ONE shared linear mapping both directions.
+   The canvas is a proportional mini-document; the viewport indicator is
+   a THUMB whose position in the PANE equals the document scroll fraction
+   (pane top = doc start, pane bottom = doc end), and the canvas
+   translates by the same fraction of its scrollable range. Dragging the
+   thumb is the exact inverse — a full top→bottom drag sweeps the whole
+   document, and the scroll events it fires re-place the thumb exactly
+   where the pointer is (round-trip identity).
+   ===================================================================== */
+function updateViewport(){
+  if (!mmS.vp || !mmS.blocks.length) return;
+  const s0 = mmDocFrameScroll();                                   /* doc frame (fix #3) */
+  const m0 = mmDocToMap(s0);
+  const m1 = mmDocToMap(s0 + canvas.clientHeight);
+  mmPan(m0, m1);
+
+  /* active element highlighting — resolved BEFORE the label pass so the
+     label policy can reserve a slot for the active element's label. */
+  const center = mmDocFrameScroll() + canvas.clientHeight / 2;    /* doc frame (fix #3) */
+  /* flicker fix: segments tile blocks, not margins — the viewport centre
+     spends real time in inter-block gaps (and the doc's top padding) where
+     NO segment contains it. The old `center >= b.d0 && center < b.d1`
+     lookup failed there and fell through to the LAST block, flashing a
+     far-away highlight once per gap crossed. Dropping the (otherwise
+     redundant) d0 test makes find() return the first segment ENDING after
+     the centre: the containing block when inside one, the NEXT segment
+     below when in a gap, and the trailing fallback still covers past-end. */
+  const seg = mmS.blocks.find(b => center < b.d1) || mmS.blocks[mmS.blocks.length - 1];
+  const act = seg && mmS.els ? mmBlockFor(seg.el) : null;
+  const clearEl = e => {
+    (e.blkEls || []).forEach(b => b.classList.remove('active', 'co-piece'));
+    e.lblEl && e.lblEl.classList.remove('active');
+  };
+  if (mmS.active && mmS.active !== act) clearEl(mmS.active);
+  if (act){
+    /* PIECE-LOCAL, SEGMENT-DERIVED: the current piece is the one whose run
+       CONTAINS the authoritative segment — no coordinate conversion, so
+       gaps (where mmDocToMap back-extrapolates past the next piece's top,
+       leaving every piece as co-piece — measured at the doc-end margin)
+       cannot defeat it. Two earlier versions re-derived the position by
+       comparing doc-space and map-space numbers directly; both failed. */
+    (act.blkEls || []).forEach(b => {
+      const p = b._seg;
+      const isCurrent = p && seg.m0 >= p.m0 && seg.m1 <= p.m1;
+      b.classList.toggle('active', isCurrent);
+      b.classList.toggle('co-piece', !isCurrent);       /* same element, different piece */
+    });
+    act.lblEl && act.lblEl.classList.add('active');
+    mmS.active = act;
+  }
+
+  updateMMLabels(m0, m1);
+}
+/* fix #3 — DOC-FRAME scroll: scrollTop is measured from the scroll
+   container's top (ctxheader etc. sit above #doc), but every map
+   coordinate (docY, segment d0/d1, mmS.total) is measured from #doc's top.
+   Convert once, use everywhere; the sticky chrome no longer biases
+   fractions and lookups. */
+function mmDocFrameScroll(){
+  if (mmS.docTop0 == null) mmS.docTop0 = doc.offsetTop || 0;
+  return canvas.scrollTop - mmS.docTop0;
+}
+/* frame-mixing fix: the doc-frame scrollable range is NOT total − clientH
+   (that mixes #doc's height with the scroll CONTAINER's viewport while
+   ignoring the ctxheader offset above and the statusbar below). The exact
+   range: s0 spans [0, scrollHeight − clientHeight − docTop0]. All fraction
+   math (thumb sweep, drag inverse, zoom-preserving rebuilds) must use THIS
+   denominator or the thumb drifts ~0.15 % and mis-anchors at the ends. */
+function mmScrollableDoc(){
+  if (mmS.docTop0 == null) mmS.docTop0 = doc.offsetTop || 0;
+  return Math.max(1, canvas.scrollHeight - canvas.clientHeight - mmS.docTop0);
+}
+/* shared-fraction thumb + CONTENT-ANCHORED pan (fix #1): the thumb sweeps
+   the pane with the document; the canvas translate is derived from the
+   viewport's TRUE (piecewise) canvas position m0 minus the thumb's pane
+   position — the map directly behind the window IS the reading position by
+   construction. The previous linear anchoring (frac × (H − pane)) assumed
+   a uniform doc→canvas mapping, but the piecewise map collapses
+   inter-block whitespace unevenly, so the two drifted apart mid-document
+   and the window displayed a neighborhood offset from the actual reading
+   position. The clamp now guards only degenerate (subsampled) models at
+   the extremes, not the anchoring itself. */
+let mmLastPan = 0;
+function mmPan(m0, m1){
+  const paneH = mmBody.clientHeight;
+  const vh = Math.max(8, m1 - m0);
+  const frac = Math.min(1, Math.max(0, mmDocFrameScroll() / mmScrollableDoc()));
+  const track = Math.max(1, paneH - vh);
+  const thumbTop = frac * track;
+  const pan = Math.max(0, Math.min(Math.max(0, mmS.H - paneH), m0 - thumbTop));
+  mmCanvas.style.transform = 'translateY(' + (-Math.round(pan)) + 'px)';
+  mmLastPan = pan;
+  mmS.vp.style.top = Math.round(thumbTop) + 'px';
+  mmS.vp.style.height = vh + 'px';
+  mmS.vp.style.left = (mmStrip.offsetLeft - 6) + 'px';
+  mmS.vp.style.right = '2px';
+}
+/* inverse of the thumb placement (thumb drag): pane-y → doc-frame scroll */
+function mmThumbToScroll(top){
+  const paneH = mmBody.clientHeight;
+  const m0 = mmDocToMap(mmDocFrameScroll());
+  const m1 = mmDocToMap(mmDocFrameScroll() + canvas.clientHeight);
+  const vh = Math.max(8, m1 - m0);
+  const track = Math.max(1, paneH - vh);
+  return Math.min(1, Math.max(0, top / track)) * mmScrollableDoc() + (mmS.docTop0 || 0);
+}
+
+/* =====================================================================
+   LABEL POLICY — stable spine (fixed membership, built once per model)
+   + live detail layer: in-band details fill the anti-collision gaps the
+   fixed spine leaves free; a detail never displaces or crowds a spine
+   label (the spine is the map's constant reference frame).
+   ===================================================================== */
+function updateMMLabels(vp0raw, vp1raw){
+  const vp0 = vp0raw - MM_NEAR, vp1 = vp1raw + MM_NEAR;
+  const els = mmS.els ? Array.from(mmS.els.values()).filter(e => e.lblEl) : [];
+  const spine = mmS.spineSel || [];
+  const spineSet = new Set(spine);
+
+  /* in-band detail candidates, document order — ALL of them; the merged
+     pass's gap rules are the real budget (spine gap rigid, detail gap
+     clustered above the ~6px detail pitch at dense scales) */
+  const detailEls = els
+    .filter(e => e.lvl !== 1 && e.m1 > vp0 && e.m0 < vp1)
+    .sort((a, b) => a.m0 - b.m0);
+
+  const merged = [...spine, ...detailEls].sort((a, b) => a.m0 - b.m0);
+  els.forEach(e => e.lblEl.classList.remove('show'));
+  let last = -999, lastWasDetail = false;
+  for (const e of merged){
+    const isSpine = spineSet.has(e);
+    /* gap rules: 11px to any SPINE label either side (rigid frame);
+       7px to an adjacent DETAIL (clustered — alternating at dense pitch) */
+    const gapAbove = lastWasDetail && !isSpine ? 7 : 11;
+    if (e.m0 - last < gapAbove) continue;
+    if (!isSpine){
+      /* would crowd the next spine label below? */
+      const ns = spine.find(sr => sr.m0 > e.m0);
+      if (ns && ns.m0 - e.m0 < 11) continue;
+    }
+    e.lblEl.classList.add('show');
+    last = e.m0; lastWasDetail = !isSpine;
+  }
+
+  /* ACTIVE-LABEL RESERVATION: the active element's label is never omitted.
+     Measured on a real browser, anti-collision dropped it on 5.8 % of
+     positions at default zoom, 19 % mid, 33 % at fit-all — reading as
+     "no active landmark". Reserve it after the pass; if it collides,
+     displace the single nearest other shown label (bounded churn: at most
+     one label swaps per frame, and never another frame's active). */
+  const a = mmS.active;
+  if (a && a.lblEl && !a.lblEl.classList.contains('show')){
+    a.lblEl.classList.add('show');
+    let victim = null, vd = 1e9;
+    els.forEach(e => {
+      if (e === a || !e.lblEl || !e.lblEl.classList.contains('show')) return;
+      const d = Math.abs(e.m0 - a.m0);
+      if (d < 11 && d < vd){ vd = d; victim = e; }
+    });
+    if (victim) victim.lblEl.classList.remove('show');
+  }
+}
+
+function updateMinimapRead(){
+  mmS.blocks.forEach(b => {
+    if (!b.wearEl) return;
+    b.wearEl.style.opacity = Math.min(.8, (b.heat || 0) * .55);
+  });
+}
+/* dwell-heat read-wear: accumulates where you read, fades over time */
+setInterval(() => {
+  if (!mmS.blocks.length) return;
+  const st = mmDocFrameScroll(), V = canvas.clientHeight, c = st + V / 2;   /* doc frame (fix #3) */
+  mmS.blocks.forEach(b => {
+    const ov = Math.max(0, Math.min(b.d1, st + V) - Math.max(b.d0, st)) / b.dh;
+    b.heat = Math.min(1.6, (b.heat || 0) * 0.996 + ov * 0.05 + (c >= b.d0 && c < b.d1 ? 0.09 : 0));
+  });
+  updateMinimapRead();
+}, 250);
+
+/* ---- travel gestures ---- */
+/* strip click/drag: content-anchored travel (the panned strip's rect
+   already reflects the translation — no manual offset needed) */
+let mmDown = false;
+function mmTravelTo(e){
+  const r = mmStrip.getBoundingClientRect();
+  const y = Math.max(0, Math.min(r.height, e.clientY - r.top));
+  canvas.scrollTop = mmMapToDoc(y) - canvas.clientHeight / 2 + (mmS.docTop0 || 0);   /* doc → container frame */
+}
+mmStrip.addEventListener('pointerdown', e => { mmDown = true; mmTravelTo(e); mmStrip.setPointerCapture(e.pointerId); });
+mmStrip.addEventListener('pointermove', e => { if (mmDown) mmTravelTo(e); });
+mmStrip.addEventListener('pointerup', () => { mmDown = false; });
+
+/* thumb drag (scrollbar semantics through the shared mapping) and
+   grip resize (geometric thumb height — never display-floored) */
+mmBody.addEventListener('pointerdown', e => {
+  const grip = e.target.closest('.rsz');
+  if (grip){
+    e.preventDefault(); e.stopPropagation();
+    /* Resize the window: the thumb's height IS the viewport's share of
+       the canvas (thumbH = viewH × H / total), so a dragged thumb-height
+       inverts to the canvas height the user asks for; clamped
+       [fit-all floor, default cap]. The gesture computes from the
+       GEOMETRIC height captured at start — displayed heights carry a
+       pointer-grab floor and would block reaching fit-all. */
+    const startY = e.clientY;
+    const startH = mmS.H;
+    const viewH = canvas.clientHeight || 1;
+    const total0 = mmS.total || 1;
+    const startThumbH = startH * viewH / total0;          /* TRUE geometric thumb height */
+    const move = ev => {
+      const thumbH = Math.max(4, startThumbH + (ev.clientY - startY));
+      let target = thumbH * total0 / viewH;               /* invert thumb height */
+      const paneH = mmBody.clientHeight;
+      const maxH = Math.round(total0 * MM_RATIO);
+      target = Math.max(paneH, Math.min(maxH, target));   /* clamp [fit, default] */
+      if (Math.abs(target - mmS.H) >= Math.max(8, mmS.H * 0.02)){
+        const frac = mmDocFrameScroll() / mmScrollableDoc();                    /* doc frame, exact range */
+        mmZoom = target;
+        buildMinimap();
+        canvas.scrollTop = frac * mmScrollableDoc() + (mmS.docTop0 || 0);
+      }
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); prefs.set('mmzoom', String(mmZoom)); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    return;
+  }
+  if (e.target !== mmS.vp) return;
+  e.preventDefault();
+  /* SCROLLBAR-THUMB drag through the SHARED mapping: pointer y in the pane
+     → thumb position → document scroll fraction. Dragging top→bottom
+     sweeps the document start→end in one motion. Grab offset preserved. */
+  const paneH = mmBody.clientHeight;
+  const startY = e.clientY;
+  const boxRect = mmS.vp.getBoundingClientRect();
+  const bodyRect = mmBody.getBoundingClientRect();
+  const grabOffset = Math.max(0, Math.min(parseFloat(mmS.vp.style.height) || 30, startY - boxRect.top));
+  const move = ev => {
+    const thumbTop = Math.max(0, Math.min(paneH - parseFloat(mmS.vp.style.height || 30),
+      (ev.clientY - bodyRect.top) - grabOffset));
+    canvas.scrollTop = mmThumbToScroll(thumbTop);
+  };
+  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+});
+
+/* keyboard: walk shown landmarks */
+$('#minimapWrap').setAttribute('tabindex', '0');
+$('#minimapWrap').addEventListener('keydown', e => {
+  const shown = (mmS.els ? Array.from(mmS.els.values()) : []).filter(x => x.lblEl && x.lblEl.classList.contains('show'));
+  if (!shown.length) return;
+  let i = shown.indexOf(mmS.active); if (i < 0) i = 0;
+  if (e.key === 'ArrowDown'){ e.preventDefault(); revealEl(shown[Math.min(shown.length - 1, i + 1)].el); }
+  if (e.key === 'ArrowUp'){ e.preventDefault(); revealEl(shown[Math.max(0, i - 1)].el); }
+});
+/* rebuild when the PANE itself resizes — watch #minimapWrap (grid-set
+   height, immune to the inner content ripples that once caused mid-scroll
+   rebuild loops); the mmLastH baseline makes transient changes no-ops */
+let mmLastH = 0;
+if ('ResizeObserver' in window){
+  new ResizeObserver(() => {
+    const h = mmBody.clientHeight;
+    if (mmS.blocks.length && Math.abs(h - mmLastH) > 2) buildMinimap();
+  }).observe($('#minimapWrap'));
+}
+window.addEventListener('resize', () => requestAnimationFrame(buildMinimap));
+
+/* ---- search lane: ⌘F / Ctrl+F with real highlighting ---- */
+let searchState = null;
+const searchbar = document.createElement('div');
+searchbar.style.cssText = 'position:fixed;top:60px;right:260px;z-index:80;display:none;gap:6px;align-items:center;' +
+  'background:var(--surface);border:1px solid var(--line-2);border-radius:10px;padding:6px 8px;box-shadow:var(--shadow)';
+searchbar.innerHTML = '<input placeholder="find in document…" style="border:none;outline:none;background:transparent;color:var(--ink);font:13px -apple-system,Segoe UI,sans-serif;width:160px">' +
+  '<span style="font:11px ui-monospace,Menlo,monospace;color:var(--ink-3)" id="sbCount"></span>';
+document.body.appendChild(searchbar);
+const sbInput = $('input', searchbar), sbCount = $('#sbCount', searchbar);
+function clearSearch(){
+  if (searchState && searchState.hits.length){
+    $$('mark.mm-hit', doc).forEach(m => {
+      const parent = m.parentNode; if (!parent) return;
+      while (m.firstChild) parent.insertBefore(m.firstChild, m);
+      m.remove();
+    });
+    doc.normalize();
+  }
+  searchState = null;
+  if (mmS.lanes.search) mmS.lanes.search.querySelectorAll('.tick').forEach(t => t.remove());
+  sbCount.textContent = '';
+}
+function runSearch(q){
+  clearSearch();
+  if (!q) return;
+  const ql = q.toLowerCase(), hits = [];
+  const walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT, {
+    acceptNode(n){
+      if (!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+      const p = n.parentElement;
+      if (!p || p.closest('.insert-pt') || p.closest('mark')) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(n => {
+    const t = n.nodeValue, tl = t.toLowerCase();
+    let i = tl.indexOf(ql); if (i < 0) return;
+    const frag = document.createDocumentFragment(); let last = 0;
+    while (i >= 0){
+      frag.appendChild(document.createTextNode(t.slice(last, i)));
+      const m = document.createElement('mark');
+      m.className = 'mm-hit';
+      m.style.cssText = 'background:color-mix(in srgb,var(--should) 30%,transparent);border-radius:3px;padding:0 1px';
+      m.textContent = t.substr(i, q.length);
+      frag.appendChild(m); hits.push(m);
+      last = i + q.length; i = tl.indexOf(ql, last);
+    }
+    frag.appendChild(document.createTextNode(t.slice(last)));
+    n.parentNode.replaceChild(frag, n);
+  });
+  searchState = { q: q, hits: hits, idx: -1 };
+  hits.forEach(m => addLaneTick('search', m, 'var(--should)', '“' + q + '”'));
+  sbCount.textContent = hits.length ? hits.length + ' hits' : 'no hits';
+  if (hits.length) gotoHit(1); else toast('No hits for “' + q + '”');
+}
+function gotoHit(dir){
+  if (!searchState || !searchState.hits.length) return;
+  searchState.idx = (searchState.idx + dir + searchState.hits.length) % searchState.hits.length;
+  const m = searchState.hits[searchState.idx];
+  m.scrollIntoView({ block: 'center' });
+  sbCount.textContent = (searchState.idx + 1) + ' / ' + searchState.hits.length;
+}
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f'){
+    e.preventDefault();
+    searchbar.style.display = 'flex'; sbInput.focus(); sbInput.select();
+  }
+});
+sbInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); searchState ? gotoHit(e.shiftKey ? -1 : 1) : runSearch(sbInput.value); }
+  if (e.key === 'Escape'){ searchbar.style.display = 'none'; clearSearch(); }
+});
+sbInput.addEventListener('input', () => { if (searchState || sbInput.value === '') clearSearch(); });
+
+/* =====================================================================
+   NAVIGATION helpers
+   ===================================================================== */
+function revealEl(el){
+  if (!el) return;
+  el.scrollIntoView({ block: 'center' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
+function jumpTo(anchor){
+  const t = numberMap[anchor];
+  if (t && t.el) revealEl(t.el);
+}
+document.addEventListener('click', e => {
+  const ti = e.target.closest('.tree-item');
+  if (ti){ jumpTo(ti.dataset.anchor); return; }
+  const xr = e.target.closest('.xref');
+  if (xr && !xr.classList.contains('broken') && numberMap[xr.dataset.target]){ jumpTo(xr.dataset.target); }
+});
+
+/* =====================================================================
+   XREF hover preview
+   ===================================================================== */
+const hover = $('#hover');
+let hoverTimer = null;
+doc.addEventListener('mouseover', e => {
+  if (document.body.classList.contains('vis-prose')) return;
+  const xr = e.target.closest('.xref');
+  if (!xr || xr.classList.contains('broken')){ hideHover(); return; }
+  clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => {
+    const t = numberMap[xr.dataset.target];
+    if (!t || !t.el) return;
+    let snip = '';
+    if (t.kind === 'clause') snip = ($('.clause-body p', t.el) || {}).textContent || '';
+    else if (t.kind === 'term') snip = $('.tdef', t.el).textContent;
+    else if (t.kind === 'req') snip = $('.req-text', t.el).textContent;
+    else snip = t.title;
+    snip = snip.slice(0, 150).trim() + (snip.length > 150 ? '…' : '');
+    hover.innerHTML = '<div class="hv-kind">' + t.kind + ' · live target</div>' +
+      '<div class="hv-title">' + (t.num ? t.num + ' — ' : '') + escapeHtml(t.title) + '</div>' +
+      '<div class="hv-snip">' + escapeHtml(snip) + '</div>';
+    hover.hidden = false;
+    const r = xr.getBoundingClientRect();
+    let x = r.left, y = r.bottom + 8;
+    if (x + 300 > innerWidth) x = innerWidth - 305;
+    if (y + 140 > innerHeight) y = r.top - 148;
+    hover.style.left = x + 'px'; hover.style.top = y + 'px';
+  }, 140);
+});
+doc.addEventListener('mouseout', e => { if (e.target.closest('.xref')) hideHover(); });
+function hideHover(){ clearTimeout(hoverTimer); hover.hidden = true; }
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+/* =====================================================================
+   DRAG TO REORDER (clauses) + MOVE admonitions
+   ===================================================================== */
+let dragCtx = null;
+const dragTip = $('#dragTip');
+document.addEventListener('dragstart', e => {
+  const h = e.target.closest('[data-drag]');
+  if (!h) return;
+  const scope = h.dataset.drag;                       /* 'clause' | 'admonition' */
+  const el = scope === 'clause' ? h.closest('section.clause') : h.closest('.admonition');
+  if (!el){ e.preventDefault(); return; }
+  dragCtx = { scope, el };
+  el.classList.add('dragging');
+  try { e.dataTransfer.setData('text/plain', el.dataset.anchor || 'x'); e.dataTransfer.effectAllowed = 'move'; } catch (err){}
+});
+document.addEventListener('dragend', () => {
+  if (dragCtx) dragCtx.el.classList.remove('dragging');
+  dragCtx = null; dragTip.style.display = 'none';
+  clearDropMarks();
+});
+function clearDropMarks(){
+  $$('.drop-before, .drop-after').forEach(el => el.classList.remove('drop-before','drop-after'));
+  $$('.drop-inside').forEach(el => el.classList.remove('drop-inside'));
+}
+function subtreeAnchors(el){
+  const set = new Set();
+  $$('[data-anchor]', el).forEach(n => set.add(n.dataset.anchor));
+  if (el.dataset.anchor) set.add(el.dataset.anchor);
+  return set;
+}
+function countRefsTo(set){
+  return $$('.xref', doc).filter(x => set.has(x.dataset.target)).length;
+}
+document.addEventListener('dragover', e => {
+  if (!dragCtx) return;
+  e.preventDefault();
+  clearDropMarks();
+  if (dragCtx.scope === 'clause'){
+    const target = e.target.closest('section.clause');
+    if (!target || target === dragCtx.el || dragCtx.el.contains(target)){ dragTip.style.display = 'none'; return; }
+    if (+target.dataset.depth !== +dragCtx.el.dataset.depth){
+      dragTip.textContent = '✖ can only reorder among sibling levels';
+    } else if (target.dataset.file !== dragCtx.el.dataset.file){
+      dragTip.textContent = '✖ cross-file moves disabled in mock-up';
+    } else {
+      const r = target.getBoundingClientRect();
+      const before = (e.clientY - r.top) < r.height / 2;
+      target.classList.add(before ? 'drop-before' : 'drop-after');
+      /* live renumbering preview */
+      const parent = target.parentElement;
+      const sibs = $$(':scope > section.clause', parent).filter(s => s !== dragCtx.el);
+      const at = sibs.indexOf(target) + (before ? 0 : 1);
+      const sim = sibs.slice(); sim.splice(at, 0, dragCtx.el);
+      const d = +dragCtx.el.dataset.depth;
+      let previewNum = '…';
+      if (d === 1){ previewNum = String(sim.indexOf(dragCtx.el) + 1); }
+      else {
+        const par = parent.closest('section.clause');
+        const parNum = par ? (par._num || par._annex || '?') : '?';
+        previewNum = parNum + '.' + (sim.indexOf(dragCtx.el) + 1);
+      }
+      const nRefs = countRefsTo(subtreeAnchors(dragCtx.el));
+      dragTip.textContent = '→ becomes ' + previewNum + (nRefs ? ' · ' + nRefs + ' cross-ref' + (nRefs > 1 ? 's' : '') + ' auto-update' : '');
+    }
+  } else {
+    const body = e.target.closest('.clause-body');
+    if (body && !dragCtx.el.contains(body)){
+      body.classList.add('drop-inside');
+      dragTip.textContent = '→ moves into ' + secLabel(body.closest('section.clause')) + ' (renumbers)';
+    }
+  }
+  dragTip.style.display = 'block';
+  dragTip.style.left = Math.min(innerWidth - 240, e.clientX + 14) + 'px';
+  dragTip.style.top = (e.clientY + 12) + 'px';
+});
+document.addEventListener('drop', e => {
+  if (!dragCtx) return;
+  e.preventDefault();
+  const ctx = dragCtx; dragCtx = null; dragTip.style.display = 'none';
+  clearDropMarks(); ctx.el.classList.remove('dragging');
+  if (ctx.scope === 'clause'){
+    const target = e.target.closest('section.clause');
+    if (!target || target === ctx.el || ctx.el.contains(target)) return;
+    if (+target.dataset.depth !== +ctx.el.dataset.depth){ toast('✖ Can only reorder among clauses of the same level'); return; }
+    if (target.dataset.file !== ctx.el.dataset.file){ toast('✖ Cross-file moves are disabled in this mock-up'); return; }
+    const r = target.getBoundingClientRect();
+    const before = (e.clientY - r.top) < r.height / 2;
+    if (before) target.parentElement.insertBefore(ctx.el, target);
+    else target.parentElement.insertBefore(ctx.el, target.nextSibling);
+    afterReorder(ctx.el);
+  } else {
+    const body = e.target.closest('.clause-body');
+    if (!body || ctx.el.contains(body)) return;
+    const pt = $('.insert-pt', body);
+    if (pt) body.insertBefore(ctx.el, pt); else body.appendChild(ctx.el);
+    renumberAll();
+    ctx.el.classList.remove('flash'); void ctx.el.offsetWidth; ctx.el.classList.add('flash');
+    toast('Admonition moved — notes and examples renumbered automatically');
+  }
+});
+function afterReorder(sec){
+  const oldLabel = secLabel(sec);
+  renumberAll();
+  onScroll();
+  sec.classList.remove('flash'); void sec.offsetWidth; sec.classList.add('flash');
+  toast('“' + oldLabel + '” renumbered → ' + secLabel(sec) + ' — anchors unchanged, cross-references updated');
+}
+
+/* move up/down + collapse + copy-anchor (delegated) */
+document.addEventListener('click', e => {
+  const mv = e.target.closest('.movebtn');
+  if (mv){
+    const sec = mv.closest('section.clause');
+    const dir = +mv.dataset.move;
+    const sibs = $$(':scope > section.clause', sec.parentElement).filter(s => s !== sec);
+    const idx = sibs.indexOf(sec);
+    if (dir < 0 && idx === 0){ toast('Already first among siblings'); return; }
+    if (dir > 0 && idx === sibs.length - 1){ toast('Already last among siblings'); return; }
+    const other = sibs[idx + dir];
+    if (dir < 0) sec.parentElement.insertBefore(sec, other);
+    else sec.parentElement.insertBefore(other, sec);
+    afterReorder(sec);
+    return;
+  }
+  const cb = e.target.closest('.collapsebtn');
+  if (cb){
+    const sec = cb.closest('section.clause');
+    sec.classList.toggle('collapsed');
+    renumberAll();
+    return;
+  }
+  const pin = e.target.closest('[data-copy-anchor]');
+  if (pin){
+    const host = pin.closest('[data-anchor]');
+    if (host) copyText(location.href.split('#')[0] + '#' + host.dataset.anchor,
+      'Deep link copied — #' + host.dataset.anchor + ' (the anchor survives renumbering)');
+    return;
+  }
+  const wp = e.target.closest('[data-open-problems]');
+  if (wp){ openProblems(); return; }
+  const lb = e.target.closest('[data-lightbox]');
+  if (lb){ openLightbox(lb.closest('figure')); return; }
+  const fig = e.target.closest('figure.fig');
+  if (fig && e.target.closest('svg')) openLightbox(fig);
+});
+
+/* =====================================================================
+   SELECTION TOOLBAR (semantic emphasis, no chrome)
+   ===================================================================== */
+const floatbar = $('#floatbar');
+let selTimer = null;
+document.addEventListener('selectionchange', () => {
+  clearTimeout(selTimer);
+  selTimer = setTimeout(() => {
+    const sel = getSelection();
+    if (!sel.rangeCount || sel.isCollapsed || !doc.contains(sel.anchorNode)){ floatbar.hidden = true; return; }
+    const r = sel.getRangeAt(0).getBoundingClientRect();
+    if (!r || (!r.width && !r.height)){ floatbar.hidden = true; return; }
+    floatbar.hidden = false;
+    let x = r.left + r.width / 2 - 70, y = r.top - 42;
+    if (y < 60) y = r.bottom + 8;
+    if (x < 8) x = 8; if (x > innerWidth - 156) x = innerWidth - 156;
+    floatbar.style.left = x + 'px'; floatbar.style.top = y + 'px';
+  }, 90);
+});
+canvas.addEventListener('scroll', () => { floatbar.hidden = true; });
+floatbar.addEventListener('mousedown', e => e.preventDefault());
+floatbar.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const sel = getSelection();
+  if (b.dataset.fmt === 'copy'){
+    copyText(sel.toString(), 'Selection copied'); floatbar.hidden = true; return;
+  }
+  const tag = b.dataset.fmt;
+  try {
+    const r = sel.getRangeAt(0);
+    const el = document.createElement(tag);
+    el.appendChild(r.extractContents());
+    r.insertNode(el);
+    toast('<' + tag + '> applied — semantic, not visual, markup');
+  } catch (err){ toast('Selection spans incompatible elements'); }
+  floatbar.hidden = true;
+  updateStatusCounts();
+});
+
+/* =====================================================================
+   SLASH MENU (model-guided insertion)
+   ===================================================================== */
+const BLOCKS = [
+  { id:'requirement',    ico:'▣', label:'Requirement',    make:() => makeReq('requirement', 'shall') },
+  { id:'recommendation', ico:'▢', label:'Recommendation', make:() => makeReq('recommendation', 'should') },
+  { id:'permission',     ico:'◇', label:'Permission',     make:() => makeReq('permission', 'may') },
+  { id:'term',           ico:'📖', label:'Term entry',     make:makeTerm },
+  { id:'note',           ico:'✎', label:'Note',           make:() => makeAdmon('note') },
+  { id:'example',        ico:'✦', label:'Example',        make:() => makeAdmon('example') },
+  { id:'warning',        ico:'⚠', label:'Warning',        make:() => makeAdmon('warning') },
+  { id:'table',          ico:'▤', label:'Table',          make:makeTable },
+  { id:'figure',         ico:'▭', label:'Figure',         make:makeFigBlock },
+  { id:'formula',        ico:'∑', label:'Equation',       make:makeEqBlock },
+  { id:'p',              ico:'¶', label:'Paragraph',      make:makeP }
+];
+const ALLOWED = {
+  terms:      ['term','note','example','p'],
+  normative:  ['requirement','recommendation','permission','note','example','table','figure','formula','p'],
+  conformance:['p','note','table'],
+  scope:      ['p','note','example'],
+  refs:       ['p'],
+  annex:      ['p','note','example','figure','table'],
+  front:      ['p','note','warning'],
+  biblio:     ['p']
+};
+const WHY = {
+  requirement:'requirements live in normative clauses',
+  recommendation:'recommendations live in normative clauses',
+  permission:'permissions live in normative clauses',
+  term:'term entries belong in “Terms and definitions”',
+  table:'not allowed in this clause type',
+  figure:'not allowed in this clause type',
+  formula:'not allowed in this clause type'
+};
+const slashEl = $('#slash'), slashList = $('#slashList');
+let slashState = null;   /* {pt, items, sel} */
+
+function makeReq(obligation, modal){
+  const el = document.createElement('div');
+  el.className = 'req'; el.dataset.anchor = 'req-' + Date.now().toString(36); el.dataset.obligation = obligation;
+  const cls = obligation === 'requirement' ? 'shall' : (obligation === 'recommendation' ? 'should' : 'may');
+  el.innerHTML =
+    '<div class="req-head"><span class="req-id"></span>' +
+    '<span class="chip-ob ' + cls + ' sem-annotated">' + (obligation === 'requirement' ? '●' : obligation === 'recommendation' ? '○' : '◇') + ' ' + modal + '</span>' +
+    '<span class="role-pill sem-full">' + obligation + '</span>' +
+    '<span class="anchor-chip sem-full">#' + el.dataset.anchor + '</span></div>' +
+    '<p class="req-text">The roadside unit ' + modal + ' …</p>';
+  return el;
+}
+function makeTerm(){
+  const el = document.createElement('div');
+  el.className = 'term'; el.dataset.anchor = 'term-' + Date.now().toString(36);
+  el.innerHTML = '<div class="term-head"><span class="tnum"></span><span class="tword">new term</span>' +
+    '<span class="role-pill sem-full">term-entry</span><span class="anchor-chip sem-full">#' + el.dataset.anchor + '</span></div>' +
+    '<p class="tdef">definition of the term</p><p class="tused sem-annotated"></p>';
+  return el;
+}
+function makeAdmon(kind){
+  const el = document.createElement('aside');
+  el.className = 'admonition ' + kind; el.dataset.drag = 'admonition';
+  el.innerHTML = '<span class="admo-drag sem-annotated" title="Drag to another clause">⋮⋮</span>' +
+    '<span class="admo-label"></span><div class="admo-body">' +
+    (kind === 'warning' ? 'Warning text.' : kind === 'example' ? 'Example text.' : 'Note text.') + '</div>';
+  return el;
+}
+function makeTable(){
+  const el = document.createElement('figure');
+  el.className = 'tbl-fig'; el.dataset.anchor = 'tbl-' + Date.now().toString(36);
+  el.innerHTML = '<div class="scrollblock" tabindex="0"><table><thead><tr><th>Column A</th><th>Column B</th></tr></thead>' +
+    '<tbody><tr><td>…</td><td>…</td></tr></tbody></table></div>' +
+    '<figcaption><span class="capnum"></span> — New table<button class="tool pinbtn sem-annotated" data-copy-anchor>#</button>' +
+    '<span class="anchor-chip sem-full">#' + el.dataset.anchor + '</span></figcaption>';
+  return el;
+}
+function makeFigBlock(){
+  const el = document.createElement('figure');
+  el.className = 'fig'; el.dataset.anchor = 'fig-' + Date.now().toString(36);
+  el.innerHTML = '<svg class="fig-svg" viewBox="0 0 300 90"><rect x="10" y="10" width="280" height="70" rx="8" fill="var(--surface-2)" stroke="currentColor"/></svg>' +
+    '<figcaption><span class="capnum"></span> — New figure<button class="tool pinbtn sem-annotated" data-copy-anchor>#</button>' +
+    '<span class="anchor-chip sem-full">#' + el.dataset.anchor + '</span></figcaption>';
+  return el;
+}
+function makeEqBlock(){
+  const el = document.createElement('div');
+  el.className = 'equation'; el.dataset.anchor = 'eq-' + Date.now().toString(36);
+  el.innerHTML = '<span class="eq-src sem-full">[stem] a = b + c</span><span class="eq-body">a&nbsp;=&nbsp;b&nbsp;+&nbsp;c</span>' +
+    '<span class="eqnum"></span><button class="tool pinbtn sem-annotated" data-copy-anchor>#</button>' +
+    '<span class="anchor-chip sem-full">#' + el.dataset.anchor + '</span>';
+  return el;
+}
+function makeP(){
+  const el = document.createElement('p');
+  el.textContent = 'New paragraph.';
+  return el;
+}
+function openSlash(pt, query){
+  const sec = pt.closest('section.clause');
+  const cltype = sec ? (sec.dataset.cltype || 'normative') : 'normative';
+  const allowed = ALLOWED[cltype] || ALLOWED.normative;
+  const q = (query || '').toLowerCase();
+  const items = BLOCKS
+    .map(b => ({ b, ok: allowed.indexOf(b.id) >= 0 }))
+    .filter(x => !q || x.b.label.toLowerCase().indexOf(q) >= 0 || x.b.id.indexOf(q) >= 0);
+  if (!items.length){ closeSlash(); return; }
+  slashState = { pt, items, sel: 0, cltype };
+  renderSlash();
+  const r = pt.getBoundingClientRect();
+  slashEl.hidden = false;
+  slashEl.style.left = Math.min(innerWidth - 340, Math.max(8, r.left)) + 'px';
+  slashEl.style.top = Math.min(innerHeight - 240, r.bottom + 6) + 'px';
+}
+function renderSlash(){
+  slashList.innerHTML = '';
+  slashState.items.forEach((x, i) => {
+    const li = document.createElement('li');
+    li.className = 'sl-item' + (i === slashState.sel ? ' sel' : '') + (x.ok ? '' : ' disabled');
+    li.innerHTML = '<span class="sl-ico">' + x.b.ico + '</span><span>' + x.b.label + '</span>' +
+      (x.ok ? '' : '<span class="sl-why">' + (WHY[x.b.id] || 'not permitted in “' + slashState.cltype + '”') + '</span>');
+    li.addEventListener('mousedown', ev => { ev.preventDefault(); pickSlash(i); });
+    slashList.appendChild(li);
+  });
+}
+function pickSlash(i){
+  const x = slashState.items[i];
+  if (!x) return;
+  if (!x.ok){ toast('✖ ' + x.b.label + ': ' + (WHY[x.b.id] || 'not permitted here') + ' (flavor model)'); return; }
+  const pt = slashState.pt;
+  const node = x.b.make();
+  pt.parentNode.insertBefore(node, pt);
+  pt.textContent = '';
+  closeSlash();
+  renumberAll(); onScroll();
+  node.classList.remove('flash'); void node.offsetWidth; node.classList.add('flash');
+  toast(x.b.label + ' inserted — numbered automatically, anchor is stable');
+  pt.focus();
+}
+function closeSlash(){ slashEl.hidden = true; slashState = null; }
+doc.addEventListener('input', e => {
+  const pt = e.target.closest('.insert-pt'); if (!pt) return;
+  const t = pt.textContent;
+  if (t.startsWith('/')) openSlash(pt, t.slice(1)); else closeSlash();
+});
+doc.addEventListener('keydown', e => {
+  const pt = e.target.closest('.insert-pt'); if (!pt) return;
+  if (e.key === 'Enter'){ e.preventDefault(); if (slashState) pickSlash(slashState.sel); return; }
+  if (!slashState) return;
+  if (e.key === 'ArrowDown'){ e.preventDefault(); slashState.sel = Math.min(slashState.items.length - 1, slashState.sel + 1); renderSlash(); }
+  if (e.key === 'ArrowUp'){ e.preventDefault(); slashState.sel = Math.max(0, slashState.sel - 1); renderSlash(); }
+  if (e.key === 'Escape'){ closeSlash(); }
+});
+doc.addEventListener('blur', e => { if (e.target.closest && e.target.closest('.insert-pt')) setTimeout(closeSlash, 150); }, true);
+
+/* =====================================================================
+   COMMAND PALETTE
+   ===================================================================== */
+const cmdk = $('#cmdk'), ckInput = $('#ckInput'), ckList = $('#ckList');
+let ckItems = [], ckSel = 0;
+function paletteEntries(){
+  const items = [];
+  sections().forEach(s => items.push({ ico:'#', label: (s._num ? s._num + ' ' : '') + secTitle(s),
+    sub: s.dataset.file + ' · ' + (TYPE_LABEL[s.dataset.cltype] || s.dataset.cltype), kind:'clause', run:() => jumpTo(s.dataset.anchor) }));
+  $$('.term', doc).forEach(t => items.push({ ico:'📖', label: t._num + ' ' + $('.tword', t).textContent, sub:'term · used-at links computed live', kind:'term', run:() => revealEl(t) }));
+  $$('.req', doc).forEach(r => items.push({ ico:'▣', label: r._num, sub: $('.req-text', r).textContent.slice(0, 80), kind:'obligation', run:() => revealEl(r) }));
+  $$('figure.tbl-fig', doc).forEach(f => items.push({ ico:'▤', label: 'Table — ' + capTitle(f), sub:'auto-captioned', kind:'table', run:() => revealEl(f) }));
+  $$('figure.fig', doc).forEach(f => items.push({ ico:'▭', label: 'Figure — ' + capTitle(f), sub:'lightbox available', kind:'figure', run:() => revealEl(f) }));
+  items.push({ ico:'⚙', label:'Visibility: Prose', sub:'clean reading view', kind:'action', run:() => setVis('prose') });
+  items.push({ ico:'⚙', label:'Visibility: Annotated', sub:'semantic chrome (default)', kind:'action', run:() => setVis('annotated') });
+  items.push({ ico:'⚙', label:'Visibility: Full structure', sub:'roles, anchors, badges, reuse', kind:'action', run:() => setVis('full') });
+  items.push({ ico:'◐', label:'Cycle theme', sub:'light / dark / high contrast', kind:'action', run:cycleTheme });
+  items.push({ ico:'ⓘ', label:'Open problems (' + problems.length + ')', sub:'ambient validation', kind:'action', run:openProblems });
+  items.push({ ico:'📥', label:'Import .adoc → Semantic XML…', sub:'convert existing AsciiDoc sources, then load the SXML', kind:'action', run:importAdoc });
+  return items;
+}
+function openPalette(){
+  ckItems = paletteEntries(); ckSel = 0;
+  cmdk.hidden = false; ckInput.value = ''; renderPalette(); ckInput.focus();
+}
+function renderPalette(){
+  const q = ckInput.value.trim().toLowerCase();
+  let list = ckItems;
+  if (q) list = ckItems.map(it => {
+    const l = it.label.toLowerCase(), s = (it.sub || '').toLowerCase();
+    let score = -1;
+    if (l.startsWith(q)) score = 0; else if (l.indexOf(q) >= 0) score = 1; else if (s.indexOf(q) >= 0) score = 2;
+    return { it, score };
+  }).filter(x => x.score >= 0).sort((a, b) => a.score - b.score).map(x => x.it).slice(0, 14);
+  ckList.innerHTML = '';
+  list.slice(0, 14).forEach((it, i) => {
+    const li = document.createElement('li');
+    li.className = 'ck-item' + (i === ckSel ? ' sel' : '');
+    li.innerHTML = '<span class="ck-ico">' + it.ico + '</span><span class="ck-label">' + escapeHtml(it.label) +
+      '<div class="ck-sub">' + escapeHtml(it.sub || '') + '</div></span><span class="ck-kind">' + it.kind + '</span>';
+    li.addEventListener('click', () => { runPalette(it); });
+    ckList.appendChild(li);
+  });
+  ckList._items = list;
+}
+function runPalette(it){ cmdk.hidden = true; it.run(); }
+ckInput.addEventListener('input', () => { ckSel = 0; renderPalette(); });
+ckInput.addEventListener('keydown', e => {
+  const items = ckList._items || [];
+  if (e.key === 'ArrowDown'){ e.preventDefault(); ckSel = Math.min(items.length - 1, ckSel + 1); renderPalette(); }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); ckSel = Math.max(0, ckSel - 1); renderPalette(); }
+  else if (e.key === 'Enter'){ e.preventDefault(); if (items[ckSel]) runPalette(items[ckSel]); }
+  else if (e.key === 'Escape'){ cmdk.hidden = true; }
+});
+cmdk.addEventListener('mousedown', e => { if (e.target === cmdk) cmdk.hidden = true; });
+$('#cmdBtn').addEventListener('click', openPalette);
+
+/* ---------- .adoc import flow (mock): convert, then load SXML ---------- */
+function importAdoc(){
+  toast('mn convert --to semantic-xml *.adoc → rtde.xml — loading…', 2600);
+  setTimeout(() => {
+    loadSxml('<mn-document id="Q/WD 26000:2026"><clause id="cl-fore">…</clause></mn-document>');
+  }, 1200);
+}
+function loadSxml(xmlString){
+  /* Real implementation: parse XML → ProseMirror-style tree (as in metanorma/reflect),
+     assign persistent IDs where missing, normalize to the flavor's content model.
+     Mock: we already have the converted tree loaded; just acknowledge. */
+  toast('Loaded rtde.xml — 15 clauses · 3 terms · 4 obligation blocks · anchors preserved', 3200);
+  renumberAll(); onScroll();
+}
+
+/* =====================================================================
+   PROBLEMS PANEL / LIGHTBOX / ABOUT
+   ===================================================================== */
+function openProblems(){ $('#problems').hidden = false; $('#problemsBtn').setAttribute('aria-expanded','true'); }
+function closeProblems(){ $('#problems').hidden = true; $('#problemsBtn').setAttribute('aria-expanded','false'); }
+$('#problemsBtn').addEventListener('click', () => $('#problems').hidden ? openProblems() : closeProblems());
+$('#probClose').addEventListener('click', closeProblems);
+$('#problems').addEventListener('mousedown', e => { if (e.target === $('#problems')) closeProblems(); });
+$('#statusValidation').addEventListener('click', openProblems);
+$('#statusValidation').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openProblems(); });
+
+function openLightbox(fig){
+  if (!fig) return;
+  $('#lbBody').innerHTML = '';
+  const svg = $('svg', fig); if (svg) $('#lbBody').appendChild(svg.cloneNode(true));
+  const cap = $('figcaption', fig);
+  $('#lbCap').textContent = cap ? cap.textContent : '';
+  $('#lightbox').hidden = false;
+}
+$('#lbClose').addEventListener('click', () => { $('#lightbox').hidden = true; });
+$('#lightbox').addEventListener('mousedown', e => { if (e.target === $('#lightbox')) $('#lightbox').hidden = true; });
+
+$('#aboutBtn').addEventListener('click', () => { $('#about').hidden = false; });
+$('#aboutGo').addEventListener('click', () => { $('#about').hidden = true; });
+$('#about').addEventListener('mousedown', e => { if (e.target === $('#about')) $('#about').hidden = true; });
+
+/* =====================================================================
+   TOP CONTROLS
+   ===================================================================== */
+function setVis(v){
+  const prev = visMode;
+  visMode = v; applyVis();
+  /* visibility modes change document LAYOUT (Prose collapses requirement
+     heads/parts, admonition chrome, term marks…), so every docY/height the
+     minimap model cached is stale after the switch — the window offsets
+     against the reflowed document. Rebuild from the post-switch layout.
+     (The pane ResizeObserver can't catch this: the pane doesn't resize.)
+     Applied on switch only — the initial build already matches the loaded
+     mode because applyVis() runs before the first buildMinimap(). */
+  if (prev !== v){
+    buildMinimap();
+    onScroll();
+  }
+}
+$$('.dial [data-vis]').forEach(b => b.addEventListener('click', () => setVis(b.dataset.vis)));
+$$('.measure-ctl [data-measure]').forEach(b => b.addEventListener('click', () => {
+  measureSize = b.dataset.measure;
+  applyMeasure(); prefs.set('measure', measureSize);
+  toast('Text width saved as your viewer preference — it does not affect the document or collaborators');
+}));
+function cycleTheme(){ themeIdx = (themeIdx + 1) % 3; applyTheme(); }
+$('#themeBtn').addEventListener('click', cycleTheme);
+
+/* sticky header dismiss/restore */
+$('#ctxDismiss').addEventListener('click', () => { document.body.classList.add('ctx-hidden'); mmS.docTop0 = null; updateExtent(); });
+$('#ctxRestore').addEventListener('click', () => { document.body.classList.remove('ctx-hidden'); mmS.docTop0 = null; updateExtent(); });
+$('#ctxPin').addEventListener('click', () => {
+  const cur = currentSection();
+  if (cur) copyText(location.href.split('#')[0] + '#' + cur.dataset.anchor, 'Deep link copied — #' + cur.dataset.anchor);
+});
+
+/* =====================================================================
+   KEYBOARD
+   ===================================================================== */
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){
+    e.preventDefault(); cmdk.hidden ? openPalette() : (cmdk.hidden = true); return;
+  }
+  if (e.key === 'Escape'){
+    if (!$('#about').hidden) $('#about').hidden = true;
+    else if (!cmdk.hidden) cmdk.hidden = true;
+    else if (!$('#problems').hidden) closeProblems();
+    else if (!slashEl.hidden) closeSlash();
+    else if (!$('#lightbox').hidden) $('#lightbox').hidden = true;
+    else floatbar.hidden = true;
+    return;
+  }
+  if (typing) return;
+  /* Alt+Shift+↑/↓ — move the focused node (paragraph, list, note, req…)
+     without any visible drag handle: the document stays clean, structure
+     surgery lives in the outline. Handles stay on clause heads only. */
+  if (e.altKey && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')){
+    const sel = getSelection(); if (!sel.rangeCount) return;
+    let node = sel.anchorNode; if (!node) return;
+    if (node.nodeType === 3) node = node.parentElement;
+    const host = node && node.closest('.clause-body > *');
+    if (!host || host.classList.contains('clause') || host.classList.contains('insert-pt') || host.tagName === 'HEADER') return;
+    e.preventDefault();
+    const dir = e.key === 'ArrowUp' ? -1 : 1;
+    if (dir < 0){
+      const p = host.previousElementSibling; if (!p){ toast('Already first in this clause'); return; }
+      host.parentElement.insertBefore(host, p);
+    } else {
+      const n = host.nextElementSibling; if (!n){ toast('Already last in this clause'); return; }
+      host.parentElement.insertBefore(host, n.nextSibling);
+    }
+    renumberAll(); onScroll();
+    host.classList.remove('flash'); void host.offsetWidth; host.classList.add('flash');
+    toast('Node moved — numbering and cross-references updated (no handle needed)');
+    return;
+  }
+  if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){
+    e.preventDefault();
+    const secs = sections(); const cur = currentSection(); let i = secs.indexOf(cur);
+    i = e.key === 'ArrowDown' ? Math.min(secs.length - 1, i + 1) : Math.max(0, i - 1);
+    revealEl(secs[i]);
+    return;
+  }
+  if (e.altKey && e.key === 'ArrowLeft'){
+    e.preventDefault();
+    const cur = currentSection(); const par = cur && cur.parentElement.closest('section.clause');
+    if (par) revealEl(par);
+    return;
+  }
+  if (e.altKey && e.key === 'ArrowRight'){
+    e.preventDefault();
+    const cur = currentSection(); const kid = cur && $$(':scope > .clause-body > section.clause', cur)[0];
+    if (kid) revealEl(kid); else toast('No sub-clauses here');
+    return;
+  }
+  if (e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey){
+    visMode = visMode === 'prose' ? 'annotated' : visMode === 'annotated' ? 'full' : 'prose';
+    applyVis();
+    toast('Visibility: ' + visMode);
+  }
+});
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+/* build the ~110-page fixture document, then initialise everything against it */
+doc.innerHTML = buildDocument();
+
+applyTheme();
+applyMeasure();
+applyVis();
+$$('[data-drag]').forEach(el => el.setAttribute('draggable', 'true'));   /* HTML5 DnD needs explicit draggable */
+renumberAll();
+onScroll();
+updateExtent();
+if (window.__observeSections) window.__observeSections();
+if (prefs.get('about-seen','0') !== '1'){ $('#about').hidden = false; prefs.set('about-seen','1'); }
+/* start in a representative place */
+setTimeout(() => { jumpTo('cl-5'); }, 350);
+</script>
+</body>
+</html>
