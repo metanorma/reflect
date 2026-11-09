@@ -12,7 +12,7 @@
  *   `onFallback` relays as `onDidFallback` (D5).
  * - pin pass (module 3) — `usePinnedHeights` called from onReady (D6), with
  *   the window-drag gate shared with module 5 (F4) and registry floors
- *   derived at wiring time (§2.5).
+ *   derived per call from the live registry (§2.5).
  * - window-drag gate (module 5) — created with `retireFirst` from module 4's
  *   drop rules (D11 gate order: retire → unwrap fallback → sweep →
  *   normalize → subscribers), and the pin pass subscribes via `wire()`
@@ -113,8 +113,9 @@ export interface PanelRegistration {
 export type PanelRegistry = Record<string, PanelRegistration>;
 
 /**
- * §2.5 — panel ids that must never enter a float window, derived at wiring
- * time so it cannot drift from the registry (F3). Never serialized.
+ * §2.5 — panel ids that must never enter a float window, re-derived from
+ * the CURRENT registry on every read so it cannot drift from the registry
+ * (F3). Never serialized.
  */
 export function floatExcludedPanels(
   registry: PanelRegistry,
@@ -131,7 +132,7 @@ export function floatExcludedPanels(
 /**
  * §2.5 registry `minHeight` view, keyed by contentComponent (the registry
  * key). Only finite numbers participate; the pin pass and the takeover drag
- * derive the same `GroupFloor` from it.
+ * derive the same `GroupFloor` from it, re-read per call (`registrySeams`).
  */
 export function registryMinHeights(
   registry: PanelRegistry,
@@ -159,6 +160,34 @@ function registryComponents(registry: PanelRegistry): Record<
     }
   }
   return out;
+}
+
+/**
+ * §2.5 live seams over a registry getter: the float-exclusion id set and
+ * the per-group height floor, both re-read from the CURRENT registry on
+ * every call. `wirePanelLayout` feeds them the component's registry ref
+ * (the registry sibling of the autoWrap ref), so a registry prop change
+ * re-derives policy without re-wiring — the seams cannot drift from the
+ * registry the way a wiring-time snapshot could. The floor is always
+ * built: an empty `minHeight` view yields `effectiveFloor({})` =
+ * MIN_TS_H, the same floor an omitted seam produces, so the always-on
+ * closure changes nothing for floor-less registries.
+ */
+export function registrySeams(
+  getRegistry: () => PanelRegistry,
+): {
+  /** The `useDropRules` getter — panel ids excluded from float windows. */
+  readonly floatExcludedPanelIds: () => ReadonlySet<string>;
+  /** The `GroupFloor` the pin pass, the HP9 net, and the takeover share. */
+  readonly floorOf: GroupFloor;
+} {
+  return {
+    floatExcludedPanelIds: () => floatExcludedPanels(getRegistry()),
+    floorOf: (group) => effectiveFloor(
+      registryMinHeights(getRegistry()),
+      group.panels.map((p) => p.view.contentComponent),
+    ),
+  };
 }
 
 
@@ -440,7 +469,7 @@ function wirePanelLayout(
   api: DockviewApi,
   options: {
     readonly container: HTMLElement | null;
-    readonly registry: PanelRegistry;
+    readonly registry: () => PanelRegistry;
     readonly defaultLayout: SerializedDockview;
     readonly persistence?: PersistenceOptions;
     readonly autoWrap: () => boolean;
@@ -465,6 +494,15 @@ function wirePanelLayout(
   const areaEl = options.container;
   const layoutArea = (): HTMLElement | null =>
     (areaEl ?? document.querySelector('.layoutArea'));
+
+  // ---- §2.5 registry seams (live) ----------------------------------------
+  // One construction shared by the drop rules (exclusion set), the pin
+  // pass, the HP9 reset net, and the takeover drag (floors); every read
+  // re-derives from the registry the getter returns — the component keeps
+  // it pointing at the current prop, so registry changes post-mount take
+  // effect without re-wiring (the engine `components` map re-renders
+  // independently; the two can no longer disagree).
+  const seams = registrySeams(options.registry);
 
   // ---- persistence (module 2) ------------------------------------------
   //
@@ -507,7 +545,7 @@ function wirePanelLayout(
   const dropRules = useDropRules({
     api,
     autoWrap: options.autoWrap,
-    floatExcludedPanelIds: () => floatExcludedPanels(options.registry),
+    floatExcludedPanelIds: seams.floatExcludedPanelIds,
     layoutArea,
   });
   disposers.push(() => dropRules.dispose());
@@ -548,20 +586,17 @@ function wirePanelLayout(
 
   // ---- pin pass (module 3) — after the gate: `wire()` subscribes net 3,
   //      and D14's ordering (onDragEnd after retire) lives in the gate ----
-  const minHeights = registryMinHeights(options.registry);
-  const floorOf: GroupFloor | undefined = Object.keys(minHeights).length
-    ? (group) => effectiveFloor(
-      minHeights,
-      group.panels.map((p) => p.view.contentComponent),
-    )
-    : undefined;
+  // §2.5 floors are live: the seam re-derives from the current registry on
+  // every pin/pass/commit read (an always-built closure — a floor-less
+  // registry pins at the same MIN_TS_H the omitted seam produced).
+  const floorOf: GroupFloor = seams.floorOf;
 
   const pins: SettledPinPass = wireSettledPinPass({
     api,
     defaultLayout: options.defaultLayout,
     ...(persistence ? { persistence } : {}),
     gate,
-    ...(floorOf ? { floorOf } : {}),
+    floorOf,
   });
   disposers.push(() => pins.dispose());
 
@@ -593,7 +628,7 @@ function wirePanelLayout(
     pins.commitHeights({});
     pinAllWindows(api, pins.heights(), {
       presetHeights,
-      ...(floorOf ? { floorOf } : {}),
+      floorOf,
     });
   });
   disposers.push(() => unwireFromJson.dispose());
@@ -608,7 +643,7 @@ function wirePanelLayout(
   const unwireTabsetEdges = wireTabsetEdges({
     api,
     onCommit: (heights) => pins.commitHeights(heights),
-    ...(floorOf ? { floorOf } : {}),
+    floorOf,
   });
   disposers.push(unwireTabsetEdges);
 
@@ -685,14 +720,24 @@ export const PanelLayout: FC<PanelLayoutProps> = (props) => {
   const autoWrapRef = useRef(autoWrapOn);
   autoWrapRef.current = autoWrapOn;
 
+  // Keep the registry the wiring's §2.5 seams read live: the latest-ref
+  // pattern (the registry sibling of autoWrapRef above). A registry prop
+  // change re-renders new components through the `components` memo above
+  // while the wiring's exclusion-set/floor seams re-derive from this ref
+  // on every read — the two can never disagree (D55).
+  const registryRef = useRef(registry);
+  registryRef.current = registry;
+
   // The wiring is created exactly once per mounted layout (like the mock's
   // onReady) and disposed on unmount; a re-render with new props keeps the
-  // wiring (the registry/autoWrap seams re-derive per event by design).
+  // wiring — its seams read the refs above (autoWrap, registry) and the
+  // engine's `components` map, so policy follows prop changes without
+  // re-wiring.
   const wiringRef = useRef<Wired | null>(null);
   const onReadyDv = useCallback((event: DockviewReadyEvent): void => {
     const wired = wirePanelLayout(event.api, {
       container: containerRef.current,
-      registry,
+      registry: () => registryRef.current,
       defaultLayout,
       ...(persistence ? { persistence } : {}),
       autoWrap: () => autoWrapRef.current,
@@ -710,7 +755,7 @@ export const PanelLayout: FC<PanelLayoutProps> = (props) => {
       writable: false,
     });
     onReady({ api });
-  }, [registry, defaultLayout, persistence, onReady, onDidFallback]);
+  }, [defaultLayout, persistence, onReady, onDidFallback]);
 
   useEffect(() => {
     return () => {

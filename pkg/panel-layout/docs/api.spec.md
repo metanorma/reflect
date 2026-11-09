@@ -232,12 +232,12 @@ export interface PanelRegistration {
 export type PanelRegistry = Record<string, PanelRegistration>;
 
 /**
- * Derived at wiring time (F3) — not a prop; cannot drift from the
- * registry. Returns PANEL IDS: a registry entry with `floatable: false`
- * excludes the panel whose id matches the registry key. When a panel's
- * id differs from its contentComponent, the policy entry rides the
- * panel-id key (the demo's `doc` panel is the case: id `doc`,
- * contentComponent `document`).
+ * Re-derived per event from the live registry (F3) — not a prop; cannot
+ * drift from the registry. Returns PANEL IDS: a registry entry with
+ * `floatable: false` excludes the panel whose id matches the registry
+ * key. When a panel's id differs from its contentComponent, the policy
+ * entry rides the panel-id key (the demo's `doc` panel is the case: id
+ * `doc`, contentComponent `document`).
  */
 export function floatExcludedPanels(
   registry: PanelRegistry,
@@ -252,7 +252,11 @@ read from serialization, so user storage cannot flip a veto or breach a
 floor; the pin pass re-derives constraints on every load (A5). Consumer
 panel data keeps dockview-native `params` untouched. The global
 `MIN_TS_H`/`MIN_WIN_H` floors (B4/B5) stay global; registry `minHeight`
-only raises them.
+only raises them. The component keeps its wiring's exclusion-set and
+floor seams pointed at the current registry (a registry prop change
+after mount takes effect without re-wiring — the same lifetime the
+engine `components` map has), so behavioral policy always matches the
+rendered registry.
 
 ### 2.6 Persistence format
 

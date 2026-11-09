@@ -27,12 +27,14 @@
 // composition. The mock consumes the component + the registry seam through
 // this surface (the built artifact); the public entry re-exports the
 // §2.1/§2.2 budget. `registryMinHeights` stays internal-only (the §2.5
-// floor derivation the component and the synthetic layer share).
+// floor derivation the component and the synthetic layer share), and
+// `registrySeams` is the §2.5 live-seam factory the wiring constructs its
+// exclusion-set/floor getters from (consumed by the Node tests).
 export {
   PanelLayout,
   floatExcludedPanels,
 } from './index.js';
-export { registryMinHeights } from './panelLayout.js';
+export { registryMinHeights, registrySeams } from './panelLayout.js';
 export type {
   PanelLayoutApi,
   PanelLayoutFallbackEvent,

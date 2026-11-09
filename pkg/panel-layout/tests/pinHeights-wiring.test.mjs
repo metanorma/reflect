@@ -184,6 +184,29 @@ describe("pinHeights wiring: init + seeding", () => {
   });
 });
 
+describe("pinHeights wiring: §2.5 floor seam (caller-provided floorOf, D55)", () => {
+  // Module 1 passes the live registrySeams(...).floorOf closure through
+  // this option (PinnedHeightsOptions.floorOf wins over the minHeights
+  // snapshot). With a zero-group fake api the pass never consults the
+  // floor — this smoke pins the option's acceptance and that init,
+  // seeding, and the load emission are unchanged; floor DELIVERY through
+  // the pass is measurement (getBoundingClientRect) territory and stays
+  // parity-covered until the synthetic layer.
+  it("§2.5: a provided floorOf is accepted — init write, seeding, and load emission unchanged", () => {
+    const floorCalls = [];
+    const { settled, handle } = wire({
+      floorOf: (group) => {
+        floorCalls.push(group);
+        return 300;
+      },
+    });
+    assert.deepEqual(settled, [{ source: "layout", origin: "api" }], "init emission unchanged");
+    assert.deepEqual(handle.heights(), {}, "no members → empty map");
+    assert.equal(floorCalls.length, 0, "zero groups → the pass never consults the floor");
+    handle.dispose();
+  });
+});
+
 describe("pinHeights wiring: takeover commit (net 2)", () => {
   it("HP6: commitHeights persists exactly the committed map, saves no layout, emits heights/user", () => {
     const { persistence, storage, settled, handle, log } = wire();

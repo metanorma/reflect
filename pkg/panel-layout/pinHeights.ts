@@ -407,6 +407,13 @@ export interface PinnedHeightsOptions {
    * mock's wiring — provided for tests and non-drag consumers).
    */
   readonly gate?: WindowDragGate;
+  /**
+   * §2.5 per-group floor — the caller-provided alternative to `minHeights`:
+   * a closure (module 1 passes `registrySeams(...).floorOf`, re-derived
+   * from the live registry per call). Provided `floorOf` wins; otherwise
+   * the wiring derives the same closure from the `minHeights` snapshot.
+   */
+  readonly floorOf?: GroupFloor | undefined;
   /** §2.5 registry `minHeight` floors, keyed by contentComponent. */
   readonly minHeights?: MinHeights;
   /** §2.3 settled signal (one emit per net). */
@@ -445,12 +452,15 @@ export function usePinnedHeights(
   const scheduler = options.scheduler ?? rafScheduler();
   const presetHeights = collectPresetHeights(options.defaultLayout);
   const minHeights = options.minHeights ?? {};
-  const floorOf: GroupFloor | undefined = Object.keys(minHeights).length
-    ? (group) => effectiveFloor(
-      minHeights,
-      group.panels.map((p) => p.view.contentComponent),
-    )
-    : undefined; // no registry floors → pin at the global MIN_TS_H floor only
+  // §2.5 floor seam: a caller-provided `floorOf` (live) wins; otherwise
+  // the same closure derived from the `minHeights` snapshot (wiring-time).
+  const floorOf: GroupFloor | undefined = options.floorOf
+    ?? (Object.keys(minHeights).length
+      ? (group) => effectiveFloor(
+        minHeights,
+        group.panels.map((p) => p.view.contentComponent),
+      )
+      : undefined); // no registry floors → pin at the global MIN_TS_H floor only
 
   // The pin pass's seed: persisted user heights (A5), else preset sizes.
   // `loadHeights()` returns `{}` for absent/corrupt storage (A7 semantics).
