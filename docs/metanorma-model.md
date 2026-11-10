@@ -67,25 +67,21 @@ standoc-models@v2.3.0 (standoc.\* names)") completed the flip:
 `reqt.rng` + `basicdoc.rng`, and `schema_file` returns `standoc-compile.rng`
 (the `isodoc.*` filenames are gone). The refresh was cut from the release
 tag `v2.3.0` (2026-08-17, basicdoc submodule `50fe9e85` — pre-PR #46), not
-from main, so the vendored basicdoc content is unchanged by it and the
-content lag recorded in §4 persists through the flip.
+from main — the runtime-lag consequence is §4's lag paragraph.
 
 **Re-verification.** Facts below were verified 2026-08-16 at the then-pins,
 re-verified 2026-08-18, 2026-09-25, 2026-10-27, and re-verified
-**2026-11-03** at the §1 pins (trigger: the metanorma-standoc release run
-`v3.5.1`–`v3.5.7` past its release-trigger pin). Grammar sources did not
+**2026-11-03** at the §1 pins. Grammar sources did not
 move — `standoc-models` main is still `7d5d737c` (submodule `3b408b71`),
 and the vendored runtime grammars are byte-identical to the 2026-10-27
 verification (no vendoring pass since the 2026-10-01 flip, so the §4
-vendored-runtime lag persists); §3 and §4's source facts stand as verified.
-This cycle's drift is one gem-side change: generated ids now come from
-`Metanorma::Utils.random_uuid` (buffered v4-UUID pool) instead of per-call
-UUIDTools entropy — recorded in §5. Drift against these pins is checked
-daily by the scheduled drift-check job (`scripts/check-pins.mjs`, watched
-paths = the paths this document cites at the §1 pins); re-verification is
-the interpretation
-procedure embedded in the job's drift tracking issue — a pin bump always
-travels with its interpretation.
+vendored-runtime lag persists); §3 and §4's source facts stand as verified,
+and gem-side drift past the pin is recorded where it landed (§5). Drift
+against these pins is checked daily by the scheduled drift-check job
+(`scripts/check-pins.mjs`, watched paths = the paths this document cites at
+the §1 pins); re-verification is the interpretation procedure embedded in
+the job's drift tracking issue — a pin bump always travels with its
+interpretation.
 
 A scoped re-verification on **2026-11-05** covered the figure/image size
 family — `FigureAttributes`, `ImageAttributes`, `ImageSize`, and the
@@ -304,14 +300,10 @@ vendoring pass is cut from PR #46-or-later content.
   (metanorma-model-iso#160). **Semantic content set is unchanged** for the
   editor's purposes.
 - `TdBody` table cells: inline branch admits `fn` alongside `TextElement`, and
-  the block branch, `paragraph-with-footnote+` at the 2026-08-16 pin (briefly
-  `(paragraph-with-footnote | note)+`), is now `BasicBlock+`
-  (metanorma-model-iso#154/#157 — AsciiDoc `a|` cells, Pandoc). The 2026-08-18
-  pass missed this change (it read the submodule at the ledger's stale pin);
-  recorded correctly here since 2026-09-25.
+  the block branch, `paragraph-with-footnote+` at the 2026-08-16 pin, is now
+  `BasicBlock+` (metanorma-model-iso#154/#157 — AsciiDoc `a|` cells, Pandoc).
 - `index`/`index-xref`: `index-secondary` and `index-tertiary` are now
-  **optional** (required at the 2026-08-16 pin). Also missed by the 2026-08-18
-  pass; recorded since 2026-09-25.
+  **optional** (required at the 2026-08-16 pin).
 - **Attribute register family (new, PR #46 window)**: `reg-attribute`
   (element `attribute`, `@key` + `@scheme?` + text or `value*` children) is
   admitted as a leading child across essentially every body model
@@ -337,18 +329,15 @@ vendoring pass is cut from PR #46-or-later content.
   (`sections`, `clause`/`Clause-Section`, annex structure, `preface`,
   `bibliography`, `references`, `floating-title`, `section-title`, `table`
   container shape, all `BasicBlock` extensions, `start`).
-- **Size-attribute family (first recorded 2026-11-05; scoped
-  re-verification, not window drift — provenance unclassified)**: `figure`
+- **Size-attribute family (recorded 2026-11-05 by scoped re-verification;
+  present at the §1 pins)**: `figure`
   carries optional free-text `width`/`height` (standoc tail combine over
   `FigureAttributes`), and standoc's include-block redefinition of
   `ImageAttributes`/`image` makes `MediaAttributes` optional-as-a-whole
-  (altsource delegation) and admits SVG-markup image bodies — both now in
-  the §4 rows, with emission semantics in the size-semantics note above.
-  Neither the 2026-08-16 baseline (`a3596dc9`, no longer fetchable) nor the
-  2026-09-25 diff recorded them, so "missed earlier" vs "new in the window"
-  cannot be distinguished; they are recorded as present at the §1 pins.
-  `ImageSize` itself is unchanged across the window — identical at the
-  `50fe9e85` and `3b408b71` submodule pins and byte-identical in the
+  (altsource delegation) and admits SVG-markup image bodies — both in the
+  table rows above, with emission semantics in the size-semantics note
+  below. `ImageSize` itself is unchanged across the window — identical at
+  the `50fe9e85` and `3b408b71` submodule pins and byte-identical in the
   vendored-runtime `basicdoc.rng`, so the vendored-runtime lag (above) does
   not affect this pattern.
 
