@@ -52,7 +52,7 @@ Revive it with a manual dispatch of the workflow.
 ### Roadmap
 
 - Full Metanorma document model coverage
-  (anchoring to Standoc model / Semantic XML).
+  (anchoring to Standoc / Semantic XML).
 
 - Switch to panel-based layout (use `panel-layout` in `editor-gui`).
 
@@ -65,11 +65,9 @@ Revive it with a manual dispatch of the workflow.
 - Using OPFS, rather than data URIs, for handling embedded media
   at editor runtime.
 
-- Editor versioning.
+- (tentative) SQLite single file format.
 
-- **Claim-named probes** over the drift-check substrate: ledger claims
-  re-expressed as content predicates ("the engine is leptris, not jing"),
-  so an alert names the falsified claim instead of "bytes differ" — plus a
-  release-feed trigger for metanorma-standoc and for the unpinned-citation
-  sources (metanorma-utils, plurimath). A later layer over the shipped
-  pin-diff check, not a replacement.
+- Integrity/provenance checks for saved documents to catch accidental corruption
+  (truncated writes, buggy migrations) as well as tampering.
+
+- Editor versioning.
