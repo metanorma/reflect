@@ -71,11 +71,11 @@ from main, so the vendored basicdoc content is unchanged by it and the
 content lag recorded in §4 persists through the flip.
 
 **Re-verification.** Facts below were verified 2026-08-16 at the then-pins,
-re-verified 2026-08-18, 2026-09-25, 2026-10-28, and re-verified
+re-verified 2026-08-18, 2026-09-25, 2026-10-27, and re-verified
 **2026-11-03** at the §1 pins (trigger: the metanorma-standoc release run
 `v3.5.1`–`v3.5.7` past its release-trigger pin). Grammar sources did not
 move — `standoc-models` main is still `7d5d737c` (submodule `3b408b71`),
-and the vendored runtime grammars are byte-identical to the 2026-10-28
+and the vendored runtime grammars are byte-identical to the 2026-10-27
 verification (no vendoring pass since the 2026-10-01 flip, so the §4
 vendored-runtime lag persists); §3 and §4's source facts stand as verified.
 This cycle's drift is one gem-side change: generated ids now come from
@@ -103,15 +103,12 @@ at `standoc-models@7d5d737c`, the `relaton-*-compile.rnc` wrapper pattern,
 `basicdoc.rnc`'s MathML external at line 1164, and the gem-side MathML
 embedding at `metanorma-standoc@ba325b0e` (trigger: the corpus's
 validity-oracle decision — [schema.spec.md](./schema.spec.md) §1.2 — needed
-the composition recorded). Pins unmoved. MathML record: the six `.rng`
-files under `lib/metanorma/validate/` were embedded June–July 2026
-(#1195 `bd5f711` 2026-06-24, W3C MathML 3; regenerated `23e90b3`
-2026-06-30; swapped to MathML 4 by #1214 `15ccdb4` 2026-07-16, compiled
-from basicdoc-models#40, `metanorma-mathml.rng` keeping its name so
-`basicdoc.rng` was untouched) and have not moved since — they predate, and
-were untouched by, the 2026-10-01 refresh. `basicdoc-models →
-grammars/mathml/` is byte-identical (blob SHAs) across every submodule
-state this ledger tracks (`d2a94b1a`, `50fe9e85`, `3b408b71`), so **no
+the composition recorded). Pins unmoved. MathML record: the gem-side
+MathML grammars were embedded June–July 2026 and have not moved since —
+they predate, and were untouched by, the 2026-10-01 refresh — and
+`basicdoc-models → grammars/mathml/` is byte-identical (blob SHAs) across
+every submodule state this ledger tracks (`d2a94b1a`, `50fe9e85`,
+`3b408b71`), so **no
 mathml lag exists** at the current pins regardless of which state the gem
 files were cut from; direct compile-provenance (byte-level gem ← models
 correspondence) is unverified and immaterial given the immobility. Newly
@@ -148,10 +145,11 @@ AsciiDoc ──(standoc makexml1 + cleanup)──► Semantic XML
   (`lib/metanorma/validate/schema.rb` `schema_file`), gated on `@novalid`.
   The gem's lib paths are flat: the 2026-09 restructure flattened the old
   `lib/metanorma/standoc/…` prefix, so the runtime tree that lived at
-  `lib/metanorma/standoc/validate/` is now `lib/metanorma/validate/`. Since
+  `lib/metanorma/standoc/validate/` is now `lib/metanorma/validate/`.
   The RNG engine is **leptris** (`Leptris::XML::RelaxNG`,
   `lib/metanorma/validate/schema.rb` `schema_validate_errors`; replaced
   ruby-jing in `27afe5e1`, 2026-10-14).
+- Presentation XML is produced by isodoc's `PresentationXMLConvert`, reached
   through the metanorma driver (`lib/metanorma/compile/compile.rb`
   `generate_presentation_xml` → `lib/metanorma/compile/render.rb`
   `process_ext(:presentation)` → `@processor.output`).
@@ -276,10 +274,15 @@ metanorma-standoc pin (`ba325b0e`) lag them at the basicdoc layer —
 (pre-PR #46): no `reg-attribute`/`variable-ref`, and `TdBody`'s block branch
 still `(paragraph-with-footnote | note)+`. The basicdoc-only PR #46 changes
 therefore pass the source grammar but **fail runtime RNG validation** at that
-pin. The standoc layer's own overrides are vendored current in
-`standoc.rng` (`LiBody = BasicBlock+`, `dd = BasicBlock*`), so the
-`li`/`dd`/`quote`/`admonition` block-content widenings — governed by that
-layer — validate at runtime. The lag survived the 2026-10-01 filename flip:
+pin. The standoc layer itself is vendored current — `standoc.rnc` is
+byte-identical from the rename commit (`4bad3672`) through the §1 pin (the
+2026-09-25 verification), and the `v2.3.0` cut sits inside that span — so
+`li` block content, the one widening whose composition standoc's own
+pre-window `LiBody = BasicBlock+` redefinition governs, still validates at
+runtime. The `dd`/`quote`/`admonition` widenings have no standoc-side
+override, so their block content belongs to the same runtime fail set as
+`reg-attribute`/`variable-ref` and `TdBody`. The lag survived the 2026-10-01
+filename flip:
 that refresh was cut from release tag `v2.3.0` (submodule `50fe9e85`), not
 main (§1); byte-comparing the pre- and post-flip vendored `basicdoc.rng`
 confirms the content is identical. Expect the lag to close only when a
