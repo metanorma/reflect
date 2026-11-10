@@ -7,6 +7,24 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-11-09 — Upstream ledger: error-ID registry recorded; drift watch extended
+
+`docs/metanorma-model.md` + `scripts/check-pins.mjs`; docs + job config,
+no code changes. **Commits: `caed2835`, `b735513b`**.
+
+- **Ledger** — metanorma-model.md gains §7 (Error IDs): the `PREFIX_NN`
+  citation scheme (`STANDOC_NN` content checks; `RELATON_NN`, `METANORMA_NN`,
+  `ISODOC_NN`, flavour forms) — an occurrence names a check, not a message.
+  A scoped re-verification at the unmoved §1 pins covered the normative
+  registry (`lib/metanorma/converter/log.rb`, `STANDOC_LOG_MESSAGES`: code →
+  category, message template, severity) and the public validation page
+  (unpinned — error-ID scheme, categories, severity scale, filtering).
+- **Watch** — the registry path joined the drift job's fail tier
+  (cite-driven, per the sensitivity-map contract), completing §7's watch
+  coverage under the same-PR rule.
+
+---
+
 ## 2026-11-05 — Validity oracle: the models-layer grammar composition, not the vendored runtime chain
 
 `docs/schema.spec.md` + `docs/metanorma-model.md` + `docs/README.md`;
