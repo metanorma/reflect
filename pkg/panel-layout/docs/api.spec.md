@@ -36,11 +36,13 @@ run, as a separate change.
 **Runtime-import rule.** Library runtime imports come only from
 `dockview-react` and `react`/`react-dom`; `dockview` and `dockview-core`
 are type-only imports (they erase at emit). The reference mock's importmap
-carries `dockview` (unbundled esm.sh build) *and* `dockview-react`
-(`?bundle` build that inlines `dockview` + `dockview-core`): a runtime
-import of `dockview` resolves to the unbundled copy and instantiates a
-second `dockview-core` beside the one inlined in the react bundle —
-duplicated drag/event systems. The rule is enforced mechanically by
+carries a bare `dockview-core` build, `dockview`
+(`?bundle&external=react,react-dom` — bundles its own `dockview-core`)
+*and* `dockview-react` (`?bundle` build that inlines `dockview` +
+`dockview-core`): a runtime import of `dockview` or `dockview-core`
+resolves to a copy carrying its own core and instantiates a second
+`dockview-core` beside the one inlined in the react bundle — duplicated
+drag/event systems. The rule is enforced mechanically by
 `yarn workspace @metanorma/panel-layout imports:check`
 (`scripts/check-imports.mjs`), which runs as part of every `build`.
 

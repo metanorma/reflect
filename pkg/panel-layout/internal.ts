@@ -155,8 +155,9 @@ export type {
 // Drag/unwrap claim + veto engine (api.spec.md §3 module 4). Budgeted
 // public symbols are sourced from the public entry — one re-export site
 // per symbol; the hit-test predicates, the overlay-claim probe, the
-// group-drag fallback and its latch stay internal-only (module 1's wiring
-// and the Node tests consume them via this surface).
+// group-drag fallback and its latch stay internal-only (the Node tests
+// consume them via this surface; module 1 wires only the public
+// `useDropRules`, which calls them internally).
 export {
   floatExclusionVeto,
   groupGridDropVeto,

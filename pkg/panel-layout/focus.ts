@@ -51,10 +51,12 @@
  *
  * - G6 focus-after-unwrap: no public event isolates an unwrap (the
  *   panel-case fires `onDidAddGroup` — also fired by ordinary group
- *   creation — and the group-case fires neither add nor remove). The
- *   claim seam in module 4 is the only place that KNOWS an unwrap
- *   happened; module 1 (convergence) calls the public-API one-liner
- *   `queueMicrotask(() => panel.api.group?.focus())` there.
+ *   creation — and the group-case fires neither add nor remove), and
+ *   module 4 exposes no claim callback. Module 1 (convergence)
+ *   subscribes its own `onWillDrop` listener — emitters are multicast,
+ *   so it rides beside the claim engine — and calls the public-API
+ *   one-liner `queueMicrotask(() => panel.api.group?.focus())` when the
+ *   dragged panel's group changed across the handler.
  * - G7 keyboard window-move: the titlebar is engine-rendered unfocusable
  *   and the grip is decorative (module 7). Note the nuance: once a
  *   consumer passes `keyboardNavigation` (G2 passthrough), the engine's

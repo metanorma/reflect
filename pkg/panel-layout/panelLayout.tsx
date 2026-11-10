@@ -31,8 +31,9 @@
  * - focus (module 9) — `splitDockviewOptions` owns dndStrategy/
  *   floatingGroupBounds/floatingGroupDragHandle/
  *   transformFloatingGroupDrag (the §2.1 ownership contract); `wireFocusRestoration`
- *   closes G5; the G6 convergence amendment queues a focus call at module
- *   4's claim seam (a follow-up panel unwrap focuses the minted window).
+ *   closes G5; the G6 convergence amendment queues a focus call from the
+ *   wiring's own `onWillDrop` subscription (a panel whose group changes
+ *   across the handler — unwrap or merge — gets its new group focused).
  * - theming (module 10) — the container carries `layoutArea` so
  *   panel-layout.css applies; focus.css is linked by the consumer
  *   (the mock links both).
@@ -550,11 +551,13 @@ function wirePanelLayout(
   });
   disposers.push(() => dropRules.dispose());
 
-  // G6 convergence amendment: module 4's claim seam is the only place
-  // that KNOWS an unwrap happened (no public engine event isolates it), so
-  // the component observes it here — a panel whose group changed across the
-  // handler was unwrapped into a new window; focus that window's group on a
-  // microtask (the public-API one-liner focus.ts documents).
+  // G6 convergence amendment: no public engine event isolates an unwrap,
+  // and module 4's DropRules expose no claim callback — so the component
+  // observes the same will-drop the claim engine runs on (emitters are
+  // multicast, §2.2) with its own subscription: a panel whose group
+  // changed across the handler moved to a different group (an unwrap into
+  // a new window, or a center-merge); focus that group on a microtask
+  // (the public-API one-liner focus.ts documents).
   const unwrapFocus = api.onWillDrop((ev) => {
     const before = readPanelGroup(api, ev);
     if (before === undefined) {

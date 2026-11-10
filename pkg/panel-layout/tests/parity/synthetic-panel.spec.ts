@@ -11,8 +11,8 @@
  *       interval net's bound — the real-DOM timing half.
  * - G5  mouse-close leaves DOM focus on body → the wiring re-focuses the
  *       active group (rendered ring excluded: ring keys on focus-visible).
- * - G6  unwrap via the claim seam focuses the minted window's group on a
- *       microtask (the convergence amendment).
+ * - G6  unwrap focuses the minted window's group on a microtask (the
+ *       convergence amendment: the component's own will-drop observer).
  */
 import { expect, test } from '@playwright/test';
 
@@ -133,7 +133,7 @@ test.describe('G5 focus after mouse-close', () => {
   });
 });
 
-test.describe('G6 focus after unwrap (claim seam)', () => {
+test.describe('G6 focus after unwrap (will-drop group change)', () => {
   test('G6: a panel unwrap moves focus to the minted window\'s group', async ({ page }) => {
     await page.goto(`http://127.0.0.1:4173${HARNESS}`);
     await page.waitForSelector('#boot', { state: 'detached' });

@@ -132,12 +132,17 @@ settles via the pin pass (A4/A5). Serialization: round-trips `{top}` forms.
 **HP9 — Restore-to-default → default layout restored.**
 1. Invoke the restore-to-default operation (library capability; demo: the
    Reset button).
-*Outcome:* both storage keys removed, `heightsMap={}` cleared,
-`api.clear()` → `fromJSON(default)` → re-pin (restore composition,
-[api.spec.md](./api.spec.md) §2.6); DOM returns to
-the HP1 state (window identity, group ids, heights all reset). Recovery
-path from B1 (empty editor) and from any corrupted persisted state
-(A6/A7).
+*Outcome:* the operation wipes both storage keys (`clear()`, atomic),
+clears `heightsMap={}`, then `api.clear()` → `fromJSON(default)` → re-pin
+(restore composition, [api.spec.md](./api.spec.md) §2.6); DOM returns to
+the HP1 state (window identity, group ids, heights all reset). Both keys
+re-emerge immediately (pinned by `state-hp9.json`): the layout key
+rewrites through the synchronous change-event net at post-pin geometry
+(window heights 484/634, not the preset's 450/602), and the heights key
+re-emerges as `{}` via the fromJSON net (`commitHeights({})`) — the only
+storage difference from HP1's first load is the heights key's presence
+(`{}` vs absent). Recovery path from B1 (empty editor) and from any
+corrupted persisted state (A6/A7).
 
 **HP10 — Close every panel → empty editor.**
 1. Close each tab via its ✕ (stock `DockviewDefaultTab`).
@@ -187,7 +192,7 @@ statusbar) intact; layout key reflects the emptied state. HP9 restores.
 | G2 ctrl+] / ctrl+[ / F6 | Consumer option | Off unless the consumer passes `keyboardNavigation` — it rides the `dockviewOptions` passthrough verbatim (`splitDockviewOptions`, focus.ts) | demo default: off (§4) |
 | G3 Focus ring on tabs | Keyboard focus | Accent `:focus-visible` rings on tabs and groups (`focus.css`); additive over dockview.css's group-`:focus` outline suppression — keyboard focus rings, mouse activation stays ring-less | No sash ring: engine sashes are unfocusable (pointer-only; the J5 hover accent is the affordance) |
 | G5 Focus after mouse-close | Click tab ✕ | MRU successor activates; the restore wiring (`wireFocusRestoration`, focus.ts) re-focuses the active group when DOM focus lands on body | No-op when the engine's keyboard-close path (or the consumer) already placed focus |
-| G6 Focus after unwrap | Drop on empty space | New window activates; focus moves to the minted window's group (claim-seam observer, panelLayout.tsx) | No public engine event isolates an unwrap — the claim seam is the only signal |
+| G6 Focus after unwrap | Drop on empty space | New window activates; focus moves to the minted window's group (will-drop group-change observer, panelLayout.tsx) | No public engine event isolates an unwrap — the will-drop group change is the only signal |
 | G7 Keyboard drag/undock | Any | **not implemented** — grip hidden, titlebar unfocusable, keyboard docking off (same option as G2) | — |
 | G8 Escape during drag | Esc mid-drag | **not implemented** — only `pointercancel` wired, and it commits | min: Esc → cancel + restore box |
 | **H. RTL** | | | |
@@ -236,7 +241,7 @@ implementation agrees on.
 - **Grid** (`presetLayout.grid`): HORIZONTAL 1200×800; `group-doc` / panel `doc`; `activeGroup:'group-doc'`; doc never floats.
 - **Floats** (`presetLayout.floatingGroups`): Navigation `{18,12} 252×450` — tabsets 244/132/74. Pinned `{292,12} 300×168` — 142. Inspector `{1050,12} 320×602` — 200/180/116/100. Panel tab titles per `panelTitles` (11 entries).
 - **Constants** (`constants`): MIN_TS_H 36, MIN_WIN_H 150, windowMinWidth 120, sashSize 4, titlebar 24px (`dvTokens['--dv-floating-titlebar-height']`), undockChrome 26, WRAP 260×200 (fallback).
-- **Design tokens** (`tokens`, `dvTokens`): mock `:root` custom properties (18) and the dockview theme overrides (20), including the tab strip height 30px, `--dv-border-radius` 8px, float shadow/border, and the sash transition vars (`0.1s`/`0.5s`, §3 J5).
+- **Design tokens** (`tokens`, `dvTokens`): mock `:root` custom properties (18) and the dockview theme overrides (20), including the tab strip height 30px, `--dv-border-radius` 8px, and float shadow/border. The sash transition vars (`0.1s`/`0.5s`, §3 J5) are the engine theme's own — the library only zeroes them under reduced motion (J7, `panel-layout.css`).
 - **Dockview options**: the library owns `dndStrategy:'pointer'`, `floatingGroupDragHandle:'titlebar'`, `floatingGroupBounds` 0/0 (engine stock clamp a no-op; containment via `transformFloatingGroupDrag: clampDragBox` — top/left clamped per frame, bottom edge free) — consumer values for those four are ignored ([api.spec.md](./api.spec.md) §2.1); every other option is passthrough. Demo passes themeLight and dndEdges 160/26 (plus the mock-verbatim 0/0 `floatingGroupBounds`, owned → ignored); the tab is the library-forced stock `DockviewDefaultTab` (react-layer, §2.1); `keyboardNavigation` unset (demo default off, §3 G2).
 
 ## 5. Keyboard & focus behavior

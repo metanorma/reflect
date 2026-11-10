@@ -73,8 +73,9 @@ artifacts.
   spacer | Auto-wrap panels toggle | Reset) and statusbar (status dot +
   text | grow | `.live` hint | word count/saved line) are demo/consumer
   chrome around the library surface; both live in
-  [`demo/chrome.tsx`](../demo/chrome.tsx), styled by the mock's inline
-  app-chrome CSS.
+  [`demo/chrome.tsx`](../demo/chrome.tsx), styled by
+  [`demo/app-chrome.css`](../demo/app-chrome.css) — linked by the
+  reference mock (its inline `<style>` is comment-only).
 - **Registrations and preset**: the 11-panel registry (incl. the `doc`
   float-exclusion policy entry), `presetLayout()`, and the two-key
   storage configuration (legacy `mn-dockview7-*` keys) live in
