@@ -12,7 +12,7 @@
  * tests/parity/twin.html, which mounts DemoApp from
  * /dist/twin/panel-layout-demo.js (engine + react bundled from the
  * yarn-pinned 7.0.4 / 19.2.7 chain — the version-truth flavor, api.spec
- * §5.1) through the demo surface's mountDemoApp seam (D51).
+ * §5.1) through the demo surface's mountDemoApp seam.
  *
  * loadGolden/jsonCanon/expectParity are LOCAL COPIES from mock.spec.ts:
  * the mock spec is harness-untouchable so it cannot be refactored to
@@ -23,7 +23,7 @@
  * Pixel layer: the same shared snapshot names as the mock project —
  * Playwright stores per-project files (…-twin-linux.png siblings of the
  * mock's …-mock-linux.png). The twin baselines were minted ONCE with
- * `--update-snapshots --project=twin` (D50: NEW files, never a
+ * `--update-snapshots --project=twin` (NEW files, never a
  * regeneration of existing snapshots); the config's 1% diff tolerance
  * absorbs the react 19.2.7-vs-19.2.8 subpixel delta (twin runs the
  * workspace react; the mock's CDN build is 19.2.8).

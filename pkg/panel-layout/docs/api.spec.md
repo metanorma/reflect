@@ -21,7 +21,7 @@ hybrid**:
   engine (`onReady({ api })`, option passthrough), never hides it.
 
 Panel **content is opaque input**: the library hosts consumer components in
-a fixed-height box (behavior.spec.md D1/D2) and defines no panels of its
+a fixed-height box (behavior.spec.md D-c1/D-c2) and defines no panels of its
 own. What the library never owns: the 11 demo panels (registrations of the
 demo consumer, forever — §3) and app chrome (toolbars, statusbars —
 [`demo.spec.md`](./demo.spec.md)).
@@ -65,7 +65,7 @@ export interface PanelLayoutProps {
    * Engine option passthrough. The library owns `dndStrategy`,
    * `floatingGroupBounds`, `floatingGroupDragHandle`,
    * `transformFloatingGroupDrag` — consumer values for those four are
-   * ignored (§2.1/D26). The component also always renders the stock
+   * ignored (§2.1). The component also always renders the stock
    * dockview-react tab (`defaultTabComponent: DockviewDefaultTab`): a
    * react-layer prop, outside this passthrough contract, forced because
    * G1/G3/HP10 target the stock tab.
@@ -214,7 +214,7 @@ copy. The serialized panel field is `contentComponent` — the registry key
 
 ```ts
 export interface PanelRegistration {
-  /** Consumer panel; rendered inside the fixed-height D1/D2 box. */
+  /** Consumer panel; rendered inside the fixed-height D-c1/D-c2 box. */
   readonly component: FC<IDockviewPanelProps>;
   /** Default tab title (precedence below). */
   readonly title?: string;
@@ -316,7 +316,7 @@ they were extracted from.
   pinned, identity, attributes, structure, derived, overlays, document) —
   demo consumer registrations, forever. The library's only panel-related
   contract is the container: render into a fixed-height, internally
-  scrolling box (D1/D2).
+  scrolling box (D-c1/D-c2).
 - **App chrome** — toolbars, statusbars, boot/CDN overlays, viewport
   strategy: [`demo.spec.md`](./demo.spec.md).
 - **Panel semantics** — data, filters, empty lists: panel territory.

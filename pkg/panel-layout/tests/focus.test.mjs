@@ -4,14 +4,15 @@
  *
  * Run: yarn workspace @metanorma/panel-layout test
  *
- * BOUNDARY (explicit decision, `wiring-Node` per D9):
+ * BOUNDARY (explicit decision, `wiring-Node`):
  * - G2 (option split) is PURE — the whole contract is Node-assertable.
  * - G3 (focus rings) is asserted as FILE-CONTENT pins on the hand-authored
  *   `focus.css`: rule presence, accent-token use, the deliberate absence
  *   of a sash rule (engine-verified unfocusable), and additivity (no
  *   `outline:none` anywhere — the engine's suppression is never edited).
- *   The RENDERED ring (a browser focusing a tab) stays synthetic-planned
- *   (`synthetic-focus.spec.ts`); nothing here fakes a focus event.
+ *   The RENDERED ring (a browser focusing a tab) is parity/synthetic
+ *   territory (`synthetic-panel.spec.ts` covers the focus rows that need
+ *   a page); nothing here fakes a focus event.
  * - G5 (close-refocus wiring) drives the injected seams only
  *   (`activeElement`/`schedule`), with a scoped `globalThis.document` stub
  *   for the `document.body` comparison — the titlebar.test.mjs pattern.

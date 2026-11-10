@@ -6,7 +6,7 @@
  * browser territory: parity (GREEN 1) drives it through the rewired mock,
  * and the synthetic project drives the page-level rows (A4/A6/A7/A8/C3/
  * G5/G6) — nothing here fakes a DOM. The §2.5 LIVE-seam factory
- * (`registrySeams`, D55) is exercised with a mutating registry ref (the
+ * (`registrySeams`) is exercised with a mutating registry ref (the
  * component's latest-ref mechanics) and per-event through the
  * `useDropRules` wiring seam (captured subscriptions, inert area —
  * registration/dispatch only, no DOM hit-testing).
@@ -114,7 +114,7 @@ function dropRulesApi() {
   };
 }
 
-describe("PanelLayout registry seams — live derivation (§2.5, D55)", () => {
+describe("PanelLayout registry seams — live derivation (§2.5)", () => {
   // The wiring consumes registrySeams(registryGetter) — the component
   // keeps the getter pointing at the current registry prop (the
   // latest-ref pattern, the registry sibling of autoWrapRef). These tests

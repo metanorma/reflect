@@ -1,12 +1,12 @@
 /**
  * Headless tests for @metanorma/panel-layout — titlebar chrome
- * (docs/behavior.spec.md rows F2/A4-grip-timing): the T6 drag-grip
+ * (docs/behavior.spec.md rows F2/A4-grip-timing): the drag-grip
  * decoration, the quarantined move-only reach-in, and the decoration
  * safety net (paint + MutationObserver + interval).
  *
  * Run: yarn workspace @metanorma/panel-layout test
  *
- * BOUNDARY (explicit decision, `wiring-Node` per D9): only STRUCTURE and
+ * BOUNDARY (explicit decision, `wiring-Node`): only STRUCTURE and
  * WIRING are asserted — element-graph fakes (className/setAttribute/
  * appendChild/class-matching querySelector), a document stub exposing
  * exactly createElement + body, a recording MutationObserver stand-in
@@ -44,7 +44,7 @@ function el(classes = [], { children = [], attrs = {} } = {}) {
       children.push(child);
       return child;
     },
-    /** Class-only descendant lookup (the `.mn-drag-grip` probe, mock :687). */
+    /** Class-only descendant lookup (the `.mn-drag-grip` probe). */
     querySelector(sel) {
       const cls = sel.replace(/^\./, "");
       const walk = (n) => {
@@ -103,10 +103,10 @@ function stubDocument() {
 }
 
 // ---------------------------------------------------------------------------
-// F2 — grip decoration (mock :682–693)
+// F2 — grip decoration
 // ---------------------------------------------------------------------------
 
-describe("titlebar: decorateTitlebars (F2, mock :682–693)", () => {
+describe("titlebar: decorateTitlebars (F2)", () => {
   it("F2: appends one span.mn-drag-grip with aria-hidden=true to each float titlebar", () => {
     const doc = stubDocument();
     try {
@@ -152,10 +152,10 @@ describe("titlebar: decorateTitlebars (F2, mock :682–693)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// F2 — move-only enforcement, the quarantined reach-in (mock :720–729)
+// F2 — move-only enforcement, the quarantined reach-in
 // ---------------------------------------------------------------------------
 
-describe("titlebar: suppressTitlebarGroupDrag (F2, mock :720–729)", () => {
+describe("titlebar: suppressTitlebarGroupDrag (F2)", () => {
   const withSource = (src) => ({
     ...fakeFloat({ bar: freshBar() }),
     _titleBar: { dragSource: src },
@@ -202,10 +202,10 @@ describe("titlebar: suppressTitlebarGroupDrag (F2, mock :720–729)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// A4 — the decoration safety net (mock :1487–1498)
+// A4 — the decoration safety net
 // ---------------------------------------------------------------------------
 
-describe("titlebar: watchTitlebars safety net (A4, mock :1487–1498)", () => {
+describe("titlebar: watchTitlebars safety net (A4)", () => {
   /**
    * Scoped-and-restored global stubs (approved ruling 4), installed
    * TOGETHER: the net paints through decorateTitlebars, so the document

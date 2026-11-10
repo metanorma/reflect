@@ -2,8 +2,8 @@
  * Demo app chrome — the toolbar and statusbar the demo consumer
  * contributes around the library's layout surface (demo.spec.md §4
  * "App chrome"; api.spec.md §2.1 "No toolbar/statusbar slots"). Translated
- * VERBATIM from the reference mock's `App()` JSX (mock :779–795 toolbar,
- * :829–835 statusbar): same classes (`.toolbar`/`.tb-btn`/`.on`/`.tb-sep`/
+ * VERBATIM from the reference mock's `App()` JSX (toolbar at the
+ * extraction commit; statusbar alongside) — the same classes (`.toolbar`/`.tb-btn`/`.on`/`.tb-sep`/
  * `.tb-spacer`/`.statusbar`/`.dot`/`.grow`/`.live`), same texts, same
  * `title` attribute on the auto-wrap toggle. The parity drivers key on
  * these (flows.mjs `autoWrapState` reads `.toolbar .tb-btn` + the
@@ -13,7 +13,7 @@
  *
  * `createElement`-only (no JSX syntax): the repo's import scanner rejects
  * `/` after `}` (self-closing JSX with a trailing spread breaks the
- * char-consumption scan — D34), matching the mock's own `h()` style.
+ * char-consumption scan; the constraint is documented in CONTRIBUTING), matching the mock's own `h()` style.
  *
  * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
  * @ 94d4b8307e5f0db2a1b32e14ceb8754207a51f27

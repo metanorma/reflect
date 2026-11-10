@@ -43,64 +43,6 @@ export const PRESET_HEIGHTS = { // gate (a) expectations
   'group-insp-1': 200, 'group-insp-2': 180, 'group-insp-3': 116, 'group-insp-4': 100,
 };
 
-const PNG_FILES = [
-  'hp1-default.png', 'hp2-mid-drag.png', 'hp2-post-unwrap.png', 'hp3-merged.png',
-  'hp5-bottom-parked.png', 'hp6-resized.png', 'hp9-reset.png', 'hp10-empty.png',
-];
-const STATE_FILES = ['hp1', 'hp2', 'hp3', 'hp4', 'hp5', 'hp6', 'hp8', 'hp9', 'hp10']
-  .map((f) => `state-${f}.json`);
-const TRACE_FILES = ['trace-chrome.json', 'trace-tokens.json', 'trace-transitions.json',
-  'trace-geometry-hp2.json', 'trace-zones.json'];
-
-
-// ---------------------------------------------------------------------------
-// Playwright resolution (same order as ../states/capture.mjs)
-// ---------------------------------------------------------------------------
-async function loadPlaywright() {
-  const require_ = createRequire(import.meta.url);
-  const candidates = [];
-  if (process.env.MN_CAPTURE_PLAYWRIGHT) candidates.push(process.env.MN_CAPTURE_PLAYWRIGHT);
-  candidates.push('/root/mn-capture-deps/node_modules/playwright');
-  try {
-    const npxDir = join(homedir(), '.npm', '_npx');
-    for (const d of readdirSync(npxDir)) candidates.push(join(npxDir, d, 'node_modules', 'playwright'));
-  } catch { /* no npx cache */ }
-  candidates.push('playwright');
-  for (const cand of candidates) {
-    try {
-      const mod = cand === 'playwright' ? require_('playwright') : require_(cand);
-      if (mod && mod.chromium) return { pw: mod, origin: cand };
-    } catch { /* try next */ }
-  }
-  throw new Error('playwright not found (see ../states/capture.mjs header for install hints)');
-}
-
-// ---------------------------------------------------------------------------
-// Local HTTP server for the mock (http origin semantics for CDN modules)
-// ---------------------------------------------------------------------------
-const MIME = {
-  '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
-  '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json',
-};
-function startServer() {
-  return new Promise((res, rej) => {
-    const srv = createServer(async (req, resp) => {
-      try {
-        const urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-        const file = resolve(SERVE_ROOT, '.' + urlPath);
-        if (!file.startsWith(SERVE_ROOT)) { resp.writeHead(403); resp.end(); return; }
-        const body = await readFile(file);
-        resp.writeHead(200, { 'content-type': MIME[extname(file)] || 'application/octet-stream' });
-        resp.end(body);
-      } catch {
-        resp.writeHead(404); resp.end('not found');
-      }
-    });
-    srv.on('error', rej);
-    srv.listen(0, '127.0.0.1', () => res({ srv, port: srv.address().port }));
-  });
-}
 
 // ---------------------------------------------------------------------------
 // In-page geometry helpers (all lookups driven by window.__api / real DOM)

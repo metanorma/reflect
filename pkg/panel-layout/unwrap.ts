@@ -1,5 +1,5 @@
 /**
- * Auto-wrap claim + drop vetoes — the T1–T4 interaction rules
+ * Auto-wrap claim + drop vetoes — the auto-wrap/veto interaction rules
  * (behavior.spec.md HP2–HP4, HP7, F3, F5): a panel or whole tabset dropped
  * on the grid surface (pasteboard or page) unwraps into a new floating
  * window; non-center panel drops on float windows are vetoed (merge as tabs
@@ -110,7 +110,7 @@ export function overPasteboard(
  * Unwrap a panel/group into a new floating window at the drop point,
  * sized to the SOURCE tabset's rect (width + content height; the +chrome
  * constant makes the content match the source). The new group is pinned to
- * the source height so the height travels with the panel (T7/HP2).
+ * the source height so the height travels with the panel (HP2).
  */
 export function unwrapAtPointer(
   api: DockviewApi,
@@ -170,7 +170,7 @@ export function unwrapAtPointer(
 }
 
 /**
- * The auto-wrap CLAIM (T1, mock :1233–1314's autoWrap-ON body): a drop of
+ * The auto-wrap CLAIM (the autoWrap-ON body at the extraction commit): a drop of
  * a floating-sourced panel or whole tabset on the grid surface (pasteboard
  * or page, any zone). Returns the source group when claimed — with
  * `preventDefault()` already called — or null when declined.
@@ -214,11 +214,11 @@ export function claimGridSurfaceDrop(
 
 /**
  * The onWillDrop handler: claims grid-surface drops (auto-wrap unwrap),
- * applies the T2/T4 veto set, enforces float exclusion. Returns true when
+ * applies the group-grid/panel-edge veto set, enforces float exclusion. Returns true when
  * the event was fully handled (preventDefault already called).
  *
  * The mock registers TWO onWillDrop listeners (emitters are multicast):
- * the claim at mock :1343 and the veto trio at :1479–1483 as the
+ * the claim listener and the veto trio as the
  * "belt-and-braces backstop". This handler reproduces both in one body:
  * a successful claim short-circuits (the mock's second listener's
  * preventDefault after a claim is an idempotent no-op — observably
@@ -232,7 +232,7 @@ export function handleWillDrop(
 ): boolean {
   const area = cfg.layoutArea();
 
-  // --- claim: grid-surface drop unwraps (T1) -----------------------------
+  // --- claim: grid-surface drop unwraps (the auto-wrap claim) -------------
   const claimed = claimGridSurfaceDrop(api, ev, cfg);
   if (claimed) {
     unwrapAtPointer(api, ev, claimed, area);
@@ -255,7 +255,7 @@ export function handleWillDrop(
   return false;
 }
 
-/** T4: panels merge as tabs (center) or stack (top/bottom) — never split. */
+/** Panels merge as tabs (center) or stack (top/bottom) — never split. */
 export function panelEdgeDropVeto(
   api: DockviewApi,
   ev: DropEventLike,
@@ -274,7 +274,7 @@ export function panelEdgeDropVeto(
   }
   if (d.panelId != null) {
     // panel drag on a GRID (doc) target:
-    //  - pointer over the grid surface → T1 auto-wrap claims it (no veto;
+    //  - pointer over the grid surface → the auto-wrap claim takes it (no veto;
     //    vetoing would clear the latched state and kill the claim)
     //  - pointer NOT over the grid surface (the drop target resolved to
     //    the doc group while the pointer sits on a float window's outer
@@ -292,7 +292,7 @@ export function panelEdgeDropVeto(
   // whole-group drag → GROUP AUTO-UNWRAP territory: over the grid
   // surface (empty space, any zone) the unwrap handler claims the drop,
   // so no veto may clear the drop-target state there — kind 'content' on
-  // a non-floating (grid) target is the claim's domain (mock :1400). On
+  // a non-floating (grid) target is the claim's domain. On
   // FLOAT-WINDOW targets: center = merge as tabs (stock), top/bottom =
   // stack (stock, required flow) — only left/right side-splits are
   // vetoed.
@@ -303,7 +303,7 @@ export function panelEdgeDropVeto(
   return ev.position === 'left' || ev.position === 'right';
 }
 
-/** T2: whole-group drops never dock into the main grid. */
+/** Whole-group drops never dock into the main grid. */
 export function groupGridDropVeto(
   api: DockviewApi,
   ev: DropEventLike,
@@ -312,7 +312,7 @@ export function groupGridDropVeto(
 ): boolean {
   const d = dataOf(ev);
   if (!d || d.viewId !== cfg.viewId() || d.panelId !== null) {
-    return false; // panel drags → T4/T1
+    return false; // panel drags → the panel veto/claim pair
   }
   if (cfg.autoWrap() && ev.nativeEvent
     && overGridSurface(ev.nativeEvent, area)) {
@@ -359,7 +359,7 @@ export function floatExclusionVeto(
  * the onWillDragGroup wiring (`wireGroupDragFallback`, :1026–1038) and
  * consumed-and-cleared by the pointerup fallback. Only VOID-CONTAINER
  * drags reach the latch — the titlebar drag source is disabled by
- * suppressTitlebarGroupDrag (T6).
+ * suppressTitlebarGroupDrag (the move-only titlebar).
  */
 export interface GroupDragLive {
   /** The group whose void-container drag is in flight; null when idle. */
@@ -375,7 +375,7 @@ export interface GroupDragLive {
  * release that is NOT over a float window unwraps the group — but only if
  * the stock pipeline didn't already relocate it (owner-gridview check).
  *
- * The latch is CLEARED at entry (mock :1041–1044) — before every guard —
+ * The latch is CLEARED at entry — before every guard —
  * so a fallback that declines still leaves the wiring idle.
  */
 export function maybeUnwrapGroupAtPointer(
@@ -448,7 +448,7 @@ export function overlayClaimActive(
 }
 
 
-/* ---- wiring (api.spec.md §3 module 4, mock :1343–1344 + :1460–1483) ---- */
+/* ---- wiring (api.spec.md §3 module 4) ---- */
 
 /** Getter-or-value normalization for `useDropRules` options. */
 type Resolved<T> = () => T;
@@ -482,19 +482,19 @@ export interface DropRulesOptions {
 
 /** The handlers `useDropRules` registers (mock's exact wiring, bound). */
 export interface DropRules {
-  /** `api.onWillDrop` — claim path, veto trio as backstop (mock :1343/:1479). */
+  /** `api.onWillDrop` — claim path, veto trio as backstop (the claim + veto backstop). */
   readonly onWillDrop: (ev: DropEventLike) => void;
   /**
    * `api.onWillShowOverlay` — `.mn-unwrap-hover` claimed-state toggle +
-   * the three veto preventDefaults (mock :1460–1478).
+   * the three veto preventDefaults.
    */
   readonly onWillShowOverlay: (ev: DropEventLike) => void;
-  /** `api.onWillDragGroup` — the groupDragLive latch (mock :1026–1038). */
+  /** `api.onWillDragGroup` — the groupDragLive latch. */
   readonly onWillDragGroup: (ev: GroupDragEvent) => void;
   /**
-   * The gate's `onRetireFirst` slot (D11/D14): module 1 passes this to
+   * The gate's `onRetireFirst` slot: module 1 passes this to
    * `createWindowDragGate` — dead-zone pointerup fallback, run FIRST in
-   * the retire sequence (mock :1079–1081). No-op without a latched group.
+   * the retire sequence. No-op without a latched group.
    */
   readonly retireFirst: (ev: RetirePointerEvent) => void;
   /** The live group-drag latch (consumed by `retireFirst`). */
@@ -511,7 +511,7 @@ export interface DropRules {
  *
  * Named `useDropRules` per the api.spec.md §3 inventory, but it is a
  * framework-AGNOSTIC wiring function, not a React hook — module 1
- * (`PanelLayout`) calls it inside `onReady` and disposes on unmount (D6),
+ * (`PanelLayout`) calls it inside `onReady` and disposes on unmount,
  * passing `retireFirst` to the window-drag gate's `onRetireFirst` seam.
  * Engine emitters are multicast, so consumers may subscribe their own
  * `onWillDrop` handlers without displacing this wiring (§2.2).
@@ -563,7 +563,7 @@ export function useDropRules(options: DropRulesOptions): DropRules {
 
   const onWillDragGroup = (ev: GroupDragEvent): void => {
     // only void-container drags reach here (the titlebar source is
-    // disabled by suppressTitlebarGroupDrag — T6)
+    // disabled by suppressTitlebarGroupDrag — the move-only titlebar)
     const g = ev.group;
     if (!g || g.api.location.type !== 'floating') {
       return;
@@ -578,9 +578,8 @@ export function useDropRules(options: DropRulesOptions): DropRules {
   };
 
   const retireFirst = (ev: RetirePointerEvent): void => {
-    // The gate imposes only the ORDER (D11); the mock's guard travels with
-    // the provider: run the fallback only when a group drag was live
-    // (mock :1079–1081).
+    // The gate imposes only the ORDER; the mock's guard travels with
+    // the provider: run the fallback only when a group drag was live.
     if (groupDragLive.group) {
       maybeUnwrapGroupAtPointer(api, ev, groupDragLive, cfg);
     }

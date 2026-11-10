@@ -10,10 +10,10 @@
 
 <!-- Library chrome, served from a root at pkg/panel-layout/ (the parity
      server, tests/parity/serve.mjs, and the goldens capture tool):
-     panel-layout.css is the HAND-OWNED library chrome sheet (D45 — the
+     panel-layout.css is the HAND-OWNED library chrome sheet (the
      extraction pipeline retired; these links are its sole source, so this
      page must be served, not opened from file://); focus.css is the
-     hand-authored G3 ring sheet (D28). Both load AFTER dockview.css
+     hand-authored G3 ring sheet. Both load AFTER dockview.css
      (additive source-order wins). -->
 <link rel="stylesheet" href="/panel-layout.css">
 <link rel="stylesheet" href="/focus.css">
@@ -40,7 +40,7 @@
      already flush to an edge, snapping another into the same band stacks
      them into an overlap (free-form float placement instead).
      ============================================================ */
-  /* D50: every RULE this block carried moved byte-identically to
+  /* The twin-loop app-chrome move: every RULE this block carried moved byte-identically to
      ../demo/app-chrome.css (linked directly below, in this block's
      original cascade position) — the app-chrome rules style demo-owned
      markup (DemoApp's .window shell, toolbar/statusbar, #boot, the
@@ -51,8 +51,8 @@
 
 </style>
 
-<!-- Demo app-chrome CSS — D50's byte-identical move of the inline rules
-     this page's <style> carried since inception (D41 resolved): they
+<!-- Demo app-chrome CSS — the twin loop's byte-identical move of the inline rules
+     this page's <style> carried since inception (since resolved): they
      style demo-owned markup, so every DemoApp host links the same sheet.
      RELATIVE (like panel-content.css below) so it resolves on the parity
      server and the goldens server (both rooted at pkg/panel-layout/);
@@ -61,7 +61,7 @@
 <link rel="stylesheet" href="../demo/app-chrome.css">
 
 <!-- Demo panel-content CSS — the byte-identical migration of the
-     panel-content region this file's <style> used to carry (D39). RELATIVE
+     panel-content region this file's <style> used to carry (the demo extraction). RELATIVE
      so it resolves on the parity server and the goldens server (both
      rooted at pkg/panel-layout/) and from file://; cascade position is the
      region's original one (last); every selector is disjoint from library
@@ -98,7 +98,7 @@ try {
   //   /dist/mock/panel-layout.js       — the library (entry internal.ts,
   //     every peer external; the public surface re-exports index.ts).
   //   /dist/mock/panel-layout-demo.js  — the demo surface (entry
-  //     demo/index.ts — the '@metanorma/panel-layout/demo' subpath, D38).
+  //     demo/index.ts — the '@metanorma/panel-layout/demo' subpath).
   //     Its library dependency is the bare package name, which the
   //     importmap above maps to the library artifact: the demo consumes
   //     the library exactly as a third-party consumer would.
@@ -108,7 +108,7 @@ try {
   // error boundary), then the demo material too (the 11 panel bodies, the
   // registry, the preset, the storage keys, the toolbar/statusbar chrome,
   // the App assembly), and finally the design tokens + library chrome
-  // themselves (D45: the extraction pipeline retired; the linked
+  // themselves (the extraction pipeline retired; the linked
   // panel-layout.css is the sole source, no inline duplication) — lives in
   // those two artifacts plus the linked sheets. This page is: the boot
   // overlay, the app-shell CSS, and ONE mount.

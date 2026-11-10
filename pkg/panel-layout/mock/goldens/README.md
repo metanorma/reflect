@@ -26,11 +26,13 @@ the standalone PNG decoder for its quick `--check-only` tripwire). The
 @metanorma/panel-layout parity`): a Playwright-test characterization suite
 that drives the SAME flows (shared drivers in `tests/parity/flows.mjs`) and
 asserts the mock against these checked-in goldens — semantic-first
-(`state-hp*.json` `_normalized` diffs, ±1px) plus a pixel layer with shared
-snapshot names. Until the library twin exists the two overlap by design;
-the parity suite is the one that survives and gains the second target
-(`twin` project placeholder in its config), at which point the same run
-asserts mock and twin against the same baselines.
+(`state-hp*.json` `_normalized` diffs, ±1px) plus a pixel layer with
+per-target snapshot siblings. The `twin` project (workspace react + the
+yarn-pinned engine, bundled and mounted via the demo surface's
+`mountDemoApp` through `tests/parity/twin.html`) is live: one `parity` run
+asserts mock and twin, in the same run, against these same semantic
+baselines — the twin's pixel layer carries its own baselines (the bundled
+react build renders subpixel-differently from the mock's CDN build).
 
 ## Artifacts
 

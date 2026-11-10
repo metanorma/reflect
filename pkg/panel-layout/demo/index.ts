@@ -1,5 +1,5 @@
 /**
- * `@metanorma/panel-layout/demo` — the demo surface (D38): a SUBPATH
+ * `@metanorma/panel-layout/demo` — the demo surface : a SUBPATH
  * EXPORT that ships with the package but adds NO library API. It assembles
  * the reference mock's residual demo material — the 11 panel bodies, the
  * registry, the preset layout, the storage keys, and the toolbar/statusbar
@@ -11,10 +11,10 @@
  *
  * The demo's stylesheets are `demo/panel-content.css` (panel-content CSS
  * migrated from the mock's inline style) and `demo/app-chrome.css`
- * (toolbar/statusbar/boot/shell, D50: hosts link both; the mock links
+ * (toolbar/statusbar/boot/shell, hosts link both; the mock links
  * them too — its inline `<style>` is comment-only).
  *
- * Consumer-mount seam (D51, escalation E2): this surface also exports
+ * Consumer-mount seam (escalation E2's resolution): this surface also exports
  * `mountDemoApp(root)` — createRoot().render(DemoApp) over this
  * package's own react peers. Hosts with NO react of their own mount
  * through it: the twin parity page loads the fully-bundled
@@ -41,7 +41,7 @@ export {
 } from './storage.js';
 
 /**
- * The consumer-mount seam (D51): mounts `DemoApp` on the given root
+ * The consumer-mount seam (the mount seam): mounts `DemoApp` on the given root
  * element using this surface's own react/react-dom peers — the mount
  * path for hosts whose react is the bundled copy itself (the twin
  * flavor; see the header). Idempotence is the caller's concern (one

@@ -1,7 +1,7 @@
 /**
  * Demo panel registry — the demo consumer's registrations (api.spec.md
- * §2.5 keying, D33 policy placement). Translated VERBATIM from the
- * reference mock's `registry` (mock :714–738):
+ * §2.5 keying, policy placement). Translated VERBATIM from the
+ * reference mock's `registry`:
  *
  * - key = the serialized `contentComponent` name ('document' renders the
  *   doc panel; the other ten reuse their panel ids);
@@ -14,7 +14,7 @@
  *   every title); the mock's registry sets none, so neither does this one.
  *
  * The components registered here are RAW consumer components: the library
- * wraps every registry entry through its own error-boundary seam (D23) —
+ * wraps every registry entry through its own error-boundary seam —
  * `registryComponents()` in panelLayout.tsx. The demo never wraps.
  *
  * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html

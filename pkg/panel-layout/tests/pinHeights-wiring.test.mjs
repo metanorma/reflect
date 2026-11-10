@@ -184,7 +184,7 @@ describe("pinHeights wiring: init + seeding", () => {
   });
 });
 
-describe("pinHeights wiring: §2.5 floor seam (caller-provided floorOf, D55)", () => {
+describe("pinHeights wiring: §2.5 floor seam (caller-provided floorOf)", () => {
   // Module 1 passes the live registrySeams(...).floorOf closure through
   // this option (PinnedHeightsOptions.floorOf wins over the minHeights
   // snapshot). With a zero-group fake api the pass never consults the

@@ -146,7 +146,7 @@ interface DecodedHalves {
   readonly heights: HeightsMap | null;
 }
 
-/** Decode a raw two-key half (mock :665–672 / :920–922). */
+/** Decode a raw two-key half (the two decode sites). */
 function decodeHalf(
   raw: string | null,
   guard: (v: unknown) => boolean,

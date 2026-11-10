@@ -71,7 +71,7 @@ const TARGETS = [
     ],
   },
   {
-    // The DEMO artifact (demo surface, D38): entry `demo/index.ts`
+    // The DEMO artifact (the demo surface): entry `demo/index.ts`
     // (DemoApp + the demo data), mock-facing — the peers AND the library
     // itself stay external: the reference mock's importmap maps
     // '@metanorma/panel-layout' to /dist/mock/panel-layout.js, so the

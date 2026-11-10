@@ -8,7 +8,7 @@
  * `storage` halves and the flows' `settle()` polling read them by name.
  *
  * This module is the single source for the key strings (the mock's
- * dead-data anchors were removed with the extraction pipeline, D45).
+ * dead-data anchors were removed with the extraction pipeline).
  *
  * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
  * @ 94d4b8307e5f0db2a1b32e14ceb8754207a51f27

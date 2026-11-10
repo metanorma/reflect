@@ -7,7 +7,7 @@
  *
  * Run: yarn workspace @metanorma/panel-layout test
  *
- * BOUNDARY (explicit decision, `wiring-Node` per D9): the wiring is
+ * BOUNDARY (explicit decision, `wiring-Node`): the wiring is
  * tested through injected seams only — the api's three subscriptions
  * (captured, then fired by hand) and a classList-recording area stand-in.
  * NO DOM hit-testing is faked: events fire with nativeEvent null so the
@@ -101,7 +101,7 @@ function wire(opts = {}) {
   return { api, area, rules };
 }
 
-describe("unwrap wiring: registration pattern (HP2 — mock :1343/:1460/:1026)", () => {
+describe("unwrap wiring: registration pattern (HP2 — the three registrations)", () => {
   it("HP2: registers exactly one handler on each engine emitter; dispose unwires all three", () => {
     const { api, rules } = wire();
     assert.deepEqual(api.subscriberCounts(), {
@@ -140,7 +140,7 @@ describe("unwrap wiring: registration pattern (HP2 — mock :1343/:1460/:1026)",
   });
 });
 
-describe("unwrap wiring: onWillShowOverlay (F5 — mock :1460–1478)", () => {
+describe("unwrap wiring: onWillShowOverlay (F5)", () => {
   it("F5: the mn-unwrap-hover toggle records the claimed state (unclaimed here → false)", () => {
     const { api, area } = wire();
     // nativeEvent null → overlayClaimActive declines → toggle(false)
@@ -175,7 +175,7 @@ describe("unwrap wiring: option seams (HP7/F3/§2.5)", () => {
     let flag = false;
     const byGetter = wire({ options: { autoWrap: () => flag } });
     // toggle OFF mid-flight — the getter seam stays live without rewiring
-    assert.equal(panelEdge(byValue.api), true, "OFF: T4 veto still applies");
+    assert.equal(panelEdge(byValue.api), true, "OFF: the panel edge-drop veto still applies");
     flag = false;
     assert.equal(panelEdge(byGetter.api), true, "OFF via getter: same veto");
     flag = true;
@@ -202,8 +202,8 @@ describe("unwrap wiring: option seams (HP7/F3/§2.5)", () => {
   });
 });
 
-describe("unwrap wiring: groupDragLive latch + retireFirst (HP4 — mock :1026–1038/:1079)", () => {
-  it("HP4: onWillDragGroup latches only FLOATING groups (T6: titlebar sources are disabled; void-container only)", () => {
+describe("unwrap wiring: groupDragLive latch + retireFirst (HP4)", () => {
+  it("HP4: onWillDragGroup latches only FLOATING groups (titlebar sources are disabled; void-container only)", () => {
     const { api, rules } = wire();
     api.fireWillDragGroup({ group: { id: "g-f", element: {}, api: { location: { type: "floating" } } } });
     assert.equal(rules.groupDragLive.group?.id, "g-f");
@@ -214,7 +214,7 @@ describe("unwrap wiring: groupDragLive latch + retireFirst (HP4 — mock :1026�
     assert.notEqual(rules.groupDragLive.group?.id, "g-grid", "grid group never latches");
   });
 
-  it("HP4: retireFirst with an idle latch is a no-op (mock :1079 guard travels with the provider)", () => {
+  it("HP4: retireFirst with an idle latch is a no-op (the guard travels with the provider)", () => {
     const { rules } = wire();
     rules.retireFirst({ button: 0, clientX: 1, clientY: 2 });
     assert.equal(rules.groupDragLive.group, null);

@@ -19,7 +19,7 @@
  *   variant would need a per-panel hideClose the library does not expose).
  * - The registry's `doc` entry pairs with this as `floatable: false`
  *   (float exclusion is keyed by PANEL ID; here id = contentComponent =
- *   'doc', so the single-entry form suffices — decisions.txt D33's
+ *   'doc', so the single-entry form suffices — the registry policy's
  *   id≠component split does not arise).
  * - Floating windows are clamped to ≥ MIN_WIN_H (150px) by the library's
  *   pin pass — the toolbar window is seeded tall (a vertical toolbar fills

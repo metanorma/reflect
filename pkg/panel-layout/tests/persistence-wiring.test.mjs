@@ -242,7 +242,7 @@ describe("persistence wiring: envelope mode (both halves, one memory)", () => {
   });
 });
 
-describe("persistence wiring: two-key timing (D31 pins)", () => {
+describe("persistence wiring: two-key timing (the synchronous layout-save timing)", () => {
   it("two-key: layout key written synchronously on the change event, heights key absent until the pass", () => {
     const w = wire({ format: TWO_KEY });
     w.api.setLayout(V2);

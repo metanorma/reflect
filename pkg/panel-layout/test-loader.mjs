@@ -11,7 +11,7 @@
  * zero engine imports — dockview/dockview-core are type-only and erase at
  * emit.
  *
- * Resolve hook (added at D51): the compiled DEMO output runtime-imports
+ * Resolve hook (added with the mount seam): the compiled DEMO output runtime-imports
  * the package by its consumer specifier ('@metanorma/panel-layout' — the
  * firewall-pinned form; the only compiled files that do), and under PnP
  * that self-reference resolves to TS source, which Node cannot load. The

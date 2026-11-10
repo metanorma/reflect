@@ -26,7 +26,7 @@ import {
 } from "../compiled/dragTakeover.js";
 import { CONSTANTS } from "../compiled/tokens.js";
 
-describe("dragTakeover: pickResizeTarget (HP6 mock :951–960)", () => {
+describe("dragTakeover: pickResizeTarget (HP6)", () => {
   it("HP6: sash picks the LAST member whose bottom sits at/above the sash (bottom <= sashTop + 2)", () => {
     // Navigation window, tabsets 244/132/74, chrome/sash geometry: member
     // bottoms at 244, 380, 458 (mock preset, sashSize 4).
@@ -62,7 +62,7 @@ describe("dragTakeover: pickResizeTarget (HP6 mock :951–960)", () => {
   });
 });
 
-describe("dragTakeover: resizeFrame (HP6 mock :969–975)", () => {
+describe("dragTakeover: resizeFrame (HP6)", () => {
   /** The mock's arithmetic on a real preset member: start 74, dy +40. */
   const START = { height: 74, width: 300, winHeight: 168 };
 

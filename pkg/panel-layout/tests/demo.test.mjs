@@ -1,10 +1,10 @@
 /**
- * Headless tests for the demo surface (`demo/`, D38/D39) — the extracted
+ * Headless tests for the demo surface (`demo/`) — the extracted
  * demo consumer of '@metanorma/panel-layout/demo'. Node-only seams:
- * registry shape (§2.5 keying, D33), preset structural pins (behavior.spec
+ * registry shape (§2.5 keying), preset structural pins (behavior.spec
  * §4 — the values the parity goldens pin), the two-key storage config
  * (§2.6), and the consumer firewall (demo/ imports only the public API).
- * (The D35 extraction-anchor drift-guard died with its subject at the D45
+ * (The extraction-anchor drift-guard died with its subject at the extraction
  * decommission — the mock no longer carries the anchor block.) Browser
  * behavior (DemoApp mounting, chrome interaction, pixels) is parity
  * territory.
@@ -39,7 +39,7 @@ import { mountDemoApp } from "../compiled/demo/index.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const DEMO_DIR = join(here, "..", "demo");
 
-describe("DEMO registry (§2.5/D33)", () => {
+describe("DEMO registry (§2.5)", () => {
   it("DEMO-registry: 12 keys — the 11 render keys plus the doc policy key; every component is a function", () => {
     assert.deepEqual(Object.keys(registry).sort(), [
       "attributes", "bibliography", "derived", "doc", "document", "identity",
@@ -51,7 +51,7 @@ describe("DEMO registry (§2.5/D33)", () => {
     }
   });
 
-  it("DEMO-registry: the doc policy entry shares the document render component (mock translation, D33)", () => {
+  it("DEMO-registry: the doc policy entry shares the document render component (mock translation; the panel-id policy key)", () => {
     assert.strictEqual(registry.doc.component, registry.document.component);
     assert.equal(registry.doc.floatable, false);
     assert.equal(registry.document.floatable, undefined);
@@ -134,9 +134,9 @@ describe("DEMO storage (§2.6)", () => {
   });
 });
 
-describe("DEMO consumer firewall (D38)", () => {
+describe("DEMO consumer firewall (the demo surface)", () => {
   it("DEMO-firewall: demo/ imports only react, react-dom/client, the public package, or intra-demo relatives", () => {
-    // 'react-dom/client' joined the allow-set at D51 (escalation E2): the
+    // 'react-dom/client' joined the allow-set with the consumer-mount seam (escalation E2): the
     // consumer-mount seam mountDemoApp needs createRoot, and react-dom is
     // a peer of the package — a consumer-mount concern, never an internal
     // import (check-imports is unaffected: it polices engine runtime
@@ -161,7 +161,7 @@ describe("DEMO consumer firewall (D38)", () => {
   });
 });
 
-describe("DEMO panel content (D39 byte-parity sentinels)", () => {
+describe("DEMO panel content (byte-parity sentinels)", () => {
   it("DEMO-content: the 11 bodies carry their golden-pinned markup sentinels", () => {
     assert.equal(Object.keys(PANELS).length, 11);
     assert.ok(PANELS.outline.includes('class="o-node sub sel">5.2&nbsp;&nbsp;Determination'));
@@ -186,7 +186,7 @@ function leafSizes(floatGroup) {
   return sizes;
 }
 
-describe("DEMO app-chrome CSS (D41 resolved by D50)", () => {
+describe("DEMO app-chrome CSS (the twin-loop app-chrome move)", () => {
   const appChrome = readFileSync(join(DEMO_DIR, "app-chrome.css"), "utf8");
   const mockHtml = readFileSync(join(here, "..", "mock", "editor-dockview7-floats.html"), "utf8");
 
@@ -204,7 +204,7 @@ describe("DEMO app-chrome CSS (D41 resolved by D50)", () => {
     }
   });
 
-  it("DEMO-appchrome/D50: the mock LINKS ../demo/app-chrome.css in the moved block's cascade position and inlines no app-chrome rule (the link is the sole source)", () => {
+  it("DEMO-appchrome: the mock LINKS ../demo/app-chrome.css in the moved block's cascade position and inlines no app-chrome rule (the link is the sole source)", () => {
     const iFocus = mockHtml.indexOf('href="/focus.css"');
     const iChrome = mockHtml.indexOf('href="../demo/app-chrome.css"');
     const iContent = mockHtml.indexOf('href="../demo/panel-content.css"');
@@ -219,7 +219,7 @@ describe("DEMO app-chrome CSS (D41 resolved by D50)", () => {
   it("DEMO-appchrome: every design token the sheet consumes is defined by the library sheet panel-layout.css (hosts link it first)", () => {
     const libCss = readFileSync(join(here, "..", "panel-layout.css"), "utf8");
     const used = [...new Set([...appChrome.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]))];
-    assert.ok(used.length >= 9, "expected the chrome's token consumption (9 at the D50 move)");
+    assert.ok(used.length >= 9, "expected the chrome's token consumption (9 at the move)");
     for (const name of used) {
       assert.ok(new RegExp(name + "\\s*:").test(libCss),
         `${name} must be defined in panel-layout.css — a host linking the demo sheet without the library sheet would render unstyled`);
@@ -227,7 +227,7 @@ describe("DEMO app-chrome CSS (D41 resolved by D50)", () => {
   });
 });
 
-describe("DEMO consumer-mount seam (D51 / escalation E2)", () => {
+describe("DEMO consumer-mount seam (the consumer-mount seam / escalation E2)", () => {
   it("DEMO-mount: the demo surface exports mountDemoApp as a function — the twin host's only mount path (react stays internal to the bundle)", () => {
     // Presence/type only: the live mount is parity territory (the twin
     // page boots through it — tests/parity/twin.html + twin.spec.ts).
@@ -235,7 +235,7 @@ describe("DEMO consumer-mount seam (D51 / escalation E2)", () => {
   });
 });
 
-describe("DEMO chrome fixes (F1n, C2 — D39 phase 4)", () => {
+describe("DEMO chrome fixes (F1n, C2 — demo task phase 4)", () => {
   const toolbar = (autoWrap) =>
     renderToString(h(DemoToolbar, {
       autoWrap, onToggleAutoWrap: () => {}, onReset: () => {},

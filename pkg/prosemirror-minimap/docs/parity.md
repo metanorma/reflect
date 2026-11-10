@@ -25,7 +25,7 @@ decisions. Every ambiguity is flagged for the Phase-3 decision gate (Part C).
 
 | Status | Meaning |
 |---|---|
-| `port` | A faithful port is possible (module/seam exists or is planned and settled). |
+| `port` | A faithful port is possible (module/seam exists, or is planned; a plan resting on a review decision cites that decision's D-number — see "Decision inputs" below). |
 | `deviate` | A port is planned but knowingly different; rationale recorded in the row. |
 | `N-A` | No counterpart meaning in the port's architecture, or blocked by a schema/application capability gap. |
 
@@ -39,9 +39,17 @@ decisions. Every ambiguity is flagged for the Phase-3 decision gate (Part C).
 | `screenshot` | Side-by-side mockup-vs-port matrix for visual residue. |
 | `none` | Cosmetic or not mechanically verifiable; rationale in the row. |
 
-Settled review decisions are cited as D1–D12 in the order given in the review;
-they are recorded, not re-litigated. Contradictions found between the mockup
-and a settled decision are flagged in Part C.
+**Decision inputs D1–D12.** The twelve design decisions that arrived with the
+Phase-1 brief (presented there as settled in review) are cited as D1–D12 in
+the brief's order. Under the agreed process they are **not settled here**:
+design decisions are made at the Phase-3 decision gate, which is human. This
+document treats them as recorded inputs — the direction each affected row
+leans on — and neither re-litigates nor ratifies them. Wherever a row or
+question depends on one, the D-number marks that dependency for the gate;
+contradictions between the mockup and a D-numbered input are flagged in
+Part C. No ratification record for any D-input exists in this repository at
+the time of writing; confirming, amending, or rejecting each is the gate's
+job.
 
 ---
 
@@ -114,7 +122,7 @@ and a settled decision are flagged in Part C.
 
 | Item (mockup) | Counterpart (port) | Status | Verification |
 |---|---|---|---|
-| Label EVERY element: clauses at all depths + semantic blocks; anti-collision and band policy are the only filters (mockup:2034–2042) | `labels.ts` labels landmark rows; D1/D2 settle the mechanism. Scope of what is a landmark is open (Q3): mockup labels floats, notes, dl, source blocks; `term`/`req` N-A (D11) | deviate | golden-master |
+| Label EVERY element: clauses at all depths + semantic blocks; anti-collision and band policy are the only filters (mockup:2034–2042) | `labels.ts` labels landmark rows; D1/D2 are the mechanism the review proposed (pending the gate). Scope of what is a landmark is open (Q3): mockup labels floats, notes, dl, source blocks; `term`/`req` N-A (D11) | deviate | golden-master |
 | Label text `mmLabelOf`: clause `num + title`; term `num + tword`; req `label`; note `_label`; float `num` (mockup:1837–1845) | Opaque consumer string (D3): consumer v1 uses title/name text; optional demo-grade positional scheme mirroring `renumberAll()` (which is positional counters + annex letters, explicitly not flavor-correct); proper numbering is a future shared service | deviate | unit |
 | Label DOM: absolutely positioned, right-aligned, ellipsis, `display:none` until `.show` (mockup:456–460, 2036–2042) | `labels.ts` DOM layer (`overlay.ts` precedent, D2) | port | golden-master |
 | Stable spine: viewport-independent even sample of level-1 labels, computed once per build (mockup:2063–2074) | `labels.ts` spine pass over landmark groups; membership fixed per model build | port | unit |
@@ -276,7 +284,8 @@ Count: 22 live invariants, 8 vacuous.
 ## Part C — Open questions (input to the Phase-3 decision gate)
 
 Q1–Q4 are the audit blockers; Q5–Q15 are additional findings. "Leaning" cites
-the settled decision or the evidence direction, never a Phase-1 choice.
+the review decision a D-number records (pending the gate), or the evidence
+direction — never a Phase-1 choice.
 
 1. **Group-identity derivation (blocker).** The mockup's "element" is a DOM
    node whose segments merge into pieces keyed by `byEl` (mockup:2005–2014);
@@ -293,8 +302,8 @@ the settled decision or the evidence direction, never a Phase-1 choice.
 2. **Lane geometry knobs (blocker).** The engine paints lanes 3px wide with a
    1px gap at the canvas right edge, unbounded count (`renderer.ts` lane
    planning); the mockup has 10px lanes, 5px gaps, exactly 4 lanes as sibling
-   DOM columns (mockup:451, 485, 1883–1891). D5 settles that geometry becomes
-   a theme knob (`lanes: {width, gap}`) with consumer 10/5 and order
+   DOM columns (mockup:451, 485, 1883–1891). D5 proposes a theme knob
+   (`lanes: {width, gap}`) with consumer 10/5 and order
    diag=1, notes=2, search=3, wear=4. Open: the knob's exact shape (theme vs
    options), whether the strip/lane/label partition is also themed (Q5), and
    whether lane count is capped by pane width as in the mockup's fixed 4.
@@ -320,19 +329,19 @@ the settled decision or the evidence direction, never a Phase-1 choice.
 5. **In-canvas horizontal partition.** Mockup: labels column + 52px strip +
    4 lanes as flex siblings. Port: one canvas whose consumer-set width must
    be partitioned into label gutter, content region, and lane strip. No
-   settled rule exists for the split or for how the labels DOM layer overlays
+   agreed rule exists for the split, or for how the labels DOM layer overlays
    the same pane (D2 gives the module, not the layout). Leaning: labels as a
    DOM sibling column (overlay.ts precedent) over the pane's left/label
    region; lanes owned by the canvas.
 6. **Row-height floor and thumb floor values.** Mockup MIN 1.5px / paint
    2px / thumb floor 8px (mockup:1979, 2024, 2221); engine `rowHeight`
-   default 3px, thumb floor 2px (§5.4/§9.1). D9 changed zoom and indent only.
+   default 3px, thumb floor 2px (§5.4/§9.1). D9 touches zoom and indent only.
    Leaning: consumer overrides `rowHeight` to match mockup paint density;
    needs a decision because it also moves the fit-mode scale clamp (§6.2).
 7. **Solid slabs vs length-encoded bars.** Mockup strip rows are full-width
    solid two-tone rects (shared right edge, mockup:2021–2022); the engine's
-   tier-2/3 width is text-length-encoded (`rowWidthFraction`, §6.5), and D4
-   settles two-tone colors but not row width. This is the largest visual
+    tier-2/3 width is text-length-encoded (`rowWidthFraction`, §6.5), and D4
+    covers two-tone colors but not row width. This is the largest visual
    divergence between baseline and engine today. Leaning: a class-level
    `width: 'solid' | 'proportional'` theme knob, mockup classes solid;
    undecided.
@@ -364,14 +373,15 @@ the settled decision or the evidence direction, never a Phase-1 choice.
     that changes heights without changing content width is not an epoch
     (§4.6) — the consumer must force an epoch or accept estimate drift until
     stride sampling re-converges. Leaning: consumer-triggered epoch.
-13. **Notes lane implementation order.** D12 stubs search and diagnostics; the
+13. **Notes lane implementation order.** D12 proposes stubbing search and
+    diagnostics; the
     notes lane (mockup `.mn-note`, schema `review` nodes) is not covered by a
     stub decision and has a real schema counterpart. Leaning: implement notes
     as the first consumer producer (reference for D8 discipline).
 14. **`.raw-block` and `.dl-defs` rows.** `SEM_SEL` includes raw blocks and
     definition lists (mockup:1905); the schema has `dl` content but no raw
     HTML block node surfaced by the classifier. Whether they are rows, and of
-    which class, is a consumer classifier decision without a settled leaning.
+     which class, is a consumer classifier decision without a leaning.
 15. **Governance placement note.** `pkg/prosemirror-minimap/docs/` is scanned
     by `scripts/check-specs.mjs` (the corpus walker covers every
     `pkg/<pkg>/docs/**/*.md`), so this document is governed and link-checked.
@@ -381,13 +391,14 @@ the settled decision or the evidence direction, never a Phase-1 choice.
     (the placements guard itself only covers top-level `docs/*.spec.md`, so
     nothing fails either way).
 
-**Settled-decision contradiction audit.** No contradiction was found between
-the mockup and D1–D12. Two corroborations worth recording: the mockup gives
+**Review-decision contradiction audit.** No contradiction was found between
+the mockup and the decision inputs D1–D12 (all pending the gate). Two
+corroborations worth recording: the mockup gives
 floating titles no segment at all (an `h4.floating-title` is prose inside the
 parent's intro segment, mockup:1905 vs mockup:1049), which supports D10 (not a
 landmark) while noting the port additionally colors them as headings — a
 superset, not a conflict; and the mockup's wear ticks are per-segment with
-continuous opacity, which D8 knowingly replaces with quantized buckets
-(recorded as `deviate` in A.5, not a contradiction). The mockup's
+continuous opacity, which the review's D8 proposes replacing with quantized
+buckets (recorded as `deviate` in A.5, not a contradiction). The mockup's
 `renumberAll()` is positional (counters + annex letters, mockup:1275+),
 consistent with D3's "demo-grade, not flavor-correct" characterization.

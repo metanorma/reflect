@@ -1,6 +1,6 @@
 /*
  * panel-layout.css — library chrome styles. HAND-OWNED source of truth
- * since the D45 extraction-pipeline decommission (provenance = git
+ * since the extraction-pipeline decommission (provenance = git
  * history); the retired extract-css.mjs's final run produced exactly this
  * payload, frozen at hand-off. Consumers link this stylesheet AFTER
  * dockview.css (additive source-order wins); the reference mock loads it

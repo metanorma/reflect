@@ -7,8 +7,7 @@
  * consumer. Its runtime consumer is the REWIRED reference mock: the mock
  * imports `dist/mock/panel-layout.js` (this file's build output) instead of
  * carrying inline behavior glue — the parity suite proves the built
- * artifact reproduces the mock's captured goldens (api.spec.md §5.1,
- * D17/D30).
+ * artifact reproduces the mock's captured goldens (api.spec.md §5.1).
  *
  * Every symbol is named explicitly (no `export *`) so an accidental export
  * added to a module cannot silently leak onto this surface; a symbol that
@@ -49,8 +48,8 @@ export type {
 // Theming/CSS layer (api.spec.md §3 module 10). Budgeted public symbols
 // are sourced from the public entry — one re-export site per symbol; the
 // engine-option views, the consumer-configurable storage keys and the
-// extraction provenance stay internal-only (D29 records the surface
-// split; the public entry's block comment carries the rationale).
+// extraction provenance stay internal-only (the public entry's block
+// comment carries the surface-split rationale).
 export { CONSTANTS, DV_TOKENS, TOKENS } from './index.js';
 export type { LayoutConstants } from './index.js';
 export {
@@ -188,7 +187,7 @@ export type {
 // are sourced from the public entry — one re-export site per symbol; the
 // quarantined move-only reach-in stays internal-only (the component's
 // `watchTitlebars` composes it internally; it is deliberately NOT on the
-// public API — D22).
+// public API).
 export {
   decorateTitlebars,
   watchTitlebars,

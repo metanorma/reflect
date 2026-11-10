@@ -43,14 +43,14 @@ targets, one per consumption mode of the library:
   source/peer per its exports map. Duplicate-instance protection is
   yarn's own gate (``yarn check-for-multiple-instances``).
 
-Engine-pin drift note (D13): ``windowDrag.ts``'s ``normalizeTops`` takes
+Engine-pin drift note: ``windowDrag.ts``'s ``normalizeTops`` takes
 its container rect from the overlay element's ``parentElement``, relying
 on the verified dockview-core 7.0.4 fact that the Overlay constructor
 appends its element to ``overlay.options.container`` (the function's
 comment records the equivalence to the mock's private ``options`` hop).
 Bumping the engine pins requires re-verifying that equivalence.
 
-The DEMO artifacts (demo task, D38/D39 — one per flavor, entry
+The DEMO artifacts (demo task — one per flavor, entry
 ``demo/index.ts``, output name ``panel-layout-demo.js``):
 
 ``mock/panel-layout-demo.js``
@@ -61,7 +61,7 @@ The DEMO artifacts (demo task, D38/D39 — one per flavor, entry
   bundle consumes the built library exactly as a third-party consumer
   would. The thinned reference mock imports BOTH artifacts and mounts
   ``DemoApp`` — its inline remainder is the boot overlay and the app-shell
-  CSS; the library chrome arrives via the linked sheets (D45). The
+  CSS; the library chrome arrives via the linked sheets (hand-owned). The
   metafile assert's external allow-list gains ``@metanorma/panel-layout``
   for this target (everything external remains importmap-suppliable).
 
@@ -72,7 +72,7 @@ The DEMO artifacts (demo task, D38/D39 — one per flavor, entry
   engine from the yarn pins. Like its library sibling it is a test
   artifact; its consumer is the twin parity target
   (``tests/parity/twin.html``), which mounts via the demo surface's
-  ``mountDemoApp`` (D51) — the bundles carry no page-usable react.
+  ``mountDemoApp`` (the mount seam) — the bundles carry no page-usable react.
 
 Deferred items that LANDED with the convergence task (module 1 +
 mock rewiring):
@@ -82,13 +82,14 @@ mock rewiring):
   (demo panels, preset, toolbar/statusbar chrome and the boot/importmap
   head remain). The parity suite proves the built artifact reproduces the
   UNCHANGED goldens; module 1 composes the wiring order, the §2.1 option
-  split (D26) and the mock's layout-save timing through the persistence
+  split and the mock's layout-save timing through the persistence
   facade (the synchronous save net — see panelLayout.tsx's header).
 - CSS linking: DONE — the mock links the served ``/panel-layout.css`` and
-  ``/focus.css`` after dockview.css (D28/D30), and since the D45
-  extraction-pipeline decommission those links are the SOLE source of the
-  library chrome: the extractor-duplicated inline ``:root``/chrome blocks
-  were deleted from the mock in the same change, and the parity suite
+  ``/focus.css`` after dockview.css (hand-authored; layoutArea-scoped), and
+  since the extraction-pipeline decommission those links are the SOLE
+  source of the library chrome: the extractor-duplicated inline
+  ``:root``/chrome blocks were deleted from the mock in the same change,
+  and the parity suite
   passed against the UNCHANGED goldens (the cascade proof — the linked
   sheet was byte-identical to the deleted inline copies).
   ``panel-layout.css`` also carries the J7 reduced-motion block
@@ -97,27 +98,27 @@ mock rewiring):
   (metafile) already cover the engine-copy guarantee; a page-level
   resource-count spec remains follow-up work with the twin target.
 
-Deferred items that LANDED with the demo task (D38/D39):
+Deferred items that LANDED with the demo task:
 
 - Demo surface extraction: DONE — ``@metanorma/panel-layout/demo``
   (``demo/index.ts``, exports-map subpath) carries the 11 panel bodies,
-  the registry (doc policy key per D33), the preset, the two-key storage
+  the registry (doc policy key on the panel id), the preset, the two-key storage
   config, the toolbar/statusbar chrome and ``DemoApp``; it consumes only
   the public API plus the react peer. The demo stylesheet is
   ``demo/panel-content.css`` (byte-identical migration of the mock's
   panel-content CSS region); the mock links it relatively
   (``../demo/panel-content.css`` — parity server, goldens server and
   file:// all resolve it). App-chrome CSS stays inline in the mock by
-  design (D35); where it lives for a host other than the mock is the twin
+  design; where it lives for a host other than the mock is the twin
   loop's decision.
 - Mock thinning: DONE — the mock keeps zero demo content, zero chrome
-  JSX and zero registrations inline; since D45 its remainder is also free
+  JSX and zero registrations inline; since the decommission its remainder is also free
   of the dead-data extraction anchors and the extractor-duplicated
   library-chrome/``:root`` CSS (boot/head, app-shell CSS, and one
   two-import mount of ``DemoApp``). The parity suite passes UNCHANGED
   against the same goldens through the extracted demo.
 
-Extraction-pipeline decommission (D45):
+Extraction-pipeline decommission:
 
 - ``panel-layout.css`` and ``mock/design-tokens.json`` are HAND-OWNED
   sources of truth (headers no longer claim GENERATED; provenance = git
@@ -130,9 +131,9 @@ Extraction-pipeline decommission (D45):
   declarations parsed out of ``panel-layout.css``. The JSON stays at
   ``mock/design-tokens.json`` — the parity harness
   (``tests/parity/harness.html``) imports it at that hardcoded path.
-- ``capture:states`` caveat (extends D42): that tool serves the mock with
+- ``capture:states`` caveat: that tool serves the mock with
   ``mock/`` as its server root, so the mock's absolute links
-  (``/panel-layout.css``, ``/focus.css``, and since D39
+  (``/panel-layout.css``, ``/focus.css``, and since the demo task
   ``/demo/panel-content.css``) are unreachable there; frame REGENERATION
   needs a server-root change (the tool lives in an untouchable dir) or
   absolute-path links. Before the decommission the inline duplication
@@ -141,17 +142,17 @@ Extraction-pipeline decommission (D45):
   parity/goldens servers (rooted at ``pkg/panel-layout/``) resolve every
   link.
 
-LANDED with the twin loop (D50–D54): twin assembly + first twin parity
+LANDED with the twin loop: twin assembly + first twin parity
 run (green out of the box — the twin reproduces every semantic golden
 the mock captured; 5 new twin pixel baselines minted, existing baselines
-bit-identical) and the app-chrome CSS decision (``demo/app-chrome.css``,
-D50).
+bit-identical) and the app-chrome CSS decision
+(``demo/app-chrome.css``).
 
 Still open:
 
-- Synthetic-suite audit beyond the convergence rows (D2).
+- Synthetic-suite audit beyond the convergence rows .
 - Regenerating the state frames from the thinned mock
-  (``capture:states``) needs the demo stylesheet — and, since D45, the
+  (``capture:states``) needs the demo stylesheet — and, since the decommission, the
   library sheets — reachable from that tool's server root (it serves the
   mock from ``mock/`` today); see the extended caveat in the
   decommission section above. Until then the existing checked-in frames

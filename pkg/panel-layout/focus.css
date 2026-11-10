@@ -2,11 +2,11 @@
  * focus.css — library-owned focus styles (api.spec.md §3 module 9,
  * behavior.spec.md G3), the keyboard half of the focus layer.
  *
- * HAND-AUTHORED, always (D28): the mock carries no `:focus-visible` rules
+ * HAND-AUTHORED, always: the mock carries no `:focus-visible` rules
  * (that absence is the G3 gap), and this file began life beside the
  * extraction-era panel-layout.css, which extract-css.mjs regenerated
  * VERBATIM from the mock — library-ADDED rules could not live there. That
- * pipeline retired at the D45 decommission (panel-layout.css is hand-owned
+ * pipeline retired at the extraction decommission (panel-layout.css is hand-owned
  * now); the two sheets stay separate — one rule set per concern, no
  * redesign — and consumers link both stylesheets after dockview.css.
  *

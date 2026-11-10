@@ -16,8 +16,8 @@
  * seam a browser commit exercises. renderToString still covers the healthy
  * render-through case and the module-load smoke (the package's first .tsx
  * artifact). The live-dockview render (a real throwing panel mounted in
- * the layout) stays synthetic-planned: `synthetic-error-boundary.spec.ts`
- * per tests/README.md — it needs the convergence task's page harness.
+ * the layout) is covered by `synthetic-panel.spec.ts`'s C3 row through
+ * the parity harness page.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";

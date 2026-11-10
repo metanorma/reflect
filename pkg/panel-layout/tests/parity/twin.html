@@ -14,8 +14,8 @@
 
 <!-- Library chrome + demo sheets — the MOCK's link order, absolute paths
      (the parity server, tests/parity/serve.mjs, is rooted at
-     pkg/panel-layout/): panel-layout.css (hand-owned library chrome,
-     D45) → focus.css (G3 rings, D28) → demo/app-chrome.css (D50: the
+     pkg/panel-layout/): panel-layout.css (hand-owned library chrome
+     since the extraction decommission) → focus.css (G3 rings) → demo/app-chrome.css (the
      demo shell rules every DemoApp host shares — the mock links its copy
      at the same cascade position its inline block held) →
      demo/panel-content.css. -->
@@ -34,13 +34,13 @@
 // FULLY SELF-CONTAINED: react + react-dom + scheduler + the engine are
 // bundled from the yarn pins (react 19.2.7 — the version truth this
 // target exists to prove), with the library aliased to the PUBLIC entry
-// (D43/D50). This page therefore supplies NO react of its own: an
+// (the builder aliasing plus the app-chrome move). This page therefore supplies NO react of its own: an
 // importmap react — even at the identical 19.2.7 version — would load a
 // SECOND instance beside the bundled one, and React's per-copy internals
 // make that crash at DemoApp's first hook (live-probed: "Cannot read
 // properties of null (reading 'useState')", zero render).
 //
-// MOUNT SEAM (D51, resolving escalation E2): the demo surface exports
+// MOUNT SEAM (resolving escalation E2): the demo surface exports
 // mountDemoApp(root) — createRoot().render(DemoApp) over the surface's
 // own react peers — and this page mounts through it (a host-side
 // createRoot would need a react binding the bundle does not export, and

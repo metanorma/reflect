@@ -1,7 +1,7 @@
 /*
  * demo/panel-content.css — the demo consumer's panel-content styles,
  * migrated byte-identically from the reference mock's inline <style>
- * (the contiguous `---- panel content ----` … `h.floating` region; D35:
+ * (the contiguous `---- panel content ----` … `h.floating` region;
  * ONLY this region migrates — the mock keeps its library-chrome CSS
  * blocks, design constants (:root) and app-chrome/shell rules inline as
  * the extraction source the tokens pipeline reads, and as the mock

@@ -8,7 +8,7 @@
  * These are regression pins, not unit tests: the values below are the
  * spec-cited contract numbers. If one fails, a hand-owned value changed
  * (design-tokens.json and panel-layout.css are the sources of truth since
- * the D45 decommission) — spec §4 and these pins must be updated together,
+ * the extraction decommission) — spec §4 and these pins must be updated together,
  * and the JSON↔CSS cross-checks below keep the two artifacts consistent.
  */
 import { describe, it } from "node:test";
@@ -62,9 +62,9 @@ describe("tokens: storage keys (spec §4, two-key format)", () => {
 });
 
 describe("tokens: provenance drift tripwire", () => {
-  it("§4: _provenance declares the file HAND-OWNED and records the final extraction snapshot (D45) — value changes are plain edits now, git history is the provenance", () => {
+  it("§4: _provenance declares the file HAND-OWNED and records the final extraction snapshot (hand-owned) — value changes are plain edits now, git history is the provenance", () => {
     // Not pinned as a literal here: the strong pin is the constants above.
-    // The extractor retired at the D45 decommission; this asserts the
+    // The extractor retired at the extraction decommission; this asserts the
     // provenance shape stays machine-readable for tokens.ts's Provenance
     // view and that the header no longer claims GENERATED status.
     assert.match(PROVENANCE.commit, /^[0-9a-f]{40}$/);
@@ -105,7 +105,7 @@ describe("tokens: public promotion surface (§3 module 10 budget)", () => {
 });
 
 describe("tokens: TOKENS/DV_TOKENS cardinals (spec §4 counts)", () => {
-  it("§4: mock :root custom properties number 18", () => {
+  it("§4: mock `:root` block custom properties number 18", () => {
     assert.equal(Object.keys(TOKENS).length, 18);
   });
   it("§4: dockview theme overrides number 20", () => {
@@ -174,7 +174,18 @@ describe("panel-layout.css: chrome surfaces (rows J4/J5)", () => {
     assert.match(css, /\.mn-drag-grip\{/);
     assert.match(css, /--dv-floating-titlebar-height:24px/);
   });
-  it("§4 scope guard: no demo selectors, no HTML/script/importmap fragments (retroactive catcher for the D29 gripHover overrun)", () => {
+  it("J7: reduced-motion var-zeroing block present — the J4 zone fades and J5 sash accent drop to 0s under prefers-reduced-motion", () => {
+    // behavior.spec.md §3 J7: the library theme's motion-bearing
+    // transitions are killed by zeroing their duration vars at the
+    // elements that declare them (the engine's own reduced-motion block
+    // covers .dv-tab/.dv-tab-group-chip only — not these surfaces).
+    assert.match(css, /@media \(prefers-reduced-motion: reduce\)\{/);
+    assert.match(css,
+      /\.layoutArea \.dv-drop-target,\n\s*\.layoutArea \.dv-drop-target-container\{--dv-transition-duration: 0s\}/);
+    assert.match(css,
+      /\.layoutArea \.dv-sash\{--dv-active-sash-transition-duration: 0s; --dv-active-sash-transition-delay: 0s\}/);
+  });
+  it("§4 scope guard: no demo selectors, no HTML/script/importmap fragments (retroactive catcher for the historical gripHover overrun)", () => {
     for (const bad of [
       /<\/?(style|script|html|body)\b/i,
       /"imports"\s*:/,

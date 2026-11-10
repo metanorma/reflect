@@ -1,5 +1,5 @@
 /**
- * Float titlebar chrome — T6 decoration (ridged drag-grip) + move-only
+ * Float titlebar chrome — decoration (ridged drag-grip) + move-only
  * enforcement. QUARANTINED: move-only enforcement reaches into dockview
  * internals (the titlebar's drag sources have no public disable API; the
  * documented onWillDragGroup + preventDefault route cannot preempt the
@@ -24,7 +24,7 @@ const GRIP_CLASS = 'mn-drag-grip';
  * (skips bars that already carry a grip); the grip is decorative
  * (aria-hidden, pointer-events:none — the bar itself is the handle).
  *
- * The bar lookup uses the mock's plain truthiness guard (mock :687), not an
+ * The bar lookup uses the mock's plain truthiness guard, not an
  * instanceof check: `querySelector` on a titlebar-class element is always an
  * `Element`, and every member touched below lives on `Element` itself.
  */
@@ -91,7 +91,7 @@ export interface WatchTitlebarsOptions {
   readonly root?: HTMLElement;
   /**
    * Interval net period in ms. Default 500 — the A4 "grips ≤500ms late"
-   * bound (mock :1496).
+   * bound.
    */
   readonly intervalMs?: number;
 }

@@ -16,11 +16,11 @@
  *    re-focuses the layout when a close leaves DOM focus on `body`.
  *
  * GREENFIELD MODULE (module-8 boundary precedent): the mock implements
- * NONE of this — G2 (`keyboardNavigation` unset at mock :1533–1552), G3
+ * NONE of this — G2 (`keyboardNavigation` unset at the extraction commit), G3
  * (no `:focus-visible` rules anywhere in the mock or dockview.css) and
  * G5/G6 (focus left on `body` after close/unwrap) are the documented gaps
  * this module closes. The G3 ring CSS ships as the sibling hand-authored
- * `focus.css`, hand-authored like `panel-layout.css` (both D45:
+ * `focus.css`, hand-authored like `panel-layout.css` (both
  * hand-owned sources of truth, no pipeline).
  *
  * Engine facts this module is built on (verified against the pinned
@@ -80,9 +80,9 @@ import { clampDragBox } from './windowDrag.js';
  *
  * - `dndStrategy: 'pointer'` — the drag-takeover claim paths (module 4)
  *   and the sash/window-bottom gesture takeover (module 6) are built on
- *   pointer-event routing (mock :1538).
+ *   pointer-event routing.
  * - `floatingGroupDragHandle: 'titlebar'` — the titlebar chrome module (7)
- *   decorates and enforces move-only on the TITLEBAR handle (mock :1537).
+ *   decorates and enforces move-only on the TITLEBAR handle.
  * - `floatingGroupBounds: FLOATING_GROUP_BOUNDS` (0/0 minimums) — the
  *   containment model's precondition: 0-minimums make the engine's own
  *   container clamp a no-op (every position in range), so containment
@@ -198,7 +198,7 @@ export interface FocusRestoration {
  * keyboard-close neighbor refocus, a consumer-managed focus move, or a
  * layout with no active group (everything closed → B1 watermark).
  *
- * Framework-agnostic wiring (D6 pattern): module 1 calls it inside
+ * Framework-agnostic wiring (framework-agnostic wiring): module 1 calls it inside
  * `onReady` and disposes on unmount. Pure event subscription — no DOM
  * writes until the restore decision fires.
  */

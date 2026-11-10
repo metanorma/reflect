@@ -11,7 +11,7 @@
  * no error surfacing beyond a console.error diagnostic line.
  *
  * The fallback is a bare, classless <div> ("Panel failed: <id>"): it must
- * exist inside the D1/D2 fixed-height box, and inventing CSS for it is out
+ * exist inside the D-c1/D-c2 fixed-height box, and inventing CSS for it is out
  * of bounds (theming is module 10's; nothing here may mint new classes).
  *
  * `wrapPanelComponent` is the api.spec.md §2.5 registry-application seam —

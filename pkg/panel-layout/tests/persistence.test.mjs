@@ -58,7 +58,7 @@ describe("persistence: corrupted storage fallback (two-key)", () => {
     const { persistence } = make(new Map([[KEYS.layout, JSON.stringify({ panels: {} })]]));
     assert.equal(persistence.loadLayout(), null);
   });
-  it("A6: layout JSON with falsy `grid` (null/0/\"\") → null (mock :670 truthiness, not presence)", () => {
+  it("A6: layout JSON with falsy `grid` (null/0/\"\") → null (truthiness, not presence)", () => {
     for (const grid of [null, 0, ""]) {
       const { persistence } = make(new Map([
         [KEYS.layout, JSON.stringify({ grid })],

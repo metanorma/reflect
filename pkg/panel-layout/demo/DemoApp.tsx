@@ -1,18 +1,18 @@
 /**
- * `DemoApp` — the demo consumer's one-component assembly (D38/D39): the
+ * `DemoApp` — the demo consumer's one-component assembly : the
  * toolbar/statusbar chrome around a single `<PanelLayout>` instantiation,
  * fed the demo registry, preset and two-key persistence. Translated
- * VERBATIM from the reference mock's `App()` (mock :762–836) — the same
+ * VERBATIM from the reference mock's `App()` — the same
  * prop bag the mock passed, the same Reset body (HP9: wipe keys → clear →
  * fromJSON(preset) — the library's fromJSON net clears the pin map and the
- * maintenance pass re-pins + re-saves, D32), the same `window.__api` hook
+ * maintenance pass re-pins + re-saves), the same `window.__api` hook
  * the parity drivers read live state through.
  *
  * Everything here must be possible for a third party importing
  * '@metanorma/panel-layout' (plus the react peer): it is CONSUMER code.
  * `dockviewOptions` passes `theme` + `dndEdges` (consumer passthrough) and
  * the mock's `floatingGroupBounds` — which the library OWNS and ignores
- * (§2.1/D26); it is kept verbatim from the mock for fidelity.
+ * (§2.1); it is kept verbatim from the mock for fidelity.
  *
  * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
  * @ 94d4b8307e5f0db2a1b32e14ceb8754207a51f27
@@ -71,7 +71,7 @@ export const DemoApp: FC = () => {
       onToggleAutoWrap: () => setAutoWrap(v => !v),
       onReset: reset,
     }),
-    // The PanelLayout container IS the layout area (D30) — it carries the
+    // The PanelLayout container IS the layout area — it carries the
     // class itself; the demo's .layoutArea CSS (flex:1 fill) applies to it.
     h(PanelLayout, {
       registry,

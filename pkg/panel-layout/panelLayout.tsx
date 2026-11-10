@@ -5,36 +5,36 @@
  *
  * The component itself is deliberately thin: every piece of behavior lives
  * in its owning module (see the composition map below); this file owns only
- * the wiring ORDER, the option split (D26), and the two §2.2 callbacks.
+ * the wiring ORDER, the option split, and the two §2.2 callbacks.
  * Composition seams and their decisions:
  *
  * - persistence (module 2) — `two-key` format pins the mock's storage shape;
- *   `onFallback` relays as `onDidFallback` (D5).
- * - pin pass (module 3) — `usePinnedHeights` called from onReady (D6), with
+ *   `onFallback` relays as `onDidFallback`.
+ * - pin pass (module 3) — `usePinnedHeights` called from onReady, with
  *   the window-drag gate shared with module 5 (F4) and registry floors
  *   derived per call from the live registry (§2.5).
  * - window-drag gate (module 5) — created with `retireFirst` from module 4's
- *   drop rules (D11 gate order: retire → unwrap fallback → sweep →
+ *   drop rules (gate order: retire → unwrap fallback → sweep →
  *   normalize → subscribers), and the pin pass subscribes via `wire()`
- *   (D14: onDragEnd notifications land AFTER the retire sequence, so net-3
+ *   (onDragEnd notifications land AFTER the retire sequence, so net-3
  *   scheduling always postdates the unwrap).
  * - drag takeover (module 6) — `wireTabsetEdges({onCommit})` where commit is
- *   `PinnedHeightsHandle.commitHeights` (D16: pointerup reconciles, then
+ *   `PinnedHeightsHandle.commitHeights` (pointerup reconciles, then
  *   persists heights only — takeover drags fire no layout-change event).
- * - drop rules (module 4) — `useDropRules` self-subscribes (D6 pattern) and
+ * - drop rules (module 4) — `useDropRules` self-subscribes (framework-agnostic wiring) and
  *   returns `retireFirst` for the gate.
  * - titlebar chrome (module 7) — `watchTitlebars` with the layout container
- *   as root (D21), shipping the grip decoration and move-only enforcement.
+ *   as root, shipping the grip decoration and move-only enforcement.
  * - error boundary (module 8) — every registry component passes through
- *   `wrapPanelComponent` (D23: reads props.api.id, renders consumer as the
+ *   `wrapPanelComponent` (reads props.api.id, renders consumer as the
  *   boundary child).
  * - focus (module 9) — `splitDockviewOptions` owns dndStrategy/
  *   floatingGroupBounds/floatingGroupDragHandle/
- *   transformFloatingGroupDrag (D26); `wireFocusRestoration`
+ *   transformFloatingGroupDrag (the §2.1 ownership contract); `wireFocusRestoration`
  *   closes G5; the G6 convergence amendment queues a focus call at module
  *   4's claim seam (a follow-up panel unwrap focuses the minted window).
  * - theming (module 10) — the container carries `layoutArea` so
- *   panel-layout.css applies (D30); focus.css is linked by the consumer
+ *   panel-layout.css applies; focus.css is linked by the consumer
  *   (the mock links both).
  *
  * NOT ported from the mock (demo-consumer territory, §3): the toolbar, the
@@ -95,7 +95,7 @@ import type { FocusRestoration } from './focus.js';
 /* ---- §2.5 registry ----------------------------------------------------- */
 
 export interface PanelRegistration {
-  /** Consumer panel; rendered inside the fixed-height D1/D2 box. */
+  /** Consumer panel; rendered inside the fixed-height D-c1/D-c2 box. */
   readonly component: FC<IDockviewPanelProps>;
   /** Default tab title (precedence: layout → registry → panel id, E2). */
   readonly title?: string;
@@ -147,7 +147,7 @@ export function registryMinHeights(
   return out;
 }
 
-/** Registry → engine `components` map, each consumer wrapped (D23, C3). */
+/** Registry → engine `components` map, each consumer wrapped (the registry-application seam, C3). */
 function registryComponents(registry: PanelRegistry): Record<
   string,
   FC<IDockviewPanelProps>
@@ -240,7 +240,7 @@ export interface PanelLayoutProps {
    * Engine option passthrough. The library owns `dndStrategy`,
    * `floatingGroupBounds`, `floatingGroupDragHandle`,
    * `transformFloatingGroupDrag` — consumer values for those four are
-   * ignored (§2.1/D26). The component also always renders the stock
+   * ignored (§2.1). The component also always renders the stock
    * dockview-react tab (`defaultTabComponent: DockviewDefaultTab`): a
    * react-layer prop, outside this passthrough contract, forced because
    * G1/G3/HP10 target the stock tab.
@@ -450,7 +450,7 @@ interface Wired {
  *
  *  1. persistence (`loadLayout()` — A6/A7 silent fallback)
  *  2. `fromJSON(loadLayout() || defaultLayout)` — through the A9 net; the
- *     pin wiring's init `saveLayout` (HP1's immediate write, D8) and its
+ *     pin wiring's init `saveLayout` (HP1's immediate write) and its
  *     synchronous first pin pass (A4 settle) run inside `usePinnedHeights`,
  *     which is created AFTER the restore exactly like the mock's
  *     `fromJSON(...); saveLayout(api); pinAllWindows(api)` sequence
@@ -507,9 +507,9 @@ function wirePanelLayout(
   // ---- persistence (module 2) ------------------------------------------
   //
   // LAYOUT-SAVE TIMING (the mock's exact discipline, goldens-pinned): the
-  // mock saved the layout SYNCHRONOUSLY once after the restore (mock :1326)
+  // mock saved the layout SYNCHRONOUSLY once after the restore
   // and then again at every layout-change event (:1327–1328), while heights
-  // + pins ride the rAF-debounced pass (:1337–1341). The pin wiring (D8)
+  // + pins ride the rAF-debounced pass (:1337–1341). The pin wiring
   // runs BOTH saves inside its debounced pass — settle-equivalent for
   // heights, but the stored LAYOUT then reflects post-pin window geometry,
   // and the goldens pin the pre-pin values (hp2 stores the source window at
@@ -529,9 +529,9 @@ function wirePanelLayout(
     ? createWiringPersistence(options.persistence, options.onDidFallback)
     : undefined;
 
-  // ---- A6/A7/A9 restore (mock :1323–1325) — BEFORE the wiring subscribes,
+  // ---- A6/A7/A9 restore — BEFORE the wiring subscribes,
   //      exactly like the mock: the load transaction's events predate every
-  //      subscription here (D7) and the init saveLayout pins HP1's write.
+  //      subscription here and the init saveLayout pins HP1's write.
   const saved = persistence?.loadLayout() ?? null;
   restoreLayout(
     api,
@@ -541,7 +541,7 @@ function wirePanelLayout(
   );
 
   // ---- drop rules (module 4) — before the gate: retireFirst is a gate
-  //      creation option (D11) ---------------------------------------------
+  //      creation option ---------------------------------------------
   const dropRules = useDropRules({
     api,
     autoWrap: options.autoWrap,
@@ -550,7 +550,7 @@ function wirePanelLayout(
   });
   disposers.push(() => dropRules.dispose());
 
-  // G6 convergence amendment (D27): module 4's claim seam is the only place
+  // G6 convergence amendment: module 4's claim seam is the only place
   // that KNOWS an unwrap happened (no public engine event isolates it), so
   // the component observes it here — a panel whose group changed across the
   // handler was unwrapped into a new window; focus that window's group on a
@@ -585,7 +585,7 @@ function wirePanelLayout(
   disposers.push(() => gate.dispose());
 
   // ---- pin pass (module 3) — after the gate: `wire()` subscribes net 3,
-  //      and D14's ordering (onDragEnd after retire) lives in the gate ----
+  //      and the gate's ordering (onDragEnd after retire) lives in the gate ----
   // §2.5 floors are live: the seam re-derives from the current registry on
   // every pin/pass/commit read (an always-built closure — a floor-less
   // registry pins at the same MIN_TS_H the omitted seam produced).
@@ -600,7 +600,7 @@ function wirePanelLayout(
   });
   disposers.push(() => pins.dispose());
 
-  // ---- the mock's synchronous layout save (mock :1327) ------------------
+  // ---- the mock's synchronous layout save ------------------
   // Fires at every layout-change event (the AsapEvent microtask), BEFORE
   // the rAF pin pass — so the stored layout carries the pre-pin geometry
   // the goldens pin. HP9's restore path re-emerges through this same net:
@@ -616,7 +616,7 @@ function wirePanelLayout(
   // A consumer-driven `fromJSON` (the demo Reset: clear + fromJSON(preset);
   // also the A9 fallback inside restoreLayout — which runs before this
   // subscription, so it never fires here) reproduces the mock's reset body
-  // (mock :1506–1512) through module surfaces: `commitHeights({})` is the
+  // through module surfaces: `commitHeights({})` is the
   // `heightsMap = {}` reset (adopt the empty map + persist it — HP9's
   // heights key re-emerges as `{}`), then a SYNCHRONOUS pin pass over the
   // preset seeds (the mock's `pinAllWindows` inside reset) so the windows
@@ -679,7 +679,7 @@ function readPanelGroup(
 
 /**
  * §2.1 — the thin front door. Renders `DockviewReact` with every behavior
- * wired; the container carries `layoutArea` (D30) so panel-layout.css and
+ * wired; the container carries `layoutArea` so panel-layout.css and
  * focus.css apply. No toolbar/statusbar slots (§3): consumers compose their
  * own chrome around the component.
  */
@@ -697,7 +697,7 @@ export const PanelLayout: FC<PanelLayoutProps> = (props) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [autoWrapOn, setAutoWrapOn] = useState(autoWrap);
 
-  // The engine options, split per §2.1/D26: owned keys always the
+  // The engine options, split per §2.1: owned keys always the
   // library's (the four, `transformFloatingGroupDrag` among them);
   // everything the consumer passed spreads through verbatim
   // (`keyboardNavigation` among them, G2 — `theme`/`dndEdges` are
@@ -724,7 +724,7 @@ export const PanelLayout: FC<PanelLayoutProps> = (props) => {
   // pattern (the registry sibling of autoWrapRef above). A registry prop
   // change re-renders new components through the `components` memo above
   // while the wiring's exclusion-set/floor seams re-derive from this ref
-  // on every read — the two can never disagree (D55).
+  // on every read — the two can never disagree.
   const registryRef = useRef(registry);
   registryRef.current = registry;
 
@@ -764,7 +764,7 @@ export const PanelLayout: FC<PanelLayoutProps> = (props) => {
     };
   }, []);
 
-  // The component's container IS the layout area (D30): it carries the
+  // The component's container IS the layout area: it carries the
   // `layoutArea` class so panel-layout.css/focus.css chrome applies, and the
   // engine's root (height/width 100%) fills it. Consumers size it (the demo
   // drops it into a flex column — .layoutArea's flex:1 in the demo sheet).

@@ -115,7 +115,13 @@ fire no `onDidLayoutChange`). Corner drags may also change width (min
 2. Drag a panel tab to the doc grid surface and release.
 *Outcome:* no unwrap; grid zone overlays now show (suppression gated on
 the toggle — `useDropRules`, unwrap.ts); center-drop merges the panel as a doc sibling tab
-(stock path unclaimed — see F1); edge drops still vetoed. See §3 F1.
+(stock path unclaimed — see F1). Doc-grid edge zones are NOT vetoed for
+panels: the drop stock-docks, splitting the doc grid (the OFF-mode leak).
+Float-window edge zones and the root band stay vetoed for panels (every
+non-center position); whole-group drops stay barred from the doc grid
+entirely — every grid-target drop and every root-band position is vetoed,
+while float-window targets keep center merge and top/bottom stack
+(left/right vetoed there). See §3 F1.
 
 **HP8 — Reload → persisted layout restores.**
 1. Arrange windows/tabsets (HP2–HP6), then reload.
@@ -163,15 +169,15 @@ statusbar) intact; layout key reflects the emptied state. HP9 restores.
 | C3 Panel component throws in render | Component exception | Inline fallback "Panel failed: <id>" (`PanelErrorBoundary`, applied to every registry component); siblings and windows keep rendering — dockview-react v7.0.4 ships no boundary of its own | — |
 | C4 toJSON fails | Bad structure | Swallowed → stale layout kept | Invisible |
 | **D. Content vs container** (container behavior only) | | | |
-| D1 Content taller than tabset | Any panel above its pinned height | Internal scrollbar in `.panelwrap` (`overflow:auto`, demo/panel-content.css — demo-owned) | The contract panel content must expect: render into a fixed-height box |
-| D2 Content shorter than tabset | Any panel below its pinned height | White whitespace below (`.panelwrap` bg fills) | Panels own their empty space; no stretch/fill affordance |
+| D-c1 Content taller than tabset | Any panel above its pinned height | Internal scrollbar in `.panelwrap` (`overflow:auto`, demo/panel-content.css — demo-owned) | The contract panel content must expect: render into a fixed-height box |
+| D-c2 Content shorter than tabset | Any panel below its pinned height | White whitespace below (`.panelwrap` bg fills) | Panels own their empty space; no stretch/fill affordance |
 | (Panel-data states — empty lists, long strings, filtering results — out of scope for this spec) | | | |
 | **E. Long/short/missing chrome text** | | | |
 | E1 Long tab titles | Long panel name | Stock dv-tab strip; overflow container unstyled in this theme/mock → tabs compress | min: ellipsis on `.dv-tab`; no tab tooltips |
 | E2 Missing title | Panel without `title` | Tab shows panel id | — |
 | E3 Grip/tooltips at narrow width | Min-width window | Text-free 44px grip — unaffected; toggle `title` unaffected | — |
 | **F. Disabled/read-only** | | | |
-| F1 Auto-wrap OFF | Toolbar toggle | No hint change; `.mn-unwrap-hover` no longer applied → doc-grid zone overlays reappear; panel center-drop on grid merges as doc sibling tab (unclaimed stock path); edge drops still vetoed | Toggle carries `aria-pressed` ([demo.spec.md](./demo.spec.md) §2 F1n); OFF leaks the merge-into-doc layout |
+| F1 Auto-wrap OFF | Toolbar toggle | No hint change; `.mn-unwrap-hover` no longer applied → doc-grid zone overlays reappear; panel center-drop on grid merges as doc sibling tab (unclaimed stock path), and doc-grid edge zones stock-dock too — splits of the doc grid become possible (the OFF leak); float-window edge zones and the root band stay vetoed for panels, and whole-group drops stay barred from the doc grid entirely (float targets: center/top/bottom stock, left/right vetoed) | Toggle carries `aria-pressed` ([demo.spec.md](./demo.spec.md) §2 F1n) |
 | F2 Titlebar move-only | Always (`decorateTitlebars` + move-only enforcement, titlebar.ts) | `grab`/`grabbing` cursors, grip darkens on hover; no redock from titlebar | Grip is decorative (`aria-hidden`, pointer-events:none) |
 | F3 Float-excluded panel dragged | Drag a float-excluded panel (demo: `doc`) toward a float | Ghost follows, all float targets vetoed (`docIntoFloat`), snaps back | Affordance mismatch; min: default cursor on excluded panel's tab |
 | F4 Window drag live | Titlebar pointerdown | Pin pass gated off (window-drag gate, windowDrag.ts); transform move; top/left contained, bottom free (`clampDragBox`) | Drawer park below bottom edge |

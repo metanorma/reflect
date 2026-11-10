@@ -16,8 +16,8 @@
  * theming/CSS layer (§3 module 10) and the `<PanelLayout>` front door
  * (§3 module 1), which composes all of them (api.spec.md §2.1).
  *
- * - `panel-layout.css` + `focus.css` — the hand-owned stylesheets (D45:
- *   chrome and G3 rings respectively). Consumers link both after
+ * - `panel-layout.css` + `focus.css` — the hand-owned stylesheets
+ *   (chrome and G3 rings respectively). Consumers link both after
  *   dockview.css; the mock links the served copies (see its `<head>`).
  *
  * The mock and its capture tooling under `mock/` are build inputs and
@@ -139,9 +139,9 @@ export type { TabsetEdgesOptions } from './dragTakeover.js';
  * with the height traveling with the group), the veto set (no left/right
  * splits, no group-into-grid docks, float-excluded panels never enter
  * floats), zone-overlay suppression state, and the dead-zone pointerup
- * fallback for group drags. `useDropRules` wires it into an api (D6
- * framework-agnostic pattern); its `retireFirst` slots into the
- * window-drag gate's `onRetireFirst` seam (D11). behavior.spec.md rows
+ * fallback for group drags. `useDropRules` wires it into an api
+ * (framework-agnostic wiring pattern); its `retireFirst` slots into the
+ * window-drag gate's `onRetireFirst` seam. behavior.spec.md rows
  * HP2, HP3, HP4, HP7, F3, F5.
  */
 export {
@@ -186,7 +186,7 @@ export type { PanelErrorBoundaryProps } from './panelErrorBoundary.js';
 
 /**
  * Theming/CSS layer (api.spec.md §3 module 10): typed views over the
- * hand-owned design tokens (`mock/design-tokens.json`, D45 — its
+ * hand-owned design tokens (`mock/design-tokens.json` — its
  * `_provenance` records the final extraction snapshot).
  * The budgeted surface is the token data itself; the engine-option views
  * (`DND_EDGES`, `FLOATING_GROUP_BOUNDS`), the consumer-configurable

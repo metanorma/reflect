@@ -76,7 +76,7 @@ describe("unwrap: floatExclusionVeto (F3 — doc never enters a float window)", 
   });
 });
 
-describe("unwrap: groupGridDropVeto (T2 — whole groups never dock into the grid)", () => {
+describe("unwrap: groupGridDropVeto (whole groups never dock into the grid)", () => {
   it("HP4: group edge-band drop is vetoed", () => {
     assert.equal(groupGridDropVeto(api, fakeDropEvent({ kind: "edge", position: "center", groupId: "g-src" }), cfg, null), true);
   });
@@ -91,7 +91,7 @@ describe("unwrap: groupGridDropVeto (T2 — whole groups never dock into the gri
   it("HP4: group tab/header_space drop targeting a grid group is vetoed", () => {
     assert.equal(groupGridDropVeto(api, fakeDropEvent({ kind: "tab", position: "center", groupId: "g-src", groupLocation: "grid" }), cfg, null), true);
   });
-  it("HP4: panel drags pass through to T4/T1 (no group veto)", () => {
+  it("HP4: panel drags pass through to the panel rules (no group veto)", () => {
     assert.equal(groupGridDropVeto(api, fakeDropEvent({ kind: "edge", position: "left", panelId: "outline" }), cfg, null), false);
   });
   it("HP4: foreign viewId group drag is ignored", () => {
@@ -99,7 +99,7 @@ describe("unwrap: groupGridDropVeto (T2 — whole groups never dock into the gri
   });
 });
 
-describe("unwrap: panelEdgeDropVeto group branch (HP2/HP4 — mock :1400 exemption)", () => {
+describe("unwrap: panelEdgeDropVeto group branch (HP2/HP4 — the grid-target exemption)", () => {
   it("HP2: group content drop on a GRID target is exempt at ANY position — claim territory (left/right not vetoed)", () => {
     // Without the exemption a group drag on the doc grid's outer 20% bands
     // (the bibdata strip etc., which resolve to edge zones) would be vetoed
@@ -118,7 +118,7 @@ describe("unwrap: panelEdgeDropVeto group branch (HP2/HP4 — mock :1400 exempti
   });
 });
 
-describe("unwrap: handleWillDrop claim/veto composition (HP2/HP7 — mock :1343 + :1479)", () => {
+describe("unwrap: handleWillDrop claim/veto composition (HP2/HP7 — the two-listener composition)", () => {
   it("HP7: autoWrap OFF runs the veto backstop — a vetoed drop is preventDefaulted and reported handled", () => {
     const ev = fakeDropEvent({ kind: "content", position: "left", panelId: "outline", groupLocation: "floating" });
     assert.equal(handleWillDrop(api, ev, fakeConfig({ autoWrap: false, floatExcludedPanelIds: new Set(["doc"]) })), true);
@@ -143,7 +143,7 @@ describe("unwrap: handleWillDrop claim/veto composition (HP2/HP7 — mock :1343 
 });
 
 describe("unwrap: maybeUnwrapGroupAtPointer guards (HP4 — dead-zone fallback)", () => {
-  it("HP4: the latch is CLEARED at entry even when the fallback declines (mock :1041–1044 order)", () => {
+  it("HP4: the latch is CLEARED at entry even when the fallback declines (the mock's clear-at-entry order)", () => {
     const group = { id: "g-src", element: {}, api: { location: { type: "floating" } } };
     const live = fakeGroupDragLive({ group, ownerEl: {} });
     const out = maybeUnwrapGroupAtPointer(api, { button: 1, clientX: 10, clientY: 20 }, live, cfg);

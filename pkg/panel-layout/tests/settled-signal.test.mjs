@@ -208,7 +208,7 @@ describe("settled signal: net 3 — window-drag release", () => {
   });
 });
 
-describe("settled signal: lifetime and subscription windows (the D1 core)", () => {
+describe("settled signal: lifetime and subscription windows (the originally-dead surface)", () => {
   it("a subscription made AFTER wiring (post-onReady analog) receives nets — the signal is not dead after ready", () => {
     const { api, scheduler, handle } = wire();
     const late = [];

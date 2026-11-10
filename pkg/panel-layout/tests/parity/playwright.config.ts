@@ -6,13 +6,13 @@
  * project. The 'mock' project drives the reference mock; the 'twin'
  * project (tests/parity/twin.html — the library + demo from the
  * /dist/twin/ bundles, mounted through the demo surface's mountDemoApp
- * seam, D50/D51) drives the SAME flows through the SAME drivers and
+ * seam) drives the SAME flows through the SAME drivers and
  * asserts against the SAME baselines — a green run means the twin
  * reproduces the mock's captured reality (semantic-first: state-hp*.json
  * `_normalized` diffs with ±1px tolerance; pixels second:
  * toHaveScreenshot). Pixel baselines are per-project siblings
  * (…-mock-linux.png / …-twin-linux.png); the twin set was minted once
- * with --update-snapshots (D50: NEW files, never a regeneration).
+ * with --update-snapshots (NEW files, never a regeneration).
  *
  * Environment caveats:
  * - The mock target needs network at RUNTIME: its importmap points at
@@ -88,7 +88,7 @@ export default defineConfig({
       testMatch: 'synthetic*.spec.ts',
     },
     {
-      // The twin target (D50/D51): twin.spec.ts drives tests/parity/
+      // The twin target (the twin loop and its mount seam): twin.spec.ts drives tests/parity/
       // twin.html — DemoApp mounted from /dist/twin/panel-layout-demo.js
       // (engine + react bundled from the yarn pins: version truth) via
       // the demo surface's mountDemoApp seam — through the same flows.mjs

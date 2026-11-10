@@ -3,11 +3,11 @@
  * consumer (demo.spec.md; behavior.spec.md §1: "panel content is out of
  * scope", the demo's own data). Translated VERBATIM from the reference
  * mock's `PANELS` map: same HTML strings, same indentation — the rendered
- * `__html` bytes are identical (D39: no JSX-ification; byte-parity of
+ * `__html` bytes are identical (no JSX-ification; byte-parity of
  * rendered content is the constraint).
  *
  * `createElement`-only (no JSX syntax), matching the library's scanner
- * constraint (scripts/check-imports.mjs — D34) and the mock's own style.
+ * constraint (scripts/check-imports.mjs; see CONTRIBUTING) and the mock's own style.
  *
  * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
  * @ 94d4b8307e5f0db2a1b32e14ceb8754207a51f27
@@ -244,7 +244,7 @@ export const PANELS = {
       </div>`,
   };
 
-/** Factory for the ten float-panel bodies (`.panelwrap` box, D1/D2). */
+/** Factory for the ten float-panel bodies (`.panelwrap` box, D-c1/D-c2). */
 export function panelComponent(key: keyof typeof PANELS): FC<IDockviewPanelProps> {
   return () => h('div', {
     className: 'panelwrap',

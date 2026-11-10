@@ -226,7 +226,7 @@ describe("windowDrag: gate lifecycle (F4)", () => {
   });
 });
 
-describe("windowDrag: retire sequence order (HP5/F4, mock :1075–1093)", () => {
+describe("windowDrag: retire sequence order (HP5/F4)", () => {
   it("F4: retire order — live off, then unwrap fallback, then sweep/normalize probes, then onDragEnd", () => {
     const { gate, target, order } = wireGate();
     const liveAtHook = [];

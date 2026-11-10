@@ -5,7 +5,7 @@
  * flex fill the shell grants the layout container. Migrated
  * byte-identically from the reference mock's inline <style> (the
  * contiguous rule region `*{box-sizing…}` … `.statusbar .live`):
- * D41 resolved by D50 — these rules style demo-owned markup, so the
+ * resolved by the twin-loop app-chrome move: these rules style demo-owned markup, so the
  * sheet is shared by every DemoApp host; the mock links it where its
  * inline block sat, and the twin parity page (tests/parity/twin.html)
  * links the same sheet.

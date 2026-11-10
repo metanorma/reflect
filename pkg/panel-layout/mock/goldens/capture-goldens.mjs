@@ -742,7 +742,7 @@ async function runSession({ browser, url, out, say }) {
   await page.waitForTimeout(120);
   await page.mouse.down();
   await page.mouse.move(docCenter.x, docCenter.y, { steps: DRAG_STEPS });
-  // suppression is gated on the toggle (mock :1470–1474): with auto-wrap OFF
+  // suppression is gated on the toggle (the mock's toggle gating): with auto-wrap OFF
   // the doc-grid zone overlays render again — wait for a visible CENTER zone
   // (the stock merge-as-tab target the spec's HP7 outcome names).
   const overlayBack = await page.waitForFunction(() => {

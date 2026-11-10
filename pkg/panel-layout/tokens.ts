@@ -1,6 +1,6 @@
 /**
  * Design tokens and layout constants — typed views over the hand-owned
- * `design-tokens.json` (D45: its `_provenance` records the final
+ * `design-tokens.json` (its `_provenance` records the final
  * extraction snapshot; changes land directly in the JSON).
  */
 

@@ -103,7 +103,7 @@ const ZONE_OVERLAY_SELECTORS = [
  * drop the `.mn-unwrap-hover` suppression class (a following drag can start
  * before the engine re-runs willShow, so the class alone wouldn't re-hide
  * them) — zone elements INSIDE float windows (real stacking/merge targets)
- * are kept. (mock :1082–1090)
+ * are kept.
  */
 export function sweepZoneOverlays(area: HTMLElement | null): void {
   if (!area) {
@@ -162,7 +162,7 @@ export interface WindowDragGateOptions {
    * The group-unwrap fallback slot — retire runs it FIRST, before the
    * suppression state clears, because the mock's `maybeUnwrapGroupAtPointer`
    * must observe the drag-live group state that the sweep and the
-   * subscriber notifications would retire (mock :1077–1081). The mock's
+   * subscriber notifications would retire. The mock's
    * guard travels with the hook: the provider checks its own live-group
    * state (module 4's `groupDragLive`) and calls `maybeUnwrapGroupAtPointer`
    * itself; the gate imposes only the ORDER.
@@ -176,8 +176,7 @@ export interface WindowDragGateOptions {
  * Drag-session gate: while a window drag is live, the pin maintenance pass
  * must not run (a foreign/corrupted bounds write mid-drag would be re-pinned
  * as permanent tabset heights). The gate owns the pointer listeners AND the
- * full pointerup retire sequence in the mock's exact order
- * (mock :1073–1103):
+ * full pointerup retire sequence in the mock's exact order:
  *
  *   1. `live = false`
  *   2. `onRetireFirst(ev)` — the group-unwrap fallback (before any state

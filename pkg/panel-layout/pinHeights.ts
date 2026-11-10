@@ -1,5 +1,5 @@
 /**
- * Per-tabset pinned heights — the T7 "pin model": every tabset in a float
+ * Per-tabset pinned heights — the "pin model": every tabset in a float
  * window OWNS its height (min==max constraints); the window's height is the
  * sum of its tabsets plus chrome, never adjusted directly, never
  * redistributed (behavior.spec.md HP4/HP6, B4–B6, A5/A8).
@@ -30,7 +30,7 @@ export interface FloatingGroupLike {
   /**
    * Panel-level bounds setter — the engine-true surface
    * (DockviewFloatingGroupPanel.position → overlay.setBounds; the mock
-   * calls fp.position at every site). D15.
+   * calls fp.position at every site).
    */
   position(bounds: {
     height?: number; width?: number; top?: number;
@@ -291,7 +291,7 @@ export function effectiveFloor(
 }
 
 
-/* ---- preset seeding (mock :763–771 `seedPresetHeights`) --------------- */
+/* ---- preset seeding (the mock's `seedPresetHeights`) --------------- */
 
 interface SerializedLeafNodeLike {
   readonly type?: unknown;
@@ -371,7 +371,7 @@ export interface PinnedHeightsSettledEvent {
 
 /**
  * The rAF seam, injected for the Node tests (the mock's
- * `window.__mnPinRaf` cancel-then-schedule discipline, mock :1336–1341).
+ * `window.__mnPinRaf` cancel-then-schedule discipline).
  * A handle is returned per schedule so pending work stays cancellable.
  */
 export interface PassScheduler {
@@ -412,6 +412,9 @@ export interface PinnedHeightsOptions {
    * a closure (module 1 passes `registrySeams(...).floorOf`, re-derived
    * from the live registry per call). Provided `floorOf` wins; otherwise
    * the wiring derives the same closure from the `minHeights` snapshot.
+   * Pass floors HERE, never by spreading extra properties into options —
+   * unknown keys in a spread are silently ignored (excess-property checks
+   * never see them), which is how caller floors once failed to arrive.
    */
   readonly floorOf?: GroupFloor | undefined;
   /** §2.5 registry `minHeight` floors, keyed by contentComponent. */
@@ -426,7 +429,7 @@ export interface PinnedHeightsHandle {
   /** Stop the wiring: cancels pending passes, unwires every subscription. */
   dispose(): void;
   /**
-   * Takeover-drag commit (§2.3 net 2, mock :977–985): adopt stable heights
+   * Takeover-drag commit (§2.3 net 2): adopt stable heights
    * measured after `reconcileWindow`, persist them, emit `'heights'`.
    * This is the `onCommit` callback `wireTabsetEdges` expects.
    */
@@ -494,7 +497,7 @@ export function usePinnedHeights(
     }
   };
 
-  /** The debounced maintenance pass (mock :1337–1341 body). */
+  /** The debounced maintenance pass (the mock's pass body). */
   const runPass = (): void => {
     cancelPending?.();
     cancelPending = null;
@@ -528,7 +531,7 @@ export function usePinnedHeights(
     };
   };
 
-  // The maintenance pass (mock :1327–1342): gate first (F4), then the
+  // The maintenance pass (the mock's sequence): gate first (F4), then the
   // debounced pin + save. Saves live INSIDE the pass — settle-observable
   // storage is identical to the mock's synchronous save (captures read
   // post-settle) and a mid-drag save can no longer race the gate.
@@ -556,7 +559,7 @@ export function usePinnedHeights(
       : null,
   ].filter((unwire): unwire is () => void => unwire !== null);
 
-  // Init (mock :1323–1349): saveLayout once (HP1's immediate first write —
+  // Init (the mock's init order): saveLayout once (HP1's immediate first write —
   // heights stay absent until the first change), then the synchronous
   // first pin pass (A4 settle). No saveHeights here: the first pass
   // persists whatever the seed produced, on the next change.

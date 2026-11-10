@@ -2,7 +2,7 @@
  * Demo preset layout — the 11-panel serialized layout (behavior.spec.md
  * §4 "Floats"/"Grid"; demo data, never library contract). Translated
  * VERBATIM from the reference mock's `TITLES` + `presetLayout()`
- * (mock :619–692): same group ids, sizes, positions, titles — the parity
+ *: same group ids, sizes, positions, titles — the parity
  * goldens pin these (PRESET_GROUP_IDS / PRESET_HEIGHTS in
  * tests/parity/flows.mjs).
  *
@@ -14,7 +14,7 @@
  * dimension). `views` reference panel ids in `panels`.
  *
  * NOTE: the extraction anchors this module superseded were removed with
- * the extraction pipeline (D45); this module is the single source.
+ * the extraction pipeline ; this module is the single source.
  *
  * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
  * @ 94d4b8307e5f0db2a1b32e14ceb8754207a51f27

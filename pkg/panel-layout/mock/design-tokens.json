@@ -5,8 +5,8 @@
     "commitDate": "2026-11-05T19:53:46+08:00",
     "workingTreeDirtyAtExtraction": false,
     "extractedAtUTC": "2026-11-05T12:53:56.909Z",
-    "regenerate": "none — HAND-OWNED since the D45 decommission; edit directly, provenance = git history",
-    "note": "HAND-OWNED since the D45 extraction-pipeline decommission — edit values directly; git history is the provenance. Previously GENERATED from the mock by the now-retired mock/extract-design-tokens.mjs; commit/commitDate/extractedAtUTC above record the pipeline's FINAL extraction (the last tokens:extract run), whose output this file freezes byte-for-byte."
+    "regenerate": "none — HAND-OWNED since the extraction decommission; edit directly, provenance = git history",
+    "note": "HAND-OWNED since the extraction-pipeline decommission — edit values directly; git history is the provenance. Previously GENERATED from the mock by the now-retired mock/extract-design-tokens.mjs; commit/commitDate/extractedAtUTC above record the pipeline's FINAL extraction (the last tokens:extract run), whose output this file freezes byte-for-byte."
   },
   "tokens": {
     "--ink": "#1c2733",

@@ -11,7 +11,7 @@
  * `PinnedHeightsHandle.commitHeights` — is the only persistence trigger.
  * Per-move pins honor the §2.5 registry floors via the same `GroupFloor`
  * the pin pass uses, so a takeover can never pin below a registry floor
- * (D6–D8; floors postdate the mock, which pinned at MIN_TS_H only).
+ * (floors postdate the mock, which pinned at MIN_TS_H only).
  *
  * extracted from pkg/panel-layout/mock/editor-dockview7-floats.html
  * @ 94d4b8307e5f0db2a1b32e14ceb8754207a51f27
@@ -43,7 +43,7 @@ const CORNER_HANDLES = [
 ].join(', ');
 
 /**
- * The tabset a takeover drag resizes (mock :951–960, pure):
+ * The tabset a takeover drag resizes (pure):
  *
  * - sash (`sashTop` a number) — the LAST member whose bottom edge sits at
  *   or above the sash (`bottom <= sashTop + 2`, the mock's 2px tolerance;
@@ -52,7 +52,7 @@ const CORNER_HANDLES = [
  * - window bottom edge / corner (`sashTop` null) — the LAST member.
  *
  * The caller guarantees a non-empty window (the wiring guards
- * `members.length` before calling, mock :949).
+ * `members.length` before calling).
  */
 export function pickResizeTarget(
   memberBottoms: readonly number[],
@@ -101,7 +101,7 @@ export interface ResizeFrame {
 }
 
 /**
- * One pointermove frame of a takeover drag (mock :969–975, pure):
+ * One pointermove frame of a takeover drag (pure):
  * `height = max(MIN_TS_H, floor, round(startH + dy))`, then
  * `winHeight = max(MIN_WIN_H, round(startWin + height − startH))`, and —
  * corner drags only — `width = max(windowMinWidth, round(startW + dx))`.
@@ -138,7 +138,7 @@ export interface TabsetEdgesOptions {
    * stable heights to `onCommit` — module 1 passes
    * `PinnedHeightsHandle.commitHeights` (adopt + saveHeights-only persist
    * + `'heights'`/`'user'` settle). Takeover drags fire no layout-change
-   * event, so this is the only persistence trigger (mock :977–985).
+   * event, so this is the only persistence trigger.
    */
   readonly onCommit?: ((heights: HeightsMap) => void) | undefined;
   /**
@@ -153,8 +153,8 @@ export interface TabsetEdgesOptions {
  * Wire the takeover on the floating overlay host (CAPTURE phase — the
  * stock sash/resize listeners are bubble-phase, so `stopPropagation` +
  * `preventDefault` on our pointerdown kills the stock gesture before it
- * starts; mock :924–993). Returns the unwire disposer; a missing host
- * wires nothing and still returns a disposer (mock :934–935).
+ * starts). Returns the unwire disposer; a missing host
+ * wires nothing and still returns a disposer.
  */
 export function wireTabsetEdges(options: TabsetEdgesOptions): () => void {
   const { api, onCommit, floorOf } = options;
@@ -227,7 +227,7 @@ export function wireTabsetEdges(options: TabsetEdgesOptions): () => void {
       reconcileWindow(api, fp);
       // Takeover gestures don't fire onDidLayoutChange (no structural
       // change), so persist the new heights here or the next structural
-      // pass reverts them to saved heights (mock :982–985).
+      // pass reverts them to saved heights.
       onCommit?.(collectStableHeights(api));
     };
     window.addEventListener('pointermove', move);
