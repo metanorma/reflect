@@ -69,53 +69,21 @@ standoc-models@v2.3.0 (standoc.\* names)") completed the flip:
 tag `v2.3.0` (2026-08-17, basicdoc submodule `50fe9e85` — pre-PR #46), not
 from main — the runtime-lag consequence is §4's lag paragraph.
 
-**Re-verification.** Facts below were verified 2026-08-16 at the then-pins,
-re-verified 2026-08-18, 2026-09-25, 2026-10-27, and re-verified
-**2026-11-03** at the §1 pins. Grammar sources did not
-move — `standoc-models` main is still `7d5d737c` (submodule `3b408b71`),
-and the vendored runtime grammars are byte-identical to the 2026-10-27
-verification (no vendoring pass since the 2026-10-01 flip, so the §4
-vendored-runtime lag persists); §3 and §4's source facts stand as verified,
-and gem-side drift past the pin is recorded where it landed (§5). Drift
-against these pins is checked daily by the scheduled drift-check job
+**Re-verification.** Facts below are verified at the §1 pins — last
+re-verified **2026-11-03**. Upstream changes past a pin are recorded where
+they landed, at the fact they affect (not here). Drift against these pins is
+checked daily by the scheduled drift-check job
 (`scripts/check-pins.mjs`, watched paths = the paths this document cites at
 the §1 pins); re-verification is the interpretation procedure embedded in
 the job's drift tracking issue — a pin bump always travels with its
 interpretation.
 
-A scoped re-verification on **2026-11-05** covered the figure/image size
-family — `FigureAttributes`, `ImageAttributes`, `ImageSize`, and the
-converter's figure/image attribute emission (`lib/metanorma/converter/
-inline.rb`, `lib/metanorma/converter/blocks_image.rb`, corroborated by
-`spec/metanorma/blocks_spec.rb`; trigger: the corpus's image-sizing work
-needed the `figure/@width` slot recorded — see §4 and the size-family
-bullet in the drift log). Pins unmoved; the newly cited converter/spec
-paths joined the drift job's fail tier (cite-driven, per the job's
-sensitivity-map contract).
-
-A scoped re-verification on **2026-11-05** covered the grammar composition
-root and the MathML layer — `grammars/standoc-compile.rnc` and its includes
-at `standoc-models@7d5d737c`, the `relaton-*-compile.rnc` wrapper pattern,
-`basicdoc.rnc`'s MathML external at line 1164, and the gem-side MathML
-embedding at `metanorma-standoc@ba325b0e` (trigger: the corpus's
-validity-oracle decision — [schema.spec.md](./schema.spec.md) §1.2 — needed
-the composition recorded). Pins unmoved. MathML record: the gem-side
-MathML grammars were embedded June–July 2026 and have not moved since —
-they predate, and were untouched by, the 2026-10-01 refresh — and
-`basicdoc-models → grammars/mathml/` is byte-identical (blob SHAs) across
-every submodule state this ledger tracks (`d2a94b1a`, `50fe9e85`,
-`3b408b71`), so **no
-mathml lag exists** at the current pins regardless of which state the gem
-files were cut from; direct compile-provenance (byte-level gem ← models
-correspondence) is unverified and immaterial given the immobility. Newly
-cited paths all fall inside existing `**` watches — no sensitivity-map
-change.
-
-A scoped re-verification on **2026-11-09** covered the error-ID registry
-at the §1 pin (`lib/metanorma/converter/log.rb`) and the public validation
-page (§7; trigger: completing §7's watch coverage under the same-PR rule).
-Pins unmoved; the registry path cited in §7 newly joined the drift job's
-fail tier (cite-driven, per the job's sensitivity-map contract).
+**Unpinned sources.** Three cited sources are not pinned in the table above
+and therefore not watched by the drift job: the metanorma-utils gem (§5 —
+`random_uuid`/`contenthash` algorithms), Plurimath (§2 — MathML content
+check), and the public validation page (§7 — error-ID scheme). Facts citing
+them are marked in place as "unpinned, last read <date>" — the date is
+their only staleness anchor.
 
 ## 2. Pipeline and artifacts
 
@@ -151,8 +119,7 @@ AsciiDoc ──(standoc makexml1 + cleanup)──► Semantic XML
   `process_ext(:presentation)` → `@processor.output`).
 - **Presentation XML is not RelaxNG-validated at runtime.** isodoc's
   `PresentationXMLConvert` gained a `validate` method
-  (`presentation_function/ids.rb` `id_validate`) by the 2026-09-25
-  re-verification — but it performs ID/IDREF bookkeeping (adding
+  (`presentation_function/ids.rb` `id_validate`) — but it performs ID/IDREF bookkeeping (adding
   missing presxml ids to `fmt-*` targets, repeat-id checks, contenthash
   cleanup), not grammar validation; no RelaxNG pass exists on the
   presentation path. The single runtime RNG grammar remains
@@ -178,7 +145,14 @@ there: `standoc.rnc` includes `basicdoc.rnc` (basicdoc-models submodule,
 external "mathml/metanorma-mathml.rnc"` — into the submodule's
 `grammars/mathml/` (the `metanorma-mathml.rnc` wrapper of the W3C MathML 4
 modules; wrapper per basicdoc-models#35, MathML 4 content per
-basicdoc-models#40). `biblio-standoc.rnc` resolves into the relaton-models
+basicdoc-models#40). **No MathML lag exists** at the §1 pins: the gem-side
+MathML grammars were embedded June–July 2026 and were untouched by the
+2026-10-01 vendoring refresh, and `basicdoc-models → grammars/mathml/` is
+byte-identical (blob SHAs) across every submodule state this ledger tracks
+(`d2a94b1a`, `50fe9e85`, `3b408b71`), so whichever submodule state the gem
+files were cut from, the layer matches — direct gem←models compile
+provenance is unverified and immaterial given that immobility.
+`biblio-standoc.rnc` resolves into the relaton-models
 submodule (`grammars/biblio-standoc.rnc`, §1) — the bibliographic layer. The
 requirements layer is `reqt.rnc` from the metanorma-requirements-models
 submodule (§1); the runtime chain ships its compiled product as `reqt.rng`
@@ -255,8 +229,8 @@ From `basicdoc-models → grammars/basicdoc.rnc` and `standoc.rnc`:
 | `formula` | `RequiredId`; body = **required** `stem` child, then `dl?`, `note*` — not an empty atom |
 | `stem` | **required** `type` = `MathML`\|`AsciiMath`\|`LaTeX` (basicdoc) plus **required** `block` boolean (standoc combine) and `number-format?`; content = `text?`, `mathml?`, `asciimath?`, `latexmath?` child elements. Used both inline (in the `TextElement` choice) and as formula's math content |
 
-**Drift since the 2026-08-16 pin** — two layers, re-verified 2026-09-25
-against the full diffs (`a3596dc9` → `7d5d737c` for `standoc.rnc`;
+**Drift since the 2026-08-16 pin** — two layers, against the full diffs
+(`a3596dc9` → `7d5d737c` for `standoc.rnc`;
 `d2a94b1a` → `3b408b71` for `basicdoc.rnc`, whose standoc-models submodule
 moved twice in that span — `d2a94b1a` → `50fe9e85` at the `8bb23fd5`
 re-sync (2026-08-17), `50fe9e85` → `3b408b71` at PR #46 (2026-08-22)). The
@@ -271,8 +245,8 @@ metanorma-standoc pin (`ba325b0e`) lag them at the basicdoc layer —
 still `(paragraph-with-footnote | note)+`. The basicdoc-only PR #46 changes
 therefore pass the source grammar but **fail runtime RNG validation** at that
 pin. The standoc layer itself is vendored current — `standoc.rnc` is
-byte-identical from the rename commit (`4bad3672`) through the §1 pin (the
-2026-09-25 verification), and the `v2.3.0` cut sits inside that span — so
+byte-identical from the rename commit (`4bad3672`) through the §1 pin, and
+the `v2.3.0` cut sits inside that span — so
 `li` block content, the one widening whose composition standoc's own
 pre-window `LiBody = BasicBlock+` redefinition governs, still validates at
 runtime. The `dd`/`quote`/`admonition` widenings have no standoc-side
@@ -329,8 +303,7 @@ vendoring pass is cut from PR #46-or-later content.
   (`sections`, `clause`/`Clause-Section`, annex structure, `preface`,
   `bibliography`, `references`, `floating-title`, `section-title`, `table`
   container shape, all `BasicBlock` extensions, `start`).
-- **Size-attribute family (recorded 2026-11-05 by scoped re-verification;
-  present at the §1 pins)**: `figure`
+- **Size-attribute family (present at the §1 pins)**: `figure`
   carries optional free-text `width`/`height` (standoc tail combine over
   `FigureAttributes`), and standoc's include-block redefinition of
   `ImageAttributes`/`image` makes `MediaAttributes` optional-as-a-whole
@@ -345,7 +318,7 @@ vendoring pass is cut from PR #46-or-later content.
 selects the encoding. The encoding lives in child elements selected by `type`;
 there are no `asciimath`/`mathml` attributes on stem or formula.
 
-**Figure/image size semantics (converter, verified 2026-11-05).** Authored
+**Figure/image size semantics (converter, verified at the §1 pins).** Authored
 AsciiDoc `width`/`height` pass through verbatim onto **both** levels:
 `figure/@width`+`@height` via `figure_attrs`
 (`lib/metanorma/converter/blocks_image.rb` — absent when unauthored, free-text
@@ -377,10 +350,10 @@ The upstream emission lifecycle (standoc):
    AsciiDoc id (`[[name]]`), only when supplied.
 2. **At cleanup** (`lib/metanorma/cleanup/inline.rb` `contenthash_id_make`):
    every GUID-shaped `@id` is replaced by a content-derived hash
-   (`Metanorma::Utils.contenthash`; algorithm lives in the unpinned
-   metanorma-utils gem *(2026-08-11)*). `@anchor` is preserved and aliased
+   (`Metanorma::Utils.contenthash`; algorithm lives in the metanorma-utils
+   gem — unpinned, last read 2026-08-11). `@anchor` is preserved and aliased
    into the id map used for resolution.
-3. **At the presentation transform** *(2026-08-11)*: cross-reference targets
+3. **At the presentation transform**: cross-reference targets
    are resolved through the anchor map and rewritten to the content-hash
    `@id` (normalized to the `xsd:IDREF` of §3); `@anchor` is dropped.
 
@@ -417,8 +390,8 @@ they drift with gem releases.
 
 To resolve what a given ID means, consult:
 
-- The public validation reference (upstream-maintained, unpinned
-  *(2026-11-09)*) — Error ID scheme, categories, severity
+- The public validation reference (upstream-maintained — unpinned, last
+  read 2026-11-09): Error ID scheme, categories, severity
   scale (0 fatal … 3 informational), and filtering:
   https://www.metanorma.org/author/topics/output/validation/
   (`metanorma -L -t {flavor}` prints the full catalog at an installed
