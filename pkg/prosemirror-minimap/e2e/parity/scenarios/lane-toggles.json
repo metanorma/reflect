@@ -1,0 +1,15 @@
+{
+  "name": "lane-toggles",
+  "description": "Lane visibility toggles through the real legend chips (each toggles the lane's .off), a scroll between toggles, and a wear re-toggle back on. Captures the lane strip state transitions.",
+  "adapter": "mockup",
+  "steps": [
+    { "type": "reset" },
+    { "type": "scroll-fraction", "f": 0.4, "label": "mid-40" },
+    { "type": "lane-toggle", "lane": "diag", "label": "off-diag" },
+    { "type": "lane-toggle", "lane": "com", "label": "off-com" },
+    { "type": "lane-toggle", "lane": "search", "label": "off-search" },
+    { "type": "lane-toggle", "lane": "wear", "label": "off-wear" },
+    { "type": "lane-toggle", "lane": "wear", "label": "on-wear" },
+    { "type": "scroll-fraction", "f": 0.6, "label": "mid-60" }
+  ]
+}

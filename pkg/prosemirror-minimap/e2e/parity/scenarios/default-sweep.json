@@ -1,0 +1,29 @@
+{
+  "name": "default-sweep",
+  "description": "Canonical default scenario: full scroll sweep (0→1 by tenths), named anchor stops (top, mid, the depth-7 clause cl-6-1-1-1-1-1-1, an annex, the bibliography), a dwell step (wear geometry-invariance), and thumb drags to both extremes and the middle (round-trip frames).",
+  "adapter": "mockup",
+  "steps": [
+    { "type": "reset" },
+    { "type": "scroll-fraction", "f": 0.0, "label": "sweep-00" },
+    { "type": "scroll-fraction", "f": 0.1, "label": "sweep-10" },
+    { "type": "scroll-fraction", "f": 0.2, "label": "sweep-20" },
+    { "type": "scroll-fraction", "f": 0.3, "label": "sweep-30" },
+    { "type": "scroll-fraction", "f": 0.4, "label": "sweep-40" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "sweep-50" },
+    { "type": "scroll-fraction", "f": 0.6, "label": "sweep-60" },
+    { "type": "scroll-fraction", "f": 0.7, "label": "sweep-70" },
+    { "type": "scroll-fraction", "f": 0.8, "label": "sweep-80" },
+    { "type": "scroll-fraction", "f": 0.9, "label": "sweep-90" },
+    { "type": "scroll-fraction", "f": 1.0, "label": "sweep-100" },
+    { "type": "jump", "anchor": "cl-1", "label": "anchor-cl-1" },
+    { "type": "jump", "anchor": "cl-5", "label": "anchor-cl-5" },
+    { "type": "jump", "anchor": "cl-6-1-1-1-1-1-1", "label": "anchor-deep-7" },
+    { "type": "jump", "anchor": "cl-9", "label": "anchor-cl-9" },
+    { "type": "jump", "anchor": "cl-c", "label": "anchor-annex-c" },
+    { "type": "jump", "anchor": "cl-bib", "label": "anchor-bibliography" },
+    { "type": "dwell", "ms": 600, "label": "dwell-mid" },
+    { "type": "drag-thumb", "f": 0.0, "label": "drag-top" },
+    { "type": "drag-thumb", "f": 1.0, "label": "drag-bottom" },
+    { "type": "drag-thumb", "f": 0.5, "label": "drag-middle" }
+  ]
+}

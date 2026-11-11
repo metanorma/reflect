@@ -1,0 +1,314 @@
+{
+  "$format": 1,
+  "$source": "pkg/prosemirror-minimap/docs/parity.md Part B (Phase-1 handoff). One entry per live invariant INV-1..INV-22.",
+  "$note": "status 'standing-assert' = an assertion encoded in this suite that runs on EVERY execution (record and verify alike), turning captured values into proofs of the mockup oracle. 'partial' = the DOM-observable half is asserted; the listed remainder is deferred. portVerification follows parity.md Part B's verification tags: 'golden-master' INVs are re-verified by re-running this suite against the package adapter (Phase 4); 'deferred-unit' INVs are proven by the port's own headless suite (pkg/prosemirror-minimap/test.mjs).",
+  "invariants": [
+    {
+      "id": "INV-1",
+      "assertion": "Thumb drag ↔ scroll round-trip identity: mmThumbToScroll(top) reproduces the scroll whose mmPan places the thumb at top; a full top→bottom drag sweeps the document start→end.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert",
+        "where": [
+          "invariants.parity.ts › INV-1 (drag to f=0/1/0.37/0.62; ends exact; inverse reproduced within the thumb's 0.5px pixel quantization)",
+          "lib/invariantAsserts.ts › INV-1 (thumb.top = frac×track ±1.5px at every frame; bottom frame scrollTop = maxScroll ±2)"
+        ],
+        "scenarios": ["default-sweep"],
+        "frameFields": ["thumb.top", "thumb.height", "scrollTop", "geom.paneH", "geom.scrollHeight", "geom.clientHeight", "geom.docTop0"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-2",
+      "assertion": "Spine viewport-independence: spine membership computed once per build; scrolling never changes which spine labels exist.",
+      "parityMethod": "golden-master",
+      "coverage": {
+        "status": "standing-assert",
+        "where": [
+          "lib/invariantAsserts.ts › INV-2 (per-canvasH-plateau shown-spine set stability with the documented ±1 active-reservation allowance; spine minimum ≥ min(8, lvl1Count) at every stop; label population constant at every frame)",
+          "invariants.parity.ts › INV-2 (full label+block census deep-equal across f=0/0.5/1 and an annex jump)"
+        ],
+        "scenarios": ["default-sweep", "zoom-mid", "lane-toggles"],
+        "frameFields": ["labels", "labelCount", "geom.canvasH"]
+      },
+      "portVerification": "golden-master"
+    },
+    {
+      "id": "INV-3",
+      "assertion": "Label gap rules: ≥11px to any spine label either side; adjacent details may cluster at 7px; detail within 11px below the next spine is dropped.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert (partial: gap floors)",
+        "where": [
+          "lib/invariantAsserts.ts › INV-3 (consecutive shown labels respect 11px/7px floors per the lastWasDetail rule, at every frame)"
+        ],
+        "remainder": "The drop-rule half (a would-be detail within 11px below the next spine label is omitted) asserts absence — deferred to the port's unit suite where label decisions are inspectable.",
+        "scenarios": ["default-sweep", "zoom-mid", "lane-toggles"],
+        "frameFields": ["labels.top", "labels.lv"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-4",
+      "assertion": "Active lookup: the first segment ENDING after the viewport center (d0 test dropped); trailing fallback covers past-end.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert (partial: containment)",
+        "where": [
+          "lib/invariantAsserts.ts › INV-4 (the viewport center, mapped through the linear model, lands inside the active piece's map extent ±4-5px B′ piecewise deviation, at every frame)"
+        ],
+        "remainder": "Exact first-ending-after semantics (incl. gap residence and the past-end fallback) is a unit-side rowAt property.",
+        "scenarios": ["default-sweep", "zoom-mid", "lane-toggles"],
+        "frameFields": ["activeBlock.top", "activeBlock.height", "scrollTop", "geom"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-5",
+      "assertion": "Piece-local, segment-derived active highlight: the current piece is the piece whose run contains the authoritative segment; no coordinate conversion on the highlight path.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert",
+        "where": [
+          "lib/invariantAsserts.ts › INV-5 (≤1 active piece; co-pieces exist only alongside one; every co-piece carries the active element's title — the mockup marks .active/.co-piece together on one element's pieces)"
+        ],
+        "scenarios": ["default-sweep", "zoom-mid", "lane-toggles"],
+        "frameFields": ["activeCount", "coPieceCount", "coPieceTitles", "activeBlock.title"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-6",
+      "assertion": "Doc-frame offset (fix #3): all fraction/lookup inputs measured from #doc's top, converted once (scrollTop − docTop0).",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert (partial: exercised denominators)",
+        "where": [
+          "lib/invariantAsserts.ts › INV-1/INV-8 asserts (every predicted placement uses (scrollTop − docTop0); a container-frame reading would displace the thumb by docTop0/track ≈ 0.9px at the top and break the end-pin checks)"
+        ],
+        "remainder": "The port's contentOrigin rebasing is a unit property of measureContentOrigin.",
+        "scenarios": ["default-sweep", "zoom-mid", "lane-toggles"],
+        "frameFields": ["scrollTop", "geom.docTop0", "thumb.top"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-7",
+      "assertion": "Exact scrollable-range denominator (frame-mixing fix): every fraction uses the exact range of the scrolling frame.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert (partial: exercised denominators)",
+        "where": [
+          "lib/invariantAsserts.ts › INV-1 (placement formula uses scrollHeight − clientHeight − docTop0; the INV-1 drag test's bottom equality ±2px would fail by ~195px under the docHeight−clientH mix the fix removed)"
+        ],
+        "remainder": "maxScroll = scrollHeight − clientHeight of the resolved container is a unit property.",
+        "scenarios": ["default-sweep", "zoom-mid"],
+        "frameFields": ["scrollTop", "geom.scrollHeight", "geom.clientHeight", "thumb.top"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-8",
+      "assertion": "Content-anchored pan (fix #1): the map behind the thumb IS the reading position; pan = m0 − thumbTop; clamp guards only degenerate subsampling.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert (partial: identity + monotonicity + clamp bounds)",
+        "where": [
+          "lib/invariantAsserts.ts › INV-8 (unclamped frames satisfy pan + thumbTop = H×s0/total ±2.5px; panY within [0, H−pane]; pan+thumbTop monotone along consecutive scroll runs)"
+        ],
+        "remainder": "The port-side identity frac×travel ≡ scrollTop×scale − windowOrigin is a unit algebra property, asserted numerically there.",
+        "scenarios": ["default-sweep", "zoom-mid"],
+        "frameFields": ["panY", "thumb.top", "scrollTop", "geom.canvasH", "geom.paneH", "geom.docHeight"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-9",
+      "assertion": "Active-label reservation: the active element's label is always shown; on collision the single nearest shown label within 11px is displaced; at most one label swaps per frame.",
+      "parityMethod": "golden-master",
+      "coverage": {
+        "status": "standing-assert (partial: always-shown + identity)",
+        "where": [
+          "lib/invariantAsserts.ts › INV-9 (every frame with an active block has exactly one shown .active label identifying that block)"
+        ],
+        "remainder": "Single-victim/bounded-churn quantification rides the INV-2 allowance (±1 added / ±1 missing per frame) and the recorded label sequences; explicit churn counting is unit-side.",
+        "scenarios": ["default-sweep", "zoom-mid", "lane-toggles"],
+        "frameFields": ["labels.active", "activeBlock.title"]
+      },
+      "portVerification": "golden-master"
+    },
+    {
+      "id": "INV-10",
+      "assertion": "Proportional tiling: segments tile the document (padding folded into first/last); Σsegments spans [0, total]; block starts linear in document coordinates.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert (partial: strip tiling)",
+        "where": [
+          "lib/invariantAsserts.ts › INV-10 (census: first block top = 0; last block bottom = canvasH ±3; tops non-decreasing)"
+        ],
+        "remainder": "offsets[0]=0 / contiguity / total=Σ are unit properties of the port's prefix-sum model.",
+        "scenarios": ["default-sweep", "zoom-mid", "lane-toggles"],
+        "frameFields": ["census.blocks.top", "census.blocks.height", "census.geom.canvasH"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-11",
+      "assertion": "Extent truth at the ends: the map spans the full scrollable track; thumb-at-bottom ≡ maxScroll.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert",
+        "where": [
+          "lib/invariantAsserts.ts › INV-11 (fraction-0 frames pin thumb.top ≤1px; fraction-1 frames pin thumb.top to track bottom ±1.5px and scrollTop to maxScroll ±2)"
+        ],
+        "scenarios": ["default-sweep"],
+        "frameFields": ["thumb.top", "thumb.height", "scrollTop", "geom.paneH"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-12",
+      "assertion": "ResizeObserver no-op guard: a pane-height change within the guard band triggers no rebuild; only real layout changes do.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "deferred-unit",
+        "where": [],
+        "rationale": "Driving a pane resize deterministically changes every geometry field at once (viewport-level resize), and the scenario vocabulary has no pane-resize step; the mockup's >2px guard is structural to its rebuild-from-resize architecture, which the port does not share (VAC-5). Revisit with the Phase-4 adapter if a package-side resize step is added."
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-13",
+      "assertion": "Zoom-preserving rebuild: a grip resize (or double-click reset) rebuilds at a new canvas height while restoring the same scroll fraction.",
+      "parityMethod": "golden-master",
+      "coverage": {
+        "status": "standing-assert",
+        "where": [
+          "lib/invariantAsserts.ts › INV-13 (doc-frame scroll fraction identical ±0.002 across every zoom / zoom-reset step, i.e. within the scrollTop integer round)"
+        ],
+        "scenarios": ["zoom-mid"],
+        "frameFields": ["scrollTop", "geom.scrollHeight", "geom.clientHeight", "geom.docTop0", "geom.canvasH"]
+      },
+      "portVerification": "golden-master"
+    },
+    {
+      "id": "INV-14",
+      "assertion": "Finest-containing-element tick placement: a diagnostic inside 8.1.1 marks 8.1.1's rect, not the whole of 8.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "deferred-unit",
+        "where": [],
+        "rationale": "Requires attributing a lane tick to its element; the mockup's mmBlockFor ancestor walk lives in closures and leaves no DOM trace on the tick. Census records tick geometry for cross-side comparison; the innermost-row property is rowAtPos's unit contract."
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-15",
+      "assertion": "Marker height floor: lane ticks never paint below a floor (mockup 5px; port 6 device px); worst-case rects per lane ≤ canvasHeight/floor.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert",
+        "where": [
+          "lib/invariantAsserts.ts › INV-15 (census: diag/com/search ticks within [5,14]px; wear ≥3px; per-lane tick count ≤ canvasH/floor)"
+        ],
+        "scenarios": ["default-sweep", "zoom-mid", "lane-toggles"],
+        "frameFields": ["census.laneTicks.*.height", "census.geom.canvasH", "lanes.*.tickCount"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-16",
+      "assertion": "Thumb height = the viewport's true share of the map surface (m1−m0), floored.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert (partial: exact 8px floor; share model banded)",
+        "where": [
+          "lib/invariantAsserts.ts › INV-16 (height ≥8px and ≤paneH exactly; |height − max(8, H×V/total)| ≤ 12% — the mockup's piecewise B′ map compresses the share by a measured ~4-7%, documented; the port's uniform scale makes the model exact and is compared through the master diff/deviation register)"
+        ],
+        "scenarios": ["default-sweep", "zoom-mid", "lane-toggles"],
+        "frameFields": ["thumb.height", "geom.canvasH", "geom.clientHeight", "geom.docHeight", "geom.paneH"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-17",
+      "assertion": "Keyboard walking operates only on SHOWN labels, starting from the active one, clamped at both ends of the shown list.",
+      "parityMethod": "golden-master",
+      "coverage": {
+        "status": "standing-assert",
+        "where": [
+          "invariants.parity.ts › INV-17 (each ArrowDown/Up reveals the next/previous shown label's element — landing within a documented ±60px band of the center alignment; active label is the target or a descendant; repeated presses past the end stop moving the document)"
+        ],
+        "scenarios": ["default-sweep"],
+        "frameFields": ["labels", "labels.active", "scrollTop"]
+      },
+      "portVerification": "golden-master"
+    },
+    {
+      "id": "INV-18",
+      "assertion": "Lane clicks never travel; a lane tick click reveals its own element. Content-region clicks center the target.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "deferred-unit",
+        "where": [],
+        "rationale": "Same tick→element attribution gap as INV-14; the never-travels half becomes meaningful with the package's span hit-test, proven in its unit suite."
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-19",
+      "assertion": "Spine sizing: spineN = max(8, min(18−3, lvl1Count)); an even sample over ordered level-1 labels with the last index clamped.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert (partial: bounds)",
+        "where": [
+          "lib/invariantAsserts.ts › INV-19 (shown lv1 ⊆ census population; per-frame count within [min(8, lvl1Count), 15+1 reserved])"
+        ],
+        "remainder": "Even-sample selection order is computed once per build and is only inspectable unit-side.",
+        "scenarios": ["default-sweep", "zoom-mid", "lane-toggles"],
+        "frameFields": ["labels.lv", "labelCount", "census.labels"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-20",
+      "assertion": "Strip travel clamps the pointer to the strip extent, then centers: scrollTop = mapToDoc(y) − clientHeight/2 in the doc frame.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "deferred-unit",
+        "where": [],
+        "rationale": "No strip-pointer step type in the scenario vocabulary yet (the strip's setPointerCapture also resists synthetic events). Candidate step for a later phase; the port's precise-center rule is unit-proven."
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-21",
+      "assertion": "Wear boundedness: heat ∈ [0, 1.6] for all segments at all times; painted opacity ∈ [0, .8]; decay alone drives heat → 0 monotonically.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert",
+        "where": [
+          "wear.parity.ts › INV-21 asserts (opacity ∈ [0, 0.8] at every capture; overlapping ticks non-decreasing across dwell ticks; non-overlapping ticks strictly decay — measured ×0.996² after two ticks)"
+        ],
+        "scenarios": ["wear-dwell"],
+        "frameFields": ["opacities.op"]
+      },
+      "portVerification": "deferred-unit"
+    },
+    {
+      "id": "INV-22",
+      "assertion": "Wear cadence: heat updates on a fixed 250ms tick from the doc-frame viewport overlap fraction (+0.05×overlap) plus a center bonus (+0.09), decayed ×0.996.",
+      "parityMethod": "unit",
+      "coverage": {
+        "status": "standing-assert (partial: period + determinism)",
+        "where": [
+          "wear.parity.ts › INV-22 asserts (after phase alignment: 249ms of virtual time changes nothing; the 250th ms fires exactly one tick; exact tick counts per dwell; deterministic float opacities recorded as the wear master)"
+        ],
+        "remainder": "The exact producer formula (overlap fraction + center bonus coefficients) is unit-side; the D8 quantization question is a gate item.",
+        "scenarios": ["wear-dwell"],
+        "frameFields": ["opacities", "advancedMs", "scrollTop"]
+      },
+      "portVerification": "deferred-unit"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "$format": 1,
+  "$comment": "Deviation register consulted by the parity differ (lib/deviations.ts). EMPTY by design in Phase 2: the mockup oracle must verify strictly against itself. Later phases add entries when the package adapter legitimately diverges from the recorded mockup baseline (each entry cites its docs/parity.md Part A row / Part C question). Schema documented in DEVIATIONS.md.",
+  "deviations": []
+}

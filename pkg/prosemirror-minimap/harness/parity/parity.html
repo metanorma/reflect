@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Minimap parity — mockup vs package</title>
+  <style>
+    :root { color-scheme: light dark; font: 13px ui-sans-serif, system-ui, sans-serif; }
+    body { margin: 0; display: flex; flex-direction: column; height: 100vh; }
+    header {
+      display: flex; gap: 10px; align-items: center; padding: 8px 12px;
+      border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+    }
+    header h1 { font-size: 13px; margin: 0 8px 0 0; font-weight: 600; }
+    header select, header button { font: inherit; padding: 3px 10px; }
+    header button:disabled { opacity: .5; }
+    #status { margin-left: auto; opacity: .7; font-variant-numeric: tabular-nums; }
+    main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+    .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .pane > .pane-head {
+      padding: 4px 10px; font-weight: 600; opacity: .8;
+      border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+    }
+    .pane > .mount { flex: 1; min-height: 0; position: relative; }
+    iframe { width: 100%; height: 100%; border: 0; display: block; }
+    .placeholder {
+      position: absolute; inset: 0; display: grid; place-content: center;
+      text-align: center; gap: 6px; opacity: .65; padding: 20px;
+    }
+    .placeholder code { font-size: 11px; opacity: .8; }
+    #log {
+      height: 26vh; overflow: auto; border-top: 1px solid
+      color-mix(in srgb, currentColor 20%, transparent); padding: 6px 12px;
+      font: 11px ui-monospace, Menlo, monospace; white-space: pre-wrap;
+    }
+    .step { margin: 2px 0; }
+    .step .sum { cursor: pointer; }
+    .step .frames { margin-left: 16px; opacity: .8; display: none; }
+    .step.open .frames { display: block; }
+    .err { color: #c0392b; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>minimap parity</h1>
+    <label>scenario <select id="scenario"></select></label>
+    <button id="run">Run</button>
+    <span id="status">idle</span>
+  </header>
+  <main>
+    <div class="pane">
+      <div class="pane-head">mockup (baseline) — <code>pkg/prosemirror-minimap/docs/metanorma-editor-mockup.html</code></div>
+      <div class="mount"><iframe id="mockupFrame" title="mockup"></iframe></div>
+    </div>
+    <div class="pane">
+      <div class="pane-head">package harness (Phase 4 connects the adapter)</div>
+      <div class="mount">
+        <div class="placeholder">
+          <div><strong>package adapter not connected</strong></div>
+          <div>Phase 4 mounts the <code>@metanorma/prosemirror-minimap</code> harness
+            (<code>/index.html</code>, <code>window.__mnMount</code>) here and registers
+            a <code>MinimapAdapter</code> with the same interface the mockup side
+            implements — the fixture scenarios then run against both panes and the
+            frames diff side by side.</div>
+          <div><code>window.parity.registerAdapter({ id, load, applyStep, captureFrame })</code></div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div id="log">Pick a scenario and press Run. Steps expand to the captured geometry frames.</div>
+  <script type="module" src="/parity/parity.js"></script>
+</body>
+</html>

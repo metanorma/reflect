@@ -1,0 +1,19 @@
+{
+  "name": "zoom-mid",
+  "description": "Mid-document zoom steps through the real grip (canvas height rebuilds), with scroll-fraction re-anchors between steps, ending in a double-click reset. Verifies INV-13 (fraction-preserving rebuild) as a standing assert on consecutive frames.",
+  "adapter": "mockup",
+  "steps": [
+    { "type": "reset" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "mid-0" },
+    { "type": "zoom", "px": 9000, "label": "zoom-9000" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "mid-1" },
+    { "type": "zoom", "px": 6000, "label": "zoom-6000" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "mid-2" },
+    { "type": "zoom", "px": 3000, "label": "zoom-3000" },
+    { "type": "scroll-fraction", "f": 0.75, "label": "mid-3" },
+    { "type": "zoom", "px": 12000, "label": "zoom-12000" },
+    { "type": "zoom-reset", "label": "zoom-reset-default" },
+    { "type": "scroll-fraction", "f": 0.25, "label": "mid-4" },
+    { "type": "dwell", "ms": 500, "label": "dwell-after-reset" }
+  ]
+}
