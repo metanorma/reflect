@@ -7,9 +7,13 @@ testable invariants the mockup's logic and bug-fix history imply, plus the open
 questions Phase 1 could not resolve. It records findings; it makes no design
 decisions. Every ambiguity is flagged for the Phase-3 decision gate (Part C).
 
-- **Baseline of truth**: `mockups/metanorma-editor-mockup.html` (3092 lines,
-  frozen). Line references below use `mockup:NNN` and are exact line numbers of
-  that file; the frozen-target allowance of
+- **Baseline of truth**: `metanorma-editor-mockup.html` in this directory
+  (`pkg/prosemirror-minimap/docs/`; 3092 lines, frozen; sole copy — relocated
+  here from the repository root's `mockups/`, which no longer holds it; served
+  to the parity suite at the stable virtual route
+  `/mockups/metanorma-editor-mockup.html`). Line references below use
+  `mockup:NNN` and are exact line numbers of that file; the frozen-target
+  allowance of
   [CONVENTIONS.md](../../../docs/CONVENTIONS.md) §3.1 applies.
 - **Implementation under comparison**: the package specified by
   [ProseMirrorMinimap.spec.md](../../../docs/ProseMirrorMinimap.spec.md)
