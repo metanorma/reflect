@@ -13,7 +13,7 @@
  * retire sequence is asserted without faking any DOM. The DOM-side of
  * window drag (transform tracking, getComputedStyle/getBoundingClientRect
  * in normalizeTops, the zone-element sweep) is covered by parity (GREEN 1)
- * and stays there until the synthetic layer.
+ * and stays there.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -138,6 +138,7 @@ function fakeTarget() {
 function wireGate(opts = {}) {
   const order = [];
   const events = [];
+  const liveAtRetire = [];
   const target = fakeTarget();
   const gate = createWindowDragGate({
     target,
@@ -152,10 +153,14 @@ function wireGate(opts = {}) {
     onRetireFirst: (ev) => {
       order.push("onRetireFirst");
       events.push(ev);
+      // isLive() as the GATE UNDER TEST's own hook sees it — retire
+      // step 1 has already flipped it, so a healthy retire observes
+      // false. Late-bound `gate`: hooks can only fire after construction.
+      liveAtRetire.push(gate.isLive());
     },
     ...opts,
   });
-  return { gate, target, order, events };
+  return { gate, target, order, events, liveAtRetire };
 }
 
 describe("windowDrag: gate lifecycle (F4)", () => {
@@ -229,7 +234,6 @@ describe("windowDrag: gate lifecycle (F4)", () => {
 describe("windowDrag: retire sequence order (HP5/F4)", () => {
   it("F4: retire order — live off, then unwrap fallback, then sweep/normalize probes, then onDragEnd", () => {
     const { gate, target, order } = wireGate();
-    const liveAtHook = [];
     gate.wire({ onDragEnd: () => order.push("onDragEnd") });
     target.fire("pointerdown");
     target.fire("pointerup", { button: 0, clientX: 111, clientY: 222 });
@@ -242,24 +246,21 @@ describe("windowDrag: retire sequence order (HP5/F4)", () => {
       "api",        // normalizeTops probe (mock: if (window.__api))
       "onDragEnd",
     ]);
-    void liveAtHook;
   });
 
   it("F4: the unwrap-fallback hook observes isLive() === false and receives the pointer event", () => {
-    const { gate, target, events } = wireGate();
+    const { gate, target, events, liveAtRetire } = wireGate();
     const ev = { button: 0, clientX: 321, clientY: 654 };
-    let liveInHook;
     gate.wire({});
-    const hookGate = gate;
-    // probe isLive from inside the hook via the same gate instance
-    const probe = wireGateProbe(hookGate);
     target.fire("pointerdown");
     target.fire("pointerup", ev);
     assert.equal(events.length, 1);
     assert.equal(events[0].clientX, 321);
     assert.equal(events[0].clientY, 654);
-    liveInHook = probe.lastLiveInHook;
-    assert.equal(liveInHook, false, "gate already retired when the hook runs");
+    assert.equal(
+      liveAtRetire[0], false,
+      "gate already retired when the hook runs (observed on the gate under test)",
+    );
   });
 
   it("HP5: retire runs the full sequence even without a prior arm (after every pointer gesture, drag or not)", () => {
@@ -283,23 +284,3 @@ describe("windowDrag: retire sequence order (HP5/F4)", () => {
     assert.equal(starts, 2);
   });
 });
-
-/** Second-instance probe: captures isLive() from inside onRetireFirst. */
-function wireGateProbe(gate) {
-  // The gate under test exposes isLive(); the hook must see it retired.
-  // Re-wire through a fresh gate sharing the same target to observe the
-  // in-hook state without reaching into the gate's internals.
-  let lastLiveInHook;
-  const target = fakeTarget();
-  const probeGate = createWindowDragGate({
-    target,
-    api: () => undefined,
-    layoutArea: () => null,
-    onRetireFirst: () => {
-      lastLiveInHook = probeGate.isLive();
-    },
-  });
-  target.fire("pointerup");
-  void gate;
-  return { lastLiveInHook, probeGate };
-}

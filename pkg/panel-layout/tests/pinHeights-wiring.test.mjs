@@ -13,7 +13,8 @@
  * collectStableHeights over getBoundingClientRect) is not exercised here —
  * an api with zero floating groups keeps the pass a no-op walk, so these
  * tests assert gating/debounce/persist/emit discipline, never measurement.
- * Measurement rows stay parity-covered (GREEN 1) until the synthetic layer.
+ * Measurement rows stay parity-covered (GREEN 1); pin-pass measurement
+ * precedence is recorded as a synthetic follow-up in coverage-map.md.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -191,7 +192,8 @@ describe("pinHeights wiring: §2.5 floor seam (caller-provided floorOf)", () => 
   // floor — this smoke pins the option's acceptance and that init,
   // seeding, and the load emission are unchanged; floor DELIVERY through
   // the pass is measurement (getBoundingClientRect) territory and stays
-  // parity-covered until the synthetic layer.
+  // parity-covered, with pin-pass measurement precedence recorded as a
+  // synthetic follow-up in coverage-map.md.
   it("§2.5: a provided floorOf is accepted — init write, seeding, and load emission unchanged", () => {
     const floorCalls = [];
     const { settled, handle } = wire({

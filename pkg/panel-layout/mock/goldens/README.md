@@ -61,8 +61,9 @@ react build renders subpixel-differently from the mock's CDN build).
 - **Run-varying, normalized**: dockview's runtime-minted group ids (numeric
   strings) → `g1,g2…`; raw ids are preserved verbatim in `layout`/`storage`/
   `floats`.
-- `heightsMap` is module-scoped in the mock and unreachable from the page;
-  it is captured via its persisted localStorage copy plus live member rects.
+- `heightsMap` is module-scoped inside the built library bundle
+  (`/dist/mock/panel-layout.js`, not on window) and unreachable from the
+  page; it is captured via its persisted localStorage copy plus live member rects.
 
 When the mock changes legitimately, re-run the capture to refresh captured
 reality; anything beyond pure regeneration (new screens, changed flows) is a

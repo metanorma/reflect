@@ -13,9 +13,9 @@
  * (Node has none), and scoped-and-restored setInterval/clearInterval
  * recorders whose callbacks are fired by hand. ZERO geometry is faked:
  * no getBoundingClientRect, no layout, no cursor states — the DOM halves
- * of F2 (grab/grabbing cursors, grip hover) and the real ≤500ms late-
- * window timing stay parity (GREEN 1, `trace-chrome`/`trace-transitions`)
- * until the synthetic layer.
+ * of F2 (grab/grabbing cursors, grip hover) stay parity (GREEN 1,
+ * `trace-chrome`/`trace-transitions`); the real ≤500ms late-window
+ * timing is synthetic-covered (`synthetic-panel.spec.ts` A4).
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";

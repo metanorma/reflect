@@ -14,8 +14,8 @@
  * claim path and overlayClaimActive decline by their own guards, which is
  * exactly what these tests assert (registration, dispatch, veto wiring,
  * toggle plumbing, latch discipline, dispose). The elementFromPoint half
- * of the claim (overGridSurface) and unwrap sizing stay parity (GREEN 1)
- * until the synthetic layer.
+ * of the claim (overGridSurface) and unwrap sizing stay parity (GREEN 1),
+ * recorded as synthetic follow-up in coverage-map.md.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -208,10 +208,12 @@ describe("unwrap wiring: groupDragLive latch + retireFirst (HP4)", () => {
     api.fireWillDragGroup({ group: { id: "g-f", element: {}, api: { location: { type: "floating" } } } });
     assert.equal(rules.groupDragLive.group?.id, "g-f");
     api.fireWillDragGroup({ group: { id: "g-grid", element: {}, api: { location: { type: "grid" } } } });
-    assert.equal(rules.groupDragLive.group?.id, "g-grid" === rules.groupDragLive.group?.id ? rules.groupDragLive.group.id : rules.groupDragLive.group?.id);
-    // ^ grid groups do NOT latch: the wiring returns early, leaving the
-    //   previous latch state untouched is NOT the behavior — assert it:
-    assert.notEqual(rules.groupDragLive.group?.id, "g-grid", "grid group never latches");
+    // grid groups do NOT latch — the wiring returns early, leaving the
+    // previous latch untouched (still g-f, not cleared, not replaced).
+    assert.equal(
+      rules.groupDragLive.group?.id, "g-f",
+      "grid group neither latches nor clears — the previous latch stands",
+    );
   });
 
   it("HP4: retireFirst with an idle latch is a no-op (the guard travels with the provider)", () => {

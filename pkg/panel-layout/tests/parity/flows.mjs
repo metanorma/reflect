@@ -142,7 +142,7 @@ export async function dumpState(page, flow, extraMeta = {}) {
       floatCount: raw.counts.floatWindows, tabCount: raw.counts.tabs,
       watermark: raw.counts.watermarks > 0,
       notes: [
-        'heightsMap is module-scoped in the mock (not on window) — unreachable from the page;',
+        'heightsMap is module-scoped inside the built library bundle (`/dist/mock/panel-layout.js`, not on window) — unreachable from the page;',
         'the persisted ' + LS_HEIGHTS_KEY + ' is its saved copy and is captured under storage.',
       ],
       ...extraMeta,

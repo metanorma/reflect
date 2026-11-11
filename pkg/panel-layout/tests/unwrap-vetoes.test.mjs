@@ -9,8 +9,8 @@
  * depends on overGridSurface/overPasteboard (auto-wrap grid-surface claims,
  * HP2 unwrap sizing, group-drop fallback) reads
  * document.elementFromPoint BEFORE the null-area check, so it cannot run
- * under plain Node. Those rows are covered by parity (GREEN 1) until the
- * synthetic Playwright project lands.
+ * under plain Node. Those rows are covered by parity (GREEN 1); a
+ * synthetic follow-up is recorded in coverage-map.md.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";

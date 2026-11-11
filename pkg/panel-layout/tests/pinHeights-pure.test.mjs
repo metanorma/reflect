@@ -9,13 +9,14 @@
  * group argument — .minimumHeight, .maximumHeight, .api.setConstraints.
  * Asserting through a spy + getters is the function's real contract, not
  * fake state. If pinning work ever needs a FOURTH accessor, these tests
- * move to the synthetic layer; that discovery is an escalation, not an
+ * move to a synthetic spec; that discovery is an escalation, not an
  * extension of the fake. The other pinHeights seams are covered by
  * tests/pinHeights-wiring.test.mjs (injected-event wiring) and parity;
  * measurement itself (membersOf, chromeOf, reconcileWindow, pinAllWindows,
  * collectStableHeights) is DOM-coupled (getBoundingClientRect/
- * requestAnimationFrame) and covered by parity (GREEN 1) until the
- * synthetic layer lands.
+ * requestAnimationFrame) and covered by parity (GREEN 1), with pin-pass
+ * measurement precedence recorded as a synthetic follow-up in
+ * coverage-map.md.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";

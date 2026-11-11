@@ -30,7 +30,11 @@ import type {
 import { DemoToolbar, DemoStatusbar } from './chrome.js';
 import { registry } from './registry.js';
 import { presetLayout } from './preset.js';
-import { DEMO_HEIGHTS_KEY, DEMO_LAYOUT_KEY } from './storage.js';
+import {
+  DEMO_HEIGHTS_KEY,
+  DEMO_LAYOUT_KEY,
+  demoStorageFormat,
+} from './storage.js';
 
 /** The engine api the parity drivers read through (`window.__api`). */
 interface ApiWindow { __api?: PanelLayoutApi }
@@ -78,10 +82,7 @@ export const DemoApp: FC = () => {
       defaultLayout: presetLayout(),
       persistence: {
         defaultLayout: presetLayout(),
-        format: {
-          kind: 'two-key',
-          keys: { layout: DEMO_LAYOUT_KEY, heights: DEMO_HEIGHTS_KEY },
-        },
+        format: demoStorageFormat,
       },
       autoWrap,
       dockviewOptions: {

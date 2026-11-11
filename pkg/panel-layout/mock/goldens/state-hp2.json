@@ -10,7 +10,7 @@
     "tabCount": 11,
     "watermark": false,
     "notes": [
-      "heightsMap is module-scoped in the mock (not on window) — unreachable from the page;",
+      "heightsMap is module-scoped inside the built library bundle (`/dist/mock/panel-layout.js`, not on window) — unreachable from the page;",
       "the persisted mn-dockview7-heights-v1 is its saved copy and is captured under storage."
     ],
     "pasteboardDropPoint": {

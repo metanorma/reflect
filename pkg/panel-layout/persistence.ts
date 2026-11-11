@@ -37,12 +37,16 @@ export const ENVELOPE_VERSION = 1;
  * Structural subset of `Storage` the persistence layer needs — trivially
  * mockable (behavior.spec.md §4: medium and key names are consumer
  * configuration; the serialization model is library contract). One
- * adapter, never two — `clear()` stays atomic (HP9).
+ * adapter, never two — `clear()` stays atomic (HP9). Every member is
+ * required: `clear()` wipes the keys through `removeItem` (HP9's
+ * keys-removed step) — a load-only adapter must still implement it
+ * (a no-op body is fine).
  */
 export interface LayoutStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
-  removeItem?(key: string): void;
+  /** Wiped by `clear()` (HP9); load-only adapters may no-op it. */
+  removeItem(key: string): void;
 }
 
 export type HeightsMap = Record<string, number>;
@@ -365,7 +369,7 @@ export function createPersistence(options: PersistenceOptions): Persistence {
         : [keys.layout, keys.heights];
       for (const key of uniqueKeys) {
         write(() => {
-          storage.removeItem?.(key);
+          storage.removeItem(key);
         });
       }
     },
