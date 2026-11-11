@@ -1,0 +1,19 @@
+{
+  "name": "fit-all",
+  "description": "The fit-all zoom floor: a grip drag requesting a canvas height below the pane floor clamps to paneH (the whole map visible, pan pinned to 0), swept across the full scroll range, then back up to detail and reset. Exercises the clamp branches of the pan/thumb mapping (INV-8's degenerate-subsample guard, INV-11 end-pinning at the floor).",
+  "adapter": "mockup",
+  "steps": [
+    { "type": "reset" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "mid-before" },
+    { "type": "zoom", "px": 200, "label": "zoom-floor-clamped" },
+    { "type": "scroll-fraction", "f": 0.0, "label": "floor-sweep-0" },
+    { "type": "scroll-fraction", "f": 0.25, "label": "floor-sweep-25" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "floor-sweep-50" },
+    { "type": "scroll-fraction", "f": 0.75, "label": "floor-sweep-75" },
+    { "type": "scroll-fraction", "f": 1.0, "label": "floor-sweep-100" },
+    { "type": "zoom", "px": 12000, "label": "zoom-back-to-detail" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "detail-mid" },
+    { "type": "zoom-reset", "label": "reset-default" },
+    { "type": "dwell", "ms": 500, "label": "dwell-after-reset" }
+  ]
+}

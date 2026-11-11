@@ -23,6 +23,7 @@ for (const inv of src.invariants) {
 const deferred = src.invariants.filter((i) => i.coverage.status === 'deferred-unit');
 const standing = src.invariants.filter((i) => i.coverage.status !== 'deferred-unit');
 const gmPort = src.invariants.filter((i) => i.portVerification === 'golden-master');
+const pendingGate = src.invariants.filter((i) => i.pendingGate);
 
 const lines = [];
 lines.push('# INV coverage report (generated)');
@@ -35,15 +36,23 @@ lines.push(`- **${standing.length} of ${src.invariants.length}** live invariants
 lines.push('  suite (run on every execution, record and verify alike).');
 lines.push(`- **${deferred.length}** are deferred to the port's unit suite: ${deferred.map((i) => i.id).join(', ')}.`);
 lines.push(`- **${gmPort.length}** re-verify against the package adapter through this suite's masters`);
-lines.push(`  (${gmPort.map((i) => i.id).join(', ')}) — parity.md Part B \`golden-master\` tags.`);
+lines.push(`  (${gmPort.map((i) => i.id).join(', ')}) — parity.md Part B \`golden-master\` tags — crossing`);
+lines.push('  `fixtures/substitution.json` (README "Fixture bridge").');
+if (pendingGate.length) {
+  lines.push(`- **${pendingGate.length}** carry a pending-gate marker on port-side semantics:`);
+  for (const i of pendingGate) {
+    lines.push(`  - ${i.id} — ${i.pendingGate}`);
+  }
+}
 lines.push('');
 lines.push('| INV | Parity method | Mockup-side coverage | Scenarios | Port verification |');
 lines.push('|---|---|---|---|---|');
 for (const inv of src.invariants) {
   const scenarios = (inv.coverage.scenarios ?? []).join(', ') || '—';
+  const gate = inv.pendingGate ? ` — pending gate: ${inv.pendingGate}` : '';
   const status = inv.coverage.status
     + (inv.coverage.status === 'deferred-unit' && inv.coverage.rationale ? ' — ' + firstSentence(inv.coverage.rationale) : '');
-  lines.push(`| ${inv.id} | ${inv.parityMethod} | ${status} | ${scenarios} | ${inv.portVerification} |`);
+  lines.push(`| ${inv.id} | ${inv.parityMethod}${gate} | ${status} | ${scenarios} | ${inv.portVerification} |`);
 }
 lines.push('');
 

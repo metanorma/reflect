@@ -21,6 +21,7 @@ import path from 'node:path';
 import { test, expect } from '@playwright/test';
 import { MASTERS_DIR, RECORD } from './lib/env.js';
 import { canonical, canonicalFile, sha256 } from './lib/canonical.js';
+import { captureEnv, envMismatch } from './lib/canonicalEnv.js';
 import { diffMaster, loadRegister } from './lib/deviations.js';
 import { mockupAdapter } from './lib/mockupAdapter.js';
 
@@ -187,14 +188,10 @@ test('wear master (clock) + INV-21/22', async ({ page }) => {
 
   // ── Master record/verify (same contract as the geometry masters) ──────
   const master = {
-    format: 1,
+    format: 2,
     scenario: 'wear-dwell',
     adapter: adapter.id,
-    env: {
-      viewport: [1600, 900] as [number, number],
-      reducedMotion: 'reduce' as const,
-      note: 'clock frozen during load (page.clock install+pauseAt pre-goto); dwell steps advance exact 250ms multiples; opacities rounded to 4 decimals.',
-    },
+    env: await captureEnv(page),
     frames,
   };
   const file = path.join(MASTERS_DIR, 'wear-dwell.json');
@@ -205,6 +202,14 @@ test('wear master (clock) + INV-21/22', async ({ page }) => {
     console.log(`parity-master wear-dwell RECORDED frames=${frames.length}`);
   } else {
     const recorded = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (recorded.format !== 2) {
+      throw new Error(`wear-dwell master has format ${recorded.format}; expected 2 — re-record`);
+    }
+    const envDiffs = envMismatch(recorded.env, await captureEnv(page));
+    expect(
+      envDiffs,
+      'environment differs from the canonical recording environment (wear-dwell) — re-record only at gate direction',
+    ).toEqual([]);
     const result = diffMaster(
       recorded,
       master,

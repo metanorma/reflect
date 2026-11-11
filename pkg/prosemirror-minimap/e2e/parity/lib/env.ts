@@ -16,6 +16,7 @@ export const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const PARITY_DIR = path.resolve(HERE, '..');
 export const SCENARIOS_DIR = path.join(PARITY_DIR, 'scenarios');
 export const MASTERS_DIR = path.join(PARITY_DIR, 'masters');
+export const FIXTURES_DIR = path.join(PARITY_DIR, 'fixtures');
 export const DEVIATIONS_PATH = path.join(PARITY_DIR, 'deviations.json');
 export const COVERAGE_PATH = path.join(PARITY_DIR, 'coverage.json');
 export const COVERAGE_REPORT_PATH = path.join(PARITY_DIR, 'coverage.md');

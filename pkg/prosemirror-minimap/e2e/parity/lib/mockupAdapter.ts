@@ -351,6 +351,57 @@ export function mockupAdapter(opts: MockupAdapterOpts = {}): MinimapAdapter {
           await settle(page);
           return;
         }
+        case 'theme': {
+          // Real code path: the theme button cycles light→dark→contrast
+          // (cycleTheme, mockup:2993). Click until data-theme matches — the
+          // count is deterministic (≤2 clicks).
+          for (let k = 0; k < 3; k++) {
+            const cur = await page.evaluate(() => document.documentElement.dataset.theme);
+            if (cur === step.to) break;
+            await page.locator('#themeBtn').click();
+            await settle(page);
+          }
+          const got = await page.evaluate(() => document.documentElement.dataset.theme);
+          if (got !== step.to) throw new Error(`theme: ended at ${got}, wanted ${step.to}`);
+          return;
+        }
+        case 'search': {
+          // The ⌘F code path: open the bar (focus lands in its input),
+          // type, Enter → runSearch wraps hits, populates the search lane,
+          // reveals hit 1 (mockup:2406-2478).
+          await page.keyboard.press('ControlOrMeta+f');
+          await page.keyboard.type(step.query);
+          await page.keyboard.press('Enter');
+          await settle(page);
+          return;
+        }
+        case 'search-clear': {
+          // Escape path: sbInput Escape clears hits + lane (mockup:2476).
+          // Focus is still in the search input after Enter; Escape there
+          // both hides the bar and clears.
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(120);
+          await settle(page);
+          return;
+        }
+        case 'key': {
+          // Landmark walking on the real focus host (mockup:2384-2392).
+          // Focus WITHOUT clicking — labels/blocks are click-to-reveal.
+          await page.evaluate(() => document.querySelector('#minimapWrap')!.focus());
+          await page.keyboard.press(step.key);
+          await settle(page);
+          return;
+        }
+        case 'viewport': {
+          const cur = page.viewportSize();
+          if (!cur) throw new Error('viewport: no viewport to resize');
+          await page.setViewportSize({
+            width: step.width ?? cur.width,
+            height: step.height ?? cur.height,
+          });
+          await settle(page);
+          return;
+        }
         default:
           throw new Error(`mockupAdapter: unhandled step ${(step as ScenarioStep).type}`);
       }
@@ -364,6 +415,10 @@ export function mockupAdapter(opts: MockupAdapterOpts = {}): MinimapAdapter {
         : step.type === 'dwell' ? `dwell ms=${step.ms}`
         : step.type === 'lane-toggle' ? `lane-toggle lane=${step.lane}`
         : step.type === 'drag-thumb' ? `drag-thumb f=${step.f}`
+        : step.type === 'theme' ? `theme to=${step.to}`
+        : step.type === 'search' ? `search q="${step.query}"`
+        : step.type === 'key' ? `key ${step.key}`
+        : step.type === 'viewport' ? `viewport ${step.width ?? ''}x${step.height ?? ''}`
         : step.type;
       const [geom, raw] = await Promise.all([
         page.evaluate(GEOM_BODY),

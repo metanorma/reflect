@@ -26,22 +26,40 @@
  *       "action": { "type": "skip" }
  *                    | { "type": "tolerance", "value": 1.5 }
  *                    | { "type": "round", "decimals": 1 }
+ *                    | { "type": "expectMissing" }
+ *                    | { "type": "expectExtra" }
+ *                    | { "type": "arrayCount", "delta": 4 }
  *     }
  *   ]
  * }
  *
- * First matching entry wins. A deviation entry NEVER applies to the mockup
- * adapter's own re-verification (`appliesTo: "package"`): the oracle must
- * stay strict against itself.
+ * The structural actions exist because the package adapter runs a DIFFERENT
+ * (schema-loadable) document than the mock-up baseline — see
+ * fixtures/substitution.json. `expectMissing` tolerates baseline entries
+ * with no package counterpart (e.g. term rows, D11); `expectExtra` tolerates
+ * package entries with no baseline counterpart; `arrayCount` tolerates a
+ * bounded count difference on a whole array. First matching entry wins.
+ *
+ * A deviation entry NEVER applies to the mockup adapter's own
+ * re-verification (`appliesTo: "package"`): the oracle must stay strict
+ * against itself.
  */
 import fs from 'node:fs';
 import { DEVIATIONS_PATH } from './env.js';
 
 export interface DeviationAction {
-  type: 'skip' | 'tolerance' | 'round';
-  /** tolerance: max |expected − actual|; round: compare after rounding. */
+  type: 'skip' | 'tolerance' | 'round' | 'expectMissing' | 'expectExtra' | 'arrayCount';
+  /** tolerance: max |expected − actual|. */
   value?: number;
+  /** round: decimals before comparing. */
   decimals?: number;
+  /** arrayCount: permitted |actual.length − expected.length| (defaults 0);
+   *  mutually exclusive with exact/min/max. */
+  delta?: number;
+  /** arrayCount alternatives: pin the exact or bounded length. */
+  exact?: number;
+  min?: number;
+  max?: number;
 }
 
 export interface DeviationEntry {
@@ -76,6 +94,15 @@ export function loadRegister(): DeviationRegister {
     }
     if (d.action.type === 'round' && typeof d.action.decimals !== 'number') {
       throw new Error(`deviations.json: ${d.id} round needs decimals`);
+    }
+    if (d.action.type === 'arrayCount') {
+      const bounded = [d.action.exact, d.action.min, d.action.max].some((v) => typeof v === 'number');
+      if (typeof d.action.delta !== 'number' && !bounded) {
+        throw new Error(`deviations.json: ${d.id} arrayCount needs delta or exact/min/max`);
+      }
+      if (typeof d.action.delta === 'number' && bounded) {
+        throw new Error(`deviations.json: ${d.id} arrayCount: delta is exclusive with exact/min/max`);
+      }
     }
   }
   return raw as DeviationRegister;
@@ -149,6 +176,46 @@ function compareLeaf(
       out.diffs.push({ path: joined, expected, actual, deviation: e.id });
       return;
     }
+    // Structural actions — meaningful on array length mismatches and
+    // absent leaves (the fixture-bridge cases: the package document has
+    // no term/req rows, different label counts, …).
+    if (e.action.type === 'expectMissing') {
+      const shorter =
+        actual === undefined ||
+        (Array.isArray(expected) && Array.isArray(actual) && actual.length < expected.length);
+      if (shorter) {
+        out.tolerated++;
+        return;
+      }
+      out.diffs.push({ path: joined, expected, actual, deviation: e.id });
+      return;
+    }
+    if (e.action.type === 'expectExtra') {
+      const longer =
+        expected === undefined ||
+        (Array.isArray(expected) && Array.isArray(actual) && actual.length > expected.length);
+      if (longer) {
+        out.tolerated++;
+        return;
+      }
+      out.diffs.push({ path: joined, expected, actual, deviation: e.id });
+      return;
+    }
+    if (e.action.type === 'arrayCount' && Array.isArray(expected) && Array.isArray(actual)) {
+      const n = actual.length;
+      const exp = expected.length;
+      const ok =
+        typeof e.action.delta === 'number' ? Math.abs(n - exp) <= e.action.delta
+        : typeof e.action.exact === 'number' ? n === e.action.exact
+        : (e.action.min === undefined || n >= e.action.min)
+          && (e.action.max === undefined || n <= e.action.max);
+      if (ok) {
+        out.tolerated++;
+        return;
+      }
+      out.diffs.push({ path: joined, expected: exp, actual: n, deviation: e.id });
+      return;
+    }
   }
   if (expected === actual) return;
   out.diffs.push({ path: joined, expected, actual });
@@ -163,11 +230,22 @@ function deepCompare(
   out: { diffs: DiffNote[]; tolerated: number },
 ): void {
   if (Array.isArray(expected)) {
-    if (!Array.isArray(actual) || actual.length !== expected.length) {
+    if (!Array.isArray(actual)) {
       compareLeaf(path, expected, actual, ctx, register, out);
       return;
     }
-    expected.forEach((v, k) => deepCompare([...path, String(k)], v, (actual as unknown[])[k], ctx, register, out));
+    if (expected.length !== actual.length) {
+      // The length mismatch itself is judged by the register (expectMissing
+      // / expectExtra / arrayCount). Tolerated → compare the shared prefix
+      // element-wise; not tolerated → one diff for the array, no noise.
+      const before = out.diffs.length;
+      compareLeaf(path, expected, actual, ctx, register, out);
+      if (out.diffs.length > before) return;
+    }
+    const n = Math.min(expected.length, actual.length);
+    for (let k = 0; k < n; k++) {
+      deepCompare([...path, String(k)], expected[k], actual[k], ctx, register, out);
+    }
     return;
   }
   if (expected !== null && typeof expected === 'object') {
@@ -176,13 +254,20 @@ function deepCompare(
       return;
     }
     const eKeys = Object.keys(expected as Record<string, unknown>);
-    const aKeys = Object.keys(actual as Record<string, unknown>);
+    const aObj = actual as Record<string, unknown>;
     for (const k of eKeys) {
-      deepCompare([...path, k], (expected as Record<string, unknown>)[k], (actual as Record<string, unknown>)[k], ctx, register, out);
+      const eVal = (expected as Record<string, unknown>)[k];
+      const aVal = aObj[k];
+      if (aVal === undefined && eVal !== undefined) {
+        // Absent key: the register may claim it (expectMissing), else diff.
+        compareLeaf([...path, k], eVal, undefined, ctx, register, out);
+        continue;
+      }
+      deepCompare([...path, k], eVal, aVal, ctx, register, out);
     }
-    for (const k of aKeys) {
+    for (const k of Object.keys(aObj)) {
       if (!(k in (expected as Record<string, unknown>))) {
-        out.diffs.push({ path: [...path, k].join('.'), expected: '<absent>', actual: (actual as Record<string, unknown>)[k] });
+        compareLeaf([...path, k], undefined, aObj[k], ctx, register, out);
       }
     }
     return;

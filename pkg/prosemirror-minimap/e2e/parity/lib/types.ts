@@ -36,7 +36,26 @@ export type ScenarioStep =
   | { type: 'lane-toggle'; lane: LaneKey; label?: string }
   /** Drag the viewport thumb so its top lands at fraction f of the thumb
    *  track (pointer events on the real thumb element). */
-  | { type: 'drag-thumb'; f: number; label?: string };
+  | { type: 'drag-thumb'; f: number; label?: string }
+  /** Cycle the UI theme (light → dark → contrast) by clicking the real
+   *  theme button until `data-theme` equals `to`. Contrast is a GEOMETRY
+   *  dimension (2px borders change document heights), not just color. */
+  | { type: 'theme'; to: 'light' | 'dark' | 'contrast'; label?: string }
+  /** Run the mock-up's in-document search (⌘F code path): opens the bar,
+   *  types the query, presses Enter — populates the search lane with ticks
+   *  and reveals the first hit. */
+  | { type: 'search'; query: string; label?: string }
+  /** Clear the search (Escape code path): unwraps hits, empties the lane. */
+  | { type: 'search-clear'; label?: string }
+  /** Press a key on the minimap focus host (landmark walking — mock-up
+   *  side). The PACKAGE-side semantics of arrow keys are pending Q8 at the
+   *  gate; the step type exists so fixture scenarios can record the
+   *  mock-up behavior now. */
+  | { type: 'key'; key: 'ArrowDown' | 'ArrowUp'; label?: string }
+  /** Resize the browser viewport (changes the grid-set pane AND fires the
+   *  mock-up's unconditional window-resize rebuild). Width changes also
+   *  reflow the document — an epoch-class change. */
+  | { type: 'viewport'; width?: number; height?: number; label?: string };
 
 export type StepType = ScenarioStep['type'];
 
@@ -138,16 +157,33 @@ export interface Census {
 
 // ── Master file ────────────────────────────────────────────────────────
 
+/**
+ * The canonical recording environment. Masters are byte-stable ONLY here;
+ * the differ refuses to compare across environments (see masters.parity.ts)
+ * so drift can never be absorbed as hand-widened tolerances. Re-recording
+ * in a different environment is a gate decision, not a local fix.
+ */
 export interface MasterEnv {
   viewport: [number, number];
   reducedMotion: 'reduce';
+  /** Chromium build (`chromium <version>`) — layout engine identity. */
+  browser: string;
+  /** `os.platform()`/`os.arch()` of the recording machine. */
+  platform: string;
+  arch: string;
+  /** Font-availability fingerprint: `document.fonts.check` for the mock-up's
+   *  document stack (Georgia serif body etc.) — the availability of any of
+   *  them changes document layout and therefore every recorded px. */
+  fonts: Record<string, boolean>;
   /** Static pin: masters are recorded under emulated reduced motion, fixed
    *  viewport, seeded localStorage. No timestamps — byte-stability. */
   note: string;
 }
 
 export interface MasterFile {
-  format: 1;
+  /** 2 — environment fingerprint added (browser/platform/arch/fonts) and
+   *  verified before any diff. */
+  format: 2;
   scenario: string;
   adapter: string;
   env: MasterEnv;
@@ -187,6 +223,11 @@ export function stepEcho(step: ScenarioStep): string {
     case 'dwell': return `dwell ms=${step.ms}`;
     case 'lane-toggle': return `lane-toggle lane=${step.lane}`;
     case 'drag-thumb': return `drag-thumb f=${step.f}`;
+    case 'theme': return `theme to=${step.to}`;
+    case 'search': return `search q="${step.query}"`;
+    case 'search-clear': return 'search-clear';
+    case 'key': return `key ${step.key}`;
+    case 'viewport': return `viewport ${step.width ?? ''}x${step.height ?? ''}`;
     default: return step.type;
   }
 }

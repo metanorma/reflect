@@ -1,7 +1,7 @@
 {
   "$format": 1,
   "$source": "pkg/prosemirror-minimap/docs/parity.md Part B (Phase-1 handoff). One entry per live invariant INV-1..INV-22.",
-  "$note": "status 'standing-assert' = an assertion encoded in this suite that runs on EVERY execution (record and verify alike), turning captured values into proofs of the mockup oracle. 'partial' = the DOM-observable half is asserted; the listed remainder is deferred. portVerification follows parity.md Part B's verification tags: 'golden-master' INVs are re-verified by re-running this suite against the package adapter (Phase 4); 'deferred-unit' INVs are proven by the port's own headless suite (pkg/prosemirror-minimap/test.mjs).",
+  "$note": "status 'standing-assert' = an assertion encoded in this suite that runs on EVERY execution (record and verify alike), turning captured values into proofs of the mockup oracle. 'partial' = the DOM-observable half is asserted; the listed remainder is deferred. 'pending-gate' = the mock-up side is captured/asserted but the PORT-side semantics ride a decision input (D-number) the gate owns. portVerification follows parity.md Part B's verification tags: 'golden-master' INVs are re-verified by re-running this suite against the package adapter (Phase 4, through fixtures/substitution.json — see README 'Fixture bridge'); 'deferred-unit' INVs are proven by the port's own headless suite (pkg/prosemirror-minimap/test.mjs).",
   "invariants": [
     {
       "id": "INV-1",
@@ -171,9 +171,13 @@
       "assertion": "ResizeObserver no-op guard: a pane-height change within the guard band triggers no rebuild; only real layout changes do.",
       "parityMethod": "unit",
       "coverage": {
-        "status": "deferred-unit",
-        "where": [],
-        "rationale": "Driving a pane resize deterministically changes every geometry field at once (viewport-level resize), and the scenario vocabulary has no pane-resize step; the mockup's >2px guard is structural to its rebuild-from-resize architecture, which the port does not share (VAC-5). Revisit with the Phase-4 adapter if a package-side resize step is added."
+        "status": "standing-assert (partial: resize stability + rebuild observability)",
+        "where": [
+          "invariants.parity.ts › INV-12 (a DOM sentinel observes rebuilds; ±1px and +40px viewport changes both rebuild — the mock-up's unconditional window-resize listener shadows the observer's >2px no-op branch — and every rebuild is population-stable: identical label geometry at identical H)"
+        ],
+        "remainder": "The guard band's no-op branch itself is only reachable from pane-INTERNAL ripples, which no user gesture produces without also firing the window-resize rebuild; the port's floored-device-px no-op (§8.5) is the unit-side property (VAC-5).",
+        "scenarios": ["zoom-mid"],
+        "frameFields": ["labelCount", "labels", "geom.paneH", "geom.canvasH"]
       },
       "portVerification": "deferred-unit"
     },
@@ -186,7 +190,7 @@
         "where": [
           "lib/invariantAsserts.ts › INV-13 (doc-frame scroll fraction identical ±0.002 across every zoom / zoom-reset step, i.e. within the scrollTop integer round)"
         ],
-        "scenarios": ["zoom-mid"],
+        "scenarios": ["zoom-mid", "fit-all", "themes"],
         "frameFields": ["scrollTop", "geom.scrollHeight", "geom.clientHeight", "geom.docTop0", "geom.canvasH"]
       },
       "portVerification": "golden-master"
@@ -196,9 +200,12 @@
       "assertion": "Finest-containing-element tick placement: a diagnostic inside 8.1.1 marks 8.1.1's rect, not the whole of 8.",
       "parityMethod": "unit",
       "coverage": {
-        "status": "deferred-unit",
-        "where": [],
-        "rationale": "Requires attributing a lane tick to its element; the mockup's mmBlockFor ancestor walk lives in closures and leaves no DOM trace on the tick. Census records tick geometry for cross-side comparison; the innermost-row property is rowAtPos's unit contract."
+        "status": "standing-assert",
+        "where": [
+          "invariants.parity.ts › INV-14/18 (the mock-up's own problem predicates are recomputed from the DOM — .xref.broken, shall-in-admonition, term-without-source, .mn-note — and every lane tick's top must equal round(H × docY(owner)/total) where owner = closest clause/SEM_SEL match: the finest containing labelled element)"
+        ],
+        "scenarios": ["default-sweep"],
+        "frameFields": ["census.laneTicks.*.top", "census.blocks.top", "census.geom.canvasH"]
       },
       "portVerification": "deferred-unit"
     },
@@ -234,12 +241,14 @@
       "id": "INV-17",
       "assertion": "Keyboard walking operates only on SHOWN labels, starting from the active one, clamped at both ends of the shown list.",
       "parityMethod": "golden-master",
+      "pendingGate": "Q8",
       "coverage": {
         "status": "standing-assert",
         "where": [
-          "invariants.parity.ts › INV-17 (each ArrowDown/Up reveals the next/previous shown label's element — landing within a documented ±60px band of the center alignment; active label is the target or a descendant; repeated presses past the end stop moving the document)"
+          "invariants.parity.ts › INV-17 (each ArrowDown/Up reveals the next/previous shown label's element — landing within a documented ±60px band of the center alignment; active label is the target or a descendant; repeated presses past the end stop moving the document)",
+          "masters.parity.ts › keyboard-walk scenario (the walk captured as replayable fixture frames)"
         ],
-        "scenarios": ["default-sweep"],
+        "scenarios": ["keyboard-walk"],
         "frameFields": ["labels", "labels.active", "scrollTop"]
       },
       "portVerification": "golden-master"
@@ -249,9 +258,12 @@
       "assertion": "Lane clicks never travel; a lane tick click reveals its own element. Content-region clicks center the target.",
       "parityMethod": "unit",
       "coverage": {
-        "status": "deferred-unit",
-        "where": [],
-        "rationale": "Same tick→element attribution gap as INV-14; the never-travels half becomes meaningful with the package's span hit-test, proven in its unit suite."
+        "status": "standing-assert",
+        "where": [
+          "invariants.parity.ts › INV-14/18 (each diagnostics tick is clicked with trusted pointer events; the landing must match its computed OWNER's reveal position — center/edge alignment, ±60px band — which simultaneously proves the click reveals its own element and that the event never travelled to the strip's pointer-position mapping)"
+        ],
+        "scenarios": ["default-sweep"],
+        "frameFields": ["scrollTop", "census.laneTicks.diag.top"]
       },
       "portVerification": "deferred-unit"
     },
@@ -274,10 +286,14 @@
       "id": "INV-20",
       "assertion": "Strip travel clamps the pointer to the strip extent, then centers: scrollTop = mapToDoc(y) − clientHeight/2 in the doc frame.",
       "parityMethod": "unit",
+      "pendingGate": "D6",
       "coverage": {
-        "status": "deferred-unit",
-        "where": [],
-        "rationale": "No strip-pointer step type in the scenario vocabulary yet (the strip's setPointerCapture also resists synthetic events). Candidate step for a later phase; the port's precise-center rule is unit-proven."
+        "status": "standing-assert",
+        "where": [
+          "invariants.parity.ts › INV-20 (trusted pointer clicks at the strip's top/middle/bottom and a down-move-up drag: the landing matches the clamped mmTravelTo prediction — linear map ±60px, which under B′ is exact at block slopes — for every case)"
+        ],
+        "scenarios": ["default-sweep"],
+        "frameFields": ["scrollTop", "geom.scrollHeight", "geom.clientHeight", "geom.docTop0"]
       },
       "portVerification": "deferred-unit"
     },

@@ -36,6 +36,24 @@ export function assertFrames(census: Census, frames: Frame[]): Violation[] {
   const push = (inv: string, where: string, detail: string) =>
     v.push({ inv, where, detail });
 
+  // ── Build coherence: the mapping asserts (INV-1/4/8/11/16) hold for a
+  // minimap build that matches the live layout. Theme switches (contrast
+  // reflows the document) and search marks (padding reflows it) change the
+  // layout WITHOUT a rebuild — the mock-up has no theme-rebuild path — so
+  // frames from such a transition until the next rebuild (any zoom step)
+  // or restoration (search-clear) are knowingly build-stale. Their values
+  // are still captured byte-exactly in the masters; only the mapping
+  // formulas are suspended for them.
+  const incoherent = new Set<number>();
+  let stale = false;
+  for (const f of frames) {
+    if (f.step.startsWith('zoom')) stale = false;
+    else if (f.step.startsWith('theme') || f.step.startsWith('search q=')) stale = true;
+    else if (f.step === 'search-clear') stale = false;
+    if (stale) incoherent.add(f.i);
+  }
+  const coherent = (f: Frame) => !incoherent.has(f.i);
+
   // ── INV-2 (population): every frame sees the full label population the
   // census recorded — scrolling (and nothing in this suite but a zoom
   // rebuild) may change which labels EXIST; scroll stops never do.
@@ -145,6 +163,7 @@ export function assertFrames(census: Census, frames: Frame[]): Violation[] {
   // ── INV-1/6/7 (shared linear mapping): thumb top = frac × track with the
   // exact doc-frame denominator (scrollHeight − clientHeight − docTop0).
   for (const f of frames) {
+    if (!coherent(f)) continue;
     const track = f.geom.paneH - f.thumb.height;
     if (track <= 0) continue;
     const expected = fracOf(f) * track;
@@ -161,6 +180,7 @@ export function assertFrames(census: Census, frames: Frame[]): Violation[] {
   // documented 12% band. The floor (8px) is exact. (The port's uniform
   // scale makes the model exact — compared via the master diff, not here.)
   for (const f of frames) {
+    if (!coherent(f)) continue;
     const expected = Math.max(8, (f.geom.canvasH * f.geom.clientHeight) / f.geom.docHeight);
     if (Math.abs(f.thumb.height - expected) > 0.12 * expected) {
       push('INV-16', `frame ${f.i} (${f.step})`,
@@ -179,6 +199,7 @@ export function assertFrames(census: Census, frames: Frame[]): Violation[] {
   // (exactly linear at block starts; B′ piecewise deviation stays within
   // the block's gap share). Monotone across scroll steps within a plateau.
   for (const f of frames) {
+    if (!coherent(f)) continue;
     const maxPan = f.geom.canvasH - f.geom.paneH;
     if (f.panY > 0.5 && f.panY < maxPan - 0.5) {
       const s0 = f.scrollTop - f.geom.docTop0;
@@ -204,7 +225,7 @@ export function assertFrames(census: Census, frames: Frame[]): Violation[] {
     for (const f of frames) {
       if (f.step.startsWith('scroll-fraction') && f.geom.canvasH === prevCanvasH) {
         const anchor = f.panY + f.thumb.top;
-        if (prevAnchor >= 0 && anchor < prevAnchor - 0.01) {
+        if (prevAnchor >= 0 && coherent(f) && anchor < prevAnchor - 0.01) {
           push('INV-8', `frame ${f.i} (${f.step})`,
             `pan+thumb decreased (${anchor.toFixed(2)} < ${prevAnchor.toFixed(2)} after ${prevFrame})`);
         }
@@ -220,6 +241,7 @@ export function assertFrames(census: Census, frames: Frame[]): Violation[] {
   // ── INV-11 (extent truth at the ends): fraction 0 pins the thumb to the
   // track top; fraction 1 to the track bottom (= maxScroll, INV-1's sweep).
   for (const f of frames) {
+    if (!coherent(f)) continue;
     const range = f.geom.scrollHeight - f.geom.clientHeight;
     if (f.step === 'scroll-fraction f=0' || f.step === 'drag-thumb f=0') {
       if (f.thumb.top > 1.01) {
@@ -243,7 +265,7 @@ export function assertFrames(census: Census, frames: Frame[]): Violation[] {
   // lands inside the active piece's extent (± B′ piecewise-vs-linear
   // deviation, bounded by the MIN floor and gap shares).
   for (const f of frames) {
-    if (!f.activeBlock) continue;
+    if (!coherent(f) || !f.activeBlock) continue;
     const centerMap =
       (f.geom.canvasH * (f.scrollTop - f.geom.docTop0 + f.geom.clientHeight / 2)) /
       f.geom.docHeight;

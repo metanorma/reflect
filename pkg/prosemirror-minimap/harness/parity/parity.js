@@ -162,6 +162,46 @@ function createMockupAdapter(frameEl) {
         pointer(d.body, 'pointerup', x, moveY);
         break;
       }
+      case 'theme': {
+        for (let k = 0; k < 3; k++) {
+          if (d.documentElement.dataset.theme === step.to) break;
+          d.querySelector('#themeBtn').click();
+        }
+        break;
+      }
+      case 'search': {
+        frameEl.contentWindow.focus();
+        d.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'f', metaKey: true, ctrlKey: true, bubbles: true, cancelable: true,
+        }));
+        // In-page events are untrusted; open + fill the search bar directly
+        // through its own handlers' state (the ⌘F listener is on document,
+        // so the synthetic keydown above opens it; typing goes to its input).
+        const input = d.querySelector('input[placeholder="find in document…"]');
+        input.focus();
+        input.value = step.query;
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        break;
+      }
+      case 'search-clear': {
+        const input = d.querySelector('input[placeholder="find in document…"]');
+        if (input) {
+          input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        }
+        break;
+      }
+      case 'key': {
+        d.querySelector('#minimapWrap').focus();
+        d.querySelector('#minimapWrap').dispatchEvent(
+          new KeyboardEvent('keydown', { key: step.key, bubbles: true, cancelable: true }));
+        break;
+      }
+      case 'viewport': {
+        // Dev-page note: the page cannot resize its own viewport; the step
+        // is honored only in the Playwright suite.
+        console.warn('parity page: viewport step is suite-only; ignored here');
+        break;
+      }
       default:
         throw new Error(`unknown step type ${step.type}`);
     }
@@ -232,6 +272,11 @@ function stepEcho(step) {
     case 'dwell': return `dwell ms=${step.ms}`;
     case 'lane-toggle': return `lane-toggle lane=${step.lane}`;
     case 'drag-thumb': return `drag-thumb f=${step.f}`;
+    case 'theme': return `theme to=${step.to}`;
+    case 'search': return `search q="${step.query}"`;
+    case 'search-clear': return 'search-clear';
+    case 'key': return `key ${step.key}`;
+    case 'viewport': return `viewport ${step.width ?? ''}x${step.height ?? ''}`;
     default: return step.type;
   }
 }

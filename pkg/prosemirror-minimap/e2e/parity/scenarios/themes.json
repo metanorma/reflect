@@ -1,0 +1,20 @@
+{
+  "name": "themes",
+  "description": "Theme matrix (light → dark → contrast → light) through the real theme button, each followed by a forced rebuild (grip double-click) and scroll re-anchors. Dark is color-only; contrast is a GEOMETRY dimension (2px borders on clauses/reqs/admonitions change document heights). Frames captured between a theme switch and its rebuild are intentionally build-stale (the mock-up has no theme-rebuild path) — mapping asserts skip them via the docHeight coherence guard.",
+  "adapter": "mockup",
+  "steps": [
+    { "type": "reset" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "light-mid" },
+    { "type": "theme", "to": "dark", "label": "theme-dark" },
+    { "type": "zoom-reset", "label": "rebuild-dark" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "dark-mid" },
+    { "type": "theme", "to": "contrast", "label": "theme-contrast" },
+    { "type": "zoom-reset", "label": "rebuild-contrast" },
+    { "type": "scroll-fraction", "f": 0.6, "label": "contrast-mid" },
+    { "type": "scroll-fraction", "f": 0.1, "label": "contrast-top" },
+    { "type": "dwell", "ms": 500, "label": "dwell-contrast" },
+    { "type": "theme", "to": "light", "label": "theme-light" },
+    { "type": "zoom-reset", "label": "rebuild-light" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "light-mid-again" }
+  ]
+}

@@ -20,6 +20,7 @@ import path from 'node:path';
 import { test, expect } from '@playwright/test';
 import { MASTERS_DIR, RECORD, SCENARIOS_DIR } from './lib/env.js';
 import { canonical, canonicalFile, sha256 } from './lib/canonical.js';
+import { captureEnv, envMismatch } from './lib/canonicalEnv.js';
 import { diffMaster, loadRegister } from './lib/deviations.js';
 import { assertFrames } from './lib/invariantAsserts.js';
 import { mockupAdapter } from './lib/mockupAdapter.js';
@@ -54,15 +55,10 @@ test.describe('parity golden masters', () => {
       if (!census) throw new Error('scenario has no steps to census after');
 
       const master: MasterFile = {
-        format: 1,
+        format: 2,
         scenario: scenario.name,
         adapter: adapter.id,
-        env: {
-          viewport: [1600, 900],
-          reducedMotion: 'reduce',
-          note:
-            'seeded localStorage (mnmock-*: about-seen=1, measure=m, vis=annotated, theme=light, mmzoom=""), reduced-motion emulation, fixed viewport. No timestamps — byte-stable by construction.',
-        },
+        env: await captureEnv(page),
         census,
         frames,
       };
@@ -70,7 +66,7 @@ test.describe('parity golden masters', () => {
       // Standing invariant asserts — the oracle proves itself every run.
       const violations = assertFrames(census, frames);
       expect(
-        violations.map((v) => `[${v.inv}] ${v.where}: ${v.detail}`),
+        violations.map((x) => `[${x.inv}] ${x.where}: ${x.detail}`),
         `${violations.length} invariant violation(s) against the mockup oracle`,
       ).toEqual([]);
 
@@ -90,6 +86,21 @@ test.describe('parity golden masters', () => {
         );
       }
       const recorded = JSON.parse(fs.readFileSync(masterPath(scenario.name), 'utf8'));
+      if (recorded.format !== 2) {
+        throw new Error(
+          `master "${scenario.name}" has format ${recorded.format}; this suite writes/reads format 2 — re-record`,
+        );
+      }
+      // Canonical-environment gate: refuse to diff across environments so
+      // drift can never be absorbed as widened tolerances (README
+      // "Canonical environment"). Re-recording elsewhere is a gate call.
+      const liveEnv = await captureEnv(page);
+      const envDiffs = envMismatch(recorded.env, liveEnv);
+      expect(
+        envDiffs,
+        `environment differs from the canonical recording environment for "${scenario.name}" — ` +
+          're-record (PW_PARITY_RECORD=1) only at gate direction, never widen tolerances to pass',
+      ).toEqual([]);
       const register = loadRegister();
       const result = diffMaster(
         recorded,

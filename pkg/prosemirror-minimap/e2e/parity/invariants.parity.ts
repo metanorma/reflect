@@ -19,6 +19,155 @@ import type { Census, Frame, ScenarioStep } from './lib/types.js';
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
+const rafSettle = (page: import('@playwright/test').Page) =>
+  page.evaluate(
+    () =>
+      new Promise<void>((res) => {
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => requestAnimationFrame(() => res())),
+        );
+      }),
+  );
+
+test('INV-14/18: lane ticks mark the finest containing labelled element; a tick click reveals it and never travels', async ({ page }) => {
+  const adapter = mockupAdapter();
+  await adapter.load(page);
+  await adapter.applyStep(page, { type: 'reset' }, 0);
+  await adapter.applyStep(page, { type: 'scroll-fraction', f: 0.3 }, 1);
+
+  // Recompute the mock-up's OWN problem predicates (collectProblems,
+  // mockup:1682-1701) and the mmBlockFor ownership rule — nearest labelled
+  // ancestor-or-self = closest clause/SEM_SEL match, which IS the finest
+  // containing labelled element (mockup:1846-1857). Expected tick top =
+  // round(H × docY(owner)/total) — the owner's first piece m0 (B′, exact
+  // for every element start).
+  const res = await page.evaluate(() => {
+    const SEM = '.term, .req, figure.tbl-fig, figure.fig, .equation, .admonition, .dl-defs, .src-block, .raw-block';
+    const canvas = document.querySelector('#canvas');
+    const doc = document.querySelector('#doc');
+    const mm = document.querySelector('#mmCanvas');
+    const H = parseFloat(mm.style.height);
+    const total = doc.offsetHeight;
+    const docY = (el) => el.getBoundingClientRect().top - doc.getBoundingClientRect().top;
+    const ownerOf = (el) => el.closest('section.clause, ' + SEM);
+    const out = [];
+    const add = (el, cls) => {
+      const owner = ownerOf(el);
+      if (!owner) return;
+      const ro = owner.getBoundingClientRect();
+      out.push({
+        cls,
+        expectedTickTop: Math.round((H * docY(owner)) / total),
+        ownerDocTop: docY(owner),
+        ownerHeight: ro.height,
+      });
+    };
+    document.querySelectorAll('#doc .xref.broken').forEach((x) => add(x, 'E30'));
+    document.querySelectorAll('#doc .admonition').forEach((a) => {
+      const body = a.querySelector('.admo-body');
+      if (/\bshall\b/.test((body || a).textContent || '')) add(a, 'W07');
+    });
+    document.querySelectorAll('#doc .term').forEach((t) => {
+      if (!t.querySelector('.tsource')) add(t, 'W12');
+    });
+    // com lane: every margin note ticks its containing clause.
+    document.querySelectorAll('#doc .mn-note').forEach((n) => add(n, 'NOTE'));
+    const ticks = {};
+    for (const lane of Array.from(mm.querySelectorAll(':scope > .lane'))) {
+      const key = ({ 'diagnostics lane': 'diag', 'editor notes lane': 'com' })[lane.title];
+      if (!key) continue;
+      ticks[key] = Array.from(lane.querySelectorAll('.tick')).map((t) => {
+        const r = t.getBoundingClientRect();
+        return { top: parseFloat(t.style.top), x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      });
+    }
+    return {
+      problems: out,
+      diagTicks: ticks.diag ?? [],
+      comTicks: ticks.com ?? [],
+      clientH: canvas.clientHeight,
+      docTop0: doc.offsetTop,
+      total,
+      H,
+    };
+  });
+
+  expect(res.problems.filter((p) => ['E30', 'W07', 'W12'].includes(p.cls)).length, 'the three diagnostic classes fire').toBe(3);
+  expect(res.problems.filter((p) => p.cls === 'NOTE').length, 'margin notes present').toBeGreaterThan(0);
+
+  // INV-14: every diagnostic's tick sits at its computed owner's m0.
+  for (const p of res.problems.filter((x) => x.cls !== 'NOTE')) {
+    const hit = res.diagTicks.some((t) => Math.abs(t.top - p.expectedTickTop) <= 0.51);
+    expect(hit, `${p.cls}: diag tick at owner m0 ${p.expectedTickTop} (finest containing labelled element)`).toBe(true);
+  }
+  // …and the notes lane ticks hit their containing clauses the same way.
+  const comTops = new Set(res.comTicks.map((t) => t.top));
+  for (const p of res.problems.filter((x) => x.cls === 'NOTE')) {
+    expect(comTops.has(p.expectedTickTop), `NOTE: com tick at clause m0 ${p.expectedTickTop}`).toBe(true);
+  }
+
+  // INV-18: clicking a tick reveals its OWNER (scrollIntoView center with
+  // the documented alignment rules — center for short elements, edge for
+  // taller-than-viewport ones, ±60px band) and never travels: the landing
+  // matches an owner's reveal position, not anything derived from the
+  // click's own strip coordinates. Before each click, scroll the document
+  // so the tick's map position is inside the visible pane window (ticks
+  // live on the panned canvas — most are translated off-screen), then
+  // re-read the tick's CURRENT screen rect. Several owners can share a
+  // tick's m0 (a clause and its first child both start at the same map
+  // position) — the landing must match ONE of the owners anchored there.
+  const ownersByTickTop = new Map<number, typeof res.problems>();
+  for (const p of res.problems) {
+    const list = ownersByTickTop.get(p.expectedTickTop) ?? [];
+    list.push(p);
+    ownersByTickTop.set(p.expectedTickTop, list);
+  }
+  const diagTickCount = res.diagTicks.length;
+  for (let k = 0; k < diagTickCount; k++) {
+    const tickTop = res.diagTicks[k].top;
+    const owners = ownersByTickTop.get(tickTop);
+    if (!owners?.length) continue;
+    // Bring the tick into the visible pane AWAY FROM THE THUMB: the
+    // viewport overlay (#mmVpBox, z-index 5) spans the strip AND the lanes,
+    // so a tick under the current thumb is unclickable — the click starts a
+    // thumb drag instead (measured). Top-aligning the tick puts it at
+    // pane-y ≈ 0 while the thumb sits at frac×track further down.
+    const docY = (tickTop * res.total) / res.H;
+    await page.evaluate(
+      ({ y, docTop0 }) => {
+        const c = document.querySelector('#canvas');
+        c.scrollTop = Math.max(0, Math.round(y + docTop0));
+      },
+      { y: docY, docTop0: res.docTop0 },
+    );
+    await rafSettle(page);
+    const tick = await page.evaluate((idx) => {
+      const lane = document.querySelector('#mmCanvas .lane[title="diagnostics lane"]');
+      const t = lane.querySelectorAll('.tick')[idx];
+      const r = t.getBoundingClientRect();
+      return { top: parseFloat(t.style.top), x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }, k);
+    await page.mouse.click(tick.x, tick.y);
+    await page.waitForTimeout(150);
+    const scrollTop = await page.evaluate(() => document.querySelector('#canvas').scrollTop);
+    const cands = owners.flatMap((owner) => {
+      const top = owner.ownerDocTop + res.docTop0;
+      return [
+        top + owner.ownerHeight / 2 - res.clientH / 2,
+        top,
+        top + owner.ownerHeight - res.clientH,
+        // Chromium's center-alignment for elements taller than the
+        // scrollport anchors the START edge at the viewport center when
+        // that is the minimal scroll (measured on clause 9: landing =
+        // top − V/2 exactly).
+        top - res.clientH / 2,
+      ];
+    });
+    const best = Math.min(...cands.map((c) => Math.abs(scrollTop - c)));
+    expect(best, `tick@${tick.top} click reveals an owner anchored there (±60px band)`).toBeLessThanOrEqual(60);
+  }
+});
+
 test('INV-1: thumb drag ↔ scroll round-trip identity', async ({ page }) => {
   const adapter = mockupAdapter();
   await adapter.load(page);
@@ -202,4 +351,134 @@ test('INV-17: keyboard walks SHOWN labels from the active one, clamped', async (
   await pressAndCheck('ArrowUp', 2, false);
   await pressAndCheck('ArrowDown', 4, true);
   await pressAndCheck('ArrowUp', 3, true);
+});
+
+test('INV-12: viewport resize rebuilds are population-stable (guard band context)', async ({ page }) => {
+  const adapter = mockupAdapter();
+  await adapter.load(page);
+  await adapter.applyStep(page, { type: 'reset' }, 0);
+  await adapter.applyStep(page, { type: 'scroll-fraction', f: 0.4 }, 1);
+
+  const vp = page.viewportSize()!;
+  const census = await adapter.captureCensus(page);
+  const labelGeo = JSON.stringify(census.labels);
+
+  // Sentinel: a live reference to one label element. Rebuilds recreate
+  // every label node, so `document.contains(sentinel)` observes a rebuild
+  // without touching the mock-up's DOM.
+  await page.evaluate(() => {
+    (window as unknown as { __paritySentinel: Node }).__paritySentinel =
+      document.querySelector('#mmLabels .lbl');
+  });
+  const connected = () =>
+    page.evaluate(() =>
+      document.contains((window as unknown as { __paritySentinel?: Node }).__paritySentinel),
+    );
+
+  // A −1px viewport change is inside the ResizeObserver's >2px guard band,
+  // BUT the mock-up's window-resize listener rebuilds unconditionally
+  // (mockup:2403) — the guard's no-op branch only covers pane-internal
+  // ripples, which no user gesture produces alone. Observable contract:
+  // every viewport change rebuilds AND the rebuild is idempotent for the
+  // label population (same H, same document → identical geometry).
+  await adapter.applyStep(page, { type: 'viewport', height: vp.height - 1 }, 2);
+  expect(await connected(), 'viewport resize rebuilds (window listener shadows the guard band)').toBe(false);
+  let after = await adapter.captureCensus(page);
+  expect(JSON.stringify(after.labels), '−1px rebuild: label population identical').toBe(labelGeo);
+  expect(after.geom.canvasH, '−1px rebuild: canvas height identical').toBe(census.geom.canvasH);
+
+  await adapter.applyStep(page, { type: 'viewport', height: vp.height + 40 }, 3);
+  expect(await connected(), '+40px rebuilds again').toBe(false);
+  after = await adapter.captureCensus(page);
+  expect(JSON.stringify(after.labels), '+40px rebuild: label population identical').toBe(labelGeo);
+  expect(after.geom.paneH, '+40px rebuild: pane grew').toBeGreaterThan(census.geom.paneH);
+  expect(after.geom.canvasH, '+40px rebuild: canvas height unchanged at default zoom').toBe(census.geom.canvasH);
+
+  // Restore.
+  await adapter.applyStep(page, { type: 'viewport', height: vp.height }, 4);
+  after = await adapter.captureCensus(page);
+  expect(JSON.stringify(after.labels), 'restored: label population identical').toBe(labelGeo);
+});
+
+test('INV-20: strip travel clamps the pointer to the strip extent, then centers', async ({ page }) => {
+  const adapter = mockupAdapter();
+  await adapter.load(page);
+  await adapter.applyStep(page, { type: 'reset' }, 0);
+
+  const d = await page.evaluate(() => {
+    const strip = document.querySelector('#mmStrip');
+    const body = document.querySelector('#mmBody');
+    const r = strip.getBoundingClientRect();
+    const br = body.getBoundingClientRect();
+    const c = document.querySelector('#canvas');
+    const doc = document.querySelector('#doc');
+    const mm = document.querySelector('#mmCanvas');
+    return {
+      x: r.x + r.width / 2,
+      // The strip's layout box is the FULL canvas height (15k px), mostly
+      // translated outside the pane; the clickable surface is the visible
+      // window [r.y, r.y + paneH].
+      stripTop: r.y,
+      paneH: br.height,
+      H: parseFloat(mm.style.height),
+      total: doc.offsetHeight,
+      V: c.clientHeight,
+      docTop0: doc.offsetTop,
+      maxScroll: c.scrollHeight - c.clientHeight,
+    };
+  });
+
+  // mmTravelTo (mockup:2320-2324): y (relative to the translated strip
+  // rect) is clamped to [0, stripHeight], then scrollTop = mmMapToDoc(y) −
+  // V/2 + docTop0 — doc(y) = y × total/H. Click map positions inside the
+  // CURRENTLY VISIBLE pane window, BELOW the resting thumb: the viewport
+  // overlay (#mmVpBox, z-index 5) spans the strip AND lanes, so pointer
+  // positions under it start thumb drags, not strip travel (measured).
+  for (const mapY of [200, d.paneH / 2, d.paneH - 10]) {
+    const clampedY = Math.max(0, Math.min(d.paneH, mapY));
+    // Re-read the strip's CURRENT top every iteration: each click scrolls
+    // and re-pans the canvas, moving the strip under the pointer.
+    const stripTop = await page.evaluate(() =>
+      document.querySelector('#mmStrip').getBoundingClientRect().y,
+    );
+    await page.mouse.click(d.x, stripTop + clampedY);
+    await page.waitForTimeout(150);
+    const scrollTop = await page.evaluate(() => document.querySelector('#canvas').scrollTop);
+    const docY = (clampedY * d.total) / d.H;
+    const expected = Math.max(0, Math.min(d.maxScroll, docY - d.V / 2 + d.docTop0));
+    expect(
+      Math.abs(scrollTop - expected),
+      `strip click at mapY=${clampedY.toFixed(0)}: clamped travel then centered (±60px band)`,
+    ).toBeLessThanOrEqual(60);
+  }
+
+  // Drag: pointerdown at map 200 (below the thumb), move to the visible
+  // middle — continuous travel follows the pointer (setPointerCapture
+  // keeps moves on the strip for trusted input). Start from a clean
+  // zero-pan state so every coordinate is on-screen, and re-read the strip
+  // top between the down (which travels + re-pans) and the move (whose
+  // handler reads the rect live).
+  await page.evaluate(() => {
+    document.querySelector('#canvas').scrollTop = 0;
+  });
+  await page.waitForTimeout(150);
+  const dragStripTop = await page.evaluate(() =>
+    document.querySelector('#mmStrip').getBoundingClientRect().y,
+  );
+  await page.mouse.move(d.x, dragStripTop + 200);
+  await page.mouse.down();
+  await page.waitForTimeout(120);
+  const postDownTop = await page.evaluate(() =>
+    document.querySelector('#mmStrip').getBoundingClientRect().y,
+  );
+  await page.mouse.move(d.x, postDownTop + d.paneH / 2);
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const dragScroll = await page.evaluate(() => document.querySelector('#canvas').scrollTop);
+  const expectedDrag = Math.max(
+    0,
+    Math.min(d.maxScroll, (d.paneH / 2 * d.total) / d.H - d.V / 2 + d.docTop0),
+  );
+  expect(Math.abs(dragScroll - expectedDrag), 'strip drag travels continuously to the pointer (±60px band)')
+    .toBeLessThanOrEqual(60);
 });

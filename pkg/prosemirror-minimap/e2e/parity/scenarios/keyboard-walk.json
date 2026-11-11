@@ -1,0 +1,15 @@
+{
+  "name": "keyboard-walk",
+  "description": "Keyboard landmark walking on the minimap focus host (ArrowDown ×3 then ArrowUp ×2), captured per press — the fixture-replayable form of INV-17. The package-side semantics of arrow keys on the overlay are pending Q8 at the gate; this scenario pins the mock-up behavior now so the decision has a baseline to compare against.",
+  "adapter": "mockup",
+  "steps": [
+    { "type": "reset" },
+    { "type": "scroll-fraction", "f": 0.35, "label": "walk-start" },
+    { "type": "key", "key": "ArrowDown", "label": "walk-down-1" },
+    { "type": "key", "key": "ArrowDown", "label": "walk-down-2" },
+    { "type": "key", "key": "ArrowDown", "label": "walk-down-3" },
+    { "type": "key", "key": "ArrowUp", "label": "walk-up-1" },
+    { "type": "key", "key": "ArrowUp", "label": "walk-up-2" },
+    { "type": "dwell", "ms": 400, "label": "dwell-after-walk" }
+  ]
+}

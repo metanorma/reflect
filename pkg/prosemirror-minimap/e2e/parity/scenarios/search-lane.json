@@ -1,0 +1,14 @@
+{
+  "name": "search-lane",
+  "description": "Search-lane population through the real ⌘F code path: runSearch wraps hits, the search lane fills with ticks, and hit 1 is revealed; Escape clears marks and empties the lane. Frames between search and clear are build-stale (mark padding reflows the document; the minimap is not rebuilt) — covered by the docHeight coherence guard.",
+  "adapter": "mockup",
+  "steps": [
+    { "type": "reset" },
+    { "type": "scroll-fraction", "f": 0.3, "label": "pre-search" },
+    { "type": "search", "query": "telemetry", "label": "search-telemetry" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "mid-with-hits" },
+    { "type": "search-clear", "label": "search-clear" },
+    { "type": "scroll-fraction", "f": 0.5, "label": "mid-after-clear" },
+    { "type": "scroll-fraction", "f": 1.0, "label": "bottom-after-clear" }
+  ]
+}
