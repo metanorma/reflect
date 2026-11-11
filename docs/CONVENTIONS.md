@@ -62,7 +62,8 @@ Corollaries of colocation:
   repo-internal documentation; whether it ships in a tarball at all is the
   package's `files`-field decision.
 
-Current placements: corpus — `schema.spec.md`*, `MetanormaProseMirror.spec.md`,
+Current placements: corpus — `schema.spec.md`*, `FileFormat.spec.md`,
+`MetanormaProseMirror.spec.md`,
 `MetanormaToolbar.spec.md`, `EditorCommands.spec.md`,
 `ProseMirrorMinimap.spec.md`, the `AdvancedMetanormaToolbar/` suite;
 colocated — `pkg/relaton/README.spec.md`; in-package suite —
@@ -189,8 +190,8 @@ docs(commands): specify emptyTextblockBackspace
 docs(governance): add CONVENTIONS.md
 ```
 
-Areas: `schema`, `editor`, `toolbar`, `amt`, `relaton`, `commands`,
-`minimap`, `panel-layout`, `metanorma-model`, `governance`. These are
+Areas: `schema`, `format`, `editor`, `toolbar`, `relaton`, `commands`,
+`minimap`, `panel-layout`, `mn-model`, `governance`. These are
 advisory — reinforced by the PR template and human review, not
 automatically enforced. They make `git log --oneline -- docs/` readable as
 a changelog.

@@ -70,6 +70,39 @@ document model — 48 node types and 14 mark types.
 
 ---
 
+### [`FileFormat.spec.md`](./FileFormat.spec.md) — Document File Format
+
+Defines the on-disk `.mn.json` file, a JSON envelope with:
+
+- the two version axes `format.envelope` (file layout)
+  and `format.tree` (ProseMirror document tree),
+- a non-normative `meta` block, and
+- the schema's bare JSON tree as the `doc`
+  member ([`schema.spec.md`](./schema.spec.md) §12).
+
+Specifies legacy-file
+detection (unversioned bare trees stay loadable forever, re-enveloped on
+next save), the migration registry contract (pure sync tree rewrites; async
+adapter-injected envelope rewrites), strict failure semantics for future or
+malformed files, and the read/write obligations of every consumer — the
+editor GUI today; the Semantic-XML converter and validators next. Governs
+the `@metanorma/file-format` package (`pkg/file-format`).
+
+| § | Section |
+|---|---|
+| 1 | [Purpose and scope](./FileFormat.spec.md#1-purpose-and-scope) |
+| 2 | [Version axes](./FileFormat.spec.md#2-version-axes) |
+| 3 | [Envelope](./FileFormat.spec.md#3-envelope) |
+| 4 | [Legacy files](./FileFormat.spec.md#4-legacy-files) |
+| 5 | [Read obligations](./FileFormat.spec.md#5-read-obligations) |
+| 6 | [Write obligations](./FileFormat.spec.md#6-write-obligations) |
+| 7 | [Migration registry](./FileFormat.spec.md#7-migration-registry) |
+| 8 | [Failure semantics](./FileFormat.spec.md#8-failure-semantics) |
+| 9 | [Non-goals](./FileFormat.spec.md#9-non-goals) |
+| 10 | [Acceptance criteria](./FileFormat.spec.md#10-acceptance-criteria) |
+
+---
+
 ### [`MetanormaProseMirror.spec.md`](./MetanormaProseMirror.spec.md) — React Editor Component
 
 Defines the `MetanormaProseMirror` React component (`@metanorma/prosemirror-editor`)
