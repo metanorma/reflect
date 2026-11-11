@@ -4,7 +4,53 @@ The browser entry point for the Metanorma editor. Bundled by the repo-root
 [`build-gui.mjs`](../../build-gui.mjs) (esbuild + Yarn-PnP plugin) into
 `pkg/editor-gui/dist/`.
 
-## Build
+## Architecture overview
+
+## Panel definitions
+
+| Concern | File |
+|---|---|
+| Panel components + the registry (a module-level constant — identity-stable, so panels never remount on App re-renders) | [`panels.tsx`](./panels.tsx) |
+| Default layout: panels record, main-grid leaf, floating windows; `FLOAT_PANELS` geometry/title seeds shared with the reopen path | [`presetLayout.ts`](./presetLayout.ts) |
+| Editor-gui-local context crossing the panel boundary (`DocEpochContext` — re-keys the minimap on doc load) | [`panelContexts.ts`](./panelContexts.ts) |
+| Panels control (reopen closed floats at preset geometry via `api.addPanel({…, floating}))` | [`ChromeBar.tsx`](./ChromeBar.tsx) |
+| Storage key + envelope format | [`panelPersistence.ts`](./panelPersistence.ts) |
+
+Registry key = panel id = dockview `contentComponent` name (single-entry
+form; see `@metanorma/panel-layout` api.spec.md §2.5 for the full
+registry contract, title precedence, and floors).
+
+### Defining a panel
+
+1. **Component** in `panels.tsx`: `FC<IDockviewPanelProps>` (type
+   re-exported from `@metanorma/panel-layout`). The root element fills
+   the fixed-height box the library hosts it in; use a plain global
+   class (like `.mn-doc-panel`) — prod builds hash-rename CSS-module
+   classes, so CSS interop and e2e selectors key on globals only. Editor
+   context (`useEditorEffect`) and `DocEpochContext` are reachable from
+   inside panels.
+2. **Registry entry** in the same file. The key doubles as the panel id;
+   add `floatable: false` only if the panel must never enter a float.
+3. **Preset slot** in `presetLayout.ts`: add to the `panels` record, then
+   either a main-grid leaf (repeat `hideHeader`/`locked` there for a
+   non-closable full-bleed surface) or a `floatingGroups` window (nested
+   `VERTICAL` grid; leaf size = tabset height = window height −
+   `CONSTANTS.undockChrome`).
+4. **Reopenable after close?** Add a `FLOAT_PANELS` seed and extend the
+   id union + button list in `ChromeBar.tsx`.
+5. **Rules of thumb**: never put live state in dockview `params` (they
+   serialize into the layout envelope — use context); keep the registry
+   module-level; a stored envelope from before your panel existed won't
+   show it (stored layout wins), so ship the reopen path or accept the
+   key-bump reset.
+6. **Tests**: subject-level assertions go in `layout.spec.ts`/
+   `chrome.spec.ts` patterns (`openEditor`, floats in place); specs that
+   click document content use `openParkedEditor` (see
+   [`e2e/helpers.ts`](./e2e/helpers.ts)).
+
+## Development
+
+### Build
 
 ```
 yarn build-gui          # → pkg/editor-gui/dist/{index.html, bootstrap.js, bootstrap.css}
@@ -19,7 +65,7 @@ server lives at [`e2e/serve.mjs`](./e2e/serve.mjs):
 node pkg/editor-gui/e2e/serve.mjs     # → http://localhost:3333
 ```
 
-## End-to-end tests (Playwright)
+### End-to-end tests (Playwright)
 
 The `e2e/` directory holds a Playwright suite with sixteen spec files:
 
@@ -49,7 +95,7 @@ layout surface (`layout`, `minimap`, `chrome`'s Panels test) use
 window at the right edge — the preset parks both floats over the
 document's opening content, where left-edge caret clicks land.
 
-### Running the suite
+#### Running the suite
 
 ```
 yarn workspace editor-gui e2e          # headless run
@@ -61,7 +107,7 @@ Playwright's `webServer` builds the GUI (`yarn build-gui`) and starts
 end. To reuse a running server during iteration, set `reuseExistingServer`
 (which is the default outside CI).
 
-### Prerequisites — ordinary machine
+#### Prerequisites — ordinary machine
 
 1. **Node 20+** and **Yarn 4** (`corepack enable`).
 2. **`yarn install`** at the repo root (sets up PnP).
@@ -77,7 +123,7 @@ end. To reuse a running server during iteration, set `reuseExistingServer`
    `install-deps` is a no-op — the libraries ship with the OS; it only runs
    `apt-get` on Linux.
 
-### Prerequisites — Linux container (e.g. an arm64 container)
+#### Prerequisites — Linux container (e.g. an arm64 container)
 
 The same `e2e:install` script works inside a container, provided the container
 runs as **root** (for `apt-get`) and has **outbound network** (to reach the
@@ -118,7 +164,7 @@ Playwright CDN). Notes for this kind of environment:
   dependencies` — this is a warning, not an error, and does not affect
   functionality.
 
-### The `?e2e=1` test hook
+#### The `?e2e=1` test hook
 
 When the page is loaded with `?e2e=1` in the query string, `App.tsx` exposes a
 read-only `window.__mnGetDoc()` function that returns the current ProseMirror
@@ -126,7 +172,7 @@ document as JSON. Specs use this to assert structural state (node types,
 attributes, marks) without scraping the DOM. Without the flag, the hook is
 absent — it has no effect in normal use.
 
-### Current status
+#### Current status
 
 No known failing tests at this writing (chromium project, full suite,
 98 tests green). Two bugs this section previously recorded no longer
