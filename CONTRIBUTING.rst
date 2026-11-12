@@ -223,11 +223,7 @@ More specifically, check the following before submitting:
   type-checks and emits for one workspace;
   ``yarn workspaces foreach -A run compile`` compiles all of them.
 
-- Unit tests: ``yarn test`` runs every suite in one command.
-  Five packages have unit tests today (``editor-commands``,
-  ``panel-layout``, ``prosemirror-minimap``, ``relaton``,
-  ``prosemirror-schema``); the rest have none, so a green
-  ``yarn test`` means those five suites passed.
+- Unit tests: ``yarn test`` runs every workspace's ``test`` script.
 
 - When unit-testing library-mediated serialization (``toJSON``, DOM
   serializers), assert against observed behavior: prefer key-order-
