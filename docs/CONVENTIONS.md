@@ -53,7 +53,7 @@ Corollaries of colocation:
 
 - A colocated spec is **self-contained**: it does not enumerate its consumers
   or other packages' integration details. Consumer and integration facts live
-  in the repository documentation index (`docs/README.md`).
+  in spec/doc index (`docs/README.md`).
 - Links **into** a colocated spec are ordinary relative markdown links (the
   tooling validates them across both locations). Links **out of** a colocated
   spec resolve within the repository but not inside a published tarball — keep
