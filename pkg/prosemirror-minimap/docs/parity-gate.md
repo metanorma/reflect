@@ -47,7 +47,7 @@ Companion artifacts:
 decision line of the form:
 
 ```text
-pending → decided(<option id or amendment>, <date>, <by>)
+pending → decided(<option id or amendment>)
 ```
 
 The gate marks each item in two places: the item's own decision line, and the
@@ -169,8 +169,8 @@ Counts: **33 items** — 20 from parity.md Part C + the D-register (15 Q + 12 D,
 with six items carrying both a Q and a D), 3 audit items (a)–(c), 5 residue
 items (audit (d), split per residue so each is independently decidable), 3
 items added from the committed artifacts or this audit (G-29, G-30, G-31),
-and 2 added by the 2026-10-04 amendment pass (G-32 oracle hardening, G-33
-assembled theme surface).
+and 2 from gate review (G-32 oracle hardening, G-33 assembled theme
+surface).
 
 **D-register (reconstructed from parity.md row citations; the preamble
 records the D-inputs as unratified, and no ratification record exists).**
@@ -217,46 +217,37 @@ document the first elements are clauses (`cl-fore`, `cl-intro` in
 `fixtures/substitution.json`'s anchorMap), so a document preface is not
 exercised by the oracle — the rule must still be stated for other documents.
 
-**Amendment background (2026-10-04).** The original Option A ("a row belongs
-to the nearest preceding parent-anchored landmark's group") and parity.md
-Q1's leaning ("the rows between it and the next landmark") both encode a
-document-order ownership rule, and the §3 D-register reconstruction omits the
-subtree-extent clause D1 carried as briefed — the defect propagated from the
-leaning into this option. The rule mis-owns the mockup's parent-owned
-trailing prose (mockup:1932–1934: content past a clause's last child is
-pushed onto the parent's element), and the census pins the discriminating
-rows: `default-sweep` census tops **4935, 4936, 4937, 5065, 5066, 5326,
-5450, 5451, 5452, 5454** are parent-owned trailing pieces, each titled by
-its parent clause (top 5326 "8.1.2 Datagram mode · depth 3" sits immediately
-after its child "8.1.2.1 Checksums" content; the 5450–5454 run is the
-grandparent-trailing cascade at the end of the deep 8.x branch). A
-nearest-preceding rule assigns every one of these to the deep child's
-group; a "closes at the next landmark of level ≤ the open level" rule still
-mis-owns the trailing-after-last-child rows (5326, 5450–5454), because no
-later landmark arrives to pop the stack — only subtree extent (pop on
-walk-exit of the anchor container) reproduces the census titles' ownership.
-parity.md and its Q1 leaning remain frozen as Phase-1 records; this
-restatement is authoritative for the gate. parity.md's riskiest-ports list
-already pins the corresponding unit test (trailing-prose piece assignment).
+**Ownership discriminator (census-pinned).** Content past a clause's last
+child is the parent's own segment (mockup:1932–1934), and the census pins
+ten parent-owned trailing pieces: `default-sweep` tops **4935, 4936, 4937,
+5065, 5066, 5326, 5450, 5451, 5452, 5454**, each titled by its parent
+clause (top 5326 "8.1.2 Datagram mode · depth 3" sits immediately after its
+child "8.1.2.1 Checksums" content; the 5450–5454 run is the
+grandparent-trailing cascade at the end of the deep 8.x branch). Any
+document-order ownership rule mis-owns these rows: nearest-preceding
+assigns them to the deep child's group, and "close at the next landmark of
+level ≤ the open level" still mis-owns the trailing-after-last-child rows
+(5326, 5450–5454), because no later landmark arrives to close the group.
+Only subtree extent — pop on walk-exit of the anchor container —
+reproduces the census titles' ownership. parity.md's riskiest-ports list
+pins the corresponding unit test (trailing-prose piece assignment).
 
 **Options.**
 
-- **A — Ratify D1 with the ownership rule made explicit, in its
-  subtree-extent form** *(restated by the 2026-10-04 amendment — the
-  original text of this option encoded a document-order rule; see the
-  amendment paragraph in Background)*. A landmark opens a group anchored at
-  a subtree: at the landmark row itself for self-anchored landmarks
-  (singleton group), at the parent container for parent-anchored
+- **A — Ratify D1: subtree-extent group ownership.** A landmark opens a
+  group anchored at a subtree: at the landmark row itself for self-anchored
+  landmarks (singleton group), at the parent container for parent-anchored
   (title-like) landmarks. A row belongs to the innermost open anchored
   group **whose anchor subtree contains it in the pre-order walk**; a group
   closes when the walk exits its anchor container. Rows before the first
   landmark join the implicit root group — not the first landmark's group
   (the oracle does not exercise this on current documents; `cl-fore` is
   the first landmark). Binds: A.3/A.5 rows above unchanged; INV-5's
-  port-side group-containment test, extended with the trailing-prose
-  discriminator below; INV-14's `rowAtPos` innermost semantics; Phase-4
+  port-side group-containment test, extended with the census-pinned
+  trailing-prose discriminator; INV-14's `rowAtPos` innermost semantics;
+  parity.md's pinned unit test (trailing-prose piece assignment); Phase-4
   scope = group model in `blockModel.ts` (no new seam). Cost: rule text
-  only — the mechanism is D1 as briefed.
+  only — the mechanism is D1's.
 - **B — Amend: body rows stay groupless; the active layer highlights the
   innermost *landmark-anchored* row only.** Binds: same rows; INV-5 port-side
   loses the co-piece observable for body rows (mockup shows co-pieces for
@@ -267,14 +258,14 @@ already pins the corresponding unit test (trailing-prose piece assignment).
   in the engine's document-model architecture (spec §1.3, §4; VAC-7); listed
   for completeness.
 
-**Recommendation: A, as restated.** It is the only option that preserves
+**Recommendation: A.** It is the only option that preserves
 INV-5's piece-derived highlight semantics (parity.md B.1) and INV-14's
 finest-element placement without DOM measurement — for the pinned
 trailing-piece rows as much as for mid-subtree rows. Evidence:
 mockup:1846–1857 (ancestor walk), mockup:2005–2014 (`byEl`), mockup:1932–1934
 (trailing-prose ownership), the census rows cited above.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -312,7 +303,7 @@ the consumer gets mockup-exact 10/5 + order; unbounded count keeps the engine
 schema-agnostic. Q2's "blocker" status resolves to A + G-05 for the
 partition.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -351,7 +342,7 @@ gaps, keeps the DEV deltas exactly countable (43 = substitution
 `expectMissing` classes), and INV-9's measured drop rates (5.8/19/33%)
 transfer only under a mockup-comparable population.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -386,7 +377,7 @@ the mockup's legend geometry dependency is void in the port (A.1 footer row:
 "N-A … legend owns no geometry"), and A keeps Phase-4 consumer-side. Revisit
 hooks only if a second consumer needs the same legend.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -431,7 +422,7 @@ B remains a legal amendment if the gate prefers the a11y-friendlier
 always-clickable lanes — it must then be recorded as an intentional
 divergence with its parity.md row updated at Phase 4.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -462,7 +453,7 @@ demo-grade, not flavor-correct (parity.md Part C audit).
 owns class and text surface); the mockup's own numbering is admittedly
 demo-grade, so porting it buys no correctness.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -497,7 +488,7 @@ largest visual divergence between baseline and engine today".
 **Recommendation: A.** The knob is small, removes the largest divergence at
 its root, and leaves the engine default untouched for non-parity consumers.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -536,7 +527,7 @@ compression documented in coverage INV-16 (band 12%).
 INV-16's port form) at the cost of one theme field; B is the
 tolerance-as-rot pattern G-23 forbids.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -565,7 +556,7 @@ docHeight 131130 ≈ 0.12 exactly (masters `geom`).
 **Recommendation: A.** Both values are existing options; the numeric
 coincidence makes the mockup masters directly reusable.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -595,7 +586,7 @@ all three to `revealRow` precise-center; the flash is consumer chrome.
 **Recommendation: A**, and record in coverage.json at Phase 4 that
 INV-20's `pendingGate: D6` marker resolves to this decision.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -635,7 +626,7 @@ every zoom step.
 without a controller seam its port-side verification is impossible, and the
 mockup's zoom UX is a headline feature of the baseline.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -664,7 +655,7 @@ built-in layer highlighting the innermost open group at the viewport center
 
 **Recommendation: A.**
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -697,7 +688,7 @@ producer-side).
 **Recommendation: A.** The register absorbs the bounded difference (≤0.2)
 and the engine keeps its O(spans) layer discipline.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -730,7 +721,7 @@ and no stub decision (Q13). The `search-lane` master drives the real ⌘F path
 
 **Recommendation: A.**
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -766,7 +757,7 @@ walk as replayable frames (movement verified: 45657 → 60779 → …).
 **Recommendation: A.** Role-faithful (the leaning's rationale), and the
 master retains its mockup-side value either way.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -790,7 +781,7 @@ spec §10.2); the seam exists, the paint does not.
 **Recommendation: A**, scheduled late in Phase 4 (cosmetic, no oracle
 coverage either way).
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -822,7 +813,7 @@ geometry-invariance evidence).
 
 **Recommendation: A.**
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -848,7 +839,7 @@ until stride sampling re-converges.
 
 **Recommendation: A.**
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -880,7 +871,7 @@ reversibility alone.
 the fixture regeneration cost is real but avoidable, and the schema decision
 (when raw HTML passthrough lands) will want its own pass.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -904,13 +895,13 @@ Q15 records the one-line edit as outside Phase-1 scope.
 
 **Recommendation: A.**
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
 ### G-21 — Baseline custody and provenance
 
-Sources: audit (a), re-stated per §2 findings 1 and 6. Affects the served
+Sources: audit (a); §2 findings 1, 6. Affects the served
 baseline route (`pkg/prosemirror-minimap/harness/serve.mjs` pins
 `/mockups/metanorma-editor-mockup.html` to the docs/ copy); parity.md
 baseline paragraph; §7 below.
@@ -942,17 +933,17 @@ noticed.
   baseline paragraph, serve.mjs, README, and the fixture generator for zero
   governance gain.
 
-**Recommendation: A.** The brief's premise (two copies, unproven identity)
-does not hold; the actionable work is the checksum pin, which makes the
-single-copy custody tamper-evident.
+**Recommendation: A.** Single-copy custody is the committed reality (§2
+finding 1); the actionable work is the checksum pin, which makes it
+tamper-evident.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
 ### G-22 — Port-side coverage for the deferred-unit invariants
 
-Sources: audit (b), corrected per §2 finding 3. Affects INV-12, INV-14,
+Sources: audit (b); §2 finding 3. Affects INV-12, INV-14,
 INV-18, INV-20 (`coverage.json` `portVerification: "deferred-unit"`);
 `coverage.md` regenerations; the dev parity page (`harness/parity/`);
 scenario vocabulary (`viewport` step exists and is suite-only today).
@@ -995,7 +986,7 @@ users put their fingers (lane clicks, strip travel) at dev-page cost, keeps
 the masters byte-stable, and leaves the two genuinely unit-shaped properties
 where coverage.json already records them.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -1051,7 +1042,7 @@ principle, each Phase-4 tolerance reads as rot.
 **Recommendation: A.** The bands above are all measured or invariant-derived,
 none is a fudge factor, and the naming rule makes the register self-auditing.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -1079,7 +1070,7 @@ bias itself.
 
 **Recommendation: A** (B optional as documentation-only curiosity).
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -1102,7 +1093,7 @@ ordering.
 
 **Recommendation: A.**
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -1127,7 +1118,7 @@ ownership (exact). Port-side, the fixture bridge's anchors
 
 **Recommendation: A.**
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -1155,7 +1146,7 @@ Style, Times New Roman, Menlo, Segoe UI).
 **Recommendation: A.** The font fingerprint is the load-bearing part
 (layout, therefore every px); pin the image, not the hope.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -1178,14 +1169,14 @@ outcome. Measured: the recorded zoom steps hit their targets exactly
 
 **Recommendation: A.**
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
 ### G-29 — Fixture-bridge comparison mode for the golden-master invariants
 
 Sources: README open item 1 ("the single highest-value decision before Phase
-4 starts"; absent from the gate brief — added by this audit, §2 finding 7).
+4 starts"); §2 finding 7.
 Affects INV-2, INV-9, INV-13, INV-17 (`portVerification:
 "golden-master"`); `fixtures/substitution.json`; the differ's structural
 actions; §6 prefill.
@@ -1222,7 +1213,7 @@ mid-Phase-4 would invalidate recorded masters — hence now.
 (a) is executable without new design; INV-17 is the one invariant whose port
 behavior the gate is sending to the consumer anyway.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
@@ -1257,13 +1248,13 @@ suite-only `viewport` step; plus the `reducedMotion` workaround.
 and documented in place; the wear-master fallback is the only choice with a
 real alternative and the clock-based master has proven tick-exact (INV-22).
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
 ### G-31 — Pinned jump frames in the default-sweep master
 
-Sources: this audit (§2 finding 8; absent from the gate brief). Affects
+Sources: this audit (§2 finding 8). Affects
 `masters/default-sweep.json` frames 12–17; INV-4/9 standing asserts on those
 frames; the DEV prefill (§6); G-23/G-24 landing bands.
 
@@ -1302,13 +1293,13 @@ look like captures of a no-op are exactly the kind of thing the gate should
 spend one Phase-4 slice on, and the re-record is cheap and gated. This
 dossier records the finding; the mechanism is unconfirmed and stated as such.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
 ### G-32 — Oracle hardening: master-sanity asserts and determinism manifest
 
-Sources: gate-review finding 2 (2026-10-04 amendment); G-31's lesson. Affects
+Sources: gate-review finding 2; G-31's lesson. Affects
 `e2e/parity/` suite (`masters.parity.ts`, scenario JSON vocabulary), a new
 manifest artifact; G-31's re-record; every future recording.
 
@@ -1343,13 +1334,13 @@ the manifest proves replay stability, the sanity asserts prove the
 recording is evidence. (A twice-run `parity:verify` was considered and
 rejected: it doubles CI cost for what the manifest asserts on every run.)
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
 ### G-33 — Assembled theme surface (consistency across G-02/G-07/G-08/G-09)
 
-Sources: gate-review finding 3 (2026-10-04 amendment); consolidates G-02
+Sources: gate-review finding 3; consolidates G-02
 (lane geometry), G-07 (width regime + two-tone), G-08 (`rowHeight`/thumb
 floor), G-09 (`indentUnit`). Affects spec §5.4 (the `MinimapTheme` type),
 renderer tier-2/3 paint branches; no master changes.
@@ -1387,19 +1378,19 @@ a parity one. **Ordering: decide G-33 with or before G-07** — if G-33
 selects A, G-07's Option A stands with its knob subsumed; if B, G-07
 Option A stands as written and the gap rule's home must be named there.
 
-**Decision (fill):** `pending → decided(____, ____, ____)`
+**Decision (fill):** `pending → decided(____)`
 
 ---
 
 ## 5. Decision index
 
-One row per item; mark Status `pending → decided(<choice>, <date>, <by>)`.
+One row per item; mark Status `pending → decided(<choice>)`.
 Unmarked at gate close = undecided; the dependents named in the item do not
 start in Phase 4.
 
 | G-id | Title | Sources | Recommendation | Status |
 |---|---|---|---|---|
-| G-01 | Group-identity derivation | Q1, D1 | Ratify D1, subtree-extent rule (A, restated 2026-10-04) | pending |
+| G-01 | Group-identity derivation | Q1, D1 | Ratify D1, subtree-extent rule (A) | pending |
 | G-02 | Lane geometry knobs | Q2, D5 | Theme knob `lanes:{width,gap}` 10/5, order fixed, no cap (A) | pending |
 | G-03 | Landmark scope for v1 | Q3, D10, D11 | Ratify D10+D11; set = clauses+floats+notes+src (A) | pending |
 | G-04 | Chrome seam | Q4 | All chrome consumer-side; no package hooks (A) | pending |
@@ -1430,8 +1421,8 @@ start in Phase 4.
 | G-29 | Fixture-bridge mode | README#1 | Mode (a) for INV-2/9/13; (b) for INV-17 (A) | pending |
 | G-30 | Tooling choices ratification | README list, README#4 | Ratify set, exceptions markable (A) | pending |
 | G-31 | Pinned jump frames | this audit | Diagnose + re-record default-sweep first (A) | pending |
-| G-32 | Oracle hardening | gate review 2026-10-04 | Sanity asserts + sha256 manifest (A) | pending |
-| G-33 | Assembled theme surface | gate review 2026-10-04 | Composite `paint` assembly (A); decide with/before G-07 | pending |
+| G-32 | Oracle hardening | gate review | Sanity asserts + sha256 manifest (A) | pending |
+| G-33 | Assembled theme surface | gate review | Composite `paint` assembly (A); decide with/before G-07 | pending |
 
 **Items without a recommendation:** none — every item above carries one. Three
 recommendations carry named contingencies: G-31's mechanism is unconfirmed
@@ -1596,8 +1587,7 @@ default-sweep jump frames 12–17 pinned at 130379 (G-31); INV-9 drop rates
   drift in any dependency is detectable.
 
 **Dependency hashes** (sha256, as of this amendment; legitimately changed
-dependencies — e.g. G-31's re-record — are re-stamped by a dated amendment
-entry, never silently):
+dependencies — e.g. G-31's re-record — are re-stamped):
 
 | Artifact | sha256 |
 |---|---|
@@ -1621,18 +1611,4 @@ record. Post-close changes are made only as dated entries appended to the
 amendment log below — never as silent edits. The Phase-1/Phase-2 artifacts
 (`parity.md`, masters, coverage, the oracle suite) are frozen likewise:
 corrections to their content are recorded **here**, not edited there — the
-G-01 restatement in §4 is the precedent.
-
-**Amendment log.**
-
-- **2026-10-04 — amendment pass** (orchestrator-directed review of the
-  dossier): G-01 Option A restated to D1's subtree-extent rule, with the
-  propagation trail (original option text and parity.md Q1's leaning both
-  encoded document-order ownership) and the census discriminator (10 pinned
-  parent-owned trailing-piece rows: tops 4935, 4936, 4937, 5065, 5066,
-  5326, 5450, 5451, 5452, 5454); G-32 (oracle hardening: record-time
-  master-sanity asserts + committed sha256 manifest) and G-33 (assembled
-  theme surface across G-02/G-07/G-08/G-09, with the composite-vs-separable
-  assemblies and the G-07 ordering constraint) added; §3 counts and the §5
-  index updated (31 → 33 items); this §8 added. Decision inputs, masters,
-  and the §6 prefill are untouched.
+2026-10-04 G-01 restatement is the precedent.
