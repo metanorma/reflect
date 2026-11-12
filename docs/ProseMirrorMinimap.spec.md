@@ -1441,7 +1441,7 @@ or schema refactors — the failure mode that motivated the suite).
 | Piece | Path | Notes |
 |---|---|---|
 | Harness page | `harness/page.tsx` | Mount API below; `harness/schema.ts` declares the synthetic schema (doc / paragraph / heading / quote / code_block) browser-side, cross-referenced with `test.mjs` §15.1.1's fixtures. |
-| Build/serve | `build-minimap-demo.mjs` (repo root), `harness/serve.mjs` | Same PnP-resolver bundling as the consumer GUI build; serves `harness/dist/` on :3334. |
+| Build/serve | `build-minimap-demo.mjs` (repo root), `harness/serve.mjs` | Bundled by esbuild with native Yarn-PnP resolution; serves `harness/dist/` on :3334. |
 | Suite | `e2e/minimap.spec.ts` + `e2e/harness.spec.ts` | `e2e/fixtures.ts` holds the mount plumbing and the shared canvas-ink/geometry probes (`paintedRows`, `inkBands`, `scrollGeom`, `thumbGeom`). |
 
 **Mount API** (page-global, plain JS objects — everything a test passes
