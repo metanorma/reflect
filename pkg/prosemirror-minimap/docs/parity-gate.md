@@ -59,8 +59,9 @@ a dependency (each item lists its dependents), and no undecided item may be
 treated as tacit ratification of its recommendation. Re-recording any master,
 changing oracle bands, or writing to `deviations.json` are gate actions under
 this process; Phase 4 executes them only as directed here. Amendments to
-this dossier itself — before or after gate close — are recorded only in the
-[§8 amendment log](#8-document-lifecycle-and-amendment-log-2026-10-04).
+this dossier itself follow the [§8 freeze rule](#8-document-lifecycle-and-freeze-rule):
+before gate close it is a draft narrated by git history; after, content
+changes are orchestrator-gated, self-declaring amendments only.
 
 ## 1. Artifact inventory
 
@@ -1570,7 +1571,7 @@ default-sweep jump frames 12–17 pinned at 130379 (G-31); INV-9 drop rates
 5.8/19/33% (parity.md); fixture/mock-up element counts in
 `fixtures/substitution.json` (`counts`).
 
-## 8. Document lifecycle and amendment log (2026-10-04)
+## 8. Document lifecycle and freeze rule
 
 **Number taxonomy.** Numbers in this dossier follow four rules:
 
@@ -1586,8 +1587,9 @@ default-sweep jump frames 12–17 pinned at 130379 (G-31); INV-9 drop rates
 - **Hash-pin** the artifacts this dossier depends on (below), so silent
   drift in any dependency is detectable.
 
-**Dependency hashes** (sha256, as of this amendment; legitimately changed
-dependencies — e.g. G-31's re-record — are re-stamped):
+**Dependency hashes** (sha256, as of this writing; legitimately changed
+dependencies — e.g. G-31's re-record — are re-stamped in the same commit as
+the change they track, per the freeze rule below):
 
 | Artifact | sha256 |
 |---|---|
@@ -1606,9 +1608,15 @@ dependencies — e.g. G-31's re-record — are re-stamped):
 
 (The baseline mock-up's hash is already pinned in §7.)
 
-**Freeze rule.** At gate close this dossier becomes an immutable decision
-record. Post-close changes are made only as dated entries appended to the
-amendment log below — never as silent edits. The Phase-1/Phase-2 artifacts
-(`parity.md`, masters, coverage, the oracle suite) are frozen likewise:
-corrections to their content are recorded **here**, not edited there — the
-2026-10-04 G-01 restatement is the precedent.
+**Freeze rule.** Gate close is marked by the `parity-gate-close` git tag;
+that tag is the reference point for every freeze check. Before the tag
+exists, this dossier is a draft: git history narrates its edits, and no
+in-document change record is kept. After the tag exists, content changes
+happen only as orchestrator-gated amendments — each self-declaring at its
+edit site with a dated parenthetical, never as silent edits — and
+dependency-hash re-stamps ride the same commit as the dependency change
+they track (a re-stamp without its diff, or a diff without its re-stamp,
+is the drift signal). The Phase-1/Phase-2 artifacts (`parity.md`, masters,
+coverage, the oracle suite) are frozen likewise: corrections to their
+content are carried in this dossier, not edited into them — the G-01
+subtree-extent restatement of parity.md's Q1 leaning is the precedent.
