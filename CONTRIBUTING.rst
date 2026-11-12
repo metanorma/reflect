@@ -240,7 +240,9 @@ More specifically, check the following before submitting:
   its own target via Playwright's ``webServer`` and serves it; the only
   prerequisite is the one-time browser install,
   ``yarn workspace <pkg> e2e:install`` (for panel-layout,
-  ``parity:install``).
+  ``parity:install``). editor-gui's default ``e2e`` runs the chromium
+  project only; ``e2e:all`` adds the firefox project for cross-browser
+  support (prerequisite ``e2e:install-all``).
 
 - DOM-rendering plugins (widgets, node views, decorations): wire the
   plugin into the GUI app and extend

@@ -4,10 +4,13 @@
   "packageManager": "yarn@4.17.0",
   "scripts": {
     "compile": "tsc --outdir compiled",
-    "e2e": "playwright test --config=e2e/playwright.config.ts",
-    "e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
+    "e2e": "playwright test --config=e2e/playwright.config.ts --project=chromium",
+    "e2e:all": "playwright test --config=e2e/playwright.config.ts",
+    "e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui --project=chromium",
     "e2e:install": "playwright install chromium",
-    "e2e:install-deps": "playwright install-deps chromium"
+    "e2e:install:firefox": "playwright install firefox",
+    "e2e:install-all": "playwright install chromium firefox",
+    "e2e:install-deps": "playwright install-deps chromium firefox"
   },
   "dependencies": {
     "@metanorma/editor-commands": "workspace:^",

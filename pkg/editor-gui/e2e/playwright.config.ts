@@ -39,10 +39,14 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    // Firefox is the second engine for cross-browser regressions. Skippable
-    // in environments without the browser installed (`playwright install
-    // firefox`); the placeholder-click suite relies on it (a Firefox-only
-    // native-caret gap motivated the placeholderClickPlugin).
+    // Firefox is the second engine for cross-browser regressions. The default
+    // scripts (`e2e`, `e2e:ui`) run the chromium project only; the firefox
+    // project is run deliberately via `e2e:all`, after `e2e:install-all`
+    // (Playwright fails on a missing browser binary — it does not skip). A
+    // second engine roughly doubles suite runtime, which is why it is opt-in
+    // rather than part of the default run; support itself is not partial.
+    // The placeholder-click suite relies on it (a Firefox-only native-caret
+    // gap motivated the placeholderClickPlugin).
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },

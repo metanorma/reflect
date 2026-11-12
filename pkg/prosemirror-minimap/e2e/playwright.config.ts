@@ -11,7 +11,7 @@
  * analysis (canvas ink extents, band heights) and drag-geometry checks —
  * per-engine non-portable. Cross-engine coverage of the minimap's
  * interaction surface stays in the consumer suite (pkg/editor-gui), which
- * runs chromium + firefox and retains a minimap smoke test.
+ * runs chromium + firefox (`e2e:all`) and retains a minimap smoke test.
  */
 import { defineConfig, devices } from '@playwright/test';
 import path from 'node:path';

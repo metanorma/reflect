@@ -40,4 +40,15 @@ test.describe('smoke', () => {
     await expect(appRoot).toHaveCount(0);
     await expect(page.locator('.appwrapper .ProseMirror')).toHaveCount(1);
   });
+
+  test('e2e hooks are absent without ?e2e=1', async ({ page }) => {
+    await page.goto('/');
+    await editor(page).waitFor({ state: 'visible' });
+    // Normal pages carry no test hooks (App.tsx gates both on ?e2e=1).
+    const kinds = await page.evaluate(() => {
+      const w = window as { __mnGetDoc?: unknown; __mnLoadDoc?: unknown };
+      return { get: typeof w.__mnGetDoc, load: typeof w.__mnLoadDoc };
+    });
+    expect(kinds).toEqual({ get: 'undefined', load: 'undefined' });
+  });
 });

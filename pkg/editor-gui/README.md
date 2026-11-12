@@ -71,7 +71,7 @@ The `e2e/` directory holds a Playwright suite with sixteen spec files:
 
 | Spec | What it covers |
 |------|----------------|
-| `smoke` | Build boots, editor renders, typing works, doc-JSON hook live, bootstrap mount quirk. |
+| `smoke` | Build boots, editor renders, typing works, doc-JSON hook live, both e2e hooks absent without `?e2e=1`, bootstrap mount quirk. |
 | `chrome` | Top chrome bar: Save/Open buttons; Panels control disabled while a panel is open, reopening a closed float; doc rehydration via the test hook. |
 | `layout` | Panel-layout integration regressions: doc panel full-bleed and non-closable, the two floating panels over the grid, close→reopen at preset geometry, layout envelope persistence across reload. |
 | `minimap` | Consumer-owned minimap integration: floating-window placement, drag-scrolls-the-editor smoke, doc-load state swap. |
@@ -98,9 +98,15 @@ document's opening content, where left-edge caret clicks land.
 #### Running the suite
 
 ```
-yarn workspace editor-gui e2e          # headless run
-yarn workspace editor-gui e2e:ui       # interactive UI mode (watch + inspector)
+yarn workspace editor-gui e2e          # chromium — the default engine (headless)
+yarn workspace editor-gui e2e:all      # chromium + firefox (needs e2e:install-all)
+yarn workspace editor-gui e2e:ui       # interactive UI mode (watch + inspector; chromium)
 ```
+
+Firefox is a fully supported engine; the cross-engine run is opt-in because
+a second engine roughly doubles suite runtime, not because support is
+partial. Playwright fails on a missing browser binary (it does not skip), so
+`e2e:all` requires `yarn workspace editor-gui e2e:install-all` first.
 
 Playwright's `webServer` builds the GUI (`yarn build-gui`) and starts
 `e2e/serve.mjs` automatically before the first test, then tears both down at the
@@ -114,18 +120,21 @@ end. To reuse a running server during iteration, set `reuseExistingServer`
 3. **Browser + OS libraries:**
 
    ```
-   yarn workspace editor-gui e2e:install
+   yarn workspace editor-gui e2e:install        # chromium — all default scripts need
+   yarn workspace editor-gui e2e:install-all    # + firefox, for e2e:all
+   yarn workspace editor-gui e2e:install-deps   # OS-level shared libraries (apt-get on Linux)
    ```
 
-   This runs `playwright install chromium` (downloads the browser binary to
-   `~/.cache/ms-playwright`) and `playwright install-deps chromium` (installs
-   the OS-level shared libraries Chromium needs). On macOS and Windows
-   `install-deps` is a no-op — the libraries ship with the OS; it only runs
-   `apt-get` on Linux.
+   `e2e:install` runs `playwright install chromium`, downloading the browser
+   binary to `~/.cache/ms-playwright`; `e2e:install:firefox` /
+   `e2e:install-all` add the Firefox binary the cross-engine run needs.
+   `e2e:install-deps` installs the OS-level shared libraries the browsers
+   need. On macOS and Windows it is a no-op — the libraries ship with the
+   OS; it only runs `apt-get` on Linux.
 
 #### Prerequisites — Linux container (e.g. an arm64 container)
 
-The same `e2e:install` script works inside a container, provided the container
+The same install scripts work inside a container, provided the container
 runs as **root** (for `apt-get`) and has **outbound network** (to reach the
 Playwright CDN). Notes for this kind of environment:
 
@@ -139,7 +148,8 @@ Playwright CDN). Notes for this kind of environment:
   `libxcomposite1`, `libxdamage1`, `libxfixes3`, `libxrandr2`, `libasound2`,
   plus `libgbm1`, `libdrm2`, `libxkbcommon0`, `libcups2`, `libpango-1.0-0`,
   `libcairo2` (the last group is usually already present).
-  `playwright install-deps chromium` installs all of them via `apt-get`.
+  `yarn workspace editor-gui e2e:install-deps` installs all of them via
+  `apt-get`.
 
   To check which are missing before installing:
   ```
@@ -150,10 +160,10 @@ Playwright CDN). Notes for this kind of environment:
 
 - **Ephemeral filesystem:** if the container's filesystem does not persist
   across sessions (common in CI and disposable dev containers), re-run
-  `yarn workspace editor-gui e2e:install` each session. It pulls ~150 MB
-  (browser binary + apt packages) and takes ~1–2 minutes on a warm network.
-  Only the repo source and the Yarn PnP cache (`.yarn/cache`) must persist
-  between sessions.
+  `yarn workspace editor-gui e2e:install` and `e2e:install-deps` each session
+  (~150 MB of browser binary + apt packages, ~1–2 minutes on a warm
+  network). Only the repo source and the Yarn PnP cache (`.yarn/cache`) must
+  persist between sessions.
 
 - **No display needed:** the suite runs headless
   (`chromium.launch({ headless: true })`); no X server / Wayland is required.
@@ -164,18 +174,26 @@ Playwright CDN). Notes for this kind of environment:
   dependencies` — this is a warning, not an error, and does not affect
   functionality.
 
-#### The `?e2e=1` test hook
+#### The `?e2e=1` test hooks
 
-When the page is loaded with `?e2e=1` in the query string, `App.tsx` exposes a
-read-only `window.__mnGetDoc()` function that returns the current ProseMirror
-document as JSON. Specs use this to assert structural state (node types,
-attributes, marks) without scraping the DOM. Without the flag, the hook is
-absent — it has no effect in normal use.
+When the page is loaded with `?e2e=1` in the query string, `App.tsx` exposes
+two functions on `window`:
+
+- `__mnGetDoc()` — the current ProseMirror document as JSON; re-attaches on
+  every state change so callers always see the latest doc. Specs use it to
+  assert structural state (node types, attributes, marks) without scraping
+  the DOM.
+- `__mnLoadDoc(json)` — rehydrate from a document JSON object (the same path
+  as the Open dialog), so specs can exercise loading without driving the
+  native file picker.
+
+Without the flag, both hooks are absent — they have no effect in normal use
+(pinned by a smoke test).
 
 #### Current status
 
 No known failing tests at this writing (chromium project, full suite,
-98 tests green). Two bugs this section previously recorded no longer
+99 tests green). Two bugs this section previously recorded no longer
 reproduce, and the stale claims are retired:
 
 1. **Popover occlusion** (was "all 3 tests fail"): in the old right-docked
