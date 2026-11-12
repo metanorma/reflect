@@ -29,9 +29,22 @@
  * script's header). The twin-facing output must be non-empty, and once
  * `index.ts` grows exports, at least one named export.
  *
- * A structural clone of build-minimap-demo.mjs (itself a clone of
- * build-gui.mjs — same Yarn PnP resolver bridge, `.cjs → .mjs` redirect,
- * and CSS loaders); keep the three in sync. NO index.html is generated
+ * Dependency resolution needs no plugin. esbuild implements Yarn
+ * Plug'n'Play natively — v0.15.0 (2022-08-10): the PnP resolution
+ * algorithm, reading inputs directly from the .yarn/cache zip archives,
+ * respecting `module`/`browser` fields inside them; v0.15.4 (#2473):
+ * exports maps honored, i.e. full condition-based entry selection. That
+ * condition selection is also why no .cjs→.mjs redirect is needed —
+ * esbuild applies the `import`/`module` conditions itself and picks ESM
+ * entries (e.g. react-aria-components' dist/exports/index.mjs) that a
+ * createRequire-based resolver (which sees the `require` condition's
+ * .cjs) used to miss. Yarn's own @yarnpkg/esbuild-plugin-pnp is
+ * deprecated for exactly this reason ("Starting from Esbuild 0.15, this
+ * plugin isn't needed anymore"); Storybook removed its copy in Nov 2025
+ * (PR #33097). The one requirement is that esbuild find `.pnp.cjs` in
+ * the working directory's tree — satisfied by running via `yarn node`
+ * from the repo root (esbuild docs, Getting Started, "Using Yarn
+ * Plug'n'Play"). NO index.html is generated
  * here: the mock page is hand-authored, and the twin harness page arrives
  * with the PanelLayout component. A panel-layout.css appears next to each
  * entry only when an import chain reaches CSS — none today.
@@ -39,7 +52,6 @@
  * Usage:  yarn node build-panel-layout.mjs [--dev] [--watch]
  */
 import { context } from 'esbuild';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { statSync } from 'node:fs';
@@ -123,24 +135,6 @@ const TARGETS = [
   },
 ];
 
-// ── esbuild loader per file extension (for PnP-loaded files) ───────────
-
-const EXT_TO_LOADER = {
-  '.ts':   'ts',
-  '.tsx':  'tsx',
-  '.js':   'js',
-  '.jsx':  'jsx',
-  '.mjs':  'js',
-  '.cjs':  'js',
-  '.json': 'json',
-};
-
-function cssLoaderFor(filePath) {
-  if (filePath.endsWith('.module.css')) return 'local-css';
-  if (filePath.endsWith('.css'))        return 'global-css';
-  return undefined;
-}
-
 // ── Consumer-import alias (twin-demo flavor) ───────────────────────────
 //
 // The demo's '@metanorma/panel-layout' import is consumer-shaped (a bare
@@ -156,70 +150,6 @@ const aliasPlugin = (alias) => ({
     b.onResolve({ filter: /^@metanorma\/panel-layout(\/|$)/ }, (args) => {
       const target = alias[args.path] ?? alias['@metanorma/panel-layout'];
       return { path: target };
-    });
-  },
-});
-
-// ── Yarn PnP resolution plugin ─────────────────────────────────────────
-//
-// Takes the target's `externals` list (null for the twin): a bare specifier
-// that matches an external pattern must STAY external — esbuild applies the
-// `external` option in its own resolver, but a custom onResolve with a
-// matching filter claims the specifier first and the peer would be bundled
-// into the artifact instead. This first mattered at convergence, when
-// panelLayout.tsx became the package's first runtime `dockview-react`
-// import (type-only imports erase and never reach the resolver).
-
-function matchesExternal(specifier, externals) {
-  for (const pattern of externals) {
-    if (pattern.endsWith('/*')) {
-      const base = pattern.slice(0, -2);
-      if (specifier === base || specifier.startsWith(base + '/')) {
-        return true;
-      }
-    } else if (specifier === pattern) {
-      return true;
-    }
-  }
-  return false;
-}
-
-const pnpPlugin = (externals) => ({
-  name: 'pnp',
-  setup(b) {
-    // Resolve bare specifiers (e.g. "react", "dockview-react") through
-    // PnP using createRequire seeded with the importer's resolveDir. PnP's
-    // createRequire resolves to the CJS (.cjs) entry; redirect to a .mjs
-    // counterpart when one exists (granular ESM → tree-shaking). See
-    // build-gui.mjs for the full rationale.
-    b.onResolve({ filter: /^[^./]/ }, (args) => {
-      if (externals && matchesExternal(args.path, externals)) {
-        return { path: args.path, external: true };
-      }
-      const resolveDir = args.resolveDir || projectRoot;
-      const req = createRequire(resolveDir + '/');
-      const resolved = req.resolve(args.path);
-      let finalPath = resolved;
-      if (resolved.endsWith('.cjs')) {
-        const mjsCandidate = resolved.slice(0, -4) + '.mjs';
-        try {
-          statSync(mjsCandidate);
-          finalPath = mjsCandidate;
-        } catch {
-          // No .mjs counterpart — keep the .cjs
-        }
-      }
-      return { path: finalPath, namespace: 'pnp' };
-    });
-
-    // Load resolved files from the PnP virtual filesystem (zip archives)
-    // using Node's PnP-patched fs, which esbuild's native Go fs cannot read.
-    b.onLoad({ filter: /.*/, namespace: 'pnp' }, async (args) => {
-      const ext = path.extname(args.path);
-      const cssLoader = cssLoaderFor(args.path);
-      const loader = cssLoader ?? EXT_TO_LOADER[ext] ?? 'default';
-      const contents = await fs.readFile(args.path, 'utf8');
-      return { contents, resolveDir: path.dirname(args.path), loader };
     });
   },
 });
@@ -245,12 +175,10 @@ function optionsFor(target) {
     define: {
       'process.env.NODE_ENV': dev ? '"development"' : '"production"',
     },
-    // CSS loaders for files resolved natively (project-local stylesheets).
+    // CSS loaders for all inputs by extension — including files esbuild
+    // resolves natively out of the PnP zip archives.
     loader: { '.module.css': 'local-css', '.css': 'global-css' },
-    plugins: [
-      ...(target.alias ? [aliasPlugin(target.alias)] : []),
-      pnpPlugin(target.externals),
-    ],
+    ...(target.alias ? { plugins: [aliasPlugin(target.alias)] } : {}),
     logLevel: 'info',
     ...(target.externals ? { external: target.externals } : {}),
   };

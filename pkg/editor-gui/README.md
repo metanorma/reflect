@@ -1,8 +1,8 @@
 # editor-gui
 
 The browser entry point for the Metanorma editor. Bundled by the repo-root
-[`build-gui.mjs`](../../build-gui.mjs) (esbuild + Yarn-PnP plugin) into
-`pkg/editor-gui/dist/`.
+[`build-gui.mjs`](../../build-gui.mjs) (esbuild with native Yarn-PnP
+resolution) into `pkg/editor-gui/dist/`.
 
 ## Architecture overview
 

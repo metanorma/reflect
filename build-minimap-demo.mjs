@@ -8,17 +8,28 @@
  *   - harness/dist/bootstrap.css  (all CSS, extracted from JS)
  *   - harness/dist/index.html     (loads the JS + CSS)
  *
- * A structural clone of `build-gui.mjs` (same Yarn PnP resolver bridge,
- * `.cjs → .mjs` redirect, and CSS loaders) — the GUI build is the proven
- * pattern for esbuild-in-PnP in this repo; keep the two in sync.
+ * Dependency resolution needs no plugin. esbuild implements Yarn
+ * Plug'n'Play natively — v0.15.0 (2022-08-10): the PnP resolution
+ * algorithm, reading inputs directly from the .yarn/cache zip archives,
+ * respecting `module`/`browser` fields inside them; v0.15.4 (#2473):
+ * exports maps honored, i.e. full condition-based entry selection. That
+ * condition selection is also why no .cjs→.mjs redirect is needed —
+ * esbuild applies the `import`/`module` conditions itself and picks ESM
+ * entries (e.g. react-aria-components' dist/exports/index.mjs) that a
+ * createRequire-based resolver (which sees the `require` condition's
+ * .cjs) used to miss. Yarn's own @yarnpkg/esbuild-plugin-pnp is
+ * deprecated for exactly this reason ("Starting from Esbuild 0.15, this
+ * plugin isn't needed anymore"); Storybook removed its copy in Nov 2025
+ * (PR #33097). The one requirement is that esbuild find `.pnp.cjs` in
+ * the working directory's tree — satisfied by running via `yarn node`
+ * from the repo root (esbuild docs, Getting Started, "Using Yarn
+ * Plug'n'Play").
  *
  * Usage:  yarn node build-minimap-demo.mjs [--dev]
  */
 import { build } from 'esbuild';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dev = process.argv.includes('--dev') || process.argv.includes('dev');
@@ -28,63 +39,6 @@ const entry = path.join(projectRoot, 'pkg', 'prosemirror-minimap', 'harness', 'b
 // Emit inside the package so the build output, static server, and e2e suite
 // are all colocated under pkg/prosemirror-minimap/.
 const outdir = path.join(projectRoot, 'pkg', 'prosemirror-minimap', 'harness', 'dist');
-
-// ── esbuild loader per file extension (for PnP-loaded files) ───────────
-
-const EXT_TO_LOADER = {
-  '.ts':   'ts',
-  '.tsx':  'tsx',
-  '.js':   'js',
-  '.jsx':  'jsx',
-  '.mjs':  'js',
-  '.cjs':  'js',
-  '.json': 'json',
-};
-
-function cssLoaderFor(filePath) {
-  if (filePath.endsWith('.module.css')) return 'local-css';
-  if (filePath.endsWith('.css'))        return 'global-css';
-  return undefined;
-}
-
-// ── Yarn PnP resolution plugin ─────────────────────────────────────────
-
-const pnpPlugin = {
-  name: 'pnp',
-  setup(b) {
-    // Resolve bare specifiers (e.g. "react", "prosemirror-view") through
-    // PnP using createRequire seeded with the importer's resolveDir. PnP's
-    // createRequire resolves to the CJS (.cjs) entry; redirect to a .mjs
-    // counterpart when one exists (granular ESM → tree-shaking). See
-    // build-gui.mjs for the full rationale.
-    b.onResolve({ filter: /^[^./]/ }, (args) => {
-      const resolveDir = args.resolveDir || projectRoot;
-      const req = createRequire(resolveDir + '/');
-      const resolved = req.resolve(args.path);
-      let finalPath = resolved;
-      if (resolved.endsWith('.cjs')) {
-        const mjsCandidate = resolved.slice(0, -4) + '.mjs';
-        try {
-          statSync(mjsCandidate);
-          finalPath = mjsCandidate;
-        } catch {
-          // No .mjs counterpart — keep the .cjs
-        }
-      }
-      return { path: finalPath, namespace: 'pnp' };
-    });
-
-    // Load resolved files from the PnP virtual filesystem (zip archives)
-    // using Node's PnP-patched fs, which esbuild's native Go fs cannot read.
-    b.onLoad({ filter: /.*/, namespace: 'pnp' }, async (args) => {
-      const ext = path.extname(args.path);
-      const cssLoader = cssLoaderFor(args.path);
-      const loader = cssLoader ?? EXT_TO_LOADER[ext] ?? 'default';
-      const contents = await fs.readFile(args.path, 'utf8');
-      return { contents, resolveDir: path.dirname(args.path), loader };
-    });
-  },
-};
 
 // ── Build ──────────────────────────────────────────────────────────────
 
@@ -109,9 +63,9 @@ await build({
   define: {
     'process.env.NODE_ENV': dev ? '"development"' : '"production"',
   },
-  // CSS loaders for files resolved natively (project-local stylesheets).
+  // CSS loaders for all inputs by extension — including files esbuild
+  // resolves natively out of the PnP zip archives.
   loader: { '.module.css': 'local-css', '.css': 'global-css' },
-  plugins: [pnpPlugin],
   logLevel: 'info',
 });
 

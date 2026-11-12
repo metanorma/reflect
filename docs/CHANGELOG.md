@@ -7,6 +7,34 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-11-11 — GUI build: PnP bridge deleted, esbuild native resolution
+
+`build-gui.mjs` + `pkg/editor-gui/README.md` + `docs/ProseMirrorMinimap.spec.md`
+(harness table); build-infra change, no app-source changes. **Commits: *(pending)***.
+
+- **Decision** — `build-gui.mjs` drops its hand-written PnP bridge (the
+  `onResolve`/`onLoad` plugin that routed bare specifiers through
+  `createRequire` and read inputs from the PnP zip archives, plus the
+  `.cjs`→`.mjs` entry redirect) and relies on esbuild's native PnP support.
+  Citations, each for what it says: v0.15.0 (2022-08-10 — the PnP resolution
+  algorithm, zip reading, `module`/`browser` fields inside zips); v0.15.4
+  (#2473 — exports maps honored under PnP, i.e. condition-based entry
+  selection); Yarn's `@yarnpkg/esbuild-plugin-pnp` README ("Starting from
+  Esbuild 0.15, this plugin isn't needed anymore"); Storybook removed its
+  copy in Nov 2025 (PR #33097).
+- **Consequence** — bundle contents change, not just plumbing: native
+  `import`-condition selection picks ESM builds for dual-layout packages
+  that the old same-path `.cjs`→`.mjs` redirect never covered, and
+  `bootstrap.js` lands ≈100 KB (≈8%) below the plugin build. The e2e suite
+  (its `webServer` builds via the same script) is the behavioral gate.
+- **Scope** — `build-panel-layout.mjs` (its bridge is entangled with the
+  demo's externals handling) and `build-minimap-demo.mjs` keep their
+  bridges; the minimap harness table above no longer claims parity with
+  the GUI build (current-state wording: its own plugin), pending the same
+  migration there.
+
+---
+
 ## 2026-11-09 — Upstream ledger: error-ID registry recorded; drift watch extended
 
 `docs/metanorma-model.md` + `scripts/check-pins.mjs`; docs + job config,
