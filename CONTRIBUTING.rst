@@ -177,6 +177,12 @@ Verification
 What CI runs on every PR:
 ``yarn check-specs`` and ``yarn build-gui``.
 
+.. note:: Workspace inventory can be obtained by listing ``pkg/``
+          or via root ``package.json``;
+          package names used in ``workspace <name>`` commands are in respective
+          subpackages' ``package.json`` ``name`` fields.
+          Not all packages have e2e and/or unit tests.
+
 More specifically, check the following before submitting:
 
 - Specs/docs (``docs/**/*.md``, ``pkg/*/README.spec.md``):
@@ -214,7 +220,7 @@ More specifically, check the following before submitting:
   new work).
 
 - Any code under ``pkg/``: ``yarn workspace <name> compile``
-  type-checks and emits for one workspace (names below);
+  type-checks and emits for one workspace;
   ``yarn workspaces foreach -A run compile`` compiles all of them.
 
 - Unit tests: ``yarn test`` runs every suite in one command.
@@ -245,16 +251,3 @@ More specifically, check the following before submitting:
   ``pkg/editor-gui/e2e/plugin-smoke.spec.ts`` in the same change. The
   smoke asserts rendering only (widget presence, placement, layout
   effects) — interaction-level e2e does not substitute for it.
-
-Workspace inventory (all under ``pkg/``; used by the
-``yarn workspace <name>`` commands above):
-
-- ``@metanorma/prosemirror-schema`` (``pkg/prosemirror-schema``) — unit tests
-- ``@metanorma/prosemirror-editor`` (``pkg/prosemirror-editor``) — no tests
-- ``@metanorma/editor-commands`` (``pkg/editor-commands``) — unit tests
-- ``@metanorma/toolbar`` (``pkg/toolbar``) — no tests
-- ``@metanorma/relaton`` (``pkg/relaton``) — unit tests
-- ``@metanorma/prosemirror-minimap``
-  (``pkg/prosemirror-minimap``) — unit tests, e2e
-- ``editor-gui`` (``pkg/editor-gui``) — e2e (incl. plugin rendering smoke)
-- ``@metanorma/panel-layout`` (``pkg/panel-layout``) — unit tests, e2e (parity)
