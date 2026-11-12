@@ -54,6 +54,8 @@ Revive it with a manual dispatch of the workflow.
 - Full Metanorma document model coverage
   (anchoring to Standoc / Semantic XML).
 
+- Rewrite toolbar functionality.
+
 - Switch to panel-based layout (use `panel-layout` in `editor-gui`).
 
 - Revamp toolbar UX: toolbar as a panel and/or floating toolbars.
