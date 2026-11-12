@@ -33,6 +33,7 @@
     "pkg/editor-commands",
     "pkg/toolbar",
     "pkg/relaton",
+    "pkg/file-format",
     "pkg/prosemirror-minimap",
     "pkg/panel-layout"
   ],

@@ -264,6 +264,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metanorma/file-format@workspace:pkg/file-format":
+  version: 0.0.0-use.local
+  resolution: "@metanorma/file-format@workspace:pkg/file-format"
+  dependencies:
+    "@metanorma/prosemirror-schema": "workspace:^"
+    typescript: "npm:~6.0.3"
+  languageName: unknown
+  linkType: soft
+
 "@metanorma/panel-layout@workspace:^, @metanorma/panel-layout@workspace:pkg/panel-layout":
   version: 0.0.0-use.local
   resolution: "@metanorma/panel-layout@workspace:pkg/panel-layout"

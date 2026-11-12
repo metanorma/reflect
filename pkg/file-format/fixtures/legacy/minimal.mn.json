@@ -1,0 +1,22 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "bibdata",
+      "attrs": { "item": null }
+    },
+    {
+      "type": "sections",
+      "content": [
+        {
+          "type": "clause",
+          "attrs": { "id": "_document_container" },
+          "content": [
+            { "type": "section_title" },
+            { "type": "paragraph" }
+          ]
+        }
+      ]
+    }
+  ]
+}

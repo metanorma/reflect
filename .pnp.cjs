@@ -23,6 +23,10 @@ const RAW_RUNTIME_STATE =
       "reference": "workspace:pkg/editor-gui"\
     },\
     {\
+      "name": "@metanorma/file-format",\
+      "reference": "workspace:pkg/file-format"\
+    },\
+    {\
       "name": "@metanorma/panel-layout",\
       "reference": "workspace:pkg/panel-layout"\
     },\
@@ -52,6 +56,7 @@ const RAW_RUNTIME_STATE =
   "pnpZipBackend": "libzip",\
   "fallbackExclusionList": [\
     ["@metanorma/editor-commands", ["workspace:pkg/editor-commands"]],\
+    ["@metanorma/file-format", ["workspace:pkg/file-format"]],\
     ["@metanorma/panel-layout", ["virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/panel-layout", "workspace:pkg/panel-layout"]],\
     ["@metanorma/prosemirror-editor", ["workspace:pkg/prosemirror-editor"]],\
     ["@metanorma/prosemirror-minimap", ["virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/prosemirror-minimap", "workspace:pkg/prosemirror-minimap"]],\
@@ -189,6 +194,10 @@ const RAW_RUNTIME_STATE =
     [\
       "@metanorma/editor-commands",\
       "workspace:pkg/editor-commands"\
+    ],\
+    [\
+      "@metanorma/file-format",\
+      "workspace:pkg/file-format"\
     ],\
     [\
       "@metanorma/panel-layout",\
@@ -839,6 +848,17 @@ const RAW_RUNTIME_STATE =
           ["prosemirror-schema-list", "npm:1.5.1"],\
           ["prosemirror-state", "npm:1.4.4"],\
           ["prosemirror-transform", "npm:1.12.0"],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+        ],\
+        "linkType": "SOFT"\
+      }]\
+    ]],\
+    ["@metanorma/file-format", [\
+      ["workspace:pkg/file-format", {\
+        "packageLocation": "./pkg/file-format/",\
+        "packageDependencies": [\
+          ["@metanorma/file-format", "workspace:pkg/file-format"],\
+          ["@metanorma/prosemirror-schema", "workspace:pkg/prosemirror-schema"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
         ],\
         "linkType": "SOFT"\

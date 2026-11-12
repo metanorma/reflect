@@ -661,7 +661,8 @@ test.describe('minimap (package e2e)', () => {
 
   test('a row taller than the pane keeps its block to the document end (tall-row gap regression)', async ({ page }) => {
     // Regression (tall-row documents, §15.1.20 — one block dominating
-    // the document; original sample: fixtures/iso-5843-6.mn.json): the
+    // the document; original sample:
+    // pkg/file-format/fixtures/legacy/iso-5843-6.mn.json): the
     // inter-bar gap was proportional to the ROW'S OWN slot, so a table
     // spanning several panes lost 15% of its whole height to a phantom
     // separator — its block visibly ended screens before the document

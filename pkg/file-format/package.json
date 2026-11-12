@@ -1,0 +1,15 @@
+{
+  "name": "@metanorma/file-format",
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "yarn@4.17.0",
+  "main": "index.ts",
+  "scripts": {
+    "compile": "tsc --outdir compiled",
+    "test": "yarn workspace @metanorma/prosemirror-schema compile && yarn compile && yarn node --import ./test-register.mjs --test test.mjs"
+  },
+  "devDependencies": {
+    "@metanorma/prosemirror-schema": "workspace:^",
+    "typescript": "~6.0.3"
+  }
+}

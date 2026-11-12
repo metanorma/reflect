@@ -1,0 +1,26 @@
+{
+  "format": { "envelope": 1, "tree": 1 },
+  "meta": { "generator": "Reflect 0.1.0" },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bibdata",
+        "attrs": { "item": null }
+      },
+      {
+        "type": "sections",
+        "content": [
+          {
+            "type": "clause",
+            "attrs": { "id": "_document_container" },
+            "content": [
+              { "type": "section_title" },
+              { "type": "paragraph" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
