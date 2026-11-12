@@ -51,7 +51,9 @@ import { DocEpochContext } from './panelContexts.js';
  * refinement over the shape-keyed `defaultClassifier`):
  *
  * - `section_title` / `floating_title` → `heading` (indent by depth);
- * - textblocks (`paragraph`, `dt`, `dd`) → `text`;
+ * - textblocks (`paragraph`, `dt`) → `text`; `dd` is a transparent container
+ *   (`content: block+`) — its child paragraphs render as `text` rows one
+ *   depth deeper;
  * - `sourcecode` → `code`; `table` → `table` (height estimated from row
  *   count, no recursion); `figure` → `figure` (fixed height, no recursion);
  *   `formula` → `formula` (fixed height, no recursion);
@@ -204,11 +206,11 @@ function ({ onDoneLoading }) {
    * the current editor state. Used by both the Open dialog (`handleLoad`) and
    * the e2e test hook (`window.__mnLoadDoc`), so the rehydration logic stays
    * identical. A fresh `EditorState` is built (not an incremental transaction)
-   * so loading a new document starts with a clean undo history. Returns `true`
-   * on success, `false` (with a thrown error caught by the caller) on failure.
+   * so loading a new document starts with a clean undo history.
    *
-   * `metanormaSchema.nodeFromJSON` throws `RangeError` on structurally invalid
-   * documents; the caller surfaces the message.
+   * Returns `true` on success. A structurally invalid document throws
+   * (`metanormaSchema.nodeFromJSON`'s `RangeError`); the caller catches the
+   * error and surfaces the message.
    */
   const loadDocFromJson = useCallback((doc: unknown): boolean => {
     // nodeFromJSON validates structure; a bad doc throws RangeError.
