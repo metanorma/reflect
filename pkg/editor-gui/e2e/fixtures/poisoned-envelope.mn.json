@@ -1,0 +1,20 @@
+{
+  "format": { "envelope": 1, "tree": 1 },
+  "meta": { "generator": "Reflect 0.0.1", "note": "poison" },
+  "x-poison-marker": true,
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bibdata",
+        "attrs": { "item": null }
+      },
+      {
+        "type": "sections",
+        "content": [
+          { "type": "bogus_node", "attrs": {} }
+        ]
+      }
+    ]
+  }
+}

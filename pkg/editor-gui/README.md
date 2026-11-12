@@ -67,12 +67,13 @@ node pkg/editor-gui/e2e/serve.mjs     # → http://localhost:3333
 
 ### End-to-end tests (Playwright)
 
-The `e2e/` directory holds a Playwright suite with sixteen spec files:
+The `e2e/` directory holds a Playwright suite with seventeen spec files:
 
 | Spec | What it covers |
 |------|----------------|
 | `smoke` | Build boots, editor renders, typing works, doc-JSON hook live, both e2e hooks absent without `?e2e=1`, bootstrap mount quirk. |
 | `chrome` | Top chrome bar: Save/Open buttons; Panels control disabled while a panel is open, reopening a closed float; doc rehydration via the test hook. |
+| `file-io` | Save/Open round-trip of the versioned `.mn.json` envelope, driven through forced `browser-fs-access` fallbacks (download capture / file chooser): save shape at current versions with the tree deep-equal to the doc hook, preserved meta/foreign session carry, and the failed-load ordering guard (a poisoned file's meta never reaches the next save). |
 | `layout` | Panel-layout integration regressions: doc panel full-bleed and non-closable, the two floating panels over the grid, close→reopen at preset geometry, layout envelope persistence across reload. |
 | `minimap` | Consumer-owned minimap integration: floating-window placement, drag-scrolls-the-editor smoke, doc-load state swap. |
 | `popovers` | Toolbar pickers (TableSizePicker, FootnotePicker, ImageInsertDialog, XrefPicker, ConceptPicker) are reachable and clickable; popover flows apply their edits. |

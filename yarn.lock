@@ -264,7 +264,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metanorma/file-format@workspace:pkg/file-format":
+"@metanorma/file-format@workspace:^, @metanorma/file-format@workspace:pkg/file-format":
   version: 0.0.0-use.local
   resolution: "@metanorma/file-format@workspace:pkg/file-format"
   dependencies:
@@ -543,6 +543,7 @@ __metadata:
   resolution: "editor-gui@workspace:pkg/editor-gui"
   dependencies:
     "@metanorma/editor-commands": "workspace:^"
+    "@metanorma/file-format": "workspace:^"
     "@metanorma/panel-layout": "workspace:^"
     "@metanorma/prosemirror-editor": "workspace:^"
     "@metanorma/prosemirror-minimap": "workspace:^"

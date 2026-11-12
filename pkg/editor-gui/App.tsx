@@ -38,7 +38,7 @@ import {
   deleteSelection,
   metanormaSchema,
 } from '@metanorma/editor-commands';
-import { fileSave, fileOpen } from 'browser-fs-access';
+import { useMnFileIo } from './fileIo.js';
 import classNames from './style.module.css';
 import { ChromeBar } from './ChromeBar.jsx';
 import { panelRegistry } from './panels.jsx';
@@ -202,11 +202,13 @@ function ({ onDoneLoading }) {
   }, [onDoneLoading]);
 
   /**
-   * Rehydrate an `EditorState` from a parsed document JSON object, replacing
-   * the current editor state. Used by both the Open dialog (`handleLoad`) and
-   * the e2e test hook (`window.__mnLoadDoc`), so the rehydration logic stays
-   * identical. A fresh `EditorState` is built (not an incremental transaction)
-   * so loading a new document starts with a clean undo history.
+   * Rehydrate an `EditorState` from a parsed document JSON object — the bare
+   * tree (schema.spec.md §12) — replacing the current editor state. Used by
+   * the file-I/O hook's load path (`fileIo.ts`, after envelope decode,
+   * FileFormat.spec.md §5) and the e2e test hook (`window.__mnLoadDoc`), so
+   * the rehydration logic stays identical for both callers. A fresh
+   * `EditorState` is built (not an incremental transaction) so loading a new
+   * document starts with a clean undo history.
    *
    * Returns `true` on success. A structurally invalid document throws
    * (`metanormaSchema.nodeFromJSON`'s `RangeError`); the caller catches the
@@ -225,52 +227,16 @@ function ({ onDoneLoading }) {
   }, []);
 
   /**
-   * Save: serialize the current document to pretty-printed JSON and hand it to
-   * `browser-fs-access.fileSave`, which uses the native File System Access API
-   * save picker in Chromium and falls back to an `<a download>` download in
-   * Firefox/Safari. `AbortError` (user dismissed the picker) is silent; any
-   * other error surfaces on the status line.
+   * Save/Open document I/O (`fileIo.ts`, FileFormat.spec.md §5–§6): Save
+   * wraps the current tree in a versioned envelope, Open decodes a file
+   * (envelope or legacy bare tree) and rehydrates. Stable identities — safe
+   * for ChromeBar's memoization.
    */
-  const handleSave = useCallback(async () => {
-    try {
-      setStatus(null);
-      const json = JSON.stringify(editorStateRef.current.doc.toJSON(), null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      await fileSave(blob, {
-        fileName: 'document.mn.json',
-        extensions: ['.mn.json'],
-        mimeTypes: ['application/json'],
-        description: 'Metanorma document',
-      });
-    } catch (err) {
-      if ((err as DOMException)?.name === 'AbortError') return;
-      setStatus(`Could not save: ${(err as Error).message}`);
-    }
-  }, []);
-
-  /**
-   * Open: prompt the user for a `.mn.json` / `.json` file via
-   * `browser-fs-access.fileOpen` (native open picker in Chromium, `<input
-   * type=file>` fallback elsewhere), read it as text, parse, and rehydrate.
-   * A structurally invalid file leaves the editor untouched and shows an error.
-   * Cancellation (`AbortError`) is silent.
-   */
-  const handleLoad = useCallback(async () => {
-    try {
-      setStatus(null);
-      const file = await fileOpen({
-        extensions: ['.mn.json', '.json'],
-        description: 'Metanorma document',
-      });
-      const text = await file.text();
-      const parsed: unknown = JSON.parse(text);
-      loadDocFromJson(parsed);
-    } catch (err) {
-      if ((err as DOMException)?.name === 'AbortError') return;
-      const msg = (err as Error)?.message ?? String(err);
-      setStatus(`Could not load file: ${msg}`);
-    }
-  }, [loadDocFromJson]);
+  const { handleSave, handleLoad } = useMnFileIo({
+    editorStateRef,
+    loadDocFromJson,
+    setStatus,
+  });
 
   // Test-only hook: when the page is loaded with ?e2e=1, expose the current
   // document as JSON on window so Playwright specs can assert structural state

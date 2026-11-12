@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@metanorma/editor-commands": "workspace:^",
+    "@metanorma/file-format": "workspace:^",
     "@metanorma/panel-layout": "workspace:^",
     "@metanorma/prosemirror-editor": "workspace:^",
     "@metanorma/prosemirror-minimap": "workspace:^",

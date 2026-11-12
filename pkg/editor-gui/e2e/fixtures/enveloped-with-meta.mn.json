@@ -1,0 +1,33 @@
+{
+  "format": { "envelope": 1, "tree": 1 },
+  "meta": { "generator": "Reflect 0.0.1", "note": "keep-me" },
+  "x-foreign-note": { "origin": "fixture" },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bibdata",
+        "attrs": { "item": null }
+      },
+      {
+        "type": "sections",
+        "content": [
+          {
+            "type": "clause",
+            "attrs": { "id": "_document_container" },
+            "content": [
+              {
+                "type": "section_title",
+                "content": [{ "type": "text", "text": "Carried fixture" }]
+              },
+              {
+                "type": "paragraph",
+                "content": [{ "type": "text", "text": "Session carry marker." }]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

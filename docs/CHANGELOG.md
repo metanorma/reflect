@@ -7,6 +7,56 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-11-12 — document format: versioned `.mn.json` envelope, two version axes
+
+`docs/FileFormat.spec.md` (new corpus spec) + `@metanorma/file-format` (new
+package) + `pkg/editor-gui/fileIo.ts`; `docs/schema.spec.md` §3/§12,
+`docs/CONVENTIONS.md` §1.1/§5, `docs/README.md`, editor-gui e2e; the ISO
+sample pair relocated to `pkg/file-format/fixtures/legacy/`; **Commits:
+*(pending)***.
+
+- **Change** — a saved `.mn.json` file is now an **envelope**: two in-file
+  integer version axes — `format.envelope` (file layout: envelope
+  structure, encoding, where image data lives) and `format.tree` (the
+  ProseMirror tree vocabulary) — a non-normative `meta` block
+  (`meta.generator`, a free-form `<product> <version>` provenance string
+  readers never branch on), and the bare tree as the `doc` member. Open
+  decodes through the FileFormat.spec.md §5 read chain; Save encodes at
+  current versions only (§6) — versions are stamped on the envelope at save
+  time, never in the tree, never as a ProseMirror transaction.
+- **Legacy rule** — unversioned bare trees remain loadable indefinitely and
+  re-encode lazily on next save; mis-era loads degrade to `data`-banked
+  attributes (schema.spec.md §12), never silent drops. Era inference is a
+  non-goal: a legacy tree is the current tree version, full stop.
+- **Why an envelope, not a `doc` attribute** — four rejections recorded in
+  FileFormat.spec.md §6 ("Why not a doc attribute"): storage layout is
+  inexpressible in the PM schema; tree migrations must stay pure while
+  storage migration needs I/O; a per-save attribute is a transaction
+  polluting undo history; tree-only consumers read `doc` and ignore
+  envelope concerns.
+- **Migration machinery, empty baseline** — the registry ships with zero
+  steps on both axes: tree steps are sync and pure (the signature is the
+  guarantee), envelope steps async with adapter-only I/O; chains must be
+  contiguous, and decode self-checks the registries in use on every load.
+  The mechanism, not any migration, is the deliverable — the first real
+  reshape ships with its bump.
+- **Bump discipline** — schema.spec.md §3 binds vocabulary reshapes to a
+  `format.tree` bump + migration step in the same change; bump rules are
+  reader-harm tests (bump when an older document would load **wrong**, not
+  merely incomplete — additive coverage bumps nothing).
+- **Consumer + coverage** — editor-gui extracts `fileIo.ts`
+  (`useMnFileIo`): Open's single catch funnels parse errors, the §8
+  taxonomy, and post-decode structural errors to one status-line message;
+  preserved meta/foreign members ride the session and re-emit on save —
+  assigned only after rehydration returns, so a failed load's meta never
+  leaks into the next save. The package suite covers FileFormat.spec.md
+  §10's criteria (detection, malformed/future refusal, stamp round-trip,
+  registry contiguity, real-schema loads of both goldens); the editor-gui
+  `file-io` e2e pins save shape, session carry, and the ordering guard
+  end-to-end through forced `browser-fs-access` fallbacks.
+
+---
+
 ## 2026-11-11 — GUI build: PnP bridge deleted, esbuild native resolution
 
 `build-gui.mjs` + `pkg/editor-gui/README.md` + `docs/ProseMirrorMinimap.spec.md`

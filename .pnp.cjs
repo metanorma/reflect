@@ -1261,6 +1261,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./pkg/editor-gui/",\
         "packageDependencies": [\
           ["@metanorma/editor-commands", "workspace:pkg/editor-commands"],\
+          ["@metanorma/file-format", "workspace:pkg/file-format"],\
           ["@metanorma/panel-layout", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/panel-layout"],\
           ["@metanorma/prosemirror-editor", "workspace:pkg/prosemirror-editor"],\
           ["@metanorma/prosemirror-minimap", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#workspace:pkg/prosemirror-minimap"],\

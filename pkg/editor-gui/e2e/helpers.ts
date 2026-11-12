@@ -24,6 +24,7 @@
  */
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 /**
  * The ProseMirror contenteditable.
@@ -120,10 +121,35 @@ export function toolbarButton(page: Page, name: string): Locator {
 }
 
 /**
- * Open the editor with the e2e flag set (enables the `window.__mnGetDoc` test
- * hook in App.tsx), then wait for the surface to be ready.
+ * Delete the File System Access pickers for every subsequent navigation of
+ * this page, so `browser-fs-access` deterministically takes its fallbacks:
+ * Save downloads via `<a download>` (capturable as a Playwright `download`
+ * event, see {@link chromeSave}), Open uses a programmatic file input
+ * (drivable via the `filechooser` event, see {@link chromeOpen}).
+ *
+ * Must run BEFORE navigation — `addInitScript` only affects future loads —
+ * which is why it is exposed only as the `forcePickerFallback` option of
+ * the open* helpers, never as a standalone post-navigation call.
  */
-export async function openEditor(page: Page): Promise<void> {
+function forcePickerFallback(page: Page): void {
+  void page.addInitScript(() => {
+    delete (window as { showSaveFilePicker?: unknown }).showSaveFilePicker;
+    delete (window as { showOpenFilePicker?: unknown }).showOpenFilePicker;
+  });
+}
+
+/**
+ * Open the editor with the e2e flag set (enables the `window.__mnGetDoc` test
+ * hook in App.tsx), then wait for the surface to be ready. With
+ * `forcePickerFallback`, the Save/Open buttons take browser-fs-access's
+ * fallback paths (see {@link forcePickerFallback}) — required by
+ * {@link chromeSave}/{@link chromeOpen}.
+ */
+export async function openEditor(
+  page: Page,
+  opts: { forcePickerFallback?: boolean } = {},
+): Promise<void> {
+  if (opts.forcePickerFallback) forcePickerFallback(page);
   await page.goto('/?e2e=1');
   await editor(page).waitFor({ state: 'visible' });
 }
@@ -188,8 +214,11 @@ export async function closeFloatWindow(
  * clicks. No parked spec reads the minimap — only minimap.spec does, and
  * it uses plain openEditor (the floats are its subject).
  */
-export async function openParkedEditor(page: Page): Promise<void> {
-  await openEditor(page);
+export async function openParkedEditor(
+  page: Page,
+  opts: { forcePickerFallback?: boolean } = {},
+): Promise<void> {
+  await openEditor(page, opts);
   await closeFloatWindow(page, '.mn-minimap');
   await parkToolbarRight(page);
 }
@@ -210,6 +239,36 @@ export async function getDoc(page: Page): Promise<unknown> {
     const w = window as { __mnGetDoc?: () => unknown };
     return w.__mnGetDoc?.();
   });
+}
+
+/**
+ * Click the chrome bar's Save button and return the saved file as a parsed
+ * envelope object. Arm-before-click: the `download` event waiter must exist
+ * before the click — arming after it is the lost-event flake. Requires
+ * `forcePickerFallback` on the open* helper; otherwise the click opens a
+ * native save picker and no download ever fires.
+ */
+export async function chromeSave(page: Page): Promise<Record<string, unknown>> {
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save…', exact: true }).click();
+  const download = await downloadPromise;
+  const downloadPath = await download.path();
+  if (downloadPath === null) throw new Error('chromeSave: download has no path');
+  return JSON.parse(readFileSync(downloadPath, 'utf8')) as Record<string, unknown>;
+}
+
+/**
+ * Click the chrome bar's Open button and answer the file chooser with
+ * `fixturePath`. Arm-before-click (see {@link chromeSave}). Requires
+ * `forcePickerFallback` on the open* helper. Returns when the file has been
+ * handed to the app — the caller waits for the document (or status line) to
+ * reflect it.
+ */
+export async function chromeOpen(page: Page, fixturePath: string): Promise<void> {
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open…', exact: true }).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles(fixturePath);
 }
 
 /**
