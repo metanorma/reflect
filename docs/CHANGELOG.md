@@ -201,7 +201,7 @@ advanced past the release-trigger pin.
 - **Pins** — metanorma-standoc `78bb1347` → `ba325b0e` (main), metanorma
   `e9a3bc18` → `de1e757d`, isodoc `9d02f55f` → `cbbdc3b1`. Grammar sources
   unmoved (standoc-models still `7d5d737c`, submodule `3b408b71`) and the
-  vendored runtime grammars byte-identical to the 2026-10-28 verification —
+   vendored runtime grammars byte-identical to the 2026-10-27 verification —
   no vendoring pass since the 2026-10-01 flip, so the §4 vendored-runtime
   lag persists; §3/§4 source facts stand as verified.
 - **One drift** — standoc `2f3d7e87` (2026-10-31, "Generate internal
@@ -214,7 +214,7 @@ advanced past the release-trigger pin.
 
 ---
 
-## 2026-10-28 — Upstream ledger re-pin: vendoring flip landed; grammar sources unmoved
+## 2026-10-27 — Upstream ledger re-pin: vendoring flip landed; grammar sources unmoved
 
 `docs/metanorma-model.md` re-pin (plus one rename in `docs/schema.spec.md`);
 **Commits: *(pending)***. Trigger: the ledger's own policy — the
