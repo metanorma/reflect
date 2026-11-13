@@ -207,7 +207,8 @@ The editor authors the Semantic shape and lets the transform adapt it. Of
 these, only the value-transforming redefinitions constrain authoring:
 `IdRefType` is plain `text` in Semantic (cross-references point at `@anchor`)
 but `xsd:IDREF` in Presentation (pointing at `@id`), so the editor must
-author the Semantic form and let the transform rewrite the values (§5).
+author the Semantic form and let the transform re-key the layer's
+identifiers (§5, step 3: `@id` ← anchor; targets sanitised in place).
 Content-dropping reductions like the `empty` list above need no editor
 attention — the transform performs the removal.
 
@@ -341,7 +342,7 @@ Every id-bearing element carries `RequiredId = attribute id { xsd:ID }`
 (basicdoc — required). `standoc.rnc` combines add optional `anchor` (text) and
 `source`.
 
-The upstream emission lifecycle (standoc):
+The upstream emission lifecycle (standoc, then isodoc at step 3):
 
 1. **At authoring** (`lib/metanorma/converter/blocks.rb` `id_attr`): `@id` is
    always a generated placeholder `"_" + Metanorma::Utils.random_uuid`
@@ -351,11 +352,28 @@ The upstream emission lifecycle (standoc):
 2. **At cleanup** (`lib/metanorma/cleanup/inline.rb` `contenthash_id_make`):
    every GUID-shaped `@id` is replaced by a content-derived hash
    (`Metanorma::Utils.contenthash`; algorithm lives in the metanorma-utils
-   gem — unpinned, last read 2026-08-11). `@anchor` is preserved and aliased
-   into the id map used for resolution.
-3. **At the presentation transform**: cross-reference targets
-   are resolved through the anchor map and rewritten to the content-hash
-   `@id` (normalized to the `xsd:IDREF` of §3); `@anchor` is dropped.
+   gem — unpinned, last read 2026-08-11). `@anchor` is preserved. It is also
+   aliased into the `@contenthash_ids` map (`m[anchor] = contenthash`), but
+   **nothing reads that map** — the aliasing is inert (sole reference at the
+   pin is its assignment; no consumer in standoc, nor in metanorma-iso).
+   Resolution does **not** flow through it; see step 3.
+3. **At the presentation transform** (isodoc →
+   `lib/isodoc/presentation_function/ids.rb` `provide_ids`): the rewrite runs
+   **id ← anchor**, not target → hash. `populate_id` copies each id-bearing
+   element's Semantic `@id` to `@semx-id` and, when an `@anchor` exists,
+   replaces `@id` with the NCName-sanitised **anchor value**; cross-reference
+   attributes (`xref/@target`, `eref/@bibitemid`, … —
+   `Metanorma::Utils.anchor_attributes`) are NCName-sanitised **in place**
+   (`anchor_sanitise`) — they keep carrying the anchor string, which now
+   coincides with `@id`, satisfying §3's `xsd:IDREF`. `@anchor` is
+   **retained**, not dropped (verified: `spec/isodoc/
+   presentation_xml_ids_spec.rb` maps `<clause id="B" anchor="C"/>` to
+   `<clause id="C" anchor="C" semx-id="B">`, and no `@anchor` deletion exists
+   anywhere in isodoc's lib at the pin). Content-hash ids reach Presentation
+   XML only where the transform itself mints ids (`add_missing_presxml_id` /
+   `add_missing_id`; `id_validate → contenthash_id_cleanup` then swaps those
+   minted GUIDs for content-hashes and retargets references pointing at
+   them — `add_new_contenthash_id` / `xref_new_contenthash_id`).
 
 Uniqueness of `id`/`anchor` is enforced by standoc content checks
 (STANDOC_36); the RNG pass makes no ID/IDREF-type assertion — `IdRefType`
