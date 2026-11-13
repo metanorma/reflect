@@ -320,7 +320,6 @@ const blockNodes: Record<string, NodeSpec> = {
     group: BLOCK_GROUP,
     code: true,
     attrs: {
-      text: { default: null },
       language: { default: null },
       ...DATA_ATTR,
     },

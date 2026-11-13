@@ -45,6 +45,35 @@ describe('§12.1 unknown-attr capture into data', () => {
     );
   });
 
+  it('banks a legacy sourcecode `text` attr string into data (§6.1: the attr is deliberately absent)', () => {
+    assert.equal(
+      roundTrip({
+        type: 'sourcecode',
+        attrs: { language: 'python', text: 'legacy code' },
+        content: [{ type: 'text', text: 'print(1)' }],
+      }),
+      JSON.stringify({
+        type: 'sourcecode',
+        attrs: { language: 'python', data: { text: 'legacy code' } },
+        content: [{ type: 'text', text: 'print(1)' }],
+      }),
+    );
+  });
+
+  it('banks a legacy sourcecode `text: null` key into data (null values bank too)', () => {
+    assert.equal(
+      roundTrip({
+        type: 'sourcecode',
+        attrs: { language: null, text: null },
+        content: [],
+      }),
+      JSON.stringify({
+        type: 'sourcecode',
+        attrs: { language: null, data: { text: null } },
+      }),
+    );
+  });
+
   it('captures unknown attrs on deeply nested nodes (emergent recursion)', () => {
     assert.equal(
       roundTrip({
@@ -138,7 +167,41 @@ describe('§12.1 unknown-attr capture into data', () => {
             marks: [
               {
                 type: 'link',
-                attrs: { href: 'https://x', target: null, data: { zzz: 1 } },
+                attrs: { href: 'https://x', data: { zzz: 1 } },
+              },
+            ],
+            text: 'hi',
+          },
+        ],
+      }),
+    );
+  });
+
+  it('banks a legacy link `target` attr into data (§6.2: href is the single URL attr)', () => {
+    assert.equal(
+      roundTrip({
+        type: 'paragraph',
+        attrs: {},
+        content: [
+          {
+            type: 'text',
+            text: 'hi',
+            marks: [
+              { type: 'link', attrs: { href: 'https://x', target: '_blank' } },
+            ],
+          },
+        ],
+      }),
+      JSON.stringify({
+        type: 'paragraph',
+        attrs: { data: {} },
+        content: [
+          {
+            type: 'text',
+            marks: [
+              {
+                type: 'link',
+                attrs: { href: 'https://x', data: { target: '_blank' } },
               },
             ],
             text: 'hi',

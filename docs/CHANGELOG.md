@@ -7,6 +7,31 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-11-13 — commands: Backspace on empty section titles; body-empty walk; single-step typed re-seeds
+
+`docs/EditorCommands.spec.md` §1.6.3/§4.4.8/§4.4.9/§4.7.2/§4.7.3/§4.10 +
+`@metanorma/editor-commands`; **Commits: *(pending)***.
+
+- **Change** — §4.4.9 now codifies the implemented two-case guard: an empty
+  `section_title` over a **meaningful body** deletes the title only; an
+  **effectively empty** section (no body children, or only empty paragraphs)
+  is deleted whole, with the §4.7.3 landing rules. §4.4.8's central rule
+  gains the **body-empty** definition (no children, or only the
+  `section_title`), implemented by the container-stack walk: a section whose
+  last body block is deleted no longer no-ops at the document start.
+  Re-seeds of emptied non-deletable containers are now **single-step typed
+  replacements** — `clause` in `sections`, `content_section` in `preface`,
+  `references` in `bibliography`, each `(section_title, empty paragraph)`
+  with a fresh `id` — fixing three defects: the default-attrs remnant clause
+  a delete-then-insert re-seed left behind (id lost to the transform's
+  structure-preserving refill), the dropped `clause` re-seed in `preface`
+  (schema-inadmissible there, leaving an invalid caret at doc position 0),
+  and the stale refuse-at-non-deletable-container narrative in §4.4.8/§4.7
+  (the walk re-seeds, it does not refuse). Covered by the new
+  `backspace.test.mjs` suite (BST1–BST4, BST2a–BST2c, BS4, BP3, BS3).
+
+---
+
 ## 2026-11-12 — document format: versioned `.mn.json` envelope, two version axes
 
 `docs/FileFormat.spec.md` (new corpus spec) + `@metanorma/file-format` (new

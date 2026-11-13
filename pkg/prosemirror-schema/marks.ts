@@ -80,16 +80,12 @@ function markAttr(
 const referenceMarks: Record<string, MarkSpec> = {
   link: {
     inclusive: false,
-    attrs: { href: { default: null }, target: { default: null }, ...DATA_ATTR },
+    attrs: { href: { default: null }, ...DATA_ATTR },
     toDOM: (mark) => {
       const attrs: Record<string, string> = {};
       const href = markAttr(mark, 'href');
-      const target = markAttr(mark, 'target');
       if (href !== null) {
         attrs['href'] = href;
-      }
-      if (target !== null) {
-        attrs['target'] = target;
       }
       return ['a', attrs, 0];
     },
@@ -98,7 +94,6 @@ const referenceMarks: Record<string, MarkSpec> = {
         tag: 'a[href]',
         getAttrs: (el) => ({
           href: el.getAttribute('href'),
-          target: el.getAttribute('target'),
         }),
       },
     ],

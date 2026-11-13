@@ -176,7 +176,7 @@ account for them:
 | Definition lists use `dl` = `(dt dd)+` with `dt` (`inline*`) / `dd` (`block+`) | There is **no** upstream command for this model; definition-list flow is fully custom and must preserve the `(dt dd)+` pairing invariant. |
 | `sourcecode` has `code: true` | Code-newline behaviour applies inside `sourcecode`; stock code-newline detection works because `code: true` is honoured by `EditorState`. |
 | A defined set of **atom** nodes (`image`, `formula`, `footnote_marker`, `soft_break`, `stem`) has `content: ""` | The cursor can never be *inside* these; commands must handle node-selections on and adjacency to atoms via `createParagraphNear`-style logic rather than attempting to split them. |
-| `section_title` is a textblock (`content: "inline*"`) that appears only as the optional leading child of a section node | Enter inside a `section_title` does not split it into two section_titles (that would produce two headings for one section); instead the `exitSectionTitle` command (§2.7) moves the cursor to the section's first body block or inserts one. Backspace on an empty `section_title` deletes the title but preserves the section (§4.4.9). |
+| `section_title` is a textblock (`content: "inline*"`) that appears only as the optional leading child of a section node | Enter inside a `section_title` does not split it into two section_titles (that would produce two headings for one section); instead the `exitSectionTitle` command (§2.7) moves the cursor to the section's first body block or inserts one. Backspace on an empty `section_title` runs the §4.4.9 guard: with a meaningful body it deletes the title only; an effectively empty section is deleted whole (no empty shell remains). |
 | `floating_title` is a **groupless textblock** (`content: "inline*"`, no PM group membership) | Enter inside a `floating_title` does not split it into two headings — in every context that admits a `floating_title` (`sections`, a clause/annex subclause run) the only legal followers are other subclause-run members, never a bare paragraph. Instead the `exitFloatingTitle` command (§2.4.8, §2.7) moves the cursor to the next sibling or inserts the clause the title names. Its grouplessness means `findWrapping` rejects list wrapping with no special case (a list cannot wrap a groupless node). |
 | Optional attrs default to `null`; the catch-all `data` attr exists on every node/mark | Commands that create nodes should rely on schema defaults (omit unset attrs) rather than constructing explicit `null`/`{}` attr maps, so `data` and defaults are preserved consistently. |
 
@@ -1399,16 +1399,23 @@ textblock empties a section**:
 - **A section node (`clause`, `annex`, `content_section`, `abstract`,
   `foreword`, `introduction`, `acknowledgements`, `terms`, `definitions`,
   `references`) is deleted when deleting its last child block would leave it
-  empty.** This is the §4.7.3 walk's central rule, and the fix for the
-  nested-empty-paragraph no-op described at the top of §4. Deleting an empty
-  `clause` recurses upward: if the clause was its parent clause's only child,
-  the parent is deleted too, and so on up to the `sections`/`preface`/
-  `bibliography`/`doc` level.
+  **body-empty** — no children remaining, or only the `section_title` (a
+  heading, not a body block).** A surviving bare title is not content: the
+  strict-XOR clause content expression makes a heading-only clause invalid,
+  and an emptied `preface`/`sections`/`bibliography` violates its
+  required-content expression. This is the §4.7.3 walk's central rule, and the
+  fix for the nested-empty-paragraph no-op described at the top of §4.
+  Deleting an empty `clause` recurses upward: if the clause was its parent
+  clause's only child, the parent is deleted too, and so on up to the
+  `sections`/`preface`/`bibliography`/`doc` level.
 - **The walk stops at the document root and at the structural containers
   (`preface`, `sections`, `bibliography`).** These are never deleted on
-  Backspace: they are the fixed top-level skeleton of a Metanorma document. If
-  the walk would empty one, the command instead **refuses** and leaves the
-  cursor where it is. The document must always have an editable position.
+  Backspace: they are the fixed top-level skeleton of a Metanorma document.
+  When deleting the last child would leave one empty, the command re-seeds it
+  in the same step with a fresh section of the type its content expression
+  requires, cursor at the start of the re-seeded paragraph (§4.7.3 step 3;
+  the doc-start anchor below). The document must always have an editable
+  position.
 - **Where the cursor lands when a section is deleted.** When the deleted section
   has a previous sibling (a previous `clause`, a previous block, …), the cursor
   goes to the **end of the previous sibling's last descendant textblock** — i.e.
@@ -1416,13 +1423,18 @@ textblock empties a section**:
   has no previous sibling, the cursor goes to the **end of the last descendant
   textblock of the previous sibling of the nearest non-deleted ancestor**, and
   so on; if no predecessor exists anywhere (the cursor was at the very start of
-  the document's editable region), the cursor stays at the start of the document
-  (no-op-adjacent: the deletion is refused or, if a paragraph was removed,
-  lands at position 0 of the first remaining textblock).
-- **Backspace never creates, merges, or reorders sections.** Deletion is the
-  only structural change Backspace makes to the section hierarchy; new sections
-  come from dedicated commands (the toolbar's Clause button, §3 of the
-  AdvancedMetanormaToolbar spec), never from Backspace.
+  the document's editable region), the cursor stays at the start of the
+  document (no-op-adjacent: the emptied container is re-seeded and the cursor
+  lands in its fresh paragraph — the doc-start anchor below — or, when only a
+  paragraph was removed, at position 0 of the first remaining textblock).
+- **Backspace never merges or reorders sections, and never creates one except
+  as a re-seed.** The structural changes Backspace makes to the section
+  hierarchy are deletions (the §4.7.3 walk, §4.4.9) and the minimal re-seed of
+  a non-deletable container that would otherwise be left empty (the doc-start
+  anchor below, §4.4.9) — the document always keeps an editable position.
+  Author-intended new sections come from dedicated commands (the toolbar's
+  Clause button, §3 of the AdvancedMetanormaToolbar spec), never from
+  Backspace.
 - **For front-matter sections** (`abstract`, `foreword`, `introduction`,
   `acknowledgements`, `content_section`), the same rule applies as for clauses:
   delete the last child → section deleted → walk upward. The schema-safety rule
@@ -1430,44 +1442,54 @@ textblock empties a section**:
 
 **Doc-start anchor.** The default document (schema.spec.md §15) is `doc >
 sections > clause > (section_title, paragraph)`. Pressing Backspace at the
-start of that paragraph deletes the paragraph, which empties the `clause`'s
-body (the `section_title` is a heading, not a body block); the `clause` is
-deleted; the walk then reaches `sections`, a structural container that the
-rule above refuses to delete. To keep the document editable, the command
-**re-creates a minimal valid content** for the emptied container: an empty
-`paragraph` inside the `clause` (or, if the `clause` was also deleted, a fresh
-`clause` with a `section_title` and an empty paragraph inside the `sections`).
-The user observes a no-op at the document start — the cursor stays in an empty
-paragraph at the same screen position — but no invariant is violated. This is
-the one case where `emptyTextblockBackspace` dispatches a transaction that
-*adds* a node rather than only deleting; it is the dual of the Enter feature's
-§2.4.7 `createParagraphNear` rule ("Enter near an atom makes a place to type").
+start of that paragraph deletes the paragraph; the clause's body is now empty
+(the `section_title` is a heading, not a body block), so the walk deletes the
+clause too, then reaches `sections`, a structural container it refuses to
+delete. To keep the document editable, the command replaces the deleted clause
+in the same step with a fresh one: `clause > (section_title, empty paragraph)`,
+cursor at the start of the re-seeded paragraph. The user observes a no-op at
+the document start — the document shape and the cursor's screen position are
+unchanged; only the clause `id` is regenerated. This replacement (deleted
+content swapped for freshly created nodes in one step) is the dual of the
+Enter feature's §2.4.7 `createParagraphNear` rule ("Enter near an atom makes
+a place to type"); §4.4.9's re-seed is the same mechanism reached from an
+empty title.
 
 #### 4.4.9 Section titles (`section_title`)
 
 A `section_title` is the optional leading heading textblock of a section node
 (schema §8.2). It is an ordinary textblock (`content: "inline*"`) but occupies a
-special role: it is the section's heading, not a body block. Backspace on an
-empty `section_title` must therefore **delete only the title, not the section** —
-the section's body blocks are preserved.
+special role: it is the section's heading, not a body block. What Backspace on
+an empty `section_title` deletes depends on what follows the heading:
+
+- A **meaningful body** is any child after the `section_title` that is not an
+  empty `paragraph`: a paragraph with content, or any non-paragraph block (a
+  nested section, a `figure`, a `table`, a `note`, …).
+- A section with no children after the `section_title`, or only empty
+  `paragraph`s there, is **effectively empty**: the empty trailing paragraphs
+  are seeding residue (created alongside the title by the section-insertion
+  commands), not content.
 
 | Selection | Zone | Context | Effect | Invariant |
 |---|---|---|---|---|
-| Collapsed | start-of-empty | the empty `section_title` has following body blocks | **Delete the `section_title` only.** The cursor lands at the start of the section's first remaining body block. The section node and all its body content are untouched. | Section content model (`section_title? …`) still satisfied (zero-or-one heading). |
-| Collapsed | start-of-empty | the empty `section_title` is the **only** child of the section (no body blocks) | **Delete the `section_title`, then insert an empty `paragraph`** as the section's body so the section is never left with zero body blocks. Cursor in the new paragraph. | Section always has at least one body block. |
+| Collapsed | start-of-empty | the section has a **meaningful body** | **Delete the `section_title` only.** The cursor lands at the start of the section's first remaining body block. The section node and all its body content are untouched. | Section content model (`section_title? …`) still satisfied (zero-or-one heading). |
+| Collapsed | start-of-empty | the section is **effectively empty** | **Delete the entire section node** — a heading-less section holding only an empty paragraph is an empty shell. Cursor: with a previous sibling, at the end of the predecessor's last descendant textblock; without one, at the start of the next sibling's first textblock. When the section was the only child of a non-deletable container, it is replaced in the same step by a fresh section of the type the container requires — `clause` in `sections`, `content_section` in `preface`, `references` in `bibliography` — shaped `(section_title, empty paragraph)`, with the **cursor inside the re-seeded `section_title`**. | No empty section shell and no duplicate remnant section — the container holds exactly one re-seeded section; the document always keeps an editable position. |
 | Collapsed | start (non-empty) | inside a `section_title` with text content | No-op (`false`). Default deletion runs (deletes a character). | `inline*` intact. |
 | Collapsed | middle / end | inside a `section_title` | No-op (`false`). Default character deletion runs. | `inline*` intact. |
 | Ranged | any | within a `section_title` | No-op (`false`). `deleteSelection` runs. | `inline*`. |
 | Node | — | node-selected `section_title` | See §4.4.7 (`section_title` is a non-atom block — `false` for this feature; default handling may delete it). | — |
 
 The `section_title` guard fires **before** the general §4.7.3 container-stack
-walk: the walk would otherwise treat the empty `section_title` as a generic
-empty textblock, delete it, and then (if it was the only child) proceed to
-delete the parent section. The guard intercepts this case to preserve the
-section and re-seed a body paragraph when needed. It is the structural dual of
-the Enter feature's `exitSectionTitle` command (§2.7): just as Enter inside a
-heading exits to the body, Backspace on an empty heading removes the heading
-but keeps the body.
+walk: with the cursor in the empty `section_title` itself, the walk's
+body-empty rule cannot engage (the title's surviving sibling is a body
+block), so the walk would delete only the heading — for an effectively empty
+section, stranding it as a shell (with a meaningful body, the outcomes
+coincide). The guard classifies the body first: it deletes the heading alone
+when the body is meaningful, and the whole section when it is effectively
+empty. It is the structural dual of the Enter feature's `exitSectionTitle`
+command (§2.7): just as Enter inside a heading exits to the body, Backspace on
+an empty heading removes the heading (keeping a meaningful body) or the
+section that carried nothing but the heading and seeding residue.
 
 #### 4.4.9b Captions (`figure_name`, `table_name`)
 
@@ -1562,7 +1584,7 @@ It is an exported `Command` conforming to the Command contract.
 
 | Command | Form | Source | Responsibility |
 |---|---|---|---|
-| `emptyTextblockBackspace` | `Command` | custom | When the cursor is collapsed at the start of an **empty** textblock, walk the container stack (§4.7.3) deleting the textblock and any parent that would be emptied, refusing inside a `dl`, a `table_cell`'s last block, or when the walk reaches a non-deletable container. Returns `false` (so the chain's deletion steps run) for any other input: a non-empty textblock, a cursor not at the start, a ranged or node selection. |
+| `emptyTextblockBackspace` | `Command` | custom | When the cursor is collapsed at the start of an **empty** textblock, walk the container stack (§4.7.3) deleting the textblock and any parent that would be emptied, refusing inside a `dl` or a `table_cell`'s last block; a walk that would empty a non-deletable container stops there and re-seeds it in the same step (§4.7.3 step 3). Returns `false` (so the chain's deletion steps run) for any other input: a non-empty textblock, a cursor not at the start, a ranged or node selection. |
 
 The package re-exports the stock `joinBackward` and `deleteSelection` commands
 from `prosemirror-commands` so consumers can assemble the full Backspace chain
@@ -1597,9 +1619,10 @@ import type { Command } from "prosemirror-state";
  * - that textblock is empty (`node.content.size === 0`).
  *
  * Refuses (returns false, dispatches nothing) when the cursor is inside a `dl`
- * (`dt` or `dd`), inside the last block of a `table_cell`, or when the
- * container-stack walk (§4.7.3) reaches a non-deletable container without a
- * predecessor. When the empty textblock is a `section_title`, the §4.4.9 guard
+ * (`dt` or `dd`) or inside the last block of a `table_cell`; when the
+ * container-stack walk (§4.7.3) would empty a non-deletable container, it
+ * re-seeds the container instead (§4.7.3 step 3). When the empty textblock is
+ * a `section_title`, the §4.4.9 guard
  * applies instead of the general walk. In all other positions — non-empty
  * textblock, cursor not at start, ranged or node selection — returns false so
  * the chain's stock deletion steps run.
@@ -1636,7 +1659,8 @@ would dispatch, i.e. when **all** of:
 5. the textblock is not the last block of a `table_cell` (the parent
    `table_cell`'s `childCount === 1` and that child is the textblock);
 6. **either** (a) the empty textblock is a `section_title` — the §4.4.9 guard
-   applies (delete the title, re-seed a body paragraph if needed), **or**
+   applies (title-only deletion with a meaningful body; whole-section deletion
+   with §4.4.9's cursor and re-seed rules when effectively empty), **or**
    (b) the textblock is not a `section_title` and simulating the §4.7.3 walk
    from this position reaches a deletion set that either terminates with a
    predecessor (some non-deleted ancestor has a previous sibling) **or**
@@ -1653,10 +1677,15 @@ builds a single transaction (§1.7) that performs the walk:
 
 0. **`section_title` guard (§4.4.9).** If the empty textblock is a
    `section_title`, execute the §4.4.9 logic instead of the general walk below:
-   delete the `section_title`; if it was the section's only child, insert an
-   empty `paragraph` as the body; place the cursor at the start of the first
-   body block (the re-seeded paragraph or the pre-existing first body block).
-   Dispatch and return. The general walk does not run for `section_title`.
+   with a meaningful body, delete the `section_title` only and place the cursor
+   at the start of the section's first body block; with an effectively empty
+   section, delete the whole section and land the cursor per step 3's rules —
+   the previous sibling's last descendant textblock, the next sibling's first
+   textblock — or, when the section was the only child of a non-deletable
+   container, inside the re-seeded section's `section_title` (§4.4.9; the
+   walk's own re-seed below instead places the cursor in the re-seeded
+   paragraph). Dispatch and return. The general walk does not run for
+   `section_title`.
 0a. **`dl` branch (§4.4.4).** If the textblock is directly in dl structure —
    it is a `dt`, or its parent is a `dd` with no other blocks — execute the
    §4.4.4 pair-atomic deletion instead of the general walk: compute the
@@ -1675,8 +1704,9 @@ builds a single transaction (§1.7) that performs the walk:
      list): if its remaining `list_item` children would be zero, add the list's
      range too. Continue from the list's parent.
    - *If the parent is a section node (`clause`, `annex`, …) or a container
-     block (`note`, `example`, …) whose remaining children would be zero* → add
-     the parent's range to the deletion set. Continue from the parent's parent.
+     block (`note`, `example`, …) whose remaining children would be zero — or
+     only the `section_title` (body-empty, §4.4.8)* → add the parent's range
+     to the deletion set. Continue from the parent's parent.
    - *If the parent is a `table_cell`* → **abort and refuse** (return `false`,
      dispatch nothing): §4.4.6 forbids emptying a cell. This guard is also
      reached up-front by applicability clause 5, but is re-checked here for
@@ -1699,12 +1729,13 @@ builds a single transaction (§1.7) that performs the walk:
      (mapped through the deletion transaction).
    - If the walk stopped at a non-deletable container (step 2's bullet 5) and
      the container now has **no children** (the doc-start anchor case) →
-     **re-seed** the container with a minimal valid child: for `sections`/
-     `preface`/`bibliography`, insert a fresh `clause` containing a
-     `section_title` and an empty `paragraph`; for `doc`, insert the default
-     skeleton. Place the cursor at the start of that re-seeded paragraph. This
-     is the only transaction the command dispatches that *adds* nodes (§4.4.8
-     doc-start anchor).
+     **re-seed** the container, in one replacement step, with a fresh section
+     of the type its content expression requires — a `clause` in `sections`, a
+     `content_section` in `preface`, a `references` in `bibliography` — shaped
+     `(section_title, empty paragraph)`, cursor at the start of the re-seeded
+     paragraph. The re-seed is a single replacement, never delete-then-insert
+     — a bare deletion of a required-content container's only child does not
+     survive step validation. For `doc`, insert the default skeleton.
    - If the walk stopped because the parent still has other children (step 2's
      last bullet) but the deleted textblock was that parent's **first** child
      (so there is no previous sibling at this level) → the cursor lands at the
@@ -1887,12 +1918,22 @@ rows:
   `deleteSelection` deletes the atom.
 - **BA2** node selection on a non-atom block (`paragraph`) → `false` for this
   feature; default handling.
-- **BST1** empty `section_title` (cursor at start) with following body blocks →
-  `section_title` deleted only; cursor at start of the section's first remaining
-  body block; section node and body content untouched (§4.4.9).
-- **BST2** empty `section_title` (cursor at start) that is the **only** child of
-  the section → `section_title` deleted, empty `paragraph` inserted as body;
-  cursor in the new paragraph; section preserved (§4.4.9).
+- **BST1** empty `section_title` (cursor at start) whose section has a
+  meaningful body → `section_title` deleted only; cursor at the start of the
+  section's first remaining body block; section node and body content
+  untouched (§4.4.9).
+- **BST2** empty `section_title` (cursor at start), section effectively empty
+  (title + one empty paragraph) and with a previous sibling section → the
+  **whole section** deleted in one transaction; cursor at the end of the
+  previous sibling's last descendant textblock (§4.4.9).
+- **BST2a** as BST2, but the section is its parent's **first** child with
+  following siblings → whole section deleted; cursor at the start of the next
+  sibling's first textblock.
+- **BST2b** empty `section_title` (cursor at start), section effectively empty
+  and the **only** child of a non-deletable container (`sections`) → the
+  section is deleted and replaced in one step by a fresh
+  `clause > (section_title, empty paragraph)` with a new `id`; the container
+  holds **exactly one** section; cursor inside the re-seeded `section_title`.
 - **BST3** non-empty `section_title`, cursor at start → no-op (`false`); default
   character deletion runs.
 - **BST4** ranged selection within a `section_title` → no-op (`false`);
@@ -1906,9 +1947,13 @@ rows:
   `abstract` deleted; cursor at end of the previous sibling's last descendant
   textblock.
 - **BS3** empty paragraph whose deletion chain would empty a non-deletable
-  container other than at doc start (e.g. an empty `bibliography` reached by
-  deleting its only `clause`) → re-seed per §4.4.8; cursor in the re-seeded
-  paragraph; document remains editable.
+  container other than at doc start (deleting its only `references` section in
+  `bibliography`) → re-seed per §4.4.8 with a fresh `references` section;
+  cursor in the re-seeded paragraph; document remains editable.
+- **BS4** empty paragraph, sole body block of a titled `clause` that has a
+  previous sibling clause → the whole clause (title + paragraph) deleted in
+  one transaction; cursor at the end of the previous clause's last descendant
+  textblock (the §4.4.8 body-empty rule).
 - **S1** every applicable row: assert no `bullet_list` / `ordered_list` / `dl` /
   container / table part / section is left with fewer children than its
   content expression requires.

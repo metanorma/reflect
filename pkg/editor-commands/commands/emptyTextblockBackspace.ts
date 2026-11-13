@@ -25,10 +25,13 @@
  * - inside the **last** block of a `table_cell` → **refuse** (no-op): a cell
  *   must retain at least one block (spec §4.4.6).
  * - when the walk reaches a non-deletable container (`sections`, `preface`,
- *   `bibliography`, `doc`) that would be emptied → **re-seed** it with a
- *   minimal
- *   valid `clause > paragraph` so the document always has an editable position
- *   (spec §4.4.8 doc-start anchor).
+ *   `bibliography`, `doc`) that would be emptied → **re-seed** it in one step
+ *   with the section type its content expression requires — `clause` in
+ *   `sections`, `content_section` in `preface`, `references` in
+ *   `bibliography` — shaped `(section_title, empty paragraph)`, so the
+ *   document always has an editable position (spec §4.4.8 doc-start anchor).
+ * - a section left **body-empty** by the deletion (no surviving children, or
+ *   only its `section_title`) is deleted whole (spec §4.4.8).
  * - any other position (non-empty textblock, cursor not at start, ranged or
  *   node selection) → return `false` so the chain's stock deletion steps run.
  *
@@ -81,13 +84,45 @@ const REFUSE_NAMES: ReadonlySet<string> = new Set([
   NODE_NAME.footnotes,
 ]);
 
+/**
+ * Section node types (spec §4.4.8 central rule; the ten content-bearing
+ * section types of schema §8.2). The walk cuts through one whose remaining
+ * children would be zero — or only the `section_title` (body-empty).
+ */
+const SECTION_NAMES: ReadonlySet<string> = new Set([
+  NODE_NAME.clause,
+  NODE_NAME.annex,
+  NODE_NAME.content_section,
+  NODE_NAME.abstract,
+  NODE_NAME.foreword,
+  NODE_NAME.introduction,
+  NODE_NAME.acknowledgements,
+  NODE_NAME.terms,
+  NODE_NAME.definitions,
+  NODE_NAME.references,
+]);
+
+/**
+ * The section type each non-deletable container's content expression requires
+ * for its re-seed (spec §4.7.3 step 3). No `doc` entry: the walk loop stops
+ * at depth 1 and never re-seeds into `doc` (§4.7.3 keeps the default-skeleton
+ * fallback there); the `clause` fallback below is a dead-letter safety.
+ */
+const SEED_TYPE_BY_CONTAINER: Readonly<Record<string, string>> = {
+  [NODE_NAME.sections]: NODE_NAME.clause,
+  [NODE_NAME.preface]: NODE_NAME.content_section,
+  [NODE_NAME.bibliography]: NODE_NAME.references,
+};
+
 /** Outcome of the container-stack walk (spec §4.7.3). */
 type WalkResult =
   | { readonly kind: 'refuse' }
+  | { readonly kind: 'ok'; readonly cutDepth: number; readonly reseed: false }
   | {
       readonly kind: 'ok';
       readonly cutDepth: number;
-      readonly reseed: boolean;
+      readonly reseed: true;
+      readonly container: string;
     };
 
 /**
@@ -119,12 +154,31 @@ function walkContainerStack($from: ResolvedPos, startDepth: number): WalkResult 
 
     if (NON_DELETABLE_NAMES.has(name)) {
       if (node.childCount === 1) {
-        return { kind: 'ok', cutDepth, reseed: true };
+        return { kind: 'ok', cutDepth, reseed: true, container: name };
       }
       return { kind: 'ok', cutDepth, reseed: false };
     }
 
     if (node.childCount === 1) {
+      cutDepth = d;
+      continue;
+    }
+
+    // §4.4.8 body-empty rule — a section whose only surviving child (after
+    // the deletion-chain child; its index within `node` is `$from.index(d)`,
+    // an index INTO this ancestor) is its `section_title` is body-empty: cut
+    // the whole section. Verified against
+    // the installed prosemirror-transform 1.12.0: a bare `tr.delete` that
+    // would strand a heading-only clause (strict-XOR content) or empty a
+    // required-content container is re-fitted by the structure-preserving
+    // Fitter into a no-op/refill, so the walk must cut the section instead of
+    // leaving the bare heading behind.
+    if (
+      SECTION_NAMES.has(name)
+      && node.childCount === 2
+      && node.child($from.index(d) === 0 ? 1 : 0).type.name
+        === NODE_NAME.section_title
+    ) {
       cutDepth = d;
       continue;
     }
@@ -325,13 +379,13 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
       // deleted/refused per the walk's rules).
       const walk = walkContainerStack($from, dlDepth);
       if (walk.kind === 'refuse') return false;
-      const { cutDepth, reseed } = walk;
-      const delStart = $from.before(cutDepth);
-      tr.delete(delStart, $from.after(cutDepth));
-      if (reseed) {
-        seedMinimalClause(state, tr, delStart);
+      const delStart = $from.before(walk.cutDepth);
+      const delEnd = $from.after(walk.cutDepth);
+      if (walk.reseed) {
+        seedMinimalSection(state, tr, delStart, delEnd, walk.container);
       } else {
-        const dir = $from.index(cutDepth - 1) > 0 ? -1 : 1;
+        tr.delete(delStart, delEnd);
+        const dir = $from.index(walk.cutDepth - 1) > 0 ? -1 : 1;
         tr.setSelection(TextSelection.near(tr.doc.resolve(delStart), dir));
       }
       tr.scrollIntoView();
@@ -396,7 +450,9 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
       tr.delete(titleStart, titleEnd);
       tr.setSelection(TextSelection.near(tr.doc.resolve(titleStart), 1));
     } else {
-      // Case 2 — delete the entire section node.
+      // Case 2 — the section is effectively empty: delete the entire section
+      // node, re-seeding in one step when it was a non-deletable container's
+      // only child.
       const sectionStart = $from.before(sectionDepth);
       const sectionEnd = $from.after(sectionDepth);
       const parentDepth = sectionDepth - 1;
@@ -406,25 +462,16 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
       const parentIsNonDeletable =
         parentNode !== null && NON_DELETABLE_NAMES.has(parentNode.type.name);
 
-      tr.delete(sectionStart, sectionEnd);
-
       if (isOnlyChild && parentIsNonDeletable) {
-        // Re-seed with a minimal clause > [section_title, paragraph].
-        const clauseType = nodeType(state.schema, NODE_NAME.clause);
-        const paraType = nodeType(state.schema, NODE_NAME.paragraph);
-        const titleType = nodeType(state.schema, NODE_NAME.section_title);
-        if (clauseType !== null && paraType !== null) {
-          const children: Node[] = [];
-          if (titleType !== null) {
-            children.push(titleType.create());
-          }
-          children.push(paraType.create());
-          const clause = clauseType.create({ id: generateId() }, children);
-          tr.insert(sectionStart, clause);
-          // Cursor inside the section_title (+2: clause open + title open).
-          tr.setSelection(TextSelection.near(tr.doc.resolve(sectionStart + 2)));
-        }
+        // Single-step typed re-seed (§4.4.9): the container's required
+        // section type replaces the deleted section; cursor inside the
+        // re-seeded section_title (+2: seed open + title open). The walk's
+        // own re-seed instead places the cursor in the re-seeded paragraph
+        // (§4.7.3 step 3) — the two cursor rules differ by site by design.
+        seedMinimalSection(state, tr, sectionStart, sectionEnd, parentNode.type.name);
+        tr.setSelection(TextSelection.near(tr.doc.resolve(sectionStart + 2)));
       } else {
+        tr.delete(sectionStart, sectionEnd);
         // Land at predecessor's last descendant textblock (dir -1) or next
         // sibling's first textblock (dir +1).
         const dir = sectionIndex > 0 ? -1 : 1;
@@ -484,23 +531,24 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
   if (dispatch === undefined) return true;
 
   const tr = state.tr;
-  const { cutDepth, reseed } = result;
-  const delStart = $from.before(cutDepth);
-  const delEnd = $from.after(cutDepth);
+  const delStart = $from.before(result.cutDepth);
+  const delEnd = $from.after(result.cutDepth);
 
-  // Delete the outermost node in the emptied chain.
-  tr.delete(delStart, delEnd);
-
-  if (reseed) {
-    seedMinimalClause(state, tr, delStart);
+  if (result.reseed) {
+    // §4.7.3 step 3 — single-step typed re-seed of the emptied container
+    // (never delete-then-insert; §4.4.8).
+    seedMinimalSection(state, tr, delStart, delEnd, result.container);
   } else {
+    // Delete the outermost node in the emptied chain.
+    tr.delete(delStart, delEnd);
+
     // §4.7.3 step 3 — land the cursor.
     // `$from.index(cutDepth - 1)` is the deleted node's index within its
     // parent. If it had a previous sibling, search backward (−1) to land at
     // the end of the sibling's last descendant textblock; otherwise search
     // forward (+1) to land at the start of the next sibling (now the first
     // child).
-    const deletedNodeIndex = $from.index(cutDepth - 1);
+    const deletedNodeIndex = $from.index(result.cutDepth - 1);
     const dir = deletedNodeIndex > 0 ? -1 : 1;
     tr.setSelection(TextSelection.near(tr.doc.resolve(delStart), dir));
   }
@@ -511,19 +559,39 @@ export const emptyTextblockBackspace: Command = (state, dispatch) => {
 };
 
 /**
- * Re-seed an emptied non-deletable container at `pos` with a minimal
- * `clause > paragraph` (§4.4.8 doc-start anchor), cursor inside.
+ * Re-seed an emptied non-deletable container's range `[from, to)` with a
+ * fresh section of the type the container's content expression requires
+ * (`clause` in `sections`, `content_section` in `preface`, `references` in
+ * `bibliography` — §4.7.3 step 3), shaped `(section_title, empty paragraph)`
+ * with a fresh `id` (§4.4.8 doc-start anchor), in ONE `replaceWith` step so
+ * the container is never momentarily empty: a bare deletion of a
+ * required-content container's only child is re-fitted by the installed
+ * prosemirror-transform 1.12.0's structure-preserving Fitter into a
+ * default-attrs refill (id lost). Cursor at the start of the re-seeded
+ * paragraph.
  */
-function seedMinimalClause(
+function seedMinimalSection(
   state: EditorState,
   tr: Transaction,
-  pos: number,
+  from: number,
+  to: number,
+  containerName: string,
 ): void {
-  const clauseType = nodeType(state.schema, NODE_NAME.clause);
+  const seedName = SEED_TYPE_BY_CONTAINER[containerName] ?? NODE_NAME.clause;
+  const sectionType = nodeType(state.schema, seedName);
+  const titleType = nodeType(state.schema, NODE_NAME.section_title);
   const paraType = nodeType(state.schema, NODE_NAME.paragraph);
-  if (clauseType === null || paraType === null) return;
-  const para = paraType.create();
-  const clause = clauseType.create({ id: generateId() }, para);
-  tr.insert(pos, clause);
-  tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 2)));
+  if (sectionType === null || paraType === null) return;
+  const title = titleType !== null ? titleType.create() : null;
+  const children: Node[] = [];
+  if (title !== null) {
+    children.push(title);
+  }
+  children.push(paraType.create());
+  const seed = sectionType.create({ id: generateId() }, children);
+  tr.replaceWith(from, to, seed);
+  // Cursor at the start of the re-seeded paragraph: seed open + title +
+  // paragraph open.
+  const cursor = from + 1 + (title !== null ? title.nodeSize : 0) + 1;
+  tr.setSelection(TextSelection.near(tr.doc.resolve(cursor)));
 }
