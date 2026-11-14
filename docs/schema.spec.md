@@ -143,7 +143,9 @@ schema- definition time (`toDOM`/`parseDOM` describe structure only).
 The vocabulary is the editor-side naming of the Metanorma document-model
 constructs it covers (§1.1). Names need not match the XML element names — the
 converter performs renames (§17) — but each name denotes exactly one XML
-construct.
+construct. A vocabulary reshape that changes how an existing document loads
+bumps the file format's tree axis and ships its migration step in
+`@metanorma/file-format` ([FileFormat.spec.md](./FileFormat.spec.md) §7).
 
 ### 3.1 Node types (48)
 
