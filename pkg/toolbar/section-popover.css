@@ -1,34 +1,22 @@
-/* Section insertion popover — self-contained top-layer popover via the
-   HTML Popover API + CSS Anchor Positioning. Same pattern as
-   .mn-target-picker / .mn-table-picker / .mn-footnote-picker. */
+/* Section insertion popover — a `react-aria-components` shell on the base
+   popover/dialog layer (MetanormaToolbar.spec.md §10.10). RAC renders the
+   popover in a portal at <body> and applies inline positioning, so consumer
+   CSS overrides on in-flow toolbar elements cannot conflict with the
+   popover's anchor positioning; no positional rules live here. Same pattern
+   as .mn-target-picker / .mn-table-picker / .mn-footnote-picker. */
 
-/* Trigger wrapper provides the anchor for the popover. */
+/* Trigger wrapper. */
 .mn-toolbar-section {
   display: inline-block;
-  position: relative;
-  anchor-name: --mn-section-anchor;
 }
 
 .mn-section-popover {
-  position-anchor: --mn-section-anchor;
-  position-area: inline-end span-block-end;
-  margin: 2px;
   background: var(--mn-surface);
   border: 1px solid var(--mn-border);
   border-radius: var(--mn-radius-md);
   padding: 0.4em;
   box-shadow: 0 2px 8px var(--mn-shadow);
   min-width: 14em;
-}
-
-/* When anchor positioning is unavailable, fall back to positioning relative
-   to the trigger wrapper (position: relative). */
-@supports not (anchor-name: --x) {
-  .mn-section-popover {
-    position: absolute;
-    top: 100%;
-    left: 0;
-  }
 }
 
 /* Cohort group headings. */

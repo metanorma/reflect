@@ -10,8 +10,11 @@ test.describe('section-insert', () => {
     await toolbarButton(page, 'Section').click();
 
     // The popover should be visible.
-    const popover = page.locator('.mn-section-popover[popover]');
+    const popover = page.locator('.mn-section-popover');
     await expect(popover).toBeVisible();
+
+    // Open-focus lands on the first section-type button (sections.md §4.2).
+    await expect(popover.getByRole('button', { name: 'Abstract', exact: true })).toBeFocused();
 
     // Four cohort group headings should be present.
     await expect(popover.locator('.mn-section-popover__heading', { hasText: 'Front matter' })).toBeVisible();
@@ -37,7 +40,7 @@ test.describe('section-insert', () => {
     // Insert a second clause via the Section popover — a SIBLING after the
     // current one (Section-menu choices create sibling sections).
     await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
+    await page.locator('.mn-section-popover').getByRole('button', { name: 'Clause', exact: true }).click();
 
     const doc = await getDoc(page) as { content: Array<{ type: string; content?: unknown[] }> };
 
@@ -58,7 +61,7 @@ test.describe('section-insert', () => {
     await typeInEditor(page, 'body text');
 
     await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Abstract', exact: true }).click();
+    await page.locator('.mn-section-popover').getByRole('button', { name: 'Abstract', exact: true }).click();
 
     const doc = await getDoc(page) as { content: Array<{ type: string; content?: unknown[] }> };
     const docStr = JSON.stringify(doc);
@@ -80,7 +83,7 @@ test.describe('section-insert', () => {
     await typeInEditor(page, 'body text');
 
     await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'References', exact: true }).click();
+    await page.locator('.mn-section-popover').getByRole('button', { name: 'References', exact: true }).click();
 
     const doc = await getDoc(page) as { content: Array<{ type: string; content?: unknown[] }> };
     const docStr = JSON.stringify(doc);
@@ -102,7 +105,7 @@ test.describe('section-insert', () => {
     await typeInEditor(page, 'body text');
 
     await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Annex', exact: true }).click();
+    await page.locator('.mn-section-popover').getByRole('button', { name: 'Annex', exact: true }).click();
 
     const doc = await getDoc(page) as { content: Array<{ type: string; content?: unknown[] }> };
     const docStr = JSON.stringify(doc);
@@ -128,7 +131,7 @@ test.describe('section-insert', () => {
 
     // Insert a clause while the cursor is inside the text-bearing clause.
     await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
+    await page.locator('.mn-section-popover').getByRole('button', { name: 'Clause', exact: true }).click();
 
     const doc = await getDoc(page) as {
       content: Array<{ type: string; content?: unknown[] }>;
@@ -152,7 +155,7 @@ test.describe('section-insert', () => {
     // wrap path that still uses ensureSubclauseCapacity (the Demote command).
     await typeInEditor(page, 'first body');
     await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
+    await page.locator('.mn-section-popover').getByRole('button', { name: 'Clause', exact: true }).click();
     await page.keyboard.type('second heading');
 
     // Demote the second clause into the first (cursor is in the second).
@@ -272,7 +275,7 @@ test.describe('section-insert', () => {
     // Insert a Clause — a SIBLING after the current one (no auto-wrap: the
     // original clause stays in the blocks branch).
     await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Clause', exact: true }).click();
+    await page.locator('.mn-section-popover').getByRole('button', { name: 'Clause', exact: true }).click();
 
     // Now insert a floating title. The cursor is in the new sibling clause
     // (blocks-only), so the deepest admitting ancestor is `sections` itself.
@@ -297,14 +300,14 @@ test.describe('section-insert', () => {
 
     // Insert an abstract (creates preface).
     await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Abstract', exact: true }).click();
+    await page.locator('.mn-section-popover').getByRole('button', { name: 'Abstract', exact: true }).click();
 
     // Click back into the body to re-focus the editor.
     await clickEditor(page);
 
     // Insert a foreword (should append to existing preface).
     await toolbarButton(page, 'Section').click();
-    await page.locator('.mn-section-popover[popover]').getByRole('button', { name: 'Foreword', exact: true }).click();
+    await page.locator('.mn-section-popover').getByRole('button', { name: 'Foreword', exact: true }).click();
 
     const doc = await getDoc(page) as { content: Array<{ type: string; content?: unknown[] }> };
     const docStr = JSON.stringify(doc);

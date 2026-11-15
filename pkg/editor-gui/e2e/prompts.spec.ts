@@ -1,9 +1,10 @@
 /**
  * Prompt dialog flow tests (link, eref).
  *
- * These buttons open a RAC `<PromptPopover>` DOM dialog instead of a native
- * `window.prompt`. The dialog is a `.mn-prompt-popover` popover containing a
- * text field and OK/Cancel buttons.
+ * These buttons open DOM dialogs — the built-in RAC `<PromptPopover>` and the
+ * `<ErefPicker>` popover — rather than native browser prompts. The link
+ * dialog is a `.mn-prompt-popover` popover containing a text field and
+ * OK/Cancel buttons.
  *
  * Note: `xref` and `concept` do not use the prompt dialog — they open a
  * doc-anchored target picker popover instead (see popovers.spec.ts,

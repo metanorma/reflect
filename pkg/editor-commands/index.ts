@@ -92,10 +92,7 @@ export {
   updateImageAttrs,
   canUpdateImageAttrs,
 } from './commands/updateImageAttrs.js';
-export type { ImageSizingUpdate, FigureRole } from './commands/updateImageAttrs.js';
-
-// Bibliography entries (Relaton integration).
-export { insertBibitem } from './commands/insertBibitem.js';
+ export type { ImageSizingUpdate, FigureRole } from './commands/updateImageAttrs.js';
 
 // Sections / clause nesting (sections.md). Of the pure legality helpers in
 // the module, only `wrapInClause` is part of the public API (toolbar button);

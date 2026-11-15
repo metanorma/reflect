@@ -11,13 +11,16 @@
  * the typed text verbatim — the spec's Tier-2 free-text path (forward
  * references to anchors not yet in the doc) folded into the picker.
  *
- * Uses the HTML Popover API (`popover="auto"`) with CSS Anchor Positioning
- * so the popover renders in the browser's **top layer** — escaping all
- * ancestor overflow clipping regardless of toolbar/layout CSS. Same pattern as
- * the footnote/table/image popovers.
+ * A shell on the base popover/dialog layer (MetanormaToolbar.spec.md §10.10):
+ * a `react-aria-components` `Popover` + `Dialog`, anchored to the trigger and
+ * rendered in a portal at `<body>` (top layer — escaping all ancestor overflow
+ * clipping regardless of toolbar/layout CSS). The search input is focused on
+ * open; focus returns to the trigger on close.
  */
 
 import React, { useRef, useState } from "react";
+import { Popover, Dialog } from "react-aria-components";
+import type { RefObject } from "react";
 
 import {
   useEditorStateSelector,
@@ -148,34 +151,40 @@ function buildRefContext(state: EditorState, name: string): RefPromptContext {
 // ---------------------------------------------------------------------------
 
 /**
- * The doc-anchored target picker popover (reference-marks.md §5.1, §5.3).
+ * The doc-anchored target picker popover (reference-marks.md §5.1, §5.3) —
+ * the RAC shell of MetanormaToolbar.spec.md §10.10.
  *
  * Renders a search/filter `<input>` and a `<ul>` of candidate targets. The
  * input doubles as free-text manual entry: Enter with no highlighted list item
  * commits the typed text as-is (Tier-2 forward-reference path). ArrowUp/Down
- * navigates the filtered list; Enter on a highlighted item picks its `id`;
- * Escape cancels.
- *
- * `popover="auto"`: top-layer rendering with light-dismiss (outside click,
- * Escape, and auto-close when another popover opens). Close is also handled
- * via pick / Cancel / Escape). The CSS class `mn-target-picker` is
- * self-contained — it does NOT use the shared `.mn-toolbar-popover` base class
- * because the consumer's vertical-toolbar override targets `.mn-toolbar-popover`
- * with `right: 100%`, which would conflict with anchor positioning.
+ * navigates the filtered list; Enter on a highlighted item picks its `id`.
+ * Escape/outside are handled by the RAC shell — `onOpenChange(false)` is the
+ * cancel path, with focus returned to the trigger. The `.mn-target-picker`
+ * root (with its `--xref` / `--concept` modifier) is self-contained; RAC
+ * renders it in a portal at `<body>` and applies inline positioning, so
+ * consumer CSS overrides on in-flow toolbar elements cannot conflict with the
+ * popover's anchor positioning.
  */
 export function TargetPicker({
+  isOpen,
+  onOpenChange,
+  triggerRef,
   targets,
   onPick,
   onCancel,
-  ref,
   anchorClass,
   ariaLabel,
 }: {
+  /** Whether the popover is open (controlled). */
+  readonly isOpen: boolean;
+  /** Called when the popover should close (Escape, click-outside). */
+  readonly onOpenChange: (isOpen: boolean) => void;
+  /** Ref of the trigger button — RAC positions the popover relative to it. */
+  readonly triggerRef: RefObject<HTMLButtonElement | null>;
   readonly targets: readonly TargetInfo[];
   readonly onPick: (id: string) => void;
   readonly onCancel: () => void;
-  readonly ref?: React.Ref<HTMLDivElement> | undefined;
-  /** Per-button modifier class binding the popover to its trigger's anchor. */
+  /** Per-button modifier class (xref / concept variant). */
   readonly anchorClass: "mn-target-picker--xref" | "mn-target-picker--concept";
   readonly ariaLabel: string;
 }): React.JSX.Element {
@@ -213,67 +222,71 @@ export function TargetPicker({
         }
         break;
       }
-      case "Escape":
-        e.preventDefault();
-        onCancel();
-        break;
     }
   };
 
-  // Auto-focus the search input when the popover opens.
+  // Auto-focus the search input when the popover opens (its content mounts
+  // only while open, so the ref callback fires on each open).
   const setInputRef = (el: HTMLInputElement | null): void => {
     searchRef.current = el;
     el?.focus();
   };
 
+  const handleOpenChange = (open: boolean): void => {
+    if (!open) onCancel();
+    onOpenChange(open);
+  };
+
   return (
-    <div
-      popover="auto"
+    <Popover
+      isOpen={isOpen}
+      onOpenChange={handleOpenChange}
+      triggerRef={triggerRef}
+      offset={4}
       className={`mn-target-picker ${anchorClass}`}
-      role="dialog"
-      aria-label={ariaLabel}
-      aria-modal="false"
-      ref={ref}
-      onKeyDown={handleKey}
     >
-      <input
-        ref={setInputRef}
-        type="text"
-        className="mn-target-picker__search"
-        placeholder="Filter targets or type an id…"
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setHighlight(0);
-        }}
-      />
-      <ul className="mn-toolbar-popover__list">
-        {filtered.map((t, i) => (
-          <li key={t.id}>
-            <button
-              type="button"
-              className={
-                i === safeHighlight
-                  ? "mn-toolbar-popover__item mn-target-picker__item--active"
-                  : "mn-toolbar-popover__item"
-              }
-              data-id={t.id}
-              data-type={t.type}
-              onMouseEnter={() => setHighlight(i)}
-              onClick={() => onPick(t.id)}
-            >
-              <span className="mn-target-picker__label">{t.label}</span>{" "}
-              <code className="mn-target-picker__id">{t.id}</code>
-            </button>
-          </li>
-        ))}
-        {filtered.length === 0 ? (
-          <li className="mn-target-picker__empty">
-            {query === "" ? "No targets in document." : "No matches — press Enter to use the typed id."}
-          </li>
-        ) : null}
-      </ul>
-    </div>
+      <Dialog id={`${anchorClass}-dialog`} aria-label={ariaLabel}>
+        <div onKeyDown={handleKey}>
+          <input
+            ref={setInputRef}
+            type="text"
+            className="mn-target-picker__search"
+            placeholder="Filter targets or type an id…"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setHighlight(0);
+            }}
+          />
+          <ul className="mn-toolbar-popover__list">
+            {filtered.map((t, i) => (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  className={
+                    i === safeHighlight
+                      ? "mn-toolbar-popover__item mn-target-picker__item--active"
+                      : "mn-toolbar-popover__item"
+                  }
+                  data-id={t.id}
+                  data-type={t.type}
+                  onMouseEnter={() => setHighlight(i)}
+                  onClick={() => onPick(t.id)}
+                >
+                  <span className="mn-target-picker__label">{t.label}</span>{" "}
+                  <code className="mn-target-picker__id">{t.id}</code>
+                </button>
+              </li>
+            ))}
+            {filtered.length === 0 ? (
+              <li className="mn-target-picker__empty">
+                {query === "" ? "No targets in document." : "No matches — press Enter to use the typed id."}
+              </li>
+            ) : null}
+          </ul>
+        </div>
+      </Dialog>
+    </Popover>
   );
 }
 
@@ -283,13 +296,15 @@ export function TargetPicker({
 
 /**
  * Internal orchestrator for the Xref / Concept trigger buttons. Mirrors
- * `FootnoteButton`: owns the picker open state, anchors the popover to the
- * trigger, and delegates to a pure mark command via `useEditorEventCallback`.
+ * `FootnoteButton`: owns the picker's controlled open state, anchors the
+ * popover to the trigger, and delegates to a pure mark command via
+ * `useEditorEventCallback`. The trigger's `aria-expanded`/`aria-controls`
+ * reflect the open state (wired explicitly per base §10.10).
  *
  * @param markName  `"xref"` or `"concept"` — drives active detection + command.
  * @param markLabel Trigger button visible label ("Xref" / "Concept").
  * @param markTitle Trigger button ARIA title.
- * @param anchorClass Per-button anchor modifier on the popover.
+ * @param anchorClass Per-button modifier class on the popover.
  * @param onPickCommand  Dispatch the pure command with the resolved target.
  * @param onHook   Optional host hook (delegated to when present).
  */
@@ -319,8 +334,8 @@ function TargetButton({
   ) => void;
 }): React.JSX.Element {
   const [targets, setTargets] = useState<readonly TargetInfo[]>([]);
+  const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
 
   const isActive = useEditorStateSelector((s) => refMarkActive(s, markName));
   const enabled = useEditorStateSelector(isInlineContext);
@@ -373,8 +388,7 @@ function TargetButton({
   );
 
   const closePicker = (): void => {
-    popoverRef.current?.hidePopover();
-    triggerRef.current?.focus();
+    setOpen(false);
   };
 
   const handleClick = (): void => {
@@ -390,12 +404,11 @@ function TargetButton({
       return;
     }
 
-    // No hook: collect targets at click time and open the picker.
+    // No hook: collect targets at click time and open the picker. The
+    // popover mounts on the next render with the targets already committed.
     const collected = fetchTargets();
     setTargets(collected);
-    // showPopover must be called after React commits the updated targets into
-    // the DOM. requestAnimationFrame defers to the next paint.
-    requestAnimationFrame(() => popoverRef.current?.showPopover());
+    setOpen(true);
   };
 
   return (
@@ -405,6 +418,8 @@ function TargetButton({
         type="button"
         className={toolbarButtonClass(isActive, enabled)}
         aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? `${anchorClass}-dialog` : undefined}
         disabled={!enabled}
         title={markTitle}
         onClick={handleClick}
@@ -412,7 +427,9 @@ function TargetButton({
         {markLabel}
       </button>
       <TargetPicker
-        ref={popoverRef}
+        isOpen={open}
+        onOpenChange={setOpen}
+        triggerRef={triggerRef}
         targets={targets}
         anchorClass={anchorClass}
         ariaLabel={ariaLabel}

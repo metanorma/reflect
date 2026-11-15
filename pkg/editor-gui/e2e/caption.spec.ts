@@ -119,7 +119,7 @@ test.describe('figure captions', () => {
     // the caption; Image fills the same figure from the dialog.
     await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
-    const dialog = page.locator('.mn-image-dialog[popover]');
+    const dialog = page.locator('.mn-image-dialog');
     await dialog.locator('#mn-img-src').fill('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>');
     await dialog.locator('#mn-img-alt').fill('alt');
     await dialog.getByRole('button', { name: 'Insert' }).click();
@@ -156,7 +156,7 @@ test.describe('figure captions', () => {
 
     await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
-    const dialog = page.locator('.mn-image-dialog[popover]');
+    const dialog = page.locator('.mn-image-dialog');
     await dialog.locator('#mn-img-src').fill('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>');
     await dialog.getByRole('button', { name: 'Insert' }).click();
     await expect(dialog).toBeHidden();

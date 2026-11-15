@@ -7,6 +7,45 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-11-15 — toolbar: react-aria-components adopted as the popover/dialog layer
+
+`docs/MetanormaToolbar.spec.md` §2/§4.1/§6/§10.6/§10.9/§10.10/§11.1/§11.9/§13 +
+`docs/AdvancedMetanormaToolbar/` (README, reference-marks, sections, tables,
+images-figures) + `pkg/editor-gui/README.md` + `@metanorma/toolbar`;
+**Commits: *(pending)***.
+
+- **Change** — The built-in RAC `PromptPopover` (package-internal) is the
+  default link prompt, and the popover mechanism is now specified once, in the
+  new base §10.10 "Popover and dialog layer (react-aria-components)": a RAC
+  `Popover` + `Dialog` shell anchored to the trigger and rendered in a
+  body-level portal, with feature root classes (`mn-table-picker`,
+  `mn-section-popover`, `mn-footnote-picker`, `mn-target-picker`,
+  `mn-image-dialog`, `mn-image-sizing-dialog`, `mn-eref-picker`,
+  `mn-prompt-popover`), the shared `mn-toolbar-popover__list/__item/__actions`
+  list and `mn-toolbar-dialog-field/-error/-actions` dialog utilities, and
+  `--mn-*` token theming. The AMT docs' stale shared-shell-root and
+  `prefers-color-scheme` lines are corrected, and the dead
+  `.mn-toolbar-popover--ref`/`__input` CSS rules are removed.
+- **Change** — The eref resolution model is codified (reference-marks.md
+  §5.2): host hook first, else the doc-anchored `ErefPicker` (extracted to
+  its own module) harvesting `bibitem` atoms via `@metanorma/relaton` and
+  presenting `(key, title)` pairs with in-picker manual citation-key entry;
+  the stale "cannot enumerate from the document" claim is dropped.
+  `@metanorma/relaton` and `react-aria-components` are now authorized
+  dependencies (base §2, §11.9).
+- **Change** — All seven pickers/dialogs migrate from the HTML Popover API to
+  RAC shells with their class contracts kept: trigger `aria-expanded` /
+  `aria-controls` wired explicitly (tables.md §6.1), open-focus into the
+  primary control (the (1,1) grid cell, the first section type, the first
+  footnote entry, the search input, the citation-key and source-URL fields —
+  several previously unimplemented), focus return on close, and e2e
+  `[popover]` attribute selectors replaced by class-only locators throughout.
+- **Decision** — Every browser-prompt mention in the corpus (22 across five
+  docs) is retired; the docs now describe the built-in DOM prompt flows as
+  current state.
+
+---
+
 ## 2026-11-13 — commands: Backspace on empty section titles; body-empty walk; single-step typed re-seeds
 
 `docs/EditorCommands.spec.md` §1.6.3/§4.4.8/§4.4.9/§4.7.2/§4.7.3/§4.10 +

@@ -134,7 +134,7 @@ const editorPlugins = [
   keymap({
     Enter: chainCommands(
       newlineInCode,
-      enterDefinitionList(metanormaSchema),
+      enterDefinitionList,
       splitListItem(metanormaSchema),
       insertSectionAbove,
       exitSectionTitle,

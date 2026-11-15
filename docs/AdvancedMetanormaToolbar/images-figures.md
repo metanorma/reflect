@@ -977,7 +977,7 @@ The group introduces feature-specific classes/uses under the existing
 .mn-toolbar-image              /* wrapper: Image trigger button + dialog */
   .mn-toolbar-btn              /* the trigger (reuses base class) */
 .mn-toolbar-image-sizing       /* wrapper: Size trigger button + popover */
-.mn-image-dialog               /* the insert dialog (Popover API, top layer) */
+.mn-image-dialog               /* the insert dialog */
 .mn-image-sizing-dialog        /* the sizing popover (own class — sharing
                                   .mn-image-dialog would break the strict-mode
                                   dialog selectors in the e2e suite) */
@@ -985,6 +985,11 @@ The group introduces feature-specific classes/uses under the existing
   .mn-toolbar-dialog-error     /* inline error text (aria-live) */
   .mn-toolbar-dialog-actions   /* commit / cancel button row */
 ```
+
+Both dialogs are shells on the base popover/dialog layer
+([`MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) §10.10) and are
+themed through the `--mn-*` tokens; light/dark handling is central, not per
+dialog.
 
 The Figure button is a plain `ToolbarButton` — it uses the base
 `.mn-toolbar-btn` classes and adds no feature classes.

@@ -1,20 +1,21 @@
 /**
- * `SectionPopover` — section insertion popover (sections.md §4.1).
+ * `SectionPopover` — section insertion popover (sections.md §4.2).
  *
  * A single trigger button ("Section") whose popover lists all ten section
- * types grouped by cohort (front matter / body / back matter). Selecting a
- * type calls the pure `insertSection` command, which routes the new section to
- * the correct container based on its cohort — creating the container
- * (`preface`, `sections`, `bibliography`) if it does not exist.
+ * types grouped by cohort (front matter / body / annexes / back matter).
+ * Selecting a type calls the pure `insertSection` command, which routes the
+ * new section to the correct container based on its cohort — creating the
+ * container (`preface`, `sections`, `bibliography`) if it does not exist.
  *
- * Uses the HTML Popover API (`popover="auto"`) with CSS Anchor Positioning,
- * same as the other toolbar pickers (`TableSizePicker`, `FootnotePicker`,
- * `TargetPicker`). `popover="auto"` provides light-dismiss: the browser
- * automatically closes the popover when the user clicks outside it or presses
- * Escape.
+ * A shell on the base popover/dialog layer (MetanormaToolbar.spec.md §10.10):
+ * a `react-aria-components` `Popover` + `Dialog`, anchored to the trigger and
+ * rendered in a portal at `<body>`; Escape/outside close it, focus returns to
+ * the trigger. On open, focus moves to the first section-type button
+ * (sections.md §4.2).
  */
 
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Popover, Dialog } from "react-aria-components";
 import type { EditorView } from "prosemirror-view";
 
 import {
@@ -60,6 +61,9 @@ const MENU_GROUPS: readonly MenuGroup[] = [
   { heading: "Back matter", types: BACK_TYPES },
 ];
 
+/** DOM id of the popover dialog — the trigger's `aria-controls` target. */
+const POPOVER_ID = "mn-section-popover-dialog";
+
 // ---------------------------------------------------------------------------
 // SectionPopover trigger + popover
 // ---------------------------------------------------------------------------
@@ -68,11 +72,26 @@ const MENU_GROUPS: readonly MenuGroup[] = [
  * The Section insertion trigger button + popover. The button is always enabled
  * (there is always a valid insertion target — `insertSection` creates the
  * container if missing). Clicking opens the popover; selecting a type inserts
- * a section of that type and closes the popover.
+ * a section of that type and closes the popover. The trigger's
+ * `aria-expanded`/`aria-controls` reflect the open state (wired explicitly
+ * per base §10.10).
  */
 export function SectionPopover(): React.JSX.Element {
+  const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Open-focus lands on the first section-type button (sections.md §4.2) —
+  // RAC's default open-focus is the dialog container, so move it onward.
+  useEffect(() => {
+    if (!open) return;
+    const raf = requestAnimationFrame(() => {
+      contentRef.current
+        ?.querySelector<HTMLElement>(".mn-section-popover__item")
+        ?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
 
   // Insert the chosen section type via the pure command. Capture state/dispatch
   // synchronously (the command itself is synchronous, but follow the stale-view
@@ -86,17 +105,8 @@ export function SectionPopover(): React.JSX.Element {
     },
   );
 
-  const handleClick = (): void => {
-    popoverRef.current?.showPopover();
-  };
-
-  const closePopover = (): void => {
-    popoverRef.current?.hidePopover();
-    triggerRef.current?.focus();
-  };
-
   const handlePick = (typeName: string): void => {
-    closePopover();
+    setOpen(false);
     void insert(typeName);
   };
 
@@ -107,39 +117,44 @@ export function SectionPopover(): React.JSX.Element {
         type="button"
         className="mn-toolbar-btn"
         aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? POPOVER_ID : undefined}
         title="Insert a section"
-        onClick={handleClick}
+        onClick={() => setOpen((o) => !o)}
       >
         Section
       </button>
-      <div
-        ref={popoverRef}
-        popover="auto"
+      <Popover
+        isOpen={open}
+        onOpenChange={setOpen}
+        triggerRef={triggerRef}
+        offset={4}
         className="mn-section-popover"
-        role="dialog"
-        aria-label="Insert a section"
-        aria-modal="false"
       >
-        {MENU_GROUPS.map((group) => (
-          <div key={group.heading} className="mn-section-popover__group">
-            <div className="mn-section-popover__heading">{group.heading}</div>
-            <ul className="mn-section-popover__list">
-              {group.types.map((typeName) => (
-                <li key={typeName}>
-                  <button
-                    type="button"
-                    className="mn-section-popover__item"
-                    data-type={typeName}
-                    onClick={() => handlePick(typeName)}
-                  >
-                    {SECTION_LABELS[typeName] ?? typeName}
-                  </button>
-                </li>
-              ))}
-            </ul>
+        <Dialog id={POPOVER_ID} aria-label="Insert a section">
+          <div ref={contentRef}>
+            {MENU_GROUPS.map((group) => (
+              <div key={group.heading} className="mn-section-popover__group">
+                <div className="mn-section-popover__heading">{group.heading}</div>
+                <ul className="mn-section-popover__list">
+                  {group.types.map((typeName) => (
+                    <li key={typeName}>
+                      <button
+                        type="button"
+                        className="mn-section-popover__item"
+                        data-type={typeName}
+                        onClick={() => handlePick(typeName)}
+                      >
+                        {SECTION_LABELS[typeName] ?? typeName}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </Dialog>
+      </Popover>
     </div>
   );
 }

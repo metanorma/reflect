@@ -1908,6 +1908,16 @@ rows:
   deleted; note survives.
 - **BN2** empty paragraph that is the **only** block of a `note` → note
   deleted; walk continues from the note's former position.
+- **BF1** empty paragraph at the start of the **last** `footnote_entry` among
+  several in `footnotes` → the entry deleted; `footnotes` survives with the
+  prior entries; cursor at the end of the previous entry's last textblock
+  (§4.4.5).
+- **BF2** empty paragraph in the **only** `footnote_entry` of a `footnotes` at
+  the document tail
+  (`doc > [bibdata, sections > clause, footnotes > footnote_entry > paragraph]`)
+  → entry and `footnotes` container both deleted in one transaction; cursor
+  at the end of the previous document sibling's last descendant textblock
+  (the §4.4.5 walk stopping at the document root, §4.4.8).
 - **BT1** empty paragraph that is one of several blocks in a `table_cell` →
   paragraph deleted; cell/row/table unchanged.
 - **BT2** empty paragraph that is the **only** block in a `table_cell` → no-op

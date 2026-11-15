@@ -7,29 +7,20 @@
 
 @layer chrome {
 
-  /* ---- Footnote trigger button: anchor for the picker popover ---- */
+  /* ---- Footnote trigger button ---- */
 
   .mn-toolbar-footnote {
     display: inline-block;
-    position: relative;
   }
 
-  /* Anchor the picker to this button via CSS Anchor Positioning.
-     The dashed-ident is consumed by `position-anchor` on .mn-footnote-picker. */
-  .mn-toolbar-footnote .mn-toolbar-btn {
-    anchor-name: --mn-footnote-anchor;
-  }
+  /* ---- Footnote picker popover (RAC shell; portal-positioned by RAC) ---- */
 
-  /* ---- Footnote picker popover (top-layer via Popover API) ---- */
-
-  /* Self-contained popover styling. Deliberately does NOT reuse the shared
-     .mn-toolbar-popover class — the consumer's vertical-toolbar override
-     targets .mn-toolbar-popover with `right: 100%`, which would conflict
-     with anchor positioning. */
+  /* The popover is a `react-aria-components` shell (MetanormaToolbar.spec.md
+     §10.10): RAC renders it in a portal at <body> and applies inline
+     positioning, so consumer CSS overrides on in-flow toolbar elements cannot
+     conflict with the popover's anchor positioning. The .mn-footnote-picker
+     root is therefore self-contained — no positional rules live here. */
   .mn-footnote-picker {
-    position-anchor: --mn-footnote-anchor;
-    position-area: inline-end span-block-end;
-    margin: 2px;
     background: var(--mn-surface);
     border: 1px solid var(--mn-border);
     border-radius: var(--mn-radius-md);
@@ -38,34 +29,8 @@
     min-width: 14em;
   }
 
-  /* When anchor positioning is unavailable, fall back to positioning relative
-     to .mn-toolbar-footnote (position: relative). */
-  @supports not (anchor-name: --x) {
-    .mn-footnote-picker {
-      position: absolute;
-      top: 100%;
-      left: 0;
-    }
-  }
-
-  .mn-toolbar-popover.mn-toolbar-popover--ref {
-    min-width: 14em;
-  }
-
-  .mn-toolbar-popover__input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0.2em 0.3em;
-    border: 1px solid var(--mn-border);
-    border-radius: 3px;
-    background: var(--mn-surface);
-    color: inherit;
-  }
-
-  .mn-toolbar-popover__input:focus {
-    outline: 2px solid var(--mn-active);
-  }
-
+  /* Shared picker list utilities (§10.10) — used by the footnote picker here
+     and by the target pickers below. */
   .mn-toolbar-popover__list {
     list-style: none;
     margin: 0;
@@ -103,54 +68,23 @@
 
   /* ---- Target picker (xref / concept) trigger buttons + popover ---- */
 
-  /* Trigger-button wrappers: each anchors its own picker via CSS Anchor
-     Positioning. One wrapper per button so each gets a unique anchor name. */
   .mn-toolbar-xref,
   .mn-toolbar-concept {
     display: inline-block;
-    position: relative;
   }
 
-  .mn-toolbar-xref .mn-toolbar-btn {
-    anchor-name: --mn-xref-anchor;
-  }
-
-  .mn-toolbar-concept .mn-toolbar-btn {
-    anchor-name: --mn-concept-anchor;
-  }
-
-  /* Self-contained popover styling. Deliberately does NOT reuse the shared
-     .mn-toolbar-popover class — the consumer's vertical-toolbar override
-     targets .mn-toolbar-popover with `right: 100%`, which would conflict
-     with anchor positioning. */
+  /* The popover is a `react-aria-components` shell (MetanormaToolbar.spec.md
+     §10.10): RAC renders it in a portal at <body> and applies inline
+     positioning, so consumer CSS overrides on in-flow toolbar elements cannot
+     conflict with the popover's anchor positioning. The .mn-target-picker
+     root is therefore self-contained — no positional rules live here. */
   .mn-target-picker {
-    position-area: inline-end span-block-end;
-    margin: 2px;
     background: var(--mn-surface);
     border: 1px solid var(--mn-border);
     border-radius: var(--mn-radius-md);
     padding: 0.4em;
     box-shadow: 0 2px 8px var(--mn-shadow);
     min-width: 16em;
-  }
-
-  /* Per-button anchor binding. */
-  .mn-target-picker--xref {
-    position-anchor: --mn-xref-anchor;
-  }
-
-  .mn-target-picker--concept {
-    position-anchor: --mn-concept-anchor;
-  }
-
-  /* When anchor positioning is unavailable, fall back to positioning relative
-     to the trigger wrapper (position: relative). */
-  @supports not (anchor-name: --x) {
-    .mn-target-picker {
-      position: absolute;
-      top: 100%;
-      left: 0;
-    }
   }
 
   /* Search / free-text input — doubles as the Tier-2 manual-entry field
@@ -202,38 +136,28 @@
 
   .mn-toolbar-eref {
     display: inline-block;
-    position: relative;
   }
 
-  .mn-toolbar-eref .mn-toolbar-btn {
-    anchor-name: --mn-eref-anchor;
-  }
-
+  /* The popover is a `react-aria-components` shell (MetanormaToolbar.spec.md
+     §10.10): RAC renders it in a portal at <body> and applies inline
+     positioning, so consumer CSS overrides on in-flow toolbar elements cannot
+     conflict with the popover's anchor positioning. No positional rules live
+     here. */
   .mn-eref-picker {
-    position-anchor: --mn-eref-anchor;
-    position-area: inline-end span-block-end;
-    margin: 2px;
     background: var(--mn-surface);
     border: 1px solid var(--mn-border);
     border-radius: var(--mn-radius-md);
     box-shadow: 0 4px 16px var(--mn-shadow);
     padding: var(--mn-space-2);
-    gap: var(--mn-space-1);
     min-width: 20em;
     max-width: 28em;
   }
 
-  .mn-eref-picker:popover-open {
+  /* The picker body (inside the RAC Dialog) lays out as a column. */
+  .mn-eref-picker__body {
     display: flex;
     flex-direction: column;
-  }
-
-  @supports not (anchor-name: --x) {
-    .mn-eref-picker {
-      position: absolute;
-      top: 100%;
-      left: 0;
-    }
+    gap: var(--mn-space-1);
   }
 
   .mn-eref-picker__header {

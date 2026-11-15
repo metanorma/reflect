@@ -32,7 +32,6 @@
  * `docs/EditorCommands.spec.md`.
  */
 
-import type { Schema } from 'prosemirror-model';
 import type { Command } from 'prosemirror-state';
 import { TextSelection } from 'prosemirror-state';
 
@@ -44,157 +43,153 @@ import { admittedTextblock } from '../util.js';
 const NOT_FOUND = -1;
 
 /**
- * Build an `enterDefinitionList` command bound to the given schema.
- *
- * Exposed as a plain `Command` (not a factory) in the spec's §2.7 inventory,
- * but we still resolve types through `state.schema` so the command is safe on
- * a composed schema at runtime. The schema parameter is accepted for symmetry
- * with {@link splitListItem} and for unit-testability against a fixture schema.
+ * `enterDefinitionList` — a plain `Command` (spec §2.7): node types are
+ * resolved through `state.schema` on every call, so the command is safe on a
+ * composed schema at runtime. If the schema lacks any of `dl` / `dt` / `dd` /
+ * `paragraph`, the command declines (`false`).
  */
-export function enterDefinitionList(schema: Schema): Command {
-  const dlType = nodeType(schema, NODE_NAME.dl);
-  const dtType = nodeType(schema, NODE_NAME.dt);
-  const ddType = nodeType(schema, NODE_NAME.dd);
-  const paraType = nodeType(schema, NODE_NAME.paragraph);
+export const enterDefinitionList: Command = (state, dispatch) => {
+  const dlType = nodeType(state.schema, NODE_NAME.dl);
+  const dtType = nodeType(state.schema, NODE_NAME.dt);
+  const ddType = nodeType(state.schema, NODE_NAME.dd);
+  const paraType = nodeType(state.schema, NODE_NAME.paragraph);
   if (
     dlType === null
     || dtType === null
     || ddType === null
     || paraType === null
   ) {
-    return () => false;
+    return false;
   }
 
-  return (state, dispatch) => {
-    const { $from } = state.selection;
+  const { $from } = state.selection;
 
-    // Locate dt / dd / dl ancestors, if any.
-    let dtDepth = NOT_FOUND;
-    let ddDepth = NOT_FOUND;
-    let dlDepth = NOT_FOUND;
-    for (let d = $from.depth; d > 0; d--) {
-      const t = $from.node(d).type;
-      if (t === dtType && dtDepth === NOT_FOUND) dtDepth = d;
-      if (t === ddType && ddDepth === NOT_FOUND) ddDepth = d;
-      if (t === dlType && dlDepth === NOT_FOUND) dlDepth = d;
+  // Locate dt / dd / dl ancestors, if any.
+  let dtDepth = NOT_FOUND;
+  let ddDepth = NOT_FOUND;
+  let dlDepth = NOT_FOUND;
+  for (let d = $from.depth; d > 0; d--) {
+    const t = $from.node(d).type;
+    if (t === dtType && dtDepth === NOT_FOUND) dtDepth = d;
+    if (t === ddType && ddDepth === NOT_FOUND) ddDepth = d;
+    if (t === dlType && dlDepth === NOT_FOUND) dlDepth = d;
+  }
+
+  // ----- Case A: inside a `dt` -----------------------------------------
+  if (dtDepth !== NOT_FOUND && dlDepth !== NOT_FOUND && dtDepth > dlDepth) {
+    const dlNode = $from.node(dlDepth);
+    // Index of this dt within its dl.
+    const dtIndex = $from.index(dlDepth);
+    const hasFollowingDd =
+      dtIndex + 1 < dlNode.childCount &&
+      dlNode.child(dtIndex + 1).type === ddType;
+
+    if (dispatch === undefined) return true;
+
+    const tr = state.tr;
+    if (hasFollowingDd) {
+      // Commit the term: move cursor to the start of the following dd's
+      // first block.
+      const ddStart = $from.after(dtDepth); // start of the dd node
+      // Cursor lands at the start of the dd's content.
+      const target = ddStart + 1;
+      tr.setSelection(TextSelection.near(tr.doc.resolve(target), 1));
+      tr.scrollIntoView();
+      dispatch(tr);
+      return true;
     }
+    // Defensive: dt without a following dd. Insert a dd (empty paragraph).
+    const dd = ddType.create(null, paraType.create());
+    tr.insert($from.after(dtDepth), dd);
+    const target = $from.after(dtDepth) + 2;
+    tr.setSelection(TextSelection.near(tr.doc.resolve(target)));
+    tr.scrollIntoView();
+    dispatch(tr);
+    return true;
+  }
 
-    // ----- Case A: inside a `dt` -----------------------------------------
-    if (dtDepth !== NOT_FOUND && dlDepth !== NOT_FOUND && dtDepth > dlDepth) {
-      const dlNode = $from.node(dlDepth);
-      // Index of this dt within its dl.
-      const dtIndex = $from.index(dlDepth);
-      const hasFollowingDd =
-        dtIndex + 1 < dlNode.childCount &&
-        dlNode.child(dtIndex + 1).type === ddType;
+  // ----- Case B: inside a `dd` -----------------------------------------
+  if (ddDepth !== NOT_FOUND && dlDepth !== NOT_FOUND && ddDepth > dlDepth) {
+    const dlNode = $from.node(dlDepth);
+    const ddIndex = $from.index(dlDepth);
+    const isLastDd = ddIndex === dlNode.childCount - 1;
+    const inner = $from.parent;
 
+    // B1: empty paragraph as the only block of the LAST dd → exit the dl.
+    if (
+      isLastDd &&
+      inner.type === paraType &&
+      isEmptyTextblock(inner) &&
+      inner === $from.node(ddDepth).firstChild
+    ) {
       if (dispatch === undefined) return true;
-
       const tr = state.tr;
-      if (hasFollowingDd) {
-        // Commit the term: move cursor to the start of the following dd's
-        // first block.
-        const ddStart = $from.after(dtDepth); // start of the dd node
-        // Cursor lands at the start of the dd's content.
-        const target = ddStart + 1;
-        tr.setSelection(TextSelection.near(tr.doc.resolve(target), 1));
+      // If this was the only pair, the dl itself goes: replace it with
+      // the textblock the parent's content expression admits at the
+      // dl's slot (§2.4.4 — an empty paragraph in this schema). If no
+      // textblock is admissible there, refuse rather than leave an
+      // invalid document.
+      if (dlNode.childCount === 2) {
+        const dlIndex = $from.index(dlDepth - 1);
+        const replacement = admittedTextblock(
+          $from.node(dlDepth - 1),
+          dlIndex,
+        );
+        if (replacement === null) return false;
+        const dlStart = $from.before(dlDepth);
+        const dlEnd = $from.after(dlDepth);
+        tr.replaceWith(dlStart, dlEnd, replacement.create());
+        tr.setSelection(TextSelection.near(tr.doc.resolve(dlStart + 1)));
         tr.scrollIntoView();
         dispatch(tr);
         return true;
       }
-      // Defensive: dt without a following dd. Insert a dd (empty paragraph).
-      const dd = ddType.create(null, paraType.create());
-      tr.insert($from.after(dtDepth), dd);
-      const target = $from.after(dtDepth) + 2;
-      tr.setSelection(TextSelection.near(tr.doc.resolve(target)));
+      // Multi-pair: remove the trailing (dt dd) pair, then insert the
+      // exit paragraph AFTER the dl (the deletion is inside the dl, so
+      // the after-dl position must be read through the mapping).
+      const pairStart = $from.before(ddDepth)
+        - dlNode.child(ddIndex - 1).nodeSize;
+      const pairEnd = $from.after(ddDepth);
+      tr.delete(pairStart, pairEnd);
+      const insertAt = tr.mapping.map($from.after(dlDepth));
+      tr.insert(insertAt, paraType.create());
+      tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
       tr.scrollIntoView();
       dispatch(tr);
       return true;
     }
 
-    // ----- Case B: inside a `dd` -----------------------------------------
-    if (ddDepth !== NOT_FOUND && dlDepth !== NOT_FOUND && ddDepth > dlDepth) {
-      const dlNode = $from.node(dlDepth);
-      const ddIndex = $from.index(dlDepth);
-      const isLastDd = ddIndex === dlNode.childCount - 1;
-      const inner = $from.parent;
-
-        // B1: empty paragraph as the only block of the LAST dd → exit the dl.
-        if (
-          isLastDd &&
-          inner.type === paraType &&
-          isEmptyTextblock(inner) &&
-          inner === $from.node(ddDepth).firstChild
-        ) {
-          if (dispatch === undefined) return true;
-          const tr = state.tr;
-          // If this was the only pair, the dl itself goes: replace it with
-          // the textblock the parent's content expression admits at the
-          // dl's slot (§2.4.4 — an empty paragraph in this schema). If no
-          // textblock is admissible there, refuse rather than leave an
-          // invalid document.
-          if (dlNode.childCount === 2) {
-            const dlIndex = $from.index(dlDepth - 1);
-            const replacement = admittedTextblock(
-              $from.node(dlDepth - 1),
-              dlIndex,
-            );
-            if (replacement === null) return false;
-            const dlStart = $from.before(dlDepth);
-            const dlEnd = $from.after(dlDepth);
-            tr.replaceWith(dlStart, dlEnd, replacement.create());
-            tr.setSelection(TextSelection.near(tr.doc.resolve(dlStart + 1)));
-            tr.scrollIntoView();
-            dispatch(tr);
-            return true;
-          }
-          // Multi-pair: remove the trailing (dt dd) pair, then insert the
-          // exit paragraph AFTER the dl (the deletion is inside the dl, so
-          // the after-dl position must be read through the mapping).
-          const pairStart = $from.before(ddDepth)
-            - dlNode.child(ddIndex - 1).nodeSize;
-          const pairEnd = $from.after(ddDepth);
-          tr.delete(pairStart, pairEnd);
-          const insertAt = tr.mapping.map($from.after(dlDepth));
-          tr.insert(insertAt, paraType.create());
-          tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
-          tr.scrollIntoView();
-          dispatch(tr);
-          return true;
-        }
-
-      // B2: end of the LAST block, dd is the LAST child of the dl, block
-      // non-empty → start a new (dt dd) pair.
-      const atEndOfInner = $from.pos === $from.end($from.depth);
-      const inLastBlockOfDd = $from.end($from.depth) === $from.end(ddDepth);
-      if (
-        isLastDd &&
-        inLastBlockOfDd &&
-        atEndOfInner &&
-        !isEmptyTextblock(inner)
-      ) {
-        if (dispatch === undefined) return true;
-        const tr = state.tr;
-        const newDt = dtType.create();
-        const newDd = ddType.create(null, paraType.create());
-        // Insert after this dd.
-        const insertAt = $from.after(ddDepth);
-        tr.insert(insertAt, [newDt, newDd]);
-        // Cursor in the new dt.
-        tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
-        tr.scrollIntoView();
-        dispatch(tr);
-        return true;
-      }
-
-      // B3: otherwise (mid-dd, non-last dd, empty paragraph in a non-last dd)
-      // → not applicable. The chain falls through to splitBlockKeepMarks,
-      // which splits the inner block in place. Returning false here keeps
-      // composition explicit (spec §1.9.3).
-      return false;
+    // B2: end of the LAST block, dd is the LAST child of the dl, block
+    // non-empty → start a new (dt dd) pair.
+    const atEndOfInner = $from.pos === $from.end($from.depth);
+    const inLastBlockOfDd = $from.end($from.depth) === $from.end(ddDepth);
+    if (
+      isLastDd &&
+      inLastBlockOfDd &&
+      atEndOfInner &&
+      !isEmptyTextblock(inner)
+    ) {
+      if (dispatch === undefined) return true;
+      const tr = state.tr;
+      const newDt = dtType.create();
+      const newDd = ddType.create(null, paraType.create());
+      // Insert after this dd.
+      const insertAt = $from.after(ddDepth);
+      tr.insert(insertAt, [newDt, newDd]);
+      // Cursor in the new dt.
+      tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)));
+      tr.scrollIntoView();
+      dispatch(tr);
+      return true;
     }
 
-    // Not inside a dl / dt / dd.
+    // B3: otherwise (mid-dd, non-last dd, empty paragraph in a non-last dd)
+    // → not applicable. The chain falls through to splitBlockKeepMarks,
+    // which splits the inner block in place. Returning false here keeps
+    // composition explicit (spec §1.9.3).
     return false;
-  };
-}
+  }
+
+  // Not inside a dl / dt / dd.
+  return false;
+};

@@ -124,7 +124,7 @@ test.describe('image sizing — Size popover flows (updateImageAttrs)', () => {
     await clickBodyParagraph(page);
     await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
-    const dialog = page.locator('.mn-image-dialog[popover]');
+    const dialog = page.locator('.mn-image-dialog');
     await dialog.locator('#mn-img-src').fill(PNG_1x1_DATAURL);
     await dialog.getByRole('button', { name: 'Insert' }).click();
     await expect(dialog).toBeHidden();
@@ -135,7 +135,9 @@ test.describe('image sizing — Size popover flows (updateImageAttrs)', () => {
     const btn = toolbarButton(page, 'Size');
     await expect(btn).toBeEnabled();
     await btn.click();
-    const pop = page.locator('.mn-toolbar-image-sizing .mn-image-sizing-dialog[popover]');
+    // RAC shell (base §10.10): the popover portals to <body>, so locate it by
+    // class only — no popover attribute, no toolbar-wrapper ancestry.
+    const pop = page.locator('.mn-image-sizing-dialog');
     await expect(pop).toBeVisible();
     return pop;
   }
@@ -233,7 +235,7 @@ test.describe('image dialog — commit-time mimetype + natural size (§17.4)', (
     await clickBodyParagraph(page);
     await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
-    const dialog = page.locator('.mn-image-dialog[popover]');
+    const dialog = page.locator('.mn-image-dialog');
     await dialog.locator('#mn-img-file').setInputFiles({
       name: 'dot.png',
       mimeType: 'image/png',
@@ -252,7 +254,7 @@ test.describe('image dialog — commit-time mimetype + natural size (§17.4)', (
     await clickBodyParagraph(page);
     await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
-    const dialog = page.locator('.mn-image-dialog[popover]');
+    const dialog = page.locator('.mn-image-dialog');
     await dialog.locator('#mn-img-src').fill('https://example.org/cat.png');
     await dialog.getByRole('button', { name: 'Insert' }).click();
     await expect(dialog).toBeHidden();
@@ -266,7 +268,7 @@ test.describe('image dialog — commit-time mimetype + natural size (§17.4)', (
     await clickBodyParagraph(page);
     await toolbarButton(page, 'Figure').click();
     await toolbarButton(page, 'Image').click();
-    const dialog = page.locator('.mn-image-dialog[popover]');
+    const dialog = page.locator('.mn-image-dialog');
     await dialog.locator('#mn-img-src').fill('https://example.org/cat-image');
     await dialog.getByRole('button', { name: 'Insert' }).click();
     await expect(dialog).toBeHidden();

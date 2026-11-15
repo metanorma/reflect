@@ -39,8 +39,8 @@ const ST = metanormaSchema.nodes.section_title;
 
 const text = (s) => metanormaSchema.text(s);
 
-/** The Enter command — a (schema) => Command factory, built once. */
-const enterDl = enterDefinitionList(metanormaSchema);
+/** The Enter command — a plain `Command` (spec §2.7), used directly. */
+const enterDl = enterDefinitionList;
 
 /** clause > [section_title 'T', ...bodyChildren] in the doc skeleton. */
 const clauseDoc = (bodyChildren) =>

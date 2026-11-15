@@ -11,66 +11,52 @@
   .mn-toolbar-image,
   .mn-toolbar-image-sizing {
     display: inline-block;
-    position: relative;
   }
 
-  /* Anchor each dialog to its own trigger button via CSS Anchor Positioning
-     (distinct dashed-idents — a shared name would make both popovers resolve
-     to the same trigger). */
-  .mn-toolbar-image .mn-toolbar-btn {
-    anchor-name: --mn-image-anchor;
-  }
+  /* ---- Image insert dialog popover (RAC shell; portal-positioned by RAC) ---- */
 
-  .mn-toolbar-image-sizing .mn-toolbar-btn {
-    anchor-name: --mn-image-sizing-anchor;
-  }
-
-  /* ---- Image dialog popovers (top-layer via Popover API) ---- */
-
-  /* Self-contained popover styling. Deliberately does NOT reuse the shared
-     .mn-toolbar-dialog class — the consumer's vertical-toolbar override
-     (style.module.css) targets .mn-toolbar-dialog with `right: 100%`, which
-     would conflict with anchor positioning. The sizing popover carries its
-     OWN class (.mn-image-sizing-dialog) — sharing .mn-image-dialog would
-     break the strict-mode dialog selectors in the e2e suite. */
-  .mn-image-dialog,
-  .mn-image-sizing-dialog {
-    position-area: inline-end span-block-end;
-    margin: 2px;
+  /* Migrated to the base popover/dialog layer (MetanormaToolbar.spec.md
+     §10.10): RAC renders it in a portal at <body> and applies inline
+     positioning, so consumer CSS overrides on in-flow toolbar elements cannot
+     conflict with the popover's anchor positioning — no positional rules live
+     here. The .mn-image-dialog root is self-contained; the form body lays out
+     as a grid. */
+  .mn-image-dialog {
     background: var(--mn-surface);
     border: 1px solid var(--mn-border);
     border-radius: var(--mn-radius-md);
     padding: var(--mn-space-2);
-    gap: 0.4em;
     box-shadow: 0 2px 8px var(--mn-shadow);
     min-width: 16em;
   }
 
-  .mn-image-dialog {
-    position-anchor: --mn-image-anchor;
-  }
-
-  .mn-image-sizing-dialog {
-    position-anchor: --mn-image-sizing-anchor;
-  }
-
-  /* `display: grid` only when the popover is open — the UA stylesheet sets
-     `display: none` on hidden [popover] elements, but an author `display`
-     declaration would override it and keep the dialog visible. */
-  .mn-image-dialog:popover-open,
-  .mn-image-sizing-dialog:popover-open {
+  .mn-image-dialog__body {
     display: grid;
+    gap: 0.4em;
   }
 
-  /* When anchor positioning is unavailable, fall back to positioning relative
-     to the wrapper (position: relative). */
-  @supports not (anchor-name: --x) {
-    .mn-image-dialog,
-    .mn-image-sizing-dialog {
-      position: absolute;
-      top: 100%;
-      left: 0;
-    }
+  /* ---- Image sizing popover (RAC shell; portal-positioned by RAC) ---- */
+
+  /* Migrated to the base popover/dialog layer (MetanormaToolbar.spec.md
+     §10.10): RAC renders it in a portal at <body> and applies inline
+     positioning, so consumer CSS overrides on in-flow toolbar elements cannot
+     conflict with the popover's anchor positioning — no positional rules live
+     here. It keeps its OWN class (.mn-image-sizing-dialog) — sharing
+     .mn-image-dialog would break the strict-mode dialog selectors in the e2e
+     suite. */
+  .mn-image-sizing-dialog {
+    background: var(--mn-surface);
+    border: 1px solid var(--mn-border);
+    border-radius: var(--mn-radius-md);
+    padding: var(--mn-space-2);
+    box-shadow: 0 2px 8px var(--mn-shadow);
+    min-width: 16em;
+  }
+
+  /* The form body (inside the RAC Dialog) lays out as a grid. */
+  .mn-image-sizing-dialog__body {
+    display: grid;
+    gap: 0.4em;
   }
 
   .mn-toolbar-dialog-field {

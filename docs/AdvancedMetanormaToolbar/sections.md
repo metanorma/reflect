@@ -218,9 +218,12 @@ so it lives beside the popover as a plain button instead.
 
 ### 4.2 Button: Section (popover)
 
-The **Section** control is a trigger button that opens a `popover="auto"`
-popover (the HTML Popover API, same pattern as the other toolbar pickers;
-light-dismiss closes it on outside click / Escape). The popover lists **all ten
+The **Section** control is a trigger button that opens the section-type
+popover — a shell on the base popover/dialog layer
+([`MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) §10.10):
+anchored to the trigger, light-dismiss closes it on outside click / Escape,
+focus is contained while open and returns to the trigger on close. The
+popover lists **all ten
 section types** in four cohort groups. Each type is a button; clicking it
 inserts a section of that type via the pure `insertSection` command and closes
 the popover.
@@ -232,7 +235,7 @@ the popover.
 | `label` | `Section` |
 | `title` | `"Insert a section"` |
 | `isEnabled` | Always enabled — there is always a valid insertion target (`insertSection` creates the container if missing, and annexes always have a doc-level target). |
-| `run` | Opens the popover (`popoverRef.showPopover()`). Selecting a type calls `insertSection(view.state, typeName, view.dispatch)` then `view.focus()`. |
+| `run` | Opens the popover (controlled open state; the trigger's `aria-expanded`/`aria-controls` reflect it). Selecting a type calls `insertSection(view.state, typeName, view.dispatch)` then `view.focus()`. |
 
 **Popover content.** The menu groups the ten section types by cohort, in
 document-appearance order:
@@ -248,6 +251,9 @@ The type lists come from the schema's `FRONT_TYPES`, `BODY_TYPES`,
 `ANNEX_TYPES`, and `BACK_TYPES` constants (schema §8.0a), so the popover always
 reflects the authoritative cohort membership. Each type has a human-readable
 label ("Abstract", "Foreword", "Clause", "Annex", "References", etc.).
+
+When the popover opens, focus moves to the first section-type button in the
+list.
 
 **`isActive`.** The trigger button is not a toggle — `isActive` is always
 `false`.
@@ -283,7 +289,7 @@ label ("Abstract", "Foreword", "Clause", "Annex", "References", etc.).
 | `title` | `"Insert floating title (an unnumbered heading — not a section)"` — the tooltip carries the clarification that a floating title is **not technically a section**: it is a free-standing heading outside the numbered hierarchy, which is why it is a separate button rather than an entry in the Section popover (§4.2). |
 | `isActive` | `false` — insertion is not a toggle; the button is never shown active. |
 | `isEnabled` | `insertFloatingTitle(state) === true` — the command query, mirroring the Promote / Demote pattern (§4.3, §4.4) so `isEnabled` stays exactly in sync with the command's applicability. Enabled exactly where some ancestor admits a `floating_title` child at the cursor index: `sections` top level, a `clause` subclause branch, or an `annex` subclause branch. **Not** disabled in a blocks-only clause — the clause itself rejects the FT, but `sections` further out admits it, and the deepest admitting ancestor wins, so the FT is inserted at `sections` top level (`EditorCommands.spec.md` §5.8.4). Disabled in `preface` and the other doc-level containers, and inside container blocks (`note`, `example`, `quote`, `dd`, table cells) — see the summary table in §6. |
-| `run` | Toolbar adapter calls `insertFloatingTitle(view.state, view.dispatch)` (§5.6), then `view.focus()`. The cursor lands inside the new empty `floating_title` textblock for immediate typing — no prompt, no dialog, no `window.prompt`. |
+| `run` | Toolbar adapter calls `insertFloatingTitle(view.state, view.dispatch)` (§5.6), then `view.focus()`. The cursor lands inside the new empty `floating_title` textblock for immediate typing — synchronous insertion, no prompt, no dialog. |
 
 ## 5. Commands
 
@@ -695,7 +701,7 @@ optional leading child of every section node's content expression).
 On **Section insertion** (§4.2 popover or `wrapInClause`), the toolbar creates
 the section synchronously with an empty `section_title` and a `paragraph` body,
 and the cursor lands in the `section_title`. The user types the heading
-directly into it — **no prompt dialog, no `window.prompt`, no async capture**.
+directly into it — synchronous insertion, **no prompt dialog, no async capture**.
 The heading supports full inline markup (emphasis, links, reference marks,
 etc.) because it is an ordinary `inline*` textblock. Pressing Enter inside the
 `section_title` exits to the body paragraph (via the `exitSectionTitle`
@@ -752,18 +758,18 @@ and `mn-toolbar-divider` classes. Feature-specific additions for this group:
 | Class | Purpose |
 |---|---|
 | `.mn-toolbar-btn--sections` | Optional modifier marking buttons belonging to the `sections` group (for targeted group-specific styling). |
-| `.mn-section-popover` | The Section insertion popover (`popover="auto"`, `role="dialog"`). Contains cohort-grouped lists of section types. Self-contained: does NOT use the shared `.mn-toolbar-popover` class (so consumer vertical-toolbar overrides don't target it). |
+| `.mn-section-popover` | The Section insertion popover — a RAC `Popover`/`Dialog` shell on the base popover/dialog layer (base §10.10). Contains cohort-grouped lists of section types. |
 | `.mn-section-popover__group` | A cohort group within the popover (Front matter / Body / Annexes / Back matter). |
 | `.mn-section-popover__heading` | The cohort group heading label. |
 | `.mn-section-popover__list` | The `<ul>` of section type buttons within a cohort group. |
 | `.mn-section-popover__item` | A section type `<button>` in the popover list. |
 
-The popover uses the HTML Popover API (`popover="auto"`, light-dismiss) with
-CSS Anchor Positioning, same as the other toolbar pickers
-(`TableSizePicker`, `FootnotePicker`, `TargetPicker`). The trigger button gets
-`anchor-name: --mn-section-anchor`; the popover uses
-`position-anchor: --mn-section-anchor`. An `@supports not (anchor-name: --x)`
-block falls back to `position:absolute` relative to the trigger container.
+The popover is a shell on the base popover/dialog layer
+([`MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) §10.10): a
+`react-aria-components` `Popover` + `Dialog`, anchored to the trigger and
+rendered in a body-level portal, with dismissal, focus containment, and
+focus return handled by the layer. Its styling is self-contained under the
+`.mn-section-popover` root and consumes the `--mn-*` design tokens.
 
 No new root or group-container classes are required beyond the base
 `.mn-toolbar-group`.
@@ -773,12 +779,14 @@ No new root or group-container classes are required beyond the base
 Feature-specific accessibility additions beyond the baseline (README §2.5 /
 `MetanormaToolbar.spec.md` §9):
 
-- **Section popover** — the trigger button has `aria-haspopup="dialog"`; the
+- **Section popover** — the trigger button has `aria-haspopup="dialog"` plus
+  `aria-expanded`/`aria-controls` (base §10.10); the
   popover uses `role="dialog"` with `aria-label="Insert a section"`. Each
   section type is a `<button>` (keyboard-focusable); selecting one inserts the
-  section and closes the popover. The popover is keyboard-navigable: the user
+  section and closes the popover. The popover is keyboard-navigable: focus
+  opens on the first type button (§4.2), the user
   tabs through the type buttons, confirming with Enter (a click) and dismissing
-  with Escape (the popover API's light-dismiss or an explicit handler).
+  with Escape (the layer's light dismiss or an explicit handler).
 - **Promote / Demote** — `aria-describedby` can point at a hidden live region
   announcing the current nesting depth (e.g. "Clause at level 2").
 - **Floating title** — a plain `<button>`; its accessible name comes from the

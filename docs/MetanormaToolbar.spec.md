@@ -52,7 +52,13 @@ layer.
 `@metanorma/toolbar` depends on `@metanorma/prosemirror-schema`,
 `@metanorma/editor-commands`, and `@handlewithcare/react-prosemirror` (plus
 `prosemirror-commands`, `prosemirror-model`, `prosemirror-state`,
-`prosemirror-view`, and `react` as transitive peers). It does **not** depend
+`prosemirror-view`, and `react` as transitive peers). Two further runtime
+dependencies are deliberate and recorded here: `react-aria-components` —
+the accessibility layer every picker and dialog shell in the package is
+built on (§10.10) — and `@metanorma/relaton`, consumed by the advanced
+references group for citation-key harvesting
+([`AdvancedMetanormaToolbar/reference-marks.md`](./AdvancedMetanormaToolbar/reference-marks.md)).
+It does **not** depend
 on `@metanorma/prosemirror-editor`: the toolbar is a *child* rendered inside
 the editor context, not a code-level dependent of it.
 
@@ -107,7 +113,7 @@ export interface MetanormaToolbarProps {
    */
   readonly className?: string;
 
-  /** Optional custom link-URL prompt. Default: window.prompt (§6). */
+  /** Optional custom link-URL prompt. Default: the built-in <PromptPopover> (§6). */
   readonly onLinkPrompt?: () => Promise<string | null>;
 }
 ```
@@ -291,15 +297,29 @@ taken up by [`AdvancedMetanormaToolbar`](./AdvancedMetanormaToolbar/README.md):
 
 ## 6. Link URL input
 
-For the initial implementation, the link URL is collected via
-`window.prompt('Link URL:')`. This is deliberately simple.
+The link URL is collected by the built-in `<PromptPopover>` — a
+package-internal single-input dialog built on the popover/dialog layer
+(§10.10). When the Link trigger fires without a custom prompt, the popover
+opens anchored to the trigger with its text field focused; submitting a URL
+applies the link mark, Escape or an outside click cancels, and focus returns
+to the trigger.
 
-**Future enhancement hook:** the toolbar component accepts an optional
-`onLinkPrompt` prop that, if provided, replaces the `window.prompt` call
-with a custom UI (modal, popover, etc.):
+The `PromptPopover` contract (controlled, single input):
+
+- **Props** — `isOpen: boolean`, `onOpenChange(open: boolean)`, `triggerRef`
+  (anchor and focus-return target), `label`, `placeholder`,
+  `initialValue?`, `submitLabel?` (default `"OK"`), `onSubmit(value)`,
+  `onCancel()`.
+- **Rendering** — `Popover > Dialog > Form > (TextField > (Label, Input)) +
+  Button` from `react-aria-components`, carrying the `mn-prompt-popover`
+  root class (§10.10). It is internal to the package — not part of the
+  public exports (§12).
+
+The toolbar component also accepts an optional `onLinkPrompt` prop that,
+if provided, replaces the built-in popover with a custom prompt UI:
 
 ```typescript
-/** Optional custom link-URL prompt. Default: window.prompt. */
+/** Optional custom link-URL prompt. Default: the built-in <PromptPopover>. */
 readonly onLinkPrompt?: () => Promise<string | null>;
 ```
 
@@ -525,9 +545,9 @@ rather than a bare constant so the latest `onLinkPrompt` is threaded
 through:
 
 ```typescript
-/** Build the four base groups, threading the link prompt. */
+/** Build the four base groups, threading the optional link prompt. */
 export function baseGroups(
-  onLinkPrompt: () => Promise<string | null>,
+  onLinkPrompt?: () => Promise<string | null>,
 ): readonly ToolbarGroupDef[];
 ```
 
@@ -574,7 +594,7 @@ export function MetanormaToolbar({
   visibleGroups, className, onLinkPrompt,
 }: MetanormaToolbarProps): React.JSX.Element {
   const groups = useMemo(
-    () => baseGroups(onLinkPrompt ?? defaultLinkPrompt),
+    () => baseGroups(onLinkPrompt), // undefined → built-in <PromptPopover>
     [onLinkPrompt],
   );
   return (
@@ -589,6 +609,59 @@ export function MetanormaToolbar({
 
 There is exactly one copy of the mark/block/list/link logic — in the shared
 group modules — used by both assemblers.
+
+### 10.10 Popover and dialog layer (react-aria-components)
+
+Every picker, popover, and dialog in the package — the built-in
+`<PromptPopover>` (§6) and the advanced feature shells (`TableSizePicker`,
+`SectionPopover`, `FootnotePicker`, `TargetPicker`, `ErefPicker`,
+`ImageSizingPopover`, `ImageInsertDialog`) — is built on one mechanism:
+`react-aria-components` (RAC). No shell uses the HTML Popover API. This
+section is the canonical specification of that layer; the advanced docs
+([`AdvancedMetanormaToolbar/README.md`](./AdvancedMetanormaToolbar/README.md))
+link here instead of restating it.
+
+**Shell contract.** A shell is a RAC `Popover` wrapping a `Dialog`, plus
+feature-specific content (a `Form`/`TextField`, a list, a sizing form):
+
+- **Trigger anchoring** — the overlay is anchored to its trigger button via
+  `triggerRef`; RAC positions the overlay relative to that anchor.
+- **Top-layer portal** — RAC renders the overlay in a portal at
+  `document.body` and applies its own positioning, so consumer CSS that
+  targets in-flow toolbar elements (e.g. a vertical-toolbar `right: 100%`
+  override) can never conflict with the overlay's anchor positioning; each
+  shell's stylesheet is self-contained for the same reason.
+- **Controlled open** — the open state lives in React
+  (`isOpen`/`onOpenChange`), not in the DOM.
+- **Dismissal** — Escape and outside interaction close the shell without
+  committing.
+- **Focus** — while open, focus is contained inside the dialog. On open,
+  focus moves into the dialog and onward to the shell's primary control —
+  the (1,1) grid cell, the first list item, the search input, or the
+  source-URL field, as appropriate to the shell. On close (commit, cancel,
+  or light dismiss), focus returns to the trigger.
+- **Dialog-internal aria by construction** — RAC wires the overlay's dialog
+  role, labelling, and internal aria attributes. The **trigger side is
+  wired explicitly** by each shell: the trigger button carries
+  `aria-haspopup="dialog"` plus `aria-expanded` and `aria-controls` (the
+  overlay's id) reflecting the controlled open state. Trigger buttons are
+  plain toolbar buttons rendered outside RAC's trigger components, so these
+  attributes do not come from the layer itself.
+
+**Class convention.** Each shell carries a feature root class on the RAC
+`Popover` — `.mn-table-picker`, `.mn-section-popover`,
+`.mn-footnote-picker`, `.mn-target-picker` (with `--xref` / `--concept`
+modifiers), `.mn-image-dialog`, `.mn-image-sizing-dialog`,
+`.mn-eref-picker`, `.mn-prompt-popover` — with BEM-style `__` child
+utilities scoped to that root (`.mn-section-popover__item`, …). Two shared
+utility families cut across roots: the picker list utilities
+`.mn-toolbar-popover__list` / `__item` / `__actions` (used by the footnote
+and target pickers) and the dialog-form utilities
+`.mn-toolbar-dialog-field`, `.mn-toolbar-dialog-error` (an `aria-live`
+region), and `.mn-toolbar-dialog-actions`. No shell renders a bare
+`.mn-toolbar-popover` root class. Styling consumes the `--mn-*` design
+tokens; light/dark themes are handled centrally by the editor's token
+layer, not per shell.
 
 ## 11. Migration from the monolith
 
@@ -626,7 +699,7 @@ registry, and no extension seam. It contains, all private and un-exported:
 | `GROUP_ORDER` constant | Hardcoded `["marks","blocks","lists","link"]` ordering |
 | Predicates (`activeMarkTypes`, `isInlineContext`, `isBlockContext`, `isMarkActive`, `isListActive`, `isBlockWrapActive`) | State-reading predicate functions |
 | `requireMark` / `requireNode` | Schema name-resolution guards |
-| `defaultLinkPrompt` | `window.prompt` fallback for the link group |
+| `defaultLinkPrompt` | Link-prompt fallback in the monolith; the default is now the built-in `<PromptPopover>` (§6, §10.10) |
 | Render body | Inlined group iteration, divider insertion, `visibleGroups` filtering |
 
 A `commands/toggleList.ts` alongside it carries a view-taking
@@ -757,7 +830,9 @@ Then:
 1. Add a `pkg/toolbar/package.json` declaring dependencies on
    `@metanorma/prosemirror-schema`, `@metanorma/editor-commands`, and
    `@handlewithcare/react-prosemirror` (plus `prosemirror-commands`,
-   `prosemirror-model`, `prosemirror-state`, `prosemirror-view`, `react`).
+   `prosemirror-model`, `prosemirror-state`, `prosemirror-view`, `react`),
+   as well as `react-aria-components` (the popover/dialog layer, §10.10)
+   and `@metanorma/relaton` (the advanced references group).
    Do **not** add a dependency on `@metanorma/prosemirror-editor`.
 2. Add a `pkg/toolbar/tsconfig.json` extending the root tsconfig (same
    pattern as the other packages) and a `compile` script.
@@ -849,6 +924,8 @@ pkg/toolbar/                           ← @metanorma/toolbar (new package)
   │                                      ToolbarGroupDef, BaseToolbarGroup
   Toolbar.tsx                          ← shared <Toolbar> shell (§10.4)
   ToolbarButtonView.tsx                ← renders one ToolbarButton (§10.5)
+  PromptPopover.tsx                    ← built-in link-prompt dialog (§6, internal)
+  prompt-popover.css                   ← .mn-prompt-popover styles (§10.10)
   predicates.ts                        ← shared state predicates + requireMark/requireNode
   groups/
     marksGroup.tsx                     ← base group (§5.1)

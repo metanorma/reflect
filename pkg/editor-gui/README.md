@@ -77,7 +77,7 @@ The `e2e/` directory holds a Playwright suite with seventeen spec files:
 | `layout` | Panel-layout integration regressions: doc panel full-bleed and non-closable, the two floating panels over the grid, close→reopen at preset geometry, layout envelope persistence across reload. |
 | `minimap` | Consumer-owned minimap integration: floating-window placement, drag-scrolls-the-editor smoke, doc-load state swap. |
 | `popovers` | Toolbar pickers (TableSizePicker, FootnotePicker, ImageInsertDialog, XrefPicker, ConceptPicker) are reachable and clickable; popover flows apply their edits. |
-| `prompts` | The five `window.prompt` flows (link / xref / eref / concept / clause heading) plus the cancel path; guards the async stale-view fix. |
+| `prompts` | The default prompt flows: Link via the built-in `PromptPopover` dialog, eref via the `ErefPicker`, plus the cancel path; guards the async stale-view fix. |
 | `keyboard` | Enter / Shift-Enter / Backspace chains through real `keydown`; Bold toggle via the toolbar; definition-list enter/backspace behavior. |
 | `section-title` | Section title `<input>` keeps its keystrokes and focus; commits on blur. |
 | `section-insert` | Section-type popover: every insertion kind lands at the right structural level (clause/abstract/references/annex, promote/demote edge cases). |

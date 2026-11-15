@@ -1,8 +1,8 @@
 /**
  * Headless tests for @metanorma/editor-commands — the Backspace structural
- * command's section rows (docs/EditorCommands.spec.md §4.4.8/§4.4.9/§4.7.3,
- * matrix §4.10 BST/BS4/BP3/BS3). One domain per *.test.mjs file; shared
- * helpers: test-helpers.mjs.
+ * command's section rows (docs/EditorCommands.spec.md
+ * §4.4.5/§4.4.8/§4.4.9/§4.7.3, matrix §4.10 BST/BS4/BP3/BS3/BF1/BF2). One
+ * domain per *.test.mjs file; shared helpers: test-helpers.mjs.
  *
  * Run: yarn workspace @metanorma/editor-commands test
  *
@@ -252,5 +252,66 @@ describe("§4.4.8 body-empty walk and typed re-seeds (BS4/BP3/BS3)", () => {
     assertEditableParagraph(res.state);
     assert.deepEqual(ids(res.state.doc).filter((x) => x === "c1"), ["c1"],
       "the body clause is untouched");
+  });
+});
+
+// --- §4.4.5 footnotes walk rows (BF1/BF2) ------------------------------------
+
+/** A footnote entry wrapping one paragraph (text optional). */
+const footnoteEntry = (fid, text) => ({
+  type: "footnote_entry",
+  attrs: { id: fid },
+  content: [
+    { type: "paragraph", content: text ? [{ type: "text", text }] : [] },
+  ],
+});
+
+describe("§4.4.5 footnotes walk (BF rows)", () => {
+  it("BF1: last of several entries → entry deleted, footnotes survives, cursor at previous entry's end", () => {
+    const d = doc(
+      sections(section("clause", "c1", "Body", "body")),
+      {
+        type: "footnotes",
+        content: [
+          footnoteEntry("fn1", "first note"),
+          footnoteEntry("fn2"), // last entry's paragraph is empty
+        ],
+      },
+    );
+    const res = run(at(d, emptyAt(d)), emptyTextblockBackspace);
+    assert.equal(res.ok, true);
+    const fns = res.state.doc.toJSON().content[2];
+    assert.equal(fns.type, "footnotes", "footnotes container survives");
+    assert.equal(fns.content.length, 1, "only the first entry remains");
+    assert.equal(fns.content[0].attrs.id, "fn1");
+    const $f = res.state.selection.$from;
+    assert.equal($f.parent.type.name, "paragraph");
+    assert.equal($f.node(2).attrs.id, "fn1", "caret in the previous entry");
+    assert.equal($f.parentOffset, $f.parent.content.size,
+      "cursor at END of the previous entry's paragraph");
+    assertCaret(res.state);
+  });
+
+  it("BF2: sole entry at doc tail → entry and footnotes deleted, cursor at previous doc sibling's end", () => {
+    const d = doc(
+      sections(section("clause", "c1", "Body", "body text")),
+      {
+        type: "footnotes",
+        content: [footnoteEntry("fn1")], // sole entry, empty paragraph
+      },
+    );
+    const res = run(at(d, emptyAt(d)), emptyTextblockBackspace);
+    assert.equal(res.ok, true);
+    const json = res.state.doc.toJSON();
+    assert.equal(json.content.length, 2, "bibdata + sections only — footnotes gone");
+    assert.equal(json.content[1].type, "sections");
+    assert.equal(ids(res.state.doc).includes("fn1"), false,
+      "the footnote entry is deleted too");
+    const $f = res.state.selection.$from;
+    assert.equal($f.parent.type.name, "paragraph");
+    assert.equal($f.parent.textContent, "body text",
+      "caret in the previous doc sibling's last textblock");
+    assert.equal($f.parentOffset, $f.parent.content.size, "cursor at its end");
+    assertCaret(res.state);
   });
 });

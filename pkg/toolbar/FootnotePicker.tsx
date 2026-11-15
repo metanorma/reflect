@@ -15,12 +15,19 @@
  *
  * The `FootnoteEntryPicker` dialog lists existing `footnote_entry` nodes with
  * their auto-computed ordinal and a text preview, plus a "Create new" action.
- * It uses the HTML Popover API (`popover="auto"`) with CSS Anchor Positioning
- * so it renders in the browser's **top layer** — escaping all ancestor overflow
- * clipping regardless of toolbar/layout CSS.
+ * It is a shell on the base popover/dialog layer (MetanormaToolbar.spec.md
+ * §10.10): a `react-aria-components` `Popover` + `Dialog` anchored to the
+ * trigger and rendered in a portal at `<body>` (top layer — escaping all
+ * ancestor overflow clipping). The existing list markup was moved into the
+ * `Dialog` as-is rather than rebuilt on RAC `ListBox`, so the shared
+ * `.mn-toolbar-popover__list/__item/__actions` utilities (and their e2e
+ * locators) are preserved unchanged. Focus opens on the first entry item and
+ * returns to the trigger on close.
  */
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Popover, Dialog } from "react-aria-components";
+import type { RefObject } from "react";
 
 import {
   useEditorStateSelector,
@@ -41,6 +48,9 @@ import type { RefPromptContext } from "./AdvancedMetanormaToolbar.js";
 import { toolbarButtonClass } from "./ToolbarButtonView.js";
 
 import "./reference-marks.css";
+
+/** DOM id of the picker dialog — the trigger's `aria-controls` target. */
+const POPOVER_ID = "mn-footnote-picker-dialog";
 
 // ---------------------------------------------------------------------------
 // State-derived helpers
@@ -139,78 +149,92 @@ function buildFootnoteContext(state: EditorState): RefPromptContext {
 // ---------------------------------------------------------------------------
 
 /**
- * The footnote-entry picker popover (reference-marks.md §5.5).
- *
- * Lists existing entries for reuse, plus a "Create new" action. Uses the HTML
- * Popover API (`popover="auto"`) so the element renders in the browser's top
- * layer — above all other content, regardless of ancestor overflow clipping.
- * CSS Anchor Positioning (`anchor-name` / `position-anchor`) ties the popover
- * to the trigger button without JavaScript positioning math.
+ * The footnote-entry picker popover (reference-marks.md §5.5) — the RAC shell
+ * of MetanormaToolbar.spec.md §10.10 with the existing list markup inside
+ * (kept as-is to preserve the shared `.mn-toolbar-popover__*` utilities).
  */
 export function FootnoteEntryPicker({
+  isOpen,
+  onOpenChange,
+  triggerRef,
   entries,
   onPick,
   onCreateNew,
   onCancel,
-  ref,
 }: {
+  /** Whether the popover is open (controlled). */
+  readonly isOpen: boolean;
+  /** Called when the popover should close (Escape, click-outside). */
+  readonly onOpenChange: (isOpen: boolean) => void;
+  /** Ref of the trigger button — RAC positions the popover relative to it. */
+  readonly triggerRef: RefObject<HTMLButtonElement | null>;
   readonly entries: readonly FootnoteEntryInfo[];
   readonly onPick: (id: string) => void;
   readonly onCreateNew: () => void;
   readonly onCancel: () => void;
-  readonly ref?: React.Ref<HTMLDivElement> | undefined;
 }): React.JSX.Element {
-  const handleKey = (e: React.KeyboardEvent<HTMLDivElement>): void => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onCancel();
-    }
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Open-focus lands on the first entry item (§10.10) — RAC's default
+  // open-focus is the dialog container, so move it onward explicitly.
+  useEffect(() => {
+    if (!isOpen) return;
+    const raf = requestAnimationFrame(() => {
+      contentRef.current?.querySelector<HTMLElement>("button")?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [isOpen]);
+
+  // Escape/outside are handled by the RAC shell (§10.10): onOpenChange(false)
+  // is the cancel path, with focus returned to the trigger.
+  const handleOpenChange = (open: boolean): void => {
+    if (!open) onCancel();
+    onOpenChange(open);
   };
 
   return (
-    // `popover="auto"`: top-layer rendering with light-dismiss (outside click,
-    // Escape, and auto-close when another popover opens).
-    // The CSS class `mn-footnote-picker` is self-contained — it does NOT use
-    // the shared `.mn-toolbar-popover` base class because the consumer's
-    // vertical-toolbar override (style.module.css) targets `.mn-toolbar-popover`
-    // with `right: 100%`, which would conflict with anchor positioning.
-    <div
-      popover="auto"
+    <Popover
+      isOpen={isOpen}
+      onOpenChange={handleOpenChange}
+      triggerRef={triggerRef}
+      offset={4}
       className="mn-footnote-picker"
-      ref={ref}
-      onKeyDown={handleKey}
     >
-      <ul className="mn-toolbar-popover__list">
-        {entries.map((entry) => (
-          <li key={entry.id}>
+      <Dialog id={POPOVER_ID} aria-label="Insert footnote">
+        <div ref={contentRef}>
+          <ul className="mn-toolbar-popover__list">
+            {entries.map((entry) => (
+              <li key={entry.id}>
+                <button
+                  type="button"
+                  className="mn-toolbar-popover__item"
+                  onClick={() => onPick(entry.id)}
+                >
+                  <strong>[{entry.number}]</strong>{" "}
+                  {entry.preview !== "" ? entry.preview : "(empty)"}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="mn-toolbar-popover__actions">
             <button
               type="button"
               className="mn-toolbar-popover__item"
-              onClick={() => onPick(entry.id)}
+              onClick={onCreateNew}
             >
-              <strong>[{entry.number}]</strong>{" "}
-              {entry.preview !== "" ? entry.preview : "(empty)"}
+              + Create new
             </button>
-          </li>
-        ))}
-      </ul>
-      <div className="mn-toolbar-popover__actions">
-        <button
-          type="button"
-          className="mn-toolbar-popover__item"
-          onClick={onCreateNew}
-        >
-          + Create new
-        </button>
-        <button
-          type="button"
-          className="mn-toolbar-popover__item"
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+            <button
+              type="button"
+              className="mn-toolbar-popover__item"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Dialog>
+    </Popover>
   );
 }
 
@@ -221,8 +245,10 @@ export function FootnoteEntryPicker({
 /**
  * The "Footnote" trigger button + picker (reference-marks.md §4, §5.5).
  *
- * Owns the picker's open state and delegates to the pure `insertFootnoteMarker`
- * / `removeFootnoteMarker` commands via `useEditorEventCallback`.
+ * Owns the picker's controlled open state and delegates to the pure
+ * `insertFootnoteMarker` / `removeFootnoteMarker` commands via
+ * `useEditorEventCallback`. The trigger's `aria-expanded`/`aria-controls`
+ * reflect the open state (wired explicitly per base §10.10).
  */
 export function FootnoteButton({
   onFootnotePrompt,
@@ -230,8 +256,8 @@ export function FootnoteButton({
   readonly onFootnotePrompt?: ((context: RefPromptContext) => Promise<string | null>) | undefined;
 }): React.JSX.Element {
   const [pickerEntries, setPickerEntries] = useState<readonly FootnoteEntryInfo[]>([]);
+  const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
 
   // Selectors return primitives (boolean / number) — referentially stable for
   // useSyncExternalStore.
@@ -286,8 +312,7 @@ export function FootnoteButton({
   );
 
   const closePicker = (): void => {
-    popoverRef.current?.hidePopover();
-    triggerRef.current?.focus();
+    setOpen(false);
   };
 
   const handleClick = (): void => {
@@ -309,12 +334,11 @@ export function FootnoteButton({
       return;
     }
 
-    // Entries exist: collect them at click time and open the picker.
+    // Entries exist: collect them at click time and open the picker. The
+    // popover mounts on the next render with the entries already committed.
     const entries = fetchEntries();
     setPickerEntries(entries);
-    // showPopover must be called after React commits the updated entries
-    // into the DOM. requestAnimationFrame defers to the next paint.
-    requestAnimationFrame(() => popoverRef.current?.showPopover());
+    setOpen(true);
   };
 
   return (
@@ -324,6 +348,8 @@ export function FootnoteButton({
         type="button"
         className={toolbarButtonClass(isMarkerSelected, enabled)}
         aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? POPOVER_ID : undefined}
         disabled={!enabled}
         title="Insert footnote"
         onClick={handleClick}
@@ -331,7 +357,9 @@ export function FootnoteButton({
         Footnote
       </button>
       <FootnoteEntryPicker
-        ref={popoverRef}
+        isOpen={open}
+        onOpenChange={setOpen}
+        triggerRef={triggerRef}
         entries={pickerEntries}
         onPick={(id) => {
           closePicker();

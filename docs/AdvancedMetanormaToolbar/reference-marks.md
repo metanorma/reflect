@@ -126,10 +126,10 @@ host application can replace the default minimal UI with a rich picker. When
 a hook resolves to `null` the operation is cancelled and no transaction is
 dispatched.
 
-The default (no hook) implementations are deliberately minimal —
-`window.prompt`, a generated id, or a small inline menu — and are meant to be
-replaced. The hooks make the toolbar usable out of the box while leaving the
-real UX to the host.
+The default (no hook) implementations are deliberately minimal — a
+doc-anchored picker, a built-in prompt popover, or a generated id — and are
+meant to be replaced. The hooks make the toolbar usable out of the box while
+leaving the real UX to the host.
 
 **UI/command boundary.** Attribute resolution — the xref target picker, the
 eref cite picker, the concept picker, the bcp14 keyword prompt, footnote id
@@ -161,32 +161,35 @@ tiers of resolution, best available wins:
    readable label (the node's heading text: its `section_title` child for
    sections, `figure_name`/`table_name` for figures/tables, or node text
    otherwise) and its id.
-2. **Free-text input (fallback).** A `window.prompt('Cross-reference target
-   id:')` when no picker is available or the host declines to supply one.
+2. **Free-text entry (fallback).** The `TargetPicker`'s search/filter input
+   doubles as manual entry: when no list item matches, committing the typed
+   text resolves `target` directly (the forward-reference path).
 3. **Upgrade hook.**
 
 ```typescript
-/** Resolve an xref target id. Default: window.prompt. Return null to cancel. */
+/** Resolve an xref target id. Default: the doc-anchored TargetPicker. Return null to cancel. */
 readonly onXrefPrompt?: (context: RefPromptContext) => Promise<string | null>;
 ```
 
 ### 5.2 `eref` — citation-key resolution
 
 Needs a `cite`: the bibliographic key of a `bibliography` entry. The schema's
-`bibliography` node has content `(section | block)*` — it is a generic
-container, **not** a structured list of typed bibliography entries carrying a
-citation-key attribute. The editor therefore cannot enumerate `(key, title)`
-pairs from the document alone. Resolution is:
+`bibliography` node holds `references+` sections, each carrying `bibitem`
+atoms that store their `BibliographicItem` (`@metanorma/relaton`) — so the
+document itself is the pick list. Resolution is:
 
 1. **Host-supplied hook (preferred).** `onErefPrompt` returns a citation key
-   (free-text `string`) — hosts use it to integrate with a bibliographic data
-   source (e.g. Relaton) and present a rich `(key, title)` picker. The hook
-   owns all data-source concerns; the editor only stores the resolved key.
-2. **Free-text input (fallback).** A `window.prompt('Citation key:')` when no
-   hook is supplied.
+   (free-text `string`) — hosts use it to integrate with an external
+   bibliographic data source. The hook owns all data-source concerns; the
+   editor only stores the resolved key.
+2. **Doc-anchored `ErefPicker` (default).** The picker popover harvests the
+   document's `bibitem` atoms via `@metanorma/relaton`'s
+   `collectBibliographyItems` (rendering each entry's `citeas` label) and
+   presents `(key, title)` pairs to pick from; its input also accepts a
+   citation key typed manually when the list has no match.
 
 ```typescript
-/** Resolve an eref citation key. Default: window.prompt. Return null to cancel. */
+/** Resolve an eref citation key. Default: the doc-anchored ErefPicker. Return null to cancel. */
 readonly onErefPrompt?: (context: RefPromptContext) => Promise<string | null>;
 ```
 
@@ -211,17 +214,19 @@ Resolution of `ref` depends on `kind`:
      term-definition clauses live). Because the schema has no dedicated "term
      entry" node, the picker lists id-bearing clauses/blocks — coarse but
      functional.
-  2. **Free-text input (fallback).** A `window.prompt('Concept id:')` when no
-     picker is available.
+  2. **Free-text entry (fallback).** The `TargetPicker`'s search input
+     doubles as manual entry when no list item matches (as in §5.1).
   3. **Upgrade hook.** `onConceptPrompt` lets the host supply a curated picker
      (e.g. only term-definition entries, with proper labels).
 - **`kind: "eref"`.** `ref` is a bibliographic **citeas** key — same shape as
   `eref` (§5.2).
-- **`kind: "termref"`.** `ref` is a **termbase** target — free-text only (the
-  editor has no termbase to scan); `window.prompt('Termbase target:')`.
+- **`kind: "termref"`.** `ref` is a **termbase** target — free text (the
+  editor has no termbase to scan); it is typed into the picker input. In the
+  default (picker) flow the mark is applied with the default
+  `kind: "xref"`; the other kinds are resolved by the host hook.
 
 ```typescript
-/** Resolve a concept ref and kind. Default: window.prompt. Return null to cancel. */
+/** Resolve a concept ref and kind. Default: the doc-anchored TargetPicker. Return null to cancel. */
 readonly onConceptPrompt?: (context: RefPromptContext) => Promise<{ ref: string; kind: "eref" | "xref" | "termref" } | null>;
 ```
 
@@ -229,14 +234,15 @@ readonly onConceptPrompt?: (context: RefPromptContext) => Promise<{ ref: string;
 
 Needs a `type`: a BCP14 keyword (e.g. `MUST`, `SHOULD NOT`). The `type`
 attribute is an **open free-text string** — the editor imposes no enum; the
-author types any keyword, in any language. The button opens a free-text prompt
-(`window.prompt('BCP14 keyword:')` by default), mirroring `xref`/`eref`/
+author types any keyword, in any language. The button opens the built-in
+`<PromptPopover>` (base §6) labelled for a BCP14 keyword, mirroring the
+`xref`/`eref`/
 `concept`; on commit it applies the mark with the typed `type`, typically
 **wrapping the currently-selected text** (e.g. typing `MUST` marks the
 selection as a `bcp14 type="MUST"` span).
 
 ```typescript
-/** Resolve a bcp14 keyword. Default: window.prompt. Return null to cancel. */
+/** Resolve a bcp14 keyword. Default: the built-in <PromptPopover>. Return null to cancel. */
 readonly onBcp14Prompt?: (context: RefPromptContext) => Promise<string | null>;
 ```
 
@@ -560,19 +566,16 @@ requirement is presence.
 ## 8. Styling
 
 Follows base §8 conventions: plain CSS side-effect import, `mn-toolbar`
-prefix. The attribute-collection UI (a `@metanorma/toolbar` concern, §5)
-introduces new classes in `pkg/toolbar/reference-marks.css`:
-
-```
-.mn-toolbar-popover             /* floating container for xref/eref/concept/stem/bcp14 input */
-  .mn-toolbar-popover__input    /* text <input>/<textarea> */
-  .mn-toolbar-popover__list     /* picker <ul> (targets, bib entries, concepts) */
-  .mn-toolbar-popover__item     /* picker <li>/button */
-```
-
-Minimum behaviour: popovers/menus anchor below their triggering button,
-respect `prefers-color-scheme`, and reuse the `--mn-border` / `--mn-active`
-custom properties from the base stylesheet.
+prefix. The attribute-collection UI (a `@metanorma/toolbar` concern, §5) is
+built on the base popover/dialog layer
+([`MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) §10.10) and
+follows its class convention: feature roots (`.mn-target-picker`,
+`.mn-eref-picker`, `.mn-footnote-picker`) with BEM `__` children, plus the
+shared picker list utilities `.mn-toolbar-popover__list` / `__item` /
+`__actions` (no shell renders a bare `.mn-toolbar-popover` root class).
+Styles live in `pkg/toolbar/reference-marks.css` and consume the `--mn-*`
+tokens; anchoring and light/dark theming are provided by the layer, not per
+shell.
 
 ## 9. Accessibility
 

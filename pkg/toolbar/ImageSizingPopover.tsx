@@ -2,9 +2,12 @@
  * `ImageSizingPopover` — the size/role affordance for an existing image
  * (images-figures.md §8, schema.spec.md §17.8).
  *
- * A dedicated React component (`ImageSizingButton`) owns the popover's open
- * state, exactly the `InsertImageButton` pattern (HTML Popover API +
- * `mn-image-dialog`-family styling; see ImageInsertDialog.tsx).
+ * A dedicated React component (`ImageSizingButton`) owns the popover's
+ * controlled open state — a shell on the base popover/dialog layer
+ * (MetanormaToolbar.spec.md §10.10): a `react-aria-components` `Popover` +
+ * `Dialog`, anchored to the trigger and rendered in a portal at `<body>`,
+ * sharing the `mn-image-dialog`-family form utilities (see
+ * ImageInsertDialog.tsx).
  *
  * Fields: Width / Height (numeric-or-percent, empty = leave unchanged,
  * `auto` = clear) and the role choice (— / text-width / full-page-width).
@@ -16,6 +19,8 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import { Popover, Dialog } from "react-aria-components";
+import type { RefObject } from "react";
 
 import {
   useEditorStateSelector,
@@ -35,6 +40,9 @@ import { toolbarButtonClass } from "./ToolbarButtonView.js";
 
 import "./image-dialog.css";
 
+/** DOM id of the sizing dialog — the trigger's `aria-controls` target. */
+const POPOVER_ID = "mn-image-sizing-popover";
+
 /** Parse one size input: '' = absent (unchanged), 'auto' = null (clear),
  *  else normalized canonical value; null result for non-empty non-auto
  *  input means INVALID (the inline-error case). */
@@ -50,49 +58,69 @@ function parseSizeInput(
 
 /** The popover itself (images-figures.md §9 a11y: dialog pattern). */
 function ImageSizingPopover({
+  isOpen,
+  onOpenChange,
+  triggerRef,
   onCommit,
   onCancel,
-  ref,
 }: {
+  /** Whether the popover is open (controlled). */
+  readonly isOpen: boolean;
+  /** Called when the popover should close (Escape, click-outside). */
+  readonly onOpenChange: (isOpen: boolean) => void;
+  /** Ref of the trigger button — RAC positions the popover relative to it. */
+  readonly triggerRef: RefObject<HTMLButtonElement | null>;
   readonly onCommit: () => void;
   readonly onCancel: () => void;
-  readonly ref?: React.Ref<HTMLDivElement> | undefined;
 }): React.JSX.Element {
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
   const [role, setRole] = useState<"" | FigureRole>("");
   const [error, setError] = useState<string | null>(null);
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  // The editor DOM element, captured at dispatch time so the commit path can
+  // re-focus it synchronously (see settleFocusEditor below).
+  const editorDomRef = useRef<HTMLElement | null>(null);
 
-  // Reset the fields whenever the popover closes — via commit, Escape,
-  // cancel, OR light-dismiss (popover=auto outside click). Stale inputs
-  // are not just cosmetic here: because of the role⇔size exclusion, a
-  // leftover "150" in Width would silently turn a role-only Apply into
-  // "size + role", which cancel each other (§17.8).
+  // Reset-on-close (images-figures.md §8.5) — an effect on the open state
+  // covers EVERY close path: commit (the controlled prop flips), Escape,
+  // cancel, and light-dismiss (the RAC open-change event). Stale inputs are
+  // not just cosmetic: because of the role⇔size exclusion, a leftover "150"
+  // in Width would silently turn a role-only Apply into "size + role",
+  // which cancel each other (schema §17.8).
   useEffect(() => {
-    const el = rootRef.current;
-    if (el === null) return;
-    const onToggle = (e: Event): void => {
-      if (!(e as ToggleEvent).newState || (e as ToggleEvent).newState !== "open") {
-        setWidth("");
-        setHeight("");
-        setRole("");
-        setError(null);
-      }
-    };
-    el.addEventListener("toggle", onToggle);
-    return () => el.removeEventListener("toggle", onToggle);
-  }, []);
+    if (!isOpen) {
+      setWidth("");
+      setHeight("");
+      setRole("");
+      setError(null);
+    }
+  }, [isOpen]);
+
+  const handleOpenChange = (open: boolean): void => {
+    if (!open) onCancel();
+    onOpenChange(open);
+  };
 
   const dispatchApply = useEditorEventCallback(
     (view: EditorView | null, update: Parameters<typeof updateImageAttrs>[2]) => {
       if (view === null) return false;
       const ok = updateImageAttrs(view.state, view.dispatch, update);
       if (!ok) return false;
+      editorDomRef.current = view.dom as HTMLElement;
       view.focus();
       return true;
     },
   );
+
+  // The RAC overlay's unmount resets document.activeElement to <body> — even
+  // clobbering an editor focus set before the close. Re-assert editor focus
+  // AFTER the unmount commit, before the browser yields to the next action
+  // (same guard as ImageInsertDialog).
+  const settleFocusEditor = (): void => {
+    const apply = (): void => { editorDomRef.current?.focus(); };
+    queueMicrotask(apply);
+    setTimeout(apply, 0);
+  };
 
   async function onApplyInternal(): Promise<void> {
     const w = parseSizeInput(width);
@@ -113,90 +141,86 @@ function ImageSizingPopover({
     }
     setError(null);
     onCommit();
+    settleFocusEditor();
   }
 
   return (
-    <div
-      ref={(node) => {
-        rootRef.current = node;
-        // Forward the caller's ref too (React 19 ref-as-prop).
-        if (typeof ref === "function") ref(node);
-        else if (ref !== null && typeof ref === "object") {
-          (ref as React.RefObject<HTMLDivElement | null>).current = node;
-        }
-      }}
-      popover="auto"
+    <Popover
+      isOpen={isOpen}
+      onOpenChange={handleOpenChange}
+      triggerRef={triggerRef}
+      offset={4}
       className="mn-image-sizing-dialog"
-      role="dialog"
-      aria-label="Set image size"
-      aria-modal="false"
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          onCancel();
-        }
-      }}
     >
-      <div className="mn-toolbar-dialog-field">
-        <label htmlFor="mn-img-size-w">Width</label>
-        <input
-          id="mn-img-size-w"
-          type="text"
-          autoComplete="off"
-          placeholder="auto"
-          value={width}
-          onChange={(e) => setWidth(e.target.value)}
-        />
-      </div>
-      <div className="mn-toolbar-dialog-field">
-        <label htmlFor="mn-img-size-h">Height</label>
-        <input
-          id="mn-img-size-h"
-          type="text"
-          autoComplete="off"
-          placeholder="auto"
-          value={height}
-          onChange={(e) => setHeight(e.target.value)}
-        />
-      </div>
-      <div className="mn-toolbar-dialog-field">
-        <label htmlFor="mn-img-size-role">Size mode</label>
-        <select
-          id="mn-img-size-role"
-          value={role}
-          onChange={(e) => setRole(e.target.value as "" | FigureRole)}
-        >
-          <option value="">—</option>
-          <option value="text-width">text-width</option>
-          <option value="full-page-width">full-page-width</option>
-        </select>
-      </div>
-      {error !== null ? (
-        <div className="mn-toolbar-dialog-error" aria-live="polite">
-          {error}
+      <Dialog
+        id={POPOVER_ID}
+        aria-label="Set image size"
+        className="mn-image-sizing-dialog__body"
+      >
+        <div className="mn-toolbar-dialog-field">
+          <label htmlFor="mn-img-size-w">Width</label>
+          <input
+            id="mn-img-size-w"
+            type="text"
+            autoComplete="off"
+            placeholder="auto"
+            value={width}
+            onChange={(e) => setWidth(e.target.value)}
+          />
         </div>
-      ) : null}
-      <div className="mn-toolbar-dialog-actions">
-        <button type="button" onClick={() => { onCancel(); }}>
-          Cancel
-        </button>
-        <button type="button" onClick={() => { void onApplyInternal(); }}>
-          Apply
-        </button>
-      </div>
-    </div>
+        <div className="mn-toolbar-dialog-field">
+          <label htmlFor="mn-img-size-h">Height</label>
+          <input
+            id="mn-img-size-h"
+            type="text"
+            autoComplete="off"
+            placeholder="auto"
+            value={height}
+            onChange={(e) => setHeight(e.target.value)}
+          />
+        </div>
+        <div className="mn-toolbar-dialog-field">
+          <label htmlFor="mn-img-size-role">Size mode</label>
+          <select
+            id="mn-img-size-role"
+            value={role}
+            onChange={(e) => setRole(e.target.value as "" | FigureRole)}
+          >
+            <option value="">—</option>
+            <option value="text-width">text-width</option>
+            <option value="full-page-width">full-page-width</option>
+          </select>
+        </div>
+        {error !== null ? (
+          <div className="mn-toolbar-dialog-error" aria-live="polite">
+            {error}
+          </div>
+        ) : null}
+        <div className="mn-toolbar-dialog-actions">
+          <button type="button" onClick={() => { onCancel(); }}>
+            Cancel
+          </button>
+          <button type="button" onClick={() => { void onApplyInternal(); }}>
+            Apply
+          </button>
+        </div>
+      </Dialog>
+    </Popover>
   );
 }
 
-/** The toolbar control: trigger button + popover (InsertImageButton pattern). */
+/**
+ * The toolbar control: trigger button + popover. Owns the controlled open
+ * state; the trigger's `aria-expanded`/`aria-controls` reflect it (wired
+ * explicitly per base §10.10).
+ */
 export function ImageSizingButton(): React.JSX.Element {
   const enabled = useEditorStateSelector(canUpdateImageAttrs);
+  const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
 
   const closePopover = (): void => {
-    popoverRef.current?.hidePopover();
-    triggerRef.current?.focus();
+    setOpen(false);
   };
 
   return (
@@ -206,14 +230,18 @@ export function ImageSizingButton(): React.JSX.Element {
         type="button"
         className={toolbarButtonClass(false, enabled)}
         aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? POPOVER_ID : undefined}
         disabled={!enabled}
         title="Set image size / size mode"
-        onClick={() => popoverRef.current?.togglePopover()}
+        onClick={() => setOpen((o) => !o)}
       >
         Size
       </button>
       <ImageSizingPopover
-        ref={popoverRef}
+        isOpen={open}
+        onOpenChange={setOpen}
+        triggerRef={triggerRef}
         onCommit={closePopover}
         onCancel={closePopover}
       />

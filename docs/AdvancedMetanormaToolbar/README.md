@@ -278,7 +278,7 @@ export interface AdvancedMetanormaToolbarProps {
   readonly onXrefPrompt?: () => Promise<string | null>;
   readonly onErefPrompt?: () => Promise<string | null>;
   readonly onConceptPrompt?: () => Promise<{ ref: string; kind: "eref" | "xref" | "termref" } | null>;
-  /** Resolve a BCP14 keyword (free text). Default: window.prompt. */
+  /** Resolve a BCP14 keyword (free text). Default: the built-in <PromptPopover>. */
   readonly onBcp14Prompt?: () => Promise<string | null>;
   /** Resolve a footnote entry id (optionally create). Default: generate. */
   readonly onFootnotePrompt?: () => Promise<string | null>;
@@ -294,11 +294,12 @@ Prop coverage map:
 
 | Prop | Consumed by | Default |
 |---|---|---|
-| `onLinkPrompt` | `linkGroup` (upgrades `window.prompt`) | `window.prompt` |
+| `onLinkPrompt` | `linkGroup` | built-in `<PromptPopover>` (base §6) |
 | `onImageUpload` | `imagesGroup` | none (absent ⇒ `FileReader.readAsDataURL` data: URL) |
 | `onImagePrompt` | `imagesGroup` | built-in `ImageInsertDialog` |
-| `onXrefPrompt` / `onErefPrompt` / `onConceptPrompt` | `refsGroup` | `window.prompt` / doc-id picker |
-| `onBcp14Prompt` | `refsGroup` (BCP14 keyword) | `window.prompt` (free text) |
+| `onXrefPrompt` / `onConceptPrompt` | `refsGroup` | doc-anchored `TargetPicker` (reference-marks.md §5.1/§5.3) |
+| `onErefPrompt` | `refsGroup` | doc-anchored `ErefPicker` (reference-marks.md §5.2) |
+| `onBcp14Prompt` | `refsGroup` (BCP14 keyword) | built-in `<PromptPopover>` (free text) |
 | `onFootnotePrompt` | `refsGroup` (footnote id) | generate id |
 | `onStemPrompt` | `refsGroup` (formula) | built-in stem popover |
 | `history` | `historyGroup` + editor state | enabled, `newGroupDelay: 500` |
@@ -386,8 +387,14 @@ pkg/toolbar/                          ← @metanorma/toolbar (advanced additions
   TableSizePicker.tsx                     ← grid-picker popover UI
   ImageInsertDialog.tsx                   ← URL/upload dialog UI
   SectionPopover.tsx                      ← cohort-grouped section-type menu (sections.md §4.2)
+  TargetPicker.tsx                        ← doc-anchored xref/concept target picker (reference-marks.md §5.1/§5.3)
+  FootnotePicker.tsx                      ← footnote entry picker (reference-marks.md §5.5)
+  ErefPicker.tsx                          ← bibliography/citation-key picker (reference-marks.md §5.2)
+  ImageSizingPopover.tsx                  ← image sizing popover (images-figures.md §8)
   plugins/
     definitionListKeymap.ts               ← Enter/Backspace keymap (UI-layer plugin)
+  PromptPopover.tsx                       ← (base layer, listed for completeness — MetanormaToolbar.spec.md §6/§13)
+  prompt-popover.css                      ← (base layer) .mn-prompt-popover styles
   AdvancedMetanormaToolbar.tsx            ← thin assembler
   index.ts                                ← re-exports advanced commands + UI components (§5.6)
 ```

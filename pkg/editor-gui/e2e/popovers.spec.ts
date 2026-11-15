@@ -7,12 +7,11 @@
  * loudly ("other element would receive the click") if the editor intercepts
  * the click because the dialog is obscured.
  *
- * All three popovers now use the HTML Popover API (`popover="manual"`,
- * top-layer rendering) with CSS Anchor Positioning. The popover elements are
- * always present in the DOM; when hidden they have `display: none` from the
- * user-agent stylesheet. Tests locate them by CSS class + `[popover]` attribute
- * (which always matches) and assert visibility with `toBeVisible()` /
- * `toBeHidden()` — not `toHaveCount(0)`.
+ * The pickers are `react-aria-components` shells (MetanormaToolbar.spec.md
+ * §10.10): RAC renders each popover in a portal at `<body>`, mounted only
+ * while open. Tests locate them by CSS class and assert visibility with
+ * `toBeVisible()` / `toBeHidden()` — class-only locators, never
+ * popover-attribute selectors.
  */
 import { expect, test } from '@playwright/test';
 import { getDoc, openParkedEditor, toolbarButton, typeInEditor, clickEditor, clickBodyParagraph } from './helpers.js';
@@ -20,7 +19,7 @@ import { getDoc, openParkedEditor, toolbarButton, typeInEditor, clickEditor, cli
 test.describe('popovers', () => {
 
   // -------------------------------------------------------------------------
-  // TableSizePicker — `popover="manual"` (HTML Popover API, top-layer).
+  // TableSizePicker — RAC Popover/Dialog shell (base §10.10).
   // -------------------------------------------------------------------------
   test.describe('TableSizePicker', () => {
     test('grid hover updates the readout; clicking a cell inserts a table', async ({ page }) => {
@@ -30,8 +29,29 @@ test.describe('popovers', () => {
       await page.keyboard.type('before ');
 
       // Open the picker.
-      await toolbarButton(page, 'Table').click();
-      const dialog = page.locator('.mn-table-picker[popover]');
+      const tableBtn = toolbarButton(page, 'Table');
+      await tableBtn.click();
+      const dialog = page.locator('.mn-table-picker');
+      await expect(dialog).toBeVisible();
+
+      // Trigger wiring (tables.md §6.1): aria-expanded reflects the open
+      // state; aria-controls points at the dialog.
+      await expect(tableBtn).toHaveAttribute('aria-expanded', 'true');
+      await expect(tableBtn).toHaveAttribute('aria-controls');
+
+      // Open-focus lands on the (1, 1) roving gridcell (tables.md §6.2).
+      await expect(
+        page.locator('[role="gridcell"][aria-rowindex="1"][aria-colindex="1"]'),
+      ).toBeFocused();
+
+      // Escape closes without inserting; focus returns to the trigger (§6.2).
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+      await expect(tableBtn).toBeFocused();
+      await expect(tableBtn).toHaveAttribute('aria-expanded', 'false');
+
+      // Reopen for the hover/commit flow.
+      await tableBtn.click();
       await expect(dialog).toBeVisible();
 
       // Hover a grid cell at row 2, col 3 — the readout should update.
@@ -54,7 +74,7 @@ test.describe('popovers', () => {
   });
 
   // -------------------------------------------------------------------------
-  // FootnotePicker — `popover="manual"` (HTML Popover API, top-layer).
+  // FootnotePicker — RAC Popover/Dialog shell (base §10.10).
   // -------------------------------------------------------------------------
   test.describe('FootnotePicker', () => {
     test('first click creates a marker; second click opens picker; "Create new" inserts another', async ({ page }) => {
@@ -72,7 +92,7 @@ test.describe('popovers', () => {
 
       // Second click: entry now exists → picker opens.
       await toolbarButton(page, 'Footnote').click();
-      const picker = page.locator('.mn-footnote-picker[popover]');
+      const picker = page.locator('.mn-footnote-picker');
       await expect(picker).toBeVisible();
 
       // Click "+ Create new" inside the picker — occlusion assertion.
@@ -88,7 +108,7 @@ test.describe('popovers', () => {
   });
 
   // -------------------------------------------------------------------------
-  // ImageInsertDialog — `popover="manual"` (HTML Popover API, top-layer).
+  // ImageInsertDialog — RAC Popover/Dialog shell (base §10.10).
   // -------------------------------------------------------------------------
   test.describe('ImageInsertDialog', () => {
     test('URL + alt text flow adds an image to the figure under the caret', async ({ page }) => {
@@ -104,7 +124,7 @@ test.describe('popovers', () => {
 
       // Open the dialog.
       await toolbarButton(page, 'Image').click();
-      const dialog = page.locator('.mn-image-dialog[popover]');
+      const dialog = page.locator('.mn-image-dialog');
       await expect(dialog).toBeVisible();
 
       // Fill the URL and alt fields — these clicks/types are occlusion
@@ -138,7 +158,7 @@ test.describe('popovers', () => {
 
       // Open the picker.
       await toolbarButton(page, 'Xref').click();
-      const picker = page.locator('.mn-target-picker--xref[popover]');
+      const picker = page.locator('.mn-target-picker--xref');
       await expect(picker).toBeVisible();
 
       // The default doc's clause (id "_document_container") should appear.
@@ -161,7 +181,7 @@ test.describe('popovers', () => {
       await page.keyboard.press('Shift+Home');
 
       await toolbarButton(page, 'Xref').click();
-      const picker = page.locator('.mn-target-picker--xref[popover]');
+      const picker = page.locator('.mn-target-picker--xref');
       await expect(picker).toBeVisible();
 
       // Type a custom id not present in the doc and press Enter — the free-text
@@ -188,7 +208,7 @@ test.describe('popovers', () => {
       await page.keyboard.press('Shift+Home');
 
       await toolbarButton(page, 'Concept').click();
-      const picker = page.locator('.mn-target-picker--concept[popover]');
+      const picker = page.locator('.mn-target-picker--concept');
       await expect(picker).toBeVisible();
 
       const item = picker.locator('.mn-toolbar-popover__item', { hasText: '_document_container' });

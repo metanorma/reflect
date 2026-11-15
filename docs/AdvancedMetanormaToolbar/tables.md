@@ -198,31 +198,28 @@ by pointer and keyboard handlers, so both inputs are always consistent.
 
 ### 5.4 CSS classes
 
-The picker introduces feature-specific classes under the existing `mn-toolbar`
-prefix:
+The picker is a shell on the base popover/dialog layer
+([`MetanormaToolbar.spec.md`](../MetanormaToolbar.spec.md) §10.10) and
+follows its class convention — a feature root with `__` child utilities,
+themed through the `--mn-*` tokens (light/dark handled centrally by the
+editor's token layer):
 
 ```
-.mn-toolbar-table              /* wrapper: button + popover */
+.mn-toolbar-table              /* wrapper: trigger button + popover */
   .mn-toolbar-btn              /* the trigger (reuses base class) */
-.mn-toolbar-popover            /* absolutely-positioned grid container */
+.mn-table-picker               /* the RAC popover root (grid container) */
   .mn-toolbar-grid             /* the m×n grid (CSS grid) */
     .mn-toolbar-gridcell       /* one tile */
     .mn-toolbar-gridcell--on   /* modifier: inside the highlighted rectangle */
   .mn-toolbar-grid-readout     /* the "3 × 4" label */
 ```
 
-Minimum required styling:
+The grid sizing (`.mn-toolbar-grid`, `.mn-toolbar-gridcell`) and the readout
+are as in the table above: `--cols`/`--rows` set inline to the highlighted
+dimensions; cells highlight via `var(--mn-active)`.
 
-| Selector | Purpose |
-|---|---|
-| `.mn-toolbar-popover` | `position: absolute; z-index: 10; background: var(--mn-surface, #fff); border: 1px solid var(--mn-border, #ccc); border-radius: 4px; padding: 0.4em; box-shadow: 0 2px 8px rgba(0,0,0,.15);` |
-| `.mn-toolbar-grid` | `display: grid; grid-template-columns: repeat(var(--cols), 1.2em); grid-template-rows: repeat(var(--rows), 1.2em); gap: 2px;` (`--cols`/`--rows` set inline to `MAX_COLS`/`MAX_ROWS`). |
-| `.mn-toolbar-gridcell` | `width: 1.2em; height: 1.2em; border: 1px solid var(--mn-border, #ccc); background: transparent; cursor: pointer;` |
-| `.mn-toolbar-gridcell--on` | `background: var(--mn-active, #e0e0e0); border-color: var(--mn-active, #e0e0e0);` |
-| `.mn-toolbar-grid-readout` | `text-align: center; font-variant-numeric: tabular-nums; margin-top: 0.3em;` |
-| Dark mode | `.mn-toolbar-popover` / `.mn-toolbar-gridcell` adapt via `@media (prefers-color-scheme: dark)` as in the base toolbar. |
-
-The stylesheet is plain CSS imported as a side-effect in `TableSizePicker.tsx`,
+The stylesheet is plain CSS (`pkg/toolbar/table-picker.css`) imported as a
+side-effect in `TableSizePicker.tsx`,
 matching the base toolbar's `toolbar.css` convention.
 
 ## 6. Accessibility

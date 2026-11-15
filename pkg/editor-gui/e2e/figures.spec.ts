@@ -38,7 +38,7 @@ function findFigure(doc: any): any {
 /** Open the Image dialog and commit SRC + optional alt. */
 async function commitImageDialog(page: import('@playwright/test').Page, alt = ''): Promise<void> {
   await toolbarButton(page, 'Image').click();
-  const dialog = page.locator('.mn-image-dialog[popover]');
+  const dialog = page.locator('.mn-image-dialog');
   await dialog.locator('#mn-img-src').fill(SRC);
   if (alt !== '') await dialog.locator('#mn-img-alt').fill(alt);
   await dialog.getByRole('button', { name: 'Insert' }).click();
