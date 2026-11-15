@@ -266,7 +266,7 @@ trailing-piece rows as much as for mid-subtree rows. Evidence:
 mockup:1846–1857 (ancestor walk), mockup:2005–2014 (`byEl`), mockup:1932–1934
 (trailing-prose ownership), the census rows cited above.
 
-**Decision (fill):** `pending → decided(____)`
+**Decision (fill):** `pending → decided(A)`
 
 ---
 
@@ -304,7 +304,7 @@ the consumer gets mockup-exact 10/5 + order; unbounded count keeps the engine
 schema-agnostic. Q2's "blocker" status resolves to A + G-05 for the
 partition.
 
-**Decision (fill):** `pending → decided(____)`
+**Decision (fill):** `pending → decided(A)`
 
 ---
 
@@ -343,7 +343,7 @@ gaps, keeps the DEV deltas exactly countable (43 = substitution
 `expectMissing` classes), and INV-9's measured drop rates (5.8/19/33%)
 transfer only under a mockup-comparable population.
 
-**Decision (fill):** `pending → decided(____)`
+**Decision (fill):** `pending → decided(A)`
 
 ---
 
@@ -378,7 +378,7 @@ the mockup's legend geometry dependency is void in the port (A.1 footer row:
 "N-A … legend owns no geometry"), and A keeps Phase-4 consumer-side. Revisit
 hooks only if a second consumer needs the same legend.
 
-**Decision (fill):** `pending → decided(____)`
+**Decision (fill):** `pending → decided(A)`
 
 ---
 
@@ -423,7 +423,7 @@ B remains a legal amendment if the gate prefers the a11y-friendlier
 always-clickable lanes — it must then be recorded as an intentional
 divergence with its parity.md row updated at Phase 4.
 
-**Decision (fill):** `pending → decided(____)`
+**Decision (fill):** `pending → decided(A)`
 
 ---
 
@@ -454,7 +454,7 @@ demo-grade, not flavor-correct (parity.md Part C audit).
 owns class and text surface); the mockup's own numbering is admittedly
 demo-grade, so porting it buys no correctness.
 
-**Decision (fill):** `pending → decided(____)`
+**Decision (fill):** `pending → decided(A)`
 
 ---
 
@@ -472,7 +472,7 @@ largest visual divergence between baseline and engine today".
 
 **Options.**
 
-- **A — Ratify D4 + add a class-level `width: 'solid' | 'proportional'`
+- **A — Ratify D4 + add a theme-level `width: 'solid' | 'proportional'`
   theme entry; mockup classes set `solid`.** Binds: A.3 rows implemented;
   census `left`/width leaves then match structurally (no DEV entries needed
   for width); Phase-4 scope = theme type + renderer tier-2/3 width branch +
@@ -489,7 +489,7 @@ largest visual divergence between baseline and engine today".
 **Recommendation: A.** The knob is small, removes the largest divergence at
 its root, and leaves the engine default untouched for non-parity consumers.
 
-**Decision (fill):** `pending → decided(____)`
+**Decision (fill):** `pending → decided(A, later C)`
 
 ---
 
@@ -528,7 +528,7 @@ compression documented in coverage INV-16 (band 12%).
 INV-16's port form) at the cost of one theme field; B is the
 tolerance-as-rot pattern G-23 forbids.
 
-**Decision (fill):** `pending → decided(____)`
+**Decision (fill):** `pending → decided(A)`
 
 ---
 
