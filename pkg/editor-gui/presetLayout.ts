@@ -28,6 +28,7 @@
 
 import type { SerializedDockview } from '@metanorma/panel-layout';
 import { CONSTANTS } from '@metanorma/panel-layout';
+import { PANEL_IDS } from './panelIds.js';
 
 /**
  * A tabset's serialized state (engine `GroupPanelViewState` shape), with
@@ -89,7 +90,7 @@ const DOC_TITLE = 'Document';
 export function presetLayout(): SerializedDockview {
   const panels: Record<string, { id: string; contentComponent: string;
     title: string; params: Record<string, never> }> = {};
-  for (const id of ['doc', 'minimap', 'toolbar'] as const) {
+  for (const id of PANEL_IDS) {
     // Panel id doubles as the contentComponent name (registry key).
     const title = id === 'doc'
       ? DOC_TITLE

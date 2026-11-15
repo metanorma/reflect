@@ -25,6 +25,7 @@
  */
 
 import type { DockviewApi, SerializedDockview } from 'dockview';
+import * as v from 'valibot';
 
 /** §2.6 default envelope key (the two-key format carries its own keys). */
 export const DEFAULT_ENVELOPE_KEY = 'mn-panel-layout-v1';
@@ -49,7 +50,15 @@ export interface LayoutStorage {
   removeItem(key: string): void;
 }
 
-export type HeightsMap = Record<string, number>;
+/**
+ * Heights keyed by dockview group id — DERIVED from the seam's heights
+ * schema (`v.InferOutput`): the type is the schema's output shape by
+ * construction (§2.6). Deliberate asymmetry: `finite()` is runtime-only
+ * strictness — TypeScript has no finite-number type, so `Infinity`/`NaN`
+ * remain type-admissible and runtime-rejected (pinned by the `1e999`
+ * test).
+ */
+export type HeightsMap = v.InferOutput<typeof HeightsShapeSchema>;
 
 /** api.spec.md §2.6 — the envelope payload (`version: 1`). */
 export interface PersistedState {
@@ -123,31 +132,145 @@ export interface Persistence {
 
 
 /* ---- decode seam -------------------------------------------------------
-   Hand-rolled guards (§2.6: dockview's `SerializedDockview` carries no
-   version or migration story — versioning is the library's). The seam's
-   internals can be replaced by a schema decoder without API change. */
+   §2.6: valibot schemas behind a single seam (dockview's
+   `SerializedDockview` carries no version or migration story — versioning
+   is the library's). Certification is `v.is` ONLY: a boolean over the
+   ORIGINAL parsed object, which flows through untouched; `v.parse` is
+   never used (it would clone via `looseObject` and strip the skipped
+   keys below). Verified against the installed valibot 1.5.0 (PnP zip):
+   - `v.record` alone ACCEPTS arrays (it iterates index keys) — the
+     plain-object gate must come first ("arrays are not maps").
+   - `v.looseObject` alone also ACCEPTS arrays; a layout payload that is
+     an array fails ONLY via the missing required `grid` entry — a JSON
+     array can never carry a `grid` member.
+   - object schemas SKIP own `__proto__`/`prototype`/`constructor` keys
+     during validation while leaving them in the decoded half — a
+     documented leniency divergence (three pinned tests; the keys are not
+     removed — removal would need `v.parse`).
+   - every validation ACTION here (`finite`, both `check`s) is preceded
+     by a typing schema (`v.number()`, `v.unknown()`): actions are gated
+     on `dataset.typed` and never fire standalone — do not remove a
+     typing stage.
+   - `HeightsMap` is DERIVED from `HeightsShapeSchema` (`v.InferOutput`)
+     — an edit to the heights schema can change the package's public
+     type surface with no `.ts` type line changing; review schema diffs
+     accordingly. */
 
-/** Mock :670 — `return j.grid ? j : null` (truthiness, not presence). */
-function isLayoutShape(value: unknown): value is SerializedDockview {
-  if (typeof value !== 'object' || value === null) return false;
-  return Boolean((value as { grid?: unknown }).grid);
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Mock :921 — an object of group-id → finite number (arrays are not maps). */
+/** §2.6 layout half — TRUTHY `grid`, not presence (mock :670:
+ *  `return j.grid ? j : null`). Deliberately shallow: `SerializedDockview`
+ *  is dockview's format — deep validation is the fromJSON net's job (A9). */
+const LayoutShapeSchema = v.looseObject({
+  grid: v.pipe(v.unknown(), v.check((g) => Boolean(g), 'falsy grid')),
+});
+
+/** §2.6 heights half — plain object of group-id → finite number.
+ *  `finite()` is load-bearing (JSON `1e999` parses to `Infinity`) and
+ *  fires only after the typing `v.number()` stage (see seam comment). */
+const HeightsShapeSchema = v.pipe(
+  v.unknown(),
+  v.check(isPlainObject, 'not a plain object'),
+  v.record(v.string(), v.pipe(v.number(), v.finite())),
+);
+
+/** Mock :670 — truthy grid, certified by schema. */
+function isLayoutShape(value: unknown): value is SerializedDockview {
+  return v.is(LayoutShapeSchema, value);
+}
+
+/** Mock :921 — finite-number map (arrays rejected by the gate). */
 function isHeightsShape(value: unknown): value is HeightsMap {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return false;
+  return v.is(HeightsShapeSchema, value);
+}
+
+/** §2.6 version-discriminator registry — one concrete entry per shipped
+ *  envelope version, certifying the VERSION LITERAL ONLY (never the
+ *  halves; they decode per-half whichever shipped version wrote the
+ *  payload). Future versions APPEND a concrete schema to the tuple
+ *  literal, never via map: valibot's VariantOptions requires object
+ *  schemas with the discriminator among their entries, and a
+ *  `GenericSchema[]` does not satisfy it. A legacy entry ships with its
+ *  migration in the same change (§2.6 policy): safeParse legacy schema →
+ *  `v.transform` migration → the migrated output re-enters the CURRENT
+ *  decode path below, re-certified against the current decode contract
+ *  by construction (no composite envelope schema exists, and native
+ *  current-version payloads never pass through a migration path); any
+ *  pipeline failure falls back the whole envelope — legacy payloads
+ *  carry no per-half guarantee. The registry is never pruned except by
+ *  explicit spec decision. */
+const EnvelopeV1Schema = v.looseObject({ version: v.literal(ENVELOPE_VERSION) });
+const EnvelopeVersionSchema = v.variant('version', [EnvelopeV1Schema] as const);
+
+/** Registry introspection for the §2.6 registry tests. Module-level
+ *  exports — NOT re-exported from index.ts (mirrors ENVELOPE_VERSION's
+ *  exposure). */
+export const SHIPPED_ENVELOPE_VERSIONS = [ENVELOPE_VERSION] as const;
+export const ENVELOPE_VERSION_REGISTRY = [
+  { version: ENVELOPE_VERSION, schema: EnvelopeV1Schema },
+] as const;
+
+/**
+ * §2.6 signal wording — re-parse a corrupt half and name its first
+ * failing entry (`safeParse` + `getDotPath`; never `v.flatten`). A
+ * root-level failure carries no path → the plain form. `v.flatten` is
+ * deliberately not used anywhere (prototype-pollution CVE-2026-59952
+ * territory; safeParse+getDotPath is unaffected).
+ */
+function corruptMessage(
+  what: 'layout' | 'heights',
+  schema: v.GenericSchema,
+  pick: (parsed: unknown) => unknown,
+  raw: string | null,
+): string {
+  const plain = 'corrupted ' + what + ' JSON';
+  if (raw === null) return plain;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return plain;
   }
-  for (const h of Object.values(value)) {
-    if (typeof h !== 'number' || !Number.isFinite(h)) return false;
-  }
-  return true;
+  const result = v.safeParse(schema, pick(parsed));
+  const issue = result.issues?.[0];
+  const path = issue !== undefined ? v.getDotPath(issue) : null;
+  return path !== null ? plain + ' (' + path + ')' : plain;
+}
+
+/**
+ * §2.6 consumer preset certification — the SAME schema the decode seam
+ * certifies loads with (single source of truth; deliberately shallow —
+ * engine-format failures are the fromJSON net's job, A9). Returns a
+ * diagnosis, never throws: `ok: true` hands back the ORIGINAL value
+ * (certified, not reconstructed); `ok: false` names the first failing
+ * entry (`safeParse` + `getDotPath`).
+ */
+export function diagnoseLayout(
+  value: unknown,
+): { ok: true; layout: SerializedDockview } | { ok: false; message: string } {
+  if (isLayoutShape(value)) return { ok: true, layout: value };
+  const result = v.safeParse(LayoutShapeSchema, value);
+  const issue = result.issues?.[0];
+  const path = issue !== undefined ? v.getDotPath(issue) : null;
+  return {
+    ok: false,
+    message: 'layout failed validation' + (path !== null ? ' (' + path + ')' : ''),
+  };
 }
 
 interface DecodedHalves {
   /** null = fall back to default (absent OR corrupt — caller cannot tell). */
   readonly layout: SerializedDockview | null;
   readonly heights: HeightsMap | null;
+  /**
+   * §2.6 false = the payload's version matched no registry entry (under
+   * the day-0 policy: a newer-than-current version) and the WHOLE
+   * envelope fell back. readState uses it only for signal wording; the
+   * halves' values are already null in that case.
+   */
+  readonly versionMatched: boolean;
 }
 
 /** Decode a raw two-key half (the two decode sites). */
@@ -164,22 +287,26 @@ function decodeHalf(
   }
 }
 
-/** Decode a raw envelope (§2.6): version gate first, then both halves. */
+/** Decode a raw envelope (§2.6): version-discriminator registry first,
+ *  then both halves per-half. */
 function decodeEnvelope(raw: string | null): DecodedHalves | null {
   if (raw === null) return null; // absent — not a fallback (HP1 silence)
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return { layout: null, heights: null };
+    return { layout: null, heights: null, versionMatched: true };
   }
-  if (typeof parsed !== 'object' || parsed === null) {
-    return { layout: null, heights: null };
+  if (!isPlainObject(parsed)) {
+    return { layout: null, heights: null, versionMatched: true };
   }
-  // §2.6: a version mismatch (or a non-envelope payload) falls back on
-  // the WHOLE envelope — both halves together.
-  if ((parsed as { version?: unknown }).version !== ENVELOPE_VERSION) {
-    return { layout: null, heights: null };
+  // §2.6 registry: a version no shipped entry recognizes (under the
+  // day-0 policy: newer-than-current) falls back the WHOLE envelope —
+  // both halves together. A MATCHED version certifies the version
+  // literal only; the halves below decode per-half, exactly as with any
+  // current-version payload (per-half independence is inviolable).
+  if (!v.is(EnvelopeVersionSchema, parsed)) {
+    return { layout: null, heights: null, versionMatched: false };
   }
   const layoutHalf = (parsed as { layout?: unknown }).layout;
   const heightsHalf = (parsed as { heights?: unknown }).heights;
@@ -190,6 +317,7 @@ function decodeEnvelope(raw: string | null): DecodedHalves | null {
     heights: heightsHalf !== undefined && isHeightsShape(heightsHalf)
       ? heightsHalf
       : null,
+    versionMatched: true,
   };
 }
 
@@ -277,17 +405,19 @@ export function createPersistence(options: PersistenceOptions): Persistence {
       if (reported.get(keys.layout) !== rawLayout) {
         reported.set(keys.layout, rawLayout);
         if (rawLayout !== null && layout === null) {
-          fallback('layout-corrupt', 'corrupted layout JSON');
+          fallback('layout-corrupt',
+            corruptMessage('layout', LayoutShapeSchema, (p) => p, rawLayout));
         }
       }
       if (reported.get(keys.heights) !== rawHeights) {
         reported.set(keys.heights, rawHeights);
         if (rawHeights !== null && heights === null) {
-          fallback('heights-corrupt', 'corrupted heights JSON');
+          fallback('heights-corrupt',
+            corruptMessage('heights', HeightsShapeSchema, (p) => p, rawHeights));
         }
       }
       return { layout: layout as SerializedDockview | null,
-        heights: heights as HeightsMap | null };
+        heights: heights as HeightsMap | null, versionMatched: true };
     }
     const raw = readRaw(format.key);
     const decoded = decodeEnvelope(raw);
@@ -297,13 +427,20 @@ export function createPersistence(options: PersistenceOptions): Persistence {
       // envelope signals per its fallen halves — a version mismatch
       // fell both, so both reasons fire (§2.6 whole-envelope fallback).
       if (decoded !== null && decoded.layout === null) {
-        fallback('layout-corrupt', 'corrupted layout JSON');
+        fallback('layout-corrupt', decoded.versionMatched
+          ? corruptMessage('layout', LayoutShapeSchema,
+            (p) => (p as { layout?: unknown }).layout, raw)
+          : 'layout saved by a newer version');
       }
       if (decoded !== null && decoded.heights === null) {
-        fallback('heights-corrupt', 'corrupted heights JSON');
+        fallback('heights-corrupt', decoded.versionMatched
+          ? corruptMessage('heights', HeightsShapeSchema,
+            (p) => (p as { heights?: unknown }).heights, raw)
+          : 'layout saved by a newer version');
       }
     }
-    return { layout: decoded?.layout ?? null, heights: decoded?.heights ?? null };
+    return { layout: decoded?.layout ?? null, heights: decoded?.heights ?? null,
+      versionMatched: decoded?.versionMatched ?? true };
   };
 
   /** Envelope writes always carry both halves (§2.6: one object). */

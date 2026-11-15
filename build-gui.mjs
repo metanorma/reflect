@@ -66,8 +66,15 @@ await build({
   minify: !dev,
   // React (and other libs) select prod vs. dev via process.env.NODE_ENV.
   // Use "development" in dev mode so React dev-time warnings are included.
+  // `import.meta.env.DEV` (App's built-in-preset validation guard) rides
+  // the same switch: esbuild supports define with import.meta since
+  // 0.8.51 ("Allow --define with import.meta"; the ES5-target warning
+  // suppression was refined in 0.14.6) — this repo pins ~0.27.3. The
+  // prod flavor substitutes `false`, so the guard (and its diagnoseLayout
+  // call) dead-code-eliminates out of the shipped bundle.
   define: {
     'process.env.NODE_ENV': dev ? '"development"' : '"production"',
+    'import.meta.env.DEV': dev ? 'true' : 'false',
   },
   // CSS loaders for all inputs by extension — including files esbuild
   // resolves natively out of the PnP zip archives.

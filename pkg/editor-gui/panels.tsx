@@ -33,6 +33,7 @@ import type { IDockviewPanelProps, PanelRegistry } from '@metanorma/panel-layout
 import { ProseMirrorDoc } from '@metanorma/prosemirror-editor';
 import { AdvancedMetanormaToolbar } from '@metanorma/toolbar';
 import { MinimapPane } from './MinimapPane.jsx';
+import type { PanelId } from './panelIds.js';
 import { DocEpochContext } from './panelContexts.js';
 
 /**
@@ -75,10 +76,13 @@ const ToolbarPanel: FC<IDockviewPanelProps> = () => (
 /**
  * The registry. Module-level constant — identity-stable (see header).
  * Titles live in the preset (layout-first precedence, api.spec.md §2.5);
- * no registry `minHeight` overrides — the global floors suffice.
+ * no registry `minHeight` overrides — the global floors suffice. The
+ * `satisfies` tie binds the keys to `PANEL_IDS` EXACTLY (all present,
+ * none extra) — the compile-time half of the membership guarantee; the
+ * preset-side half is pinned by `tests/presetLayout.test.mjs`.
  */
-export const panelRegistry: PanelRegistry = {
+export const panelRegistry = {
   doc: { component: DocumentPanel, floatable: false },
   minimap: { component: MinimapPanel },
   toolbar: { component: ToolbarPanel },
-};
+} satisfies Record<PanelId, PanelRegistry[string]>;

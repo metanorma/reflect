@@ -34,7 +34,11 @@ provenance). Widening to `^7 || ^8` happens only after a deliberate parity
 run, as a separate change.
 
 **Runtime-import rule.** Library runtime imports come only from
-`dockview-react` and `react`/`react-dom`; `dockview` and `dockview-core`
+`dockview-react`, `react`/`react-dom`, and `valibot` — the decode seam's
+schema library (§2.6): a zero-dependency library carrying no engine state,
+so it poses none of the second-instance hazard this rule exists to
+prevent, and its version (`~1.5.0`) is pinned by the lockfile. `dockview`
+and `dockview-core`
 are type-only imports (they erase at emit). The reference mock's importmap
 carries a bare `dockview-core` build, `dockview`
 (`?bundle&external=react,react-dom` — bundles its own `dockview-core`)
@@ -284,11 +288,43 @@ goldens byte-exact against both keys. The two halves decode independently,
 so A6/A7 corruption semantics hold per half (valid layout + corrupt
 heights → keep layout, default heights; and vice versa); an envelope
 version mismatch falls back on the whole envelope. One `LayoutStorage`
-adapter, never two — `clear()` stays atomic (HP9). Validation is
-hand-rolled guards behind a single decode seam (dockview's
-`SerializedDockview` carries no version or migration story — versioning is
-the library's); the seam's internals can be replaced by a schema decoder
-without API change. The restore-to-default operation (HP9) composes the
+adapter, never two — `clear()` stays atomic (HP9). Validation is valibot
+(`~1.5.0`, the package's first runtime dependency) behind a single decode
+seam: per-half layout/heights schemas (never a monolithic envelope schema
+— the halves decode independently), an `isPlainObject` array gate ahead of
+the heights record (valibot's `record` iterates index keys and alone would
+accept arrays, which the heights contract rejects), and a
+version-discriminator registry holding one entry per shipped envelope
+version, each certifying the version literal only — the halves decode
+per-half exactly as before, whichever shipped version wrote the payload.
+`HeightsMap` is derived from the heights schema (`v.InferOutput`) —
+group-id → finite number; `finite()` is runtime-only strictness (the
+type admits `Infinity`, the seam rejects it — pinned by the `1e999`
+test).
+Certification is `v.is` only: the original parsed object flows through
+untouched, and `v.parse` is never used (it would clone the layout half
+and strip the skipped keys below). Object schemas skip own
+`__proto__`/`prototype`/`constructor` keys during validation while
+leaving them in the decoded half, so a non-number value under such a key
+no longer fails the heights half — a documented leniency divergence
+pinned by three tests (the keys are not stripped; stripping would require
+`v.parse`). An envelope version the registry does not recognize — under
+the registry's day-0 policy, only a newer-than-current version — falls
+back the whole envelope, with a `'layout saved by a newer version'`
+message on both per-half signals. Registry policy: every
+`ENVELOPE_VERSION` bump ships its migration and registry entry in the
+same change, the migration's output re-certified against the current
+decode contract (the current-version discriminator plus the per-half
+shape guards — the same gates a native current-version envelope passes;
+no deeper envelope schema exists); the registry is never pruned except by
+explicit spec decision; and no `layout-obsolete` fallback reason exists
+or will be added. The envelope version owns the library's format only —
+dockview's `SerializedDockview` carries no version or migration story,
+and engine-format breaks surface through the fromJSON net (§2.3), never
+through the seam. The seam's layout schema also backs the exported
+`diagnoseLayout` (§3 module 2): consumers certify bundled presets against
+the same contract the load path enforces.
+The restore-to-default operation (HP9) composes the
 two halves: storage keys wiped + `clear()` (atomic), then
 `fromJSON(default)` — the fromJSON net (§2.3) clears the pin map and
 re-pins over the preset seeds so the stored layout lands post-pin.
@@ -302,7 +338,7 @@ they were extracted from.
 | # | Module | Responsibility | Key symbols | Spec rows |
 |---|---|---|---|---|
 | 1 | **PanelLayout component** (`panelLayout.tsx`) | The front door (§2.1): renders `DockviewReact` with every behavior wired — the nine-module composition plus the persistence facade (§2.3) and the fromJSON restore net (HP9). | `PanelLayout`, `PanelLayoutProps` | HP1, F1, G2, HP7 |
-| 2 | **Persistence & corrupted-storage fallback** (`persistence.ts`) | Save/load layout + heights over an injected `LayoutStorage` adapter (§2.6); silent fallback to the default layout; restore-to-default clears storage atomically. | `LayoutStorage`, `createPersistence`, `PersistenceOptions`, `HeightsMap` | HP8, A4–A9, C2, C4, HP9 |
+| 2 | **Persistence & corrupted-storage fallback** (`persistence.ts`) | Save/load layout + heights over an injected `LayoutStorage` adapter (§2.6); silent fallback to the default layout; restore-to-default clears storage atomically; the decode seam's schema certifies consumer-bundled presets (`diagnoseLayout`). | `LayoutStorage`, `createPersistence`, `PersistenceOptions`, `HeightsMap`, `diagnoseLayout` | HP8, A4–A9, C2, C4, HP9 |
 | 3 | **Pin-pass wiring** (`pinHeights.ts`) | The per-tabset pinned-heights model: members/chrome measurement, pin + reconcile, the maintenance pass with sample-guard, stable-heights collection; wiring runs the pass on layout change, gated during live window drags. | `pinAllWindows`, `collectStableHeights`, `usePinnedHeights` | HP4, HP6, B4–B6, A5, A8 |
 | 4 | **Drag/unwrap claim + veto engine** (`unwrap.ts`) | Grid-surface drop claims (panel or whole tabset → new float window, source-rect sizing, height carry), the veto set (no left/right splits, no group-into-grid docks, float-excluded panels), zone-overlay suppression state, dead-zone pointerup fallback. | `handleWillDrop`, veto predicates, `unwrapAtPointer`, `useDropRules` | HP2, HP3, HP4, HP7, F3, F5 |
 | 5 | **Window drag containment** (`windowDrag.ts`) | Top/left/right containment with a free bottom edge (top-cap semantics that prevent the bottom-anchor flip), `{top}`-only normalization on release, drag-session gate for the pin pass, stale zone-overlay sweep. | `clampDragBox`, `normalizeTops`, `WindowDragGate` | HP5, F4 |

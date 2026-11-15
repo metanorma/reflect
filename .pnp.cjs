@@ -464,6 +464,10 @@ const RAW_RUNTIME_STATE =
       "virtual:db64f7242ed305c16722df6177f05fc4ef35285dbcd19e76f4de170af7af7b484d254adbe0fa7cbe36a137a86f376cdf53d36ea924fc8a28f0647185d92310bc#npm:1.6.0"\
     ],\
     [\
+      "valibot",\
+      "virtual:564c99a29f2d3d60cde0e0f280ff7556b02bd9ff681f921650e1fffe462d381fd6e2b3e8532d8d8a700deb6b24d9c36daf3a1a5a513f6235ae4952f9b3c9af81#npm:1.5.0"\
+    ],\
+    [\
       "vscode-jsonrpc",\
       "npm:5.0.1"\
     ],\
@@ -880,7 +884,8 @@ const RAW_RUNTIME_STATE =
           ["dockview-react", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#npm:7.0.4"],\
           ["react", "npm:19.2.7"],\
           ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"],\
-          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"],\
+          ["valibot", "virtual:564c99a29f2d3d60cde0e0f280ff7556b02bd9ff681f921650e1fffe462d381fd6e2b3e8532d8d8a700deb6b24d9c36daf3a1a5a513f6235ae4952f9b3c9af81#npm:1.5.0"]\
         ],\
         "packagePeers": [\
           "@types/dockview-core",\
@@ -906,7 +911,8 @@ const RAW_RUNTIME_STATE =
           ["dockview-react", "virtual:23edede033594f2fe8011073850c9d8cdfbaa4c53bf7ad0f2fe4a5565c21efda938bfe0db9c764fc000ed5faf9d39649e5927e1202a9f84db0940eebeb03a1f6#npm:7.0.4"],\
           ["react", "npm:19.2.7"],\
           ["react-dom", "virtual:88c29522551529c36b8477cbce431298e4347033d97c5250d6eebb0d6f7e111658ba993aaa13312e5080f55b995fb3a44f1fe1df53e634c586b9f6959408dc76#npm:19.2.7"],\
-          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"]\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"],\
+          ["valibot", "virtual:564c99a29f2d3d60cde0e0f280ff7556b02bd9ff681f921650e1fffe462d381fd6e2b3e8532d8d8a700deb6b24d9c36daf3a1a5a513f6235ae4952f9b3c9af81#npm:1.5.0"]\
         ],\
         "linkType": "SOFT"\
       }]\
@@ -1868,6 +1874,28 @@ const RAW_RUNTIME_STATE =
         "packagePeers": [\
           "@types/react",\
           "react"\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["valibot", [\
+      ["npm:1.5.0", {\
+        "packageLocation": "./.yarn/cache/valibot-npm-1.5.0-28d60a6f4d-d49dab2b2f.zip/node_modules/valibot/",\
+        "packageDependencies": [\
+          ["valibot", "npm:1.5.0"]\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["virtual:564c99a29f2d3d60cde0e0f280ff7556b02bd9ff681f921650e1fffe462d381fd6e2b3e8532d8d8a700deb6b24d9c36daf3a1a5a513f6235ae4952f9b3c9af81#npm:1.5.0", {\
+        "packageLocation": "./.yarn/__virtual__/valibot-virtual-2850db7d07/0/cache/valibot-npm-1.5.0-28d60a6f4d-d49dab2b2f.zip/node_modules/valibot/",\
+        "packageDependencies": [\
+          ["@types/typescript", null],\
+          ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"],\
+          ["valibot", "virtual:564c99a29f2d3d60cde0e0f280ff7556b02bd9ff681f921650e1fffe462d381fd6e2b3e8532d8d8a700deb6b24d9c36daf3a1a5a513f6235ae4952f9b3c9af81#npm:1.5.0"]\
+        ],\
+        "packagePeers": [\
+          "@types/typescript",\
+          "typescript"\
         ],\
         "linkType": "HARD"\
       }]\

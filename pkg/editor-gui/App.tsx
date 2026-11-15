@@ -8,7 +8,7 @@ import {
   imageNaturalSizePlugin,
 } from '@metanorma/prosemirror-editor';
 import type { EditorState, MetanormaDocument } from '@metanorma/prosemirror-editor';
-import { PanelLayout } from '@metanorma/panel-layout';
+import { diagnoseLayout, PanelLayout } from '@metanorma/panel-layout';
 import type {
   PanelLayoutApi,
   PanelLayoutFallbackEvent,
@@ -279,7 +279,19 @@ function ({ onDoneLoading }) {
   // ---- <PanelLayout> props (STABLE identities — the engine re-renders on
   // prop churn, so nothing here may be re-created per keystroke) ---------
 
-  const defaultLayout = useMemo(() => presetLayout(), []);
+  const defaultLayout = useMemo(() => {
+    const preset = presetLayout();
+    // Authoring-time net: a structurally bad built-in preset throws HERE,
+    // in dev, instead of rendering wrong — the A9 net already catches
+    // fromJSON-throwing presets at runtime; this closes the
+    // valid-but-semantically-wrong gap. Prod builds substitute `false`
+    // (build-gui.mjs define) and esbuild drops the guard entirely.
+    if (import.meta.env.DEV) {
+      const d = diagnoseLayout(preset);
+      if (!d.ok) throw new Error('built-in preset failed validation: ' + d.message);
+    }
+    return preset;
+  }, []);
   const handleLayoutFallback = useCallback(
     (event: PanelLayoutFallbackEvent) => {
       setStatus(event.reason === 'storage-unavailable'

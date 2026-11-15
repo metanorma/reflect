@@ -9,7 +9,14 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createPersistence, DEFAULT_ENVELOPE_KEY, ENVELOPE_VERSION } from "../compiled/persistence.js";
+import {
+  createPersistence,
+  DEFAULT_ENVELOPE_KEY,
+  diagnoseLayout,
+  ENVELOPE_VERSION,
+  ENVELOPE_VERSION_REGISTRY,
+  SHIPPED_ENVELOPE_VERSIONS,
+} from "../compiled/persistence.js";
 import { MapStorage } from "./helpers.mjs";
 import { STORAGE_KEYS } from "../compiled/tokens.js";
 
@@ -358,5 +365,133 @@ describe("persistence: round-trip and restore (two-key)", () => {
     });
     assert.deepEqual(reader.loadLayout(), DEFAULT_LAYOUT);
     assert.deepEqual(reader.loadHeights(), { "group-nav-1": 244 });
+  });
+});
+
+describe("persistence: schema decode seam (§2.6 valibot)", () => {
+  it("A7: heights 1e999 (parses to Infinity) → {} — finite() is load-bearing", () => {
+    const ev = events();
+    const { persistence } = make(new Map([[KEYS.heights, '{"g1":1e999}']]), ev);
+    assert.deepEqual(persistence.loadHeights(), {});
+    assert.equal(ev.log[0].reason, "heights-corrupt");
+  });
+  // The three proto-family divergences: valibot object schemas skip own
+  // __proto__/prototype/constructor keys during VALIDATION (a non-number
+  // value under such a key no longer fails the half) while leaving the
+  // key in the decoded data. Seeded as RAW JSON strings — JSON.parse
+  // creates the own property via DefineOwnProperty; never deepEqual a
+  // literal carrying such keys. One test per key: a future filter change
+  // in any ONE key trips exactly its own test.
+  it("§2.6 divergence: own __proto__ key (non-number value) decodes, no signal", () => {
+    const ev = events();
+    const { persistence } = make(new Map([[KEYS.heights, '{"g1":5,"__proto__":{}}']]), ev);
+    assert.equal(persistence.loadHeights().g1, 5);
+    assert.deepEqual(ev.log, []);
+  });
+  it("§2.6 divergence: own prototype key (non-number value) decodes, no signal", () => {
+    const ev = events();
+    const { persistence } = make(new Map([[KEYS.heights, '{"g1":5,"prototype":{}}']]), ev);
+    assert.equal(persistence.loadHeights().g1, 5);
+    assert.deepEqual(ev.log, []);
+  });
+  it("§2.6 divergence: own constructor key (non-number value) decodes, no signal", () => {
+    const ev = events();
+    const { persistence } = make(new Map([[KEYS.heights, '{"g1":5,"constructor":"x"}']]), ev);
+    assert.equal(persistence.loadHeights().g1, 5);
+    assert.deepEqual(ev.log, []);
+  });
+  it("§2.6: corrupt layout half names its first failing entry — 'corrupted layout JSON (grid)'", () => {
+    const ev = events();
+    const { persistence } = make(new Map([[KEYS.layout, JSON.stringify({ panels: {} })]]), ev);
+    persistence.loadLayout();
+    assert.equal(ev.log[0].reason, "layout-corrupt");
+    assert.equal(ev.log[0].message, "corrupted layout JSON (grid)");
+  });
+  it("§2.6: corrupt heights half names its first offending key — 'corrupted heights JSON (g2)'", () => {
+    const ev = events();
+    const { persistence } = make(
+      new Map([[KEYS.heights, JSON.stringify({ g1: 100, g2: "132" })]]), ev);
+    persistence.loadHeights();
+    assert.equal(ev.log[0].reason, "heights-corrupt");
+    assert.equal(ev.log[0].message, "corrupted heights JSON (g2)");
+  });
+  it("§2.6: unparseable half carries no dot path — plain message form", () => {
+    const ev = events();
+    const { persistence } = make(new Map([[KEYS.heights, "]]nope"]]), ev);
+    persistence.loadHeights();
+    assert.equal(ev.log[0].message, "corrupted heights JSON");
+  });
+});
+
+describe("persistence: §2.6 envelope version registry", () => {
+  it("§2.6 registry: every entry's version is shipped; a probe envelope per entry decodes", () => {
+    assert.ok(ENVELOPE_VERSION_REGISTRY.length > 0);
+    for (const entry of ENVELOPE_VERSION_REGISTRY) {
+      assert.ok(SHIPPED_ENVELOPE_VERSIONS.includes(entry.version),
+        `registry version ${entry.version} missing from SHIPPED_ENVELOPE_VERSIONS`);
+      const { persistence } = envelope(new Map([[DEFAULT_ENVELOPE_KEY, JSON.stringify({
+        version: entry.version, layout: DEFAULT_LAYOUT, heights: { g1: 100 },
+      })]]));
+      assert.deepEqual(persistence.loadLayout(), DEFAULT_LAYOUT);
+      assert.deepEqual(persistence.loadHeights(), { g1: 100 });
+    }
+  });
+  it("§2.6 registry: chain identity — a current-shape golden decodes both halves as written", () => {
+    const { persistence } = envelope(new Map([[DEFAULT_ENVELOPE_KEY, JSON.stringify({
+      version: ENVELOPE_VERSION, layout: DEFAULT_LAYOUT, heights: { g1: 7 },
+    })]]));
+    assert.deepEqual(persistence.loadLayout(), DEFAULT_LAYOUT);
+    assert.deepEqual(persistence.loadHeights(), { g1: 7 });
+  });
+  it("§2.6: unmatched version (2 > shipped 1) → whole-envelope fallback, both signals in order, newer-version messages", () => {
+    const ev = events();
+    const { persistence } = envelope(new Map([[DEFAULT_ENVELOPE_KEY, JSON.stringify({
+      version: 2, layout: DEFAULT_LAYOUT, heights: { g1: 100 },
+    })]]), ev);
+    assert.equal(persistence.loadLayout(), null);
+    assert.deepEqual(persistence.loadHeights(), {});
+    assert.deepEqual(ev.log.map((e) => e.reason),
+      ["layout-corrupt", "heights-corrupt"]);
+    assert.deepEqual(ev.log.map((e) => e.message),
+      ["layout saved by a newer version", "layout saved by a newer version"]);
+  });
+  it("§2.6 claim-but-fail: version 1 + corrupt layout half only → heights still decodes (registry gate certifies the version ONLY)", () => {
+    const ev = events();
+    const { persistence } = envelope(new Map([[DEFAULT_ENVELOPE_KEY, JSON.stringify({
+      version: 1, layout: { panels: {} }, heights: { g1: 100 },
+    })]]), ev);
+    assert.equal(persistence.loadLayout(), null);
+    assert.deepEqual(persistence.loadHeights(), { g1: 100 });
+    assert.deepEqual(ev.log.map((e) => e.reason), ["layout-corrupt"]);
+    assert.equal(ev.log[0].message, "corrupted layout JSON (grid)");
+  });
+});
+
+describe("persistence: diagnoseLayout (§2.6 consumer preset certification)", () => {
+  it("§2.6: ok on the golden layout — hands back the SAME object (certified, not cloned)", () => {
+    const layout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+    const d = diagnoseLayout(layout);
+    assert.equal(d.ok, true);
+    assert.equal(d.layout, layout);
+  });
+  it("§2.6: missing grid → ok:false naming the grid entry", () => {
+    const d = diagnoseLayout({ panels: {} });
+    assert.equal(d.ok, false);
+    assert.equal(d.message, "layout failed validation (grid)");
+  });
+  it("§2.6: falsy grid → ok:false; non-object input → plain form; never throws", () => {
+    const falsy = diagnoseLayout({ grid: null });
+    assert.equal(falsy.ok, false);
+    assert.equal(falsy.message, "layout failed validation (grid)");
+    for (const bad of [null, undefined, "x", 42]) {
+      const d = diagnoseLayout(bad);
+      assert.equal(d.ok, false, `input: ${JSON.stringify(bad)}`);
+      assert.equal(d.message, "layout failed validation");
+    }
+    // An array fails via the missing required `grid` entry (looseObject
+    // accepts arrays — the documented mechanism), so it NAMES grid.
+    const arr = diagnoseLayout([1, 2]);
+    assert.equal(arr.ok, false);
+    assert.equal(arr.message, "layout failed validation (grid)");
   });
 });

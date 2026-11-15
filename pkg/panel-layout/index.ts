@@ -77,9 +77,11 @@ export type {
  * §2.6): save/load layout + heights over one injected `LayoutStorage`
  * adapter, envelope/two-key formats, per-half independent decode, silent
  * fallback to the default layout, once-per-session storage-failure
- * signal. behavior.spec.md rows HP8, A4–A9, C2, C4, HP9.
+ * signal, and `diagnoseLayout` — consumer-side certification of bundled
+ * presets through the seam's own layout schema. behavior.spec.md rows
+ * HP8, A4–A9, C2, C4, HP9.
  */
-export { createPersistence } from './persistence.js';
+export { createPersistence, diagnoseLayout } from './persistence.js';
 export type {
   HeightsMap,
   LayoutStorage,
