@@ -441,8 +441,11 @@ export interface PinnedHeightsHandle {
 /**
  * Wire the pin pass into an api: seed preset/persisted heights, run the
  * maintenance pass on layout change (rAF-debounced, like the mock), gated
- * off during live window drags (F4), and persist via a `Persistence`
- * instance on §2.3 settled signals.
+ * off during live window drags (F4), and persist through a `Persistence`
+ * instance per §2.3's persistence timing — the init layout write passes
+ * through once, heights save inside the pass and on takeover commits,
+ * and ongoing layout saves are the component's synchronous change-event
+ * net.
  *
  * Named `usePinnedHeights` per the api.spec.md §3 inventory, but it is a
  * framework-AGNOSTIC wiring function, not a React hook — module 1

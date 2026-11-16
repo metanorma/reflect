@@ -124,8 +124,10 @@ subscribe via `api.onWillDrop` without displacing library wiring.
 
 ### 2.3 Settled and continuous change signals
 
-Two signals, both public; the built-in persistence subscribes to the
-settled one only; the library performs no debouncing of its own.
+Two signals, both public. The built-in persistence never subscribes to
+the settled signal — layout saves are synchronous on the continuous
+change event, heights saves ride the maintenance pass and the takeover
+commit (Persistence timing (wiring), below).
 
 - **Continuous** — `onDidLayoutChange`, the verbatim engine passthrough,
   for live UI that tracks in-flight drags. Consumers debounce on their

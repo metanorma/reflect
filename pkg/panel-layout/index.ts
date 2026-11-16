@@ -95,8 +95,11 @@ export type {
  * model — measurement, pin + reconcile, the maintenance pass with
  * sample-guard, stable-heights collection — and the wiring hook that runs
  * the pass on layout change (rAF-debounced, gated during live window
- * drags) and persists via a `Persistence` instance on §2.3 settled
- * signals. behavior.spec.md rows HP4, HP6, B4–B6, A5, A8.
+ * drags) and persists through a `Persistence` instance per §2.3's
+ * persistence timing: the init layout write passes through here once,
+ * heights save inside the pass and on takeover commits, and ongoing
+ * layout saves are the component's synchronous change-event net.
+ * behavior.spec.md rows HP4, HP6, B4–B6, A5, A8.
  */
 export {
   collectStableHeights,
