@@ -108,7 +108,7 @@ in-suite cross-checks (the `tokens:check` pipeline retired at the extraction
 decommission — both artifacts are hand-owned). Module 10 added:
 promotion-surface pins (budgeted
 `CONSTANTS`/`TOKENS`/`DV_TOKENS` public, engine-option/storage-key/
-provenance views internal), token cardinals (18 `:root` / 20 dv-theme),
+provenance views internal), token cardinals (31 `:root` / 20 dv-theme),
 and the both-directions pins — `:root`/dv-theme declarations parsed out of
 `panel-layout.css` deep-equal `TOKENS`/`DV_TOKENS` — plus the scope guard
 (no demo selectors, no HTML/importmap fragments in the artifact; the
