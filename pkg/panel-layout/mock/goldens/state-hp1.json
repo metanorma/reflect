@@ -11,7 +11,7 @@
     "watermark": false,
     "notes": [
       "heightsMap is module-scoped inside the built library bundle (`/dist/mock/panel-layout.js`, not on window) — unreachable from the page;",
-      "the persisted mn-dockview7-heights-v1 is its saved copy and is captured under storage."
+      "the persisted pl-demo-heights-v1 is its saved copy and is captured under storage."
     ]
   },
   "layout": {
@@ -231,7 +231,7 @@
     ]
   },
   "storage": {
-    "mn-dockview7-floats-v1": {
+    "pl-demo-layout-v1": {
       "grid": {
         "root": {
           "type": "branch",
@@ -447,7 +447,7 @@
         }
       ]
     },
-    "mn-dockview7-heights-v1": null
+    "pl-demo-heights-v1": null
   },
   "floats": [
     {
@@ -784,7 +784,7 @@
       ]
     },
     "storage": {
-      "mn-dockview7-floats-v1": {
+      "pl-demo-layout-v1": {
         "grid": {
           "root": {
             "type": "branch",
@@ -1000,7 +1000,7 @@
           }
         ]
       },
-      "mn-dockview7-heights-v1": null
+      "pl-demo-heights-v1": null
     },
     "floats": [
       {

@@ -23,11 +23,6 @@ export interface LayoutConstants {
   readonly WRAP_H: number;
 }
 
-export interface StorageKeys {
-  readonly layout: string;
-  readonly heights: string;
-}
-
 export interface DndEdges {
   readonly size: { value: number; type: string };
   readonly activationSize: { value: number; type: string };
@@ -55,7 +50,6 @@ interface DesignTokensFile {
   readonly constants: LayoutConstants;
   readonly dndEdges: DndEdges;
   readonly floatingGroupBounds: FloatingGroupBounds;
-  readonly storageKeys: StorageKeys;
   readonly panelTitles: Record<string, string>;
   readonly presetLayout: unknown;
   readonly importMap: unknown;
@@ -65,7 +59,8 @@ interface DesignTokensFile {
 const file = raw as DesignTokensFile;
 
 /**
- * `:root` custom properties (e.g. `--accent`). Deliberately a flat map —
+ * `:root` custom properties (e.g. `--pl-accent`), all `--pl-*` — the
+ * public theming contract (api.spec.md §2.7). Deliberately a flat map —
  * not a hand-listed literal-key interface: key lists here would drift
  * from the JSON where no gate could see it.
  */
@@ -83,12 +78,6 @@ export const DND_EDGES = file.dndEdges;
 /** Dockview `floatingGroupBounds` option — 0/0 disables the stock clamp. */
 export const FLOATING_GROUP_BOUNDS = file.floatingGroupBounds;
 
-/**
- * Default localStorage key names (consumer-configurable; the storage medium
- * itself is injected — see persistence.ts). behavior.spec.md §4.
- */
-export const STORAGE_KEYS = file.storageKeys;
-
 /** Provenance of the extraction (mock path, commit, date). */
 export const PROVENANCE = file._provenance;
 
@@ -97,6 +86,8 @@ export const PROVENANCE = file._provenance;
  * here: `panelTitles` and `presetLayout` (demo-consumer data — the 11
  * panels and their preset are registrations api.spec.md §4 keeps out of
  * this package forever) and `importMap` (the mock's CDN pins, a build
- * input). They exist for the extractor round-trip and the parity suite,
- * not for programmatic consumers of this library.
+ * input). They exist for the parity suite, not for programmatic
+ * consumers of this library. Storage key names are likewise consumer
+ * configuration, owned by each consumer (the demo's live in
+ * `demo/storage.ts`) — the library surface carries none.
  */

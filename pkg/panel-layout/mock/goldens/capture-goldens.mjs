@@ -127,7 +127,7 @@ async function chromeTrace(page) {
     const windows = (comp.floatingGroups ?? []).map((fp, i) => {
       const el = fp.overlay.element;
       const bar = el.querySelector('.dv-floating-titlebar');
-      const grip = el.querySelector('.mn-drag-grip');
+      const grip = el.querySelector('.pl-drag-grip');
       const members = api.groups
         .filter((g) => fp.gridview.element.contains(g.element))
         .sort((a, b) => a.element.getBoundingClientRect().top - b.element.getBoundingClientRect().top);
@@ -185,7 +185,7 @@ async function tokensTrace(page) {
     ]) dvTokens[t] = cs ? cs.getPropertyValue(t).trim() : null;
     const rootCs = getComputedStyle(document.documentElement);
     const mockTokens = {};
-    for (const t of ['--accent', '--chrome', '--ink']) mockTokens[t] = rootCs.getPropertyValue(t).trim();
+    for (const t of ['--pl-accent', '--pl-chrome', '--pl-ink']) mockTokens[t] = rootCs.getPropertyValue(t).trim();
     return {
       topic: 'tokens',
       element: '.layoutArea .dockview-theme-light',
@@ -255,7 +255,7 @@ async function zonesTrace(page) {
       topic: 'zones',
       moment: 'HP2 panel-tab drag hovering the doc-grid surface (pointer over gray pasteboard)',
       layoutAreaClasses: area ? String(area.className) : null,
-      unwrapHoverActive: area ? area.classList.contains('mn-unwrap-hover') : null,
+      unwrapHoverActive: area ? area.classList.contains('pl-unwrap-hover') : null,
       ghostPresent: !!document.querySelector('.dv-tab-ghost-drag'),
       zoneElements,
       counts: {
@@ -525,7 +525,7 @@ async function runSession({ browser, url, out, say }) {
   await page.mouse.move(pb.x, pb.y, { steps: DRAG_STEPS });
   await page.waitForFunction(() => {
     const a = document.querySelector('.layoutArea');
-    return !!a && a.classList.contains('mn-unwrap-hover');
+    return !!a && a.classList.contains('pl-unwrap-hover');
   }, undefined, { timeout: 6000 });
   await page.waitForSelector('.dv-tab-ghost-drag', { timeout: 5000 });
   await page.waitForTimeout(ZONE_SETTLE_MS);
@@ -747,7 +747,7 @@ async function runSession({ browser, url, out, say }) {
   // (the stock merge-as-tab target the spec's HP7 outcome names).
   const overlayBack = await page.waitForFunction(() => {
     const area = document.querySelector('.layoutArea');
-    if (!area || area.classList.contains('mn-unwrap-hover')) return false;
+    if (!area || area.classList.contains('pl-unwrap-hover')) return false;
     const gridSel = [...area.querySelectorAll('.dv-drop-target-selection')]
       .find((el) => !el.closest('.dv-resize-container'));
     if (!gridSel) return false;

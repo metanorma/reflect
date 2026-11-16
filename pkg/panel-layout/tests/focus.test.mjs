@@ -138,7 +138,7 @@ describe("focus: splitDockviewOptions (G2, api.spec §2.1)", () => {
 describe("focus: focus.css ring rules (G3)", () => {
   it("G3: tabs get a :focus-visible accent outline (the G1 roving-tabindex surface)", () => {
     assert.match(focusCss, /\.layoutArea \.dv-tab:focus-visible\s*\{/);
-    assert.match(focusCss, /outline:\s*2px solid var\(--accent\)/);
+    assert.match(focusCss, /outline:\s*2px solid var\(--pl-accent\)/);
     assert.match(focusCss, /outline-offset:\s*-2px/);
   });
 

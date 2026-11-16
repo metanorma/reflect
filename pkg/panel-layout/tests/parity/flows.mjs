@@ -8,13 +8,20 @@
  *
  * Determinism contract: fixed mouse-coordinate constants, fixed step
  * counts, same settle polling as the goldens capture (goldens/README.md).
+ * The storage-key constants import the compiled demo surface — plain-Node
+ * importers need `yarn compile` fresh (see the constants block below).
  */
 
 // ---------------------------------------------------------------------------
 // Scripted-input constants (determinism: fixed coordinates, fixed step counts)
 // ---------------------------------------------------------------------------
-export const LS_LAYOUT_KEY = 'mn-dockview7-floats-v1';
-export const LS_HEIGHTS_KEY = 'mn-dockview7-heights-v1';
+// Storage keys single-source from the demo surface (demo/storage.ts); the
+// compiled copy is imported because this module also loads in plain-Node
+// contexts (capture-goldens.mjs) with no TS register — run `yarn compile`
+// after touching demo/storage.ts.
+import { DEMO_LAYOUT_KEY, DEMO_HEIGHTS_KEY } from '../../compiled/demo/storage.js';
+export const LS_LAYOUT_KEY = DEMO_LAYOUT_KEY;
+export const LS_HEIGHTS_KEY = DEMO_HEIGHTS_KEY;
 
 export const VIEWPORT = { width: 1440, height: 900 };
 export const DEVICE_SCALE = 1;
@@ -55,7 +62,7 @@ export async function gotoLoaded(page, url, { expectedFloats = 3 } = {}) {
     (n) => document.querySelectorAll('.dv-resize-container').length === n,
     expectedFloats, { timeout: 30_000 });
   await page.waitForFunction(
-    (n) => document.querySelectorAll('.mn-drag-grip').length === n,
+    (n) => document.querySelectorAll('.pl-drag-grip').length === n,
     expectedFloats, { timeout: 10_000 });
   await page.waitForTimeout(600); // decorate interval net + pin-pass rAF settle
 }
@@ -63,7 +70,7 @@ export async function gotoLoaded(page, url, { expectedFloats = 3 } = {}) {
 // poll until float rects + member heights + storage stop changing (pin pass
 // runs on rAF after layout change; the mock also re-reconciles next frame)
 export async function settle(page, timeoutMs = SETTLE_TIMEOUT_MS) {
-  const sig = () => page.evaluate(() => {
+  const sig = () => page.evaluate(([layoutKey, heightsKey]) => {
     const api = window.__api;
     if (!api) return 'no-api';
     const comp = api.component ?? api;
@@ -76,10 +83,10 @@ export async function settle(page, timeoutMs = SETTLE_TIMEOUT_MS) {
       parts.push([Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)].join(',') +
         '|' + members.map((g) => g.id + ':' + Math.round(g.element.getBoundingClientRect().height)).join(';'));
     }
-    parts.push(String(localStorage.getItem('mn-dockview7-heights-v1')));
-    parts.push(String(localStorage.getItem('mn-dockview7-floats-v1')).length);
+    parts.push(String(localStorage.getItem(heightsKey)));
+    parts.push(String(localStorage.getItem(layoutKey)).length);
     return parts.sort().join('||');
-  });
+  }, [LS_LAYOUT_KEY, LS_HEIGHTS_KEY]);
   let last = '', stable = 0;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {

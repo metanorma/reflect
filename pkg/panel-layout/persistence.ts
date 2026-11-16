@@ -7,7 +7,7 @@
  * Two storage formats, one adapter, per-half independent decode:
  *
  * - `envelope` (the default) — one `PersistedState {version, layout,
- *   heights}` object under one key (`mn-panel-layout-v1`); a version
+ *   heights}` object under one key (`pl-panel-layout-v1`); a version
  *   mismatch falls back on the whole envelope.
  * - `two-key` (the mock's storage shape) — the layout and the heights
  *   maps live under two independent keys; each half decodes on its own,
@@ -28,7 +28,7 @@ import type { DockviewApi, SerializedDockview } from 'dockview';
 import * as v from 'valibot';
 
 /** §2.6 default envelope key (the two-key format carries its own keys). */
-export const DEFAULT_ENVELOPE_KEY = 'mn-panel-layout-v1';
+export const DEFAULT_ENVELOPE_KEY = 'pl-panel-layout-v1';
 
 /** Current envelope schema version. */
 export const ENVELOPE_VERSION = 1;
@@ -101,8 +101,8 @@ export interface PersistenceOptions {
   readonly storage?: LayoutStorage;
   /**
    * Storage format (§2.6); default `{kind:'envelope', key:
-   * 'mn-panel-layout-v1'}`. `two-key` is first-class — the demo and
-   * parity suite pin it, keeping the mock's exact key strings.
+   * 'pl-panel-layout-v1'}`. `two-key` is first-class — the demo and
+   * parity suite pin it (`demo/storage.ts` owns the demo's key strings).
    */
   readonly format?: StorageFormat;
   /**

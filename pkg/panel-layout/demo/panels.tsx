@@ -85,17 +85,17 @@ export const PANELS = {
       <div class="field"><label>label</label>
         <div class="ctl"><input type="text" value="R-5.2-1"></div></div>
       <div class="field"><label>unnumbered</label>
-        <div class="ctl"><input type="checkbox" style="accent-color:var(--accent)"> off — inherits auto-numbering</div></div>`,
+        <div class="ctl"><input type="checkbox" style="accent-color:var(--pl-accent)"> off — inherits auto-numbering</div></div>`,
     structure: `
-      <div class="kv"><span class="k">parent</span><span class="v" style="color:var(--accent-ink)">Document ▸ 5 Requirements ▸ 5.2 Determination</span></div>
+      <div class="kv"><span class="k">parent</span><span class="v" style="color:var(--pl-accent-ink)">Document ▸ 5 Requirements ▸ 5.2 Determination</span></div>
       <div class="kv"><span class="k">cohort</span><span class="v">section_body · sibling 2 of 3</span></div>
       <div class="kv"><span class="k">content</span><span class="v">statement+, prov*</span></div>
       <div class="fnote">tabsets in this window share one width; each has its own height — sashes and the window’s bottom edge resize one tabset at a time</div>`,
     derived: `
       <div class="hatched" style="padding:9px 10px;border-radius:6px">
-        <div class="kv"><span class="k">label (computed)</span><span class="v" style="color:var(--derive-ink);font-style:italic">Req 5.2.1 — from §5 numbering chain</span></div>
-        <div class="kv"><span class="k">renders as</span><span class="v" style="color:var(--derive-ink);font-style:italic">“shall” statement</span></div>
-        <div class="kv"><span class="k">citeas on export</span><span class="v" style="color:var(--derive-ink);font-style:italic">ISO 24817-1</span></div>
+        <div class="kv"><span class="k">label (computed)</span><span class="v" style="color:var(--pl-derive-ink);font-style:italic">Req 5.2.1 — from §5 numbering chain</span></div>
+        <div class="kv"><span class="k">renders as</span><span class="v" style="color:var(--pl-derive-ink);font-style:italic">“shall” statement</span></div>
+        <div class="kv"><span class="k">citeas on export</span><span class="v" style="color:var(--pl-derive-ink);font-style:italic">ISO 24817-1</span></div>
         <div class="derived-note">Computed by the presentation pipeline — edit the semantic panels; derived values change on export.</div>
       </div>`,
     overlays: `

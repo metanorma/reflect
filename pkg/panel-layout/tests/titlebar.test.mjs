@@ -44,7 +44,7 @@ function el(classes = [], { children = [], attrs = {} } = {}) {
       children.push(child);
       return child;
     },
-    /** Class-only descendant lookup (the `.mn-drag-grip` probe). */
+    /** Class-only descendant lookup (the `.pl-drag-grip` probe). */
     querySelector(sel) {
       const cls = sel.replace(/^\./, "");
       const walk = (n) => {
@@ -107,7 +107,7 @@ function stubDocument() {
 // ---------------------------------------------------------------------------
 
 describe("titlebar: decorateTitlebars (F2)", () => {
-  it("F2: appends one span.mn-drag-grip with aria-hidden=true to each float titlebar", () => {
+  it("F2: appends one span.pl-drag-grip with aria-hidden=true to each float titlebar", () => {
     const doc = stubDocument();
     try {
       const bars = [freshBar(), freshBar()];
@@ -115,9 +115,22 @@ describe("titlebar: decorateTitlebars (F2)", () => {
       for (const bar of bars) {
         assert.equal(bar.children.length, 1);
         const grip = bar.children[0];
-        assert.equal(grip.className, "mn-drag-grip");
+        assert.equal(grip.className, "pl-drag-grip");
         assert.equal(grip.attrs["aria-hidden"], "true");
       }
+    } finally {
+      doc.restore();
+    }
+  });
+
+  it("F2/api.spec §2.7: decorated titlebars carry the data-pl-titlebar hook (every pass, grip or not)", () => {
+    const doc = stubDocument();
+    try {
+      const bar = freshBar();
+      decorateTitlebars(fakeApi([fakeFloat({ bar })]));
+      assert.equal(bar.attrs["data-pl-titlebar"], "");
+      decorateTitlebars(fakeApi([fakeFloat({ bar })])); // safety-net re-paint
+      assert.equal(bar.attrs["data-pl-titlebar"], "");
     } finally {
       doc.restore();
     }
@@ -161,11 +174,11 @@ describe("titlebar: suppressTitlebarGroupDrag (F2)", () => {
     _titleBar: { dragSource: src },
   });
 
-  it("F2: disables html5 AND pointer drag sources and sets the __mnMoveOnly marker", () => {
+  it("F2: disables html5 AND pointer drag sources and sets the __plMoveOnly marker", () => {
     const src = fakeDragSource();
     suppressTitlebarGroupDrag(fakeApi([withSource(src)]));
     assert.deepEqual(src.__calls, [["html5", true], ["pointer", true]]);
-    assert.equal(src.__mnMoveOnly, true);
+    assert.equal(src.__plMoveOnly, true);
   });
 
   it("F2: durable — a marked drag source is never re-disabled on later paints", () => {
@@ -175,7 +188,7 @@ describe("titlebar: suppressTitlebarGroupDrag (F2)", () => {
     src.__calls.length = 0;
     suppressTitlebarGroupDrag(fakeApi([fp])); // safety-net re-paint
     assert.deepEqual(src.__calls, []);
-    assert.equal(src.__mnMoveOnly, true);
+    assert.equal(src.__plMoveOnly, true);
   });
 
   it("F2: feature-detection — missing hops and absent backends are skipped silently (degrade = shift-drag redock)", () => {
@@ -195,7 +208,7 @@ describe("titlebar: suppressTitlebarGroupDrag (F2)", () => {
     ];
     suppressTitlebarGroupDrag(fakeApi(floats)); // must not throw
     assert.deepEqual(html5Calls, [true], "html5-only source: exactly one disable");
-    assert.equal(floats[3]._titleBar.dragSource.__mnMoveOnly, true);
+    assert.equal(floats[3]._titleBar.dragSource.__plMoveOnly, true);
     // Empty dragSource objects carry no backends — the mock's `!ds` branch
     // (:724) only requires no-throw for them; marking is for real sources.
   });

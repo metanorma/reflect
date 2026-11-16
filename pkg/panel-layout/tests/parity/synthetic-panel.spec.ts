@@ -92,13 +92,19 @@ test.describe('A4 grip timing on late windows', () => {
     await page.mouse.move(pb!.x, pb!.y, { steps: DRAG_STEPS });
     await page.waitForFunction(() => document
       .querySelector('.layoutArea')
-      ?.classList.contains('mn-unwrap-hover'));
+      ?.classList.contains('pl-unwrap-hover'));
     await page.waitForTimeout(ZONE_SETTLE_MS);
     const t0 = Date.now();
     await page.mouse.up();
     // The minted window must carry a grip within the net bound.
     await page.waitForFunction(() =>
-      document.querySelectorAll('.mn-drag-grip').length === 4,
+      document.querySelectorAll('.pl-drag-grip').length === 4,
+      undefined, { timeout: 2000 });
+    // Parity contract pin (api.spec.md §2.7): every float titlebar carries
+    // the stable DOM hook, landing with its grip in the same decorate pass.
+    await page.waitForFunction(() =>
+      document.querySelectorAll('[data-pl-titlebar]').length === 4
+        && document.querySelectorAll('.dv-floating-titlebar').length === 4,
       undefined, { timeout: 2000 });
     const dt = Date.now() - t0;
     expect(dt, 'grip within the A4 bound (≤ ~1s incl. paint)').toBeLessThan(1500);
@@ -149,7 +155,7 @@ test.describe('G6 focus after unwrap (will-drop group change)', () => {
     await page.mouse.move(pb!.x, pb!.y, { steps: DRAG_STEPS });
     await page.waitForFunction(() => document
       .querySelector('.layoutArea')
-      ?.classList.contains('mn-unwrap-hover'));
+      ?.classList.contains('pl-unwrap-hover'));
     await page.waitForTimeout(ZONE_SETTLE_MS);
     await page.mouse.up();
     await page.waitForTimeout(300); // the microtask + focus commit

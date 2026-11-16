@@ -158,6 +158,10 @@ const FRAMES = [
 // --------------------------------------------------------------------------
 // PROPOSED content (built from the captured mock's own design tokens)
 // --------------------------------------------------------------------------
+// The injected scaffolding below deliberately consumes the FROZEN frames'
+// token set (bare --sans/--faint/… names, mn- prefixed classes): it renders
+// beside the states' frozen pre-namespace captures, so it must keep their
+// vocabulary — a future recapture inlines the --pl-* token set instead.
 const B1_HINT_BLOCK_CSS = `
   /* faint hint over the empty watermark — PROPOSED for spec §3 B1 */
   .mn-empty-hint{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);
@@ -414,7 +418,7 @@ async function reachLoaded(pw, browser, url, width, height) {
   await page.waitForFunction(() =>
     document.querySelectorAll('.dv-resize-container').length === 3, null, { timeout: 30_000 });
   await page.waitForFunction(() =>
-    document.querySelectorAll('.mn-drag-grip').length === 3, null, { timeout: 10_000 });
+    document.querySelectorAll('.pl-drag-grip').length === 3, null, { timeout: 10_000 });
   await page.waitForTimeout(700); // pin pass + grip decoration settle
   return { ctx, page };
 }

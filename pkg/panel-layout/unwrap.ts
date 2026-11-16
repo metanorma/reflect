@@ -434,7 +434,7 @@ export function maybeUnwrapGroupAtPointer(
 /**
  * Zone-overlay suppression state for onWillShowOverlay: while a claim is
  * live (auto-wrap + grid-surface hover), grid zones are hidden via the
- * `.mn-unwrap-hover` class (preventDefault would also kill the drop).
+ * `.pl-unwrap-hover` class (preventDefault would also kill the drop).
  */
 export function overlayClaimActive(
   ev: DropEventLike,
@@ -474,7 +474,7 @@ export interface DropRulesOptions {
     | (() => ReadonlySet<string>);
   /**
    * Container of the layout surface, for grid hit-testing and the
-   * `.mn-unwrap-hover` suppression toggle. Returns null → the toggle and
+   * `.pl-unwrap-hover` suppression toggle. Returns null → the toggle and
    * the claim's hit-test decline (the mock's `if (area)` guards).
    */
   readonly layoutArea: HTMLElement | (() => HTMLElement | null);
@@ -485,7 +485,7 @@ export interface DropRules {
   /** `api.onWillDrop` — claim path, veto trio as backstop (the claim + veto backstop). */
   readonly onWillDrop: (ev: DropEventLike) => void;
   /**
-   * `api.onWillShowOverlay` — `.mn-unwrap-hover` claimed-state toggle +
+   * `api.onWillShowOverlay` — `.pl-unwrap-hover` claimed-state toggle +
    * the three veto preventDefaults.
    */
   readonly onWillShowOverlay: (ev: DropEventLike) => void;
@@ -505,7 +505,7 @@ export interface DropRules {
 
 /**
  * Wire the drop rules into an api: the auto-wrap claim + veto backstop on
- * `onWillDrop`, the `.mn-unwrap-hover` suppression toggle + veto
+ * `onWillDrop`, the `.pl-unwrap-hover` suppression toggle + veto
  * preventDefaults on `onWillShowOverlay`, and the `groupDragLive` latch on
  * `onWillDragGroup` (the mock's `wireGroupDragFallback`).
  *
@@ -548,7 +548,7 @@ export function useDropRules(options: DropRulesOptions): DropRules {
     const claimed = overlayClaimActive(ev, cfg);
     const area = layoutArea();
     if (area) {
-      area.classList.toggle('mn-unwrap-hover', claimed);
+      area.classList.toggle('pl-unwrap-hover', claimed);
     }
     if (panelEdgeDropVeto(api, ev, cfg, layoutArea())) {
       ev.preventDefault();

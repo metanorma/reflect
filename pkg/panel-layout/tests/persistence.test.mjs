@@ -18,7 +18,6 @@ import {
   SHIPPED_ENVELOPE_VERSIONS,
 } from "../compiled/persistence.js";
 import { MapStorage } from "./helpers.mjs";
-import { STORAGE_KEYS } from "../compiled/tokens.js";
 
 const DEFAULT_LAYOUT = {
   grid: { root: { type: "leaf" }, width: 1200, height: 800, orientation: "HORIZONTAL" },
@@ -142,7 +141,7 @@ describe("persistence: fallback signal (§2.2, two-key loads)", () => {
 });
 
 describe("persistence: §2.6 envelope format (default)", () => {
-  it("§2.6: default format is the envelope under 'mn-panel-layout-v1' — single key, single write", () => {
+  it("§2.6: default format is the envelope under 'pl-panel-layout-v1' — single key, single write", () => {
     const { persistence, storage } = envelope();
     const json = persistence.saveLayout({ toJSON: () => DEFAULT_LAYOUT });
     assert.equal(storage.map.size, 1);
@@ -338,30 +337,33 @@ describe("persistence: round-trip and restore (two-key)", () => {
     assert.equal(storage.getItem(KEYS.heights), null);
     assert.equal(storage.map.size, 0);
   });
-  it("HP9/§4: two-key with STORAGE_KEYS pins the mock's exact key strings (both directions)", () => {
+  it("HP9/§4: two-key persists each half under its own key (both directions)", () => {
+    // Neutral fixture keys — the FORMAT is the unit under test; key names
+    // are consumer configuration (api.spec.md §2.6; the demo's live in
+    // demo/storage.ts).
+    const keys = { layout: "pl-test-layout-v1", heights: "pl-test-heights-v1" };
     const storage = new MapStorage();
     const persistence = createPersistence({
       defaultLayout: DEFAULT_LAYOUT,
       storage,
-      format: { kind: "two-key", keys: STORAGE_KEYS },
+      format: { kind: "two-key", keys },
     });
-    // Write direction: the mock's key strings carry each half.
+    // Write direction: each key carries its own half.
     persistence.saveLayout({ toJSON: () => DEFAULT_LAYOUT });
     persistence.saveHeights({ "group-nav-1": 244 });
     assert.deepEqual([...storage.map.keys()].sort(),
-      ["mn-dockview7-floats-v1", "mn-dockview7-heights-v1"]);
+      ["pl-test-heights-v1", "pl-test-layout-v1"]);
 
-    // Read direction: a mock-written {"grid": …} payload under the
-    // mock's layout key loads as-is (loadLayout returns the parsed
-    // object — mock parity :670).
-    const mockLike = new Map([
-      ["mn-dockview7-floats-v1", JSON.stringify(DEFAULT_LAYOUT)],
-      ["mn-dockview7-heights-v1", JSON.stringify({ "group-nav-1": 244 })],
+    // Read direction: a bare {"grid": …} layout payload under the layout
+    // key loads as-is (loadLayout returns the parsed object).
+    const preseeded = new Map([
+      ["pl-test-layout-v1", JSON.stringify(DEFAULT_LAYOUT)],
+      ["pl-test-heights-v1", JSON.stringify({ "group-nav-1": 244 })],
     ]);
     const reader = createPersistence({
       defaultLayout: DEFAULT_LAYOUT,
-      storage: new MapStorage(mockLike),
-      format: { kind: "two-key", keys: STORAGE_KEYS },
+      storage: new MapStorage(preseeded),
+      format: { kind: "two-key", keys },
     });
     assert.deepEqual(reader.loadLayout(), DEFAULT_LAYOUT);
     assert.deepEqual(reader.loadHeights(), { "group-nav-1": 244 });

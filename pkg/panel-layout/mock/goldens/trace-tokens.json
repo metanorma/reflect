@@ -11,8 +11,8 @@
     "--dv-floating-box-shadow": "0 14px 40px rgba(15,25,40,.30),0 2px 8px rgba(15,25,40,.18)"
   },
   "mockTokensFromDocumentRoot": {
-    "--accent": "#2f6fdb",
-    "--chrome": "#eef1f4",
-    "--ink": "#1c2733"
+    "--pl-accent": "#2f6fdb",
+    "--pl-chrome": "#eef1f4",
+    "--pl-ink": "#1c2733"
   }
 }

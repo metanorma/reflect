@@ -329,6 +329,34 @@ two halves: storage keys wiped + `clear()` (atomic), then
 `fromJSON(default)` — the fromJSON net (§2.3) clears the pin map and
 re-pins over the preset seeds so the stored layout lands post-pin.
 
+### 2.7 DOM hooks
+
+The library marks its chrome with stable, non-styling attributes — the
+consumer-facing handles for locating library-owned elements (testing,
+styling, integration):
+
+- `data-pl-titlebar` — on every floating-window titlebar, set in the same
+  idempotent decoration pass as the drag-grip (§3 module 7), so the
+  attribute and the grip resolve at the same moment (the A4 late-window
+  bound covers both).
+
+Styling class names (`pl-drag-grip`, `pl-unwrap-hover`, …) are PRIVATE
+implementation and may change without notice. The stable consumer surface
+is: the `data-pl-*` attributes above, the `.layoutArea` mounting contract,
+the linked stylesheets, and the `--pl-*` token names.
+
+#### Why
+
+The library is host-agnostic: its stylesheet consumes only its own `--pl-*`
+tokens and dockview's `--dv-*` theming variables, never un-namespaced
+custom properties, so a host's own token vocabulary cannot collide with
+the library's in either direction. A host re-declares `--pl-*` values on
+any ancestor of the layout area to re-skin the chrome — the token set is
+the theming API, and every chrome value resolves through it. Every rule
+except `:root` and the drag-grip is scoped to `.layoutArea`: `<PanelLayout>`
+renders its own container with that class (§3 module 1), and the chrome
+applies inside the layout area only.
+
 ## 3. Module inventory
 
 Each entry: responsibility, key symbols, and the behavior.spec.md rows it
@@ -346,7 +374,7 @@ they were extracted from.
 | 7 | **Titlebar chrome** (`titlebar.ts`) | Ridged drag-grip decoration (idempotent, safety-netted for windows created later) + move-only enforcement. The enforcement reach-in (`_titleBar.dragSource`) is quarantined, feature-detected, and degrades gracefully (shift-drag redock) if the engine surface shifts. | `decorateTitlebars`, `watchTitlebars` | F2, A4 (grip timing) |
 | 8 | **Per-panel error boundary** (`panelErrorBoundary.tsx`) | Wraps consumer panel components so a render throw renders an inline "panel failed" state instead of unmounting the layout (dockview-react ships no boundary). | `PanelErrorBoundary`, `wrapPanelComponent` (internal) | C3 |
 | 9 | **Focus/keyboard layer** (`focus.ts` + `focus.css`) | `:focus-visible` styles for library-owned controls (tabs, groups), surfacing `keyboardNavigation`, close/unwrap focus restoration. | `splitDockviewOptions`, `wireFocusRestoration`, `focus.css` | G1–G3, G5–G8 |
-| 10 | **Theming/CSS layer** (`panel-layout.css` + `tokens.ts`) | Hand-owned library chrome stylesheet (design tokens, dockview theme overrides, grip, suppression, sash cursors) + the hand-owned token data (`design-tokens.json`) with typed views for programmatic consumers; consistency between the two guarded by the JSON↔CSS cross-check tests. | `CONSTANTS`, `TOKENS`, `DV_TOKENS` | behavior.spec.md §4, J4/J5 |
+| 10 | **Theming/CSS layer** (`panel-layout.css` + `tokens.ts`) | Hand-owned library chrome stylesheet: `--pl-*` design tokens on `:root` (every chrome color/gradient/shadow value has a named owner token), dockview theme overrides written as `var(--pl-*)` references (geometry values are site literals), grip, suppression, sash cursors; plus the hand-owned token data (`design-tokens.json`) with typed views for programmatic consumers; consistency between the two guarded by the JSON↔CSS cross-check tests. | `CONSTANTS`, `TOKENS`, `DV_TOKENS` | behavior.spec.md §4, J4/J5 |
 
 ## 4. Explicitly not in the library's contract
 
@@ -430,3 +458,15 @@ the stylesheets (`panel-layout.css`, `focus.css`, and the demo's
 `app-chrome.css` + `panel-content.css`); its inline `<style>` is
 comment-only. The JSON↔CSS cross-check tests guard artifact
 consistency.
+
+## 6. Acceptance criteria
+
+1. Every floating-window titlebar carries `data-pl-titlebar` —
+   unit-pinned in `tests/titlebar.test.mjs` (set by the decoration
+   pass, beside the grip) and structurally pinned in the parity suite
+   (`tests/parity/synthetic-panel.spec.ts`).
+2. The dv theme-override block in `panel-layout.css` contains no color,
+   gradient, or shadow literals — every such value is a `var(--pl-*)`
+   reference whose owner token is declared in the same file's `:root`
+   block and mirrored in `design-tokens.json`
+   (`tests/tokens.test.mjs` JSON↔CSS cross-check).

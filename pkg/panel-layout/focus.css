@@ -16,8 +16,8 @@
  * add EQUAL-specificity focus-visible companions that win by source order
  * alone (the library stylesheet loads after dockview.css). Mouse-driven
  * activation therefore stays ring-less; keyboard focus gets the ring.
- * `--accent` is the mock's design token (focus ring = accent, the same
- * color language as the sash hover accent and the request-selection
+ * `--pl-accent` is the library's design token (focus ring = accent, the
+ * same color language as the sash hover accent and the request-selection
  * outline in the demo page).
  *
  * Engine facts (pinned dockview-core 7.0.4): the tab element is keyboard-
@@ -33,7 +33,7 @@
    5px 5px 0 0 corner radius (panel-layout.css) is why the ring rides the
    same box: outline follows border-radius in every supported browser. */
 .layoutArea .dv-tab:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--pl-accent);
   outline-offset: -2px;
 }
 
@@ -43,6 +43,6 @@
    keys the ring to keyboard-driven focus only, so the post-close restore
    (G5) does not paint a ring on every mouse close. */
 .layoutArea .dv-groupview:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--pl-accent);
   outline-offset: -2px;
 }

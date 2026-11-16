@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { CONSTANTS, TOKENS, DV_TOKENS, STORAGE_KEYS, PROVENANCE } from "../compiled/tokens.js";
+import { CONSTANTS, TOKENS, DV_TOKENS, PROVENANCE } from "../compiled/tokens.js";
 import * as publicIndex from "../compiled/index.js";
 import * as tokensModule from "../compiled/tokens.js";
 
@@ -51,13 +51,6 @@ describe("tokens: dockview theme values (spec §4)", () => {
   });
   it("§4: --dv-border-radius is 8px", () => {
     assert.equal(DV_TOKENS["--dv-border-radius"], "8px");
-  });
-});
-
-describe("tokens: storage keys (spec §4, two-key format)", () => {
-  it("§4: layout/heights keys are the demo's legacy keys", () => {
-    assert.equal(STORAGE_KEYS.layout, "mn-dockview7-floats-v1");
-    assert.equal(STORAGE_KEYS.heights, "mn-dockview7-heights-v1");
   });
 });
 
@@ -105,21 +98,20 @@ describe("tokens: public promotion surface (§3 module 10 budget)", () => {
 });
 
 describe("tokens: TOKENS/DV_TOKENS cardinals (spec §4 counts)", () => {
-  it("§4: mock `:root` block custom properties number 18", () => {
-    assert.equal(Object.keys(TOKENS).length, 18);
+  it("§4: `:root` block custom properties number 31 (all --pl-*)", () => {
+    assert.equal(Object.keys(TOKENS).length, 31);
   });
   it("§4: dockview theme overrides number 20", () => {
     assert.equal(Object.keys(DV_TOKENS).length, 20);
   });
-  it("§4: named token pins (accent family + float shadow)", () => {
-    assert.equal(TOKENS["--accent"], "#2f6fdb");
-    assert.equal(TOKENS["--ink"], "#1c2733");
-    assert.equal(DV_TOKENS["--dv-floating-box-shadow"],
-      "0 14px 40px rgba(15,25,40,.30),0 2px 8px rgba(15,25,40,.18)");
+  it("§4: named token pins (accent family + float shadow) + the dv block is token-driven", () => {
+    assert.equal(TOKENS["--pl-accent"], "#2f6fdb");
+    assert.equal(TOKENS["--pl-ink"], "#1c2733");
+    assert.equal(DV_TOKENS["--dv-floating-box-shadow"], "var(--pl-float-shadow)");
   });
 });
 
-/** Parse `--decl:value;` pairs out of a verbatim CSS custom-property block. */
+/** Parse custom-property `name:value;` pairs out of a verbatim CSS custom-property block. */
 function declsOf(cssText, blockSelector) {
   const start = cssText.indexOf(blockSelector);
   assert.ok(start >= 0, `panel-layout.css must contain ${blockSelector}`);
@@ -146,32 +138,32 @@ describe("tokens: pipeline both directions (CSS ↔ design-tokens.json)", () => 
 describe("panel-layout.css: chrome surfaces (rows J4/J5)", () => {
   it("J5: both sash-accent surfaces present — stock grid sashes (dv-enabled:hover) and float-window takeover sashes", () => {
     assert.match(css,
-      /\.layoutArea \.dv-sash\.dv-enabled:hover,\.layoutArea \.dv-sash\.dv-enabled\.dv-active-sash\{background:var\(--accent\)\}/);
+      /\.layoutArea \.dv-sash\.dv-enabled:hover,\.layoutArea \.dv-sash\.dv-enabled\.dv-active-sash\{background:var\(--pl-accent\)\}/);
     assert.match(css,
-      /\.dv-sash-container > \.dv-sash\{cursor:ns-resize;background:#ccd3da\}/);
+      /\.dv-sash-container > \.dv-sash\{cursor:ns-resize;background:var\(--pl-sash\)\}/);
     assert.match(css,
-      /\.dv-sash-container > \.dv-sash\.dv-active-sash\{background:var\(--accent\)\}/);
+      /\.dv-sash-container > \.dv-sash\.dv-active-sash\{background:var\(--pl-accent\)\}/);
   });
-  it("J4: suppression pair present — hide-all under .mn-unwrap-hover, re-show inside .dv-resize-container", () => {
+  it("J4: suppression pair present — hide-all under .pl-unwrap-hover, re-show inside .dv-resize-container", () => {
     // Both rules are multi-selector groups: the four zone-element kinds
     // each ride their own selector line into one shared declaration.
     const kinds = ["selection", "dropzone", "anchor", "container"];
     for (const kind of kinds) {
       const sep = kind === "container" ? "\\{" : ",";
       assert.match(css, new RegExp(
-        `\\.layoutArea\\.mn-unwrap-hover \\.dv-drop-target-${kind}${sep}`),
+        `\\.layoutArea\\.pl-unwrap-hover \\.dv-drop-target-${kind}${sep}`),
         `hide-all group must cover dv-drop-target-${kind}`);
       assert.match(css, new RegExp(
-        `\\.layoutArea\\.mn-unwrap-hover \\.dv-resize-container \\.dv-drop-target-${kind}${sep}`),
+        `\\.layoutArea\\.pl-unwrap-hover \\.dv-resize-container \\.dv-drop-target-${kind}${sep}`),
         `re-show group must cover dv-drop-target-${kind}`);
     }
-    assert.match(css, /\.layoutArea\.mn-unwrap-hover \.dv-drop-target-container\{display:none !important\}/);
-    assert.match(css, /\.layoutArea\.mn-unwrap-hover \.dv-resize-container \.dv-drop-target-container\{display:block !important\}/);
+    assert.match(css, /\.layoutArea\.pl-unwrap-hover \.dv-drop-target-container\{display:none !important\}/);
+    assert.match(css, /\.layoutArea\.pl-unwrap-hover \.dv-resize-container \.dv-drop-target-container\{display:block !important\}/);
   });
   it("§4: float chrome rules present — with-titlebar radius, titlebar cursor, drag grip", () => {
     assert.match(css, /\.layoutArea \.dv-resize-container\.dv-resize-container-with-titlebar\{\n    border-radius:8px;\n  \}/);
     assert.match(css, /\.layoutArea \.dv-floating-titlebar:active\{cursor:grabbing\}/);
-    assert.match(css, /\.mn-drag-grip\{/);
+    assert.match(css, /\.pl-drag-grip\{/);
     assert.match(css, /--dv-floating-titlebar-height:24px/);
   });
   it("J7: reduced-motion var-zeroing block present — the J4 zone fades and J5 sash accent drop to 0s under prefers-reduced-motion", () => {

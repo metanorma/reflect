@@ -47,22 +47,19 @@ export type {
 
 // Theming/CSS layer (api.spec.md §3 module 10). Budgeted public symbols
 // are sourced from the public entry — one re-export site per symbol; the
-// engine-option views, the consumer-configurable storage keys and the
-// extraction provenance stay internal-only (the public entry's block
-// comment carries the surface-split rationale).
+// engine-option views and the extraction provenance stay internal-only
+// (the public entry's block comment carries the surface-split rationale).
 export { CONSTANTS, DV_TOKENS, TOKENS } from './index.js';
 export type { LayoutConstants } from './index.js';
 export {
   DND_EDGES,
   FLOATING_GROUP_BOUNDS,
   PROVENANCE,
-  STORAGE_KEYS,
 } from './tokens.js';
 export type {
   DndEdges,
   FloatingGroupBounds,
   Provenance,
-  StorageKeys,
 } from './tokens.js';
 
 // Persistence (api.spec.md §3 module 2) + pin-pass wiring (module 3) +

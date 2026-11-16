@@ -7,6 +7,36 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-11-16 — panel-layout: `--pl-*` namespace, token-driven dv overrides, `data-pl-titlebar` DOM hook
+
+`pkg/panel-layout/docs/api.spec.md` (§2.7 DOM hooks + §3 module 10 + §6
+acceptance criteria) + `pkg/panel-layout/docs/behavior.spec.md` §4 +
+`pkg/panel-layout/docs/demo.spec.md` + `@metanorma/panel-layout` +
+`editor-gui`;**Commits: *(pending)***.
+
+- **Change** — The library's design tokens are `--pl-*` namespaced (31
+  `:root` custom properties; every chrome color/gradient/shadow value now
+  has a named owner token — geometry stays site literals), and the dockview
+  theme-override block is written as `var(--pl-*)` references, making the
+  token set the complete re-theming surface. Styling classes are renamed
+  (`pl-drag-grip`, `pl-unwrap-hover`) and private; `data-pl-titlebar` is
+  the promise-stable consumer hook, set in the grip decoration pass.
+  `STORAGE_KEYS` leaves the library surface (key names are consumer
+  configuration; the demo's live in `demo/storage.ts` as
+  `pl-demo-*`). `--rail-w` moves to the demo sheet as `--pl-rail-w`.
+- **Value preservation** — every literal value is byte-identical (JSON∪CSS
+  literal set diff: exactly `128px` removed); semantic goldens regenerate
+  as pure identifier substitutions (trace token keys, suppression class,
+  demo storage keys). Seven PNG goldens carry a 40-px ±1 antialias
+  rounding shift on one `.broken` wavy underline: computed styles,
+  geometry, and resolved colors are provably identical (only the
+  custom-property name set differs) — a rasterizer re-rounding keyed to
+  the style change, deterministic per generation, below any perceptual
+  threshold.
+- **Consumer** — `editor-gui/e2e/helpers.ts` parks the toolbar window via
+  `[data-pl-titlebar]` (the drag surface; the grip is decorative,
+  pointer-events-none) — the sole consumer-side edit.
+
 ## 2026-11-15 — toolbar: react-aria-components adopted as the popover/dialog layer
 
 `docs/MetanormaToolbar.spec.md` §2/§4.1/§6/§10.6/§10.9/§10.10/§11.1/§11.9/§13 +

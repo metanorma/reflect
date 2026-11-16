@@ -78,6 +78,7 @@ artifacts.
   reference mock (its inline `<style>` is comment-only).
 - **Registrations and preset**: the 11-panel registry (incl. the `doc`
   float-exclusion policy entry), `presetLayout()`, and the two-key
-  storage configuration (legacy `mn-dockview7-*` keys) live in
+  storage configuration (`pl-demo-*` keys, single-sourced in
+  [`demo/storage.ts`](../demo/storage.ts)) live in
   [`demo/`](../demo/index.ts) — the demo's single source for all three,
   pinned by `tests/demo.test.mjs`.

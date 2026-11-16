@@ -141,11 +141,11 @@ describe("unwrap wiring: registration pattern (HP2 — the three registrations)"
 });
 
 describe("unwrap wiring: onWillShowOverlay (F5)", () => {
-  it("F5: the mn-unwrap-hover toggle records the claimed state (unclaimed here → false)", () => {
+  it("F5: the pl-unwrap-hover toggle records the claimed state (unclaimed here → false)", () => {
     const { api, area } = wire();
     // nativeEvent null → overlayClaimActive declines → toggle(false)
     api.fireWillShowOverlay(ev({ position: "left", panelId: "outline" }));
-    assert.deepEqual(area.toggles, [["mn-unwrap-hover", false]]);
+    assert.deepEqual(area.toggles, [["pl-unwrap-hover", false]]);
   });
 
   it("F5: a null layout area skips the toggle but still applies the veto preventDefaults", () => {

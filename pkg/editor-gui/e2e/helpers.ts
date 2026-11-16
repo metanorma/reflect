@@ -156,28 +156,31 @@ export async function openEditor(
 
 /**
  * Drag the toolbar floating window to the RIGHT edge of the layout area,
- * via its titlebar drag-grip (the library's drag affordance — a product
- * gesture, not an engine back door).
+ * by its titlebar (the library's drag surface — the `data-pl-titlebar`
+ * DOM hook is the stable consumer contract; the drag grip inside the bar
+ * is decorative, pointer-events-none chrome).
  *
  * Why: the preset seeds the floats at the TOP-LEFT, directly over the
  * document's opening content, and `clickBodyParagraph` deliberately
  * clicks near the paragraph's LEFT edge (x+10) — squarely under the
  * toolbar window. Specs that BOTH click early document content AND use
  * toolbar buttons cannot dismiss the toolbar (its buttons are their
- * subject) — they park it right instead. The drag's release runs the
- * library's settle sequence; each Playwright test gets a fresh context
- * (fresh localStorage → preset floats), so parking never leaks across
- * tests.
+ * subject) — they park it right instead. The drag is origin-equivalent
+ * at any point inside the titlebar (the bar itself is the handle), and
+ * `dx` derives from the window box, so parking holds regardless of the
+ * mouse-down point. The drag's release runs the library's settle
+ * sequence; each Playwright test gets a fresh context (fresh
+ * localStorage → preset floats), so parking never leaks across tests.
  */
 export async function parkToolbarRight(page: Page): Promise<void> {
   const win = page.locator('.dv-resize-container:has([role="toolbar"])').first();
   const winBox = await win.boundingBox();
-  const gripBox = await win.locator('.mn-drag-grip').boundingBox();
-  if (winBox === null || gripBox === null) return;
+  const barBox = await win.locator('[data-pl-titlebar]').boundingBox();
+  if (winBox === null || barBox === null) return;
   const dx = Math.round(1148 - winBox.x);
   if (Math.abs(dx) < 4) return;
-  const cx = gripBox.x + gripBox.width / 2;
-  const cy = gripBox.y + gripBox.height / 2;
+  const cx = barBox.x + barBox.width / 2;
+  const cy = barBox.y + barBox.height / 2;
   await page.mouse.move(cx, cy);
   await page.mouse.down();
   await page.mouse.move(cx + dx, cy, { steps: 10 });

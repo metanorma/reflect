@@ -124,13 +124,13 @@ describe("DEMO preset (behavior.spec §4)", () => {
 });
 
 describe("DEMO storage (§2.6)", () => {
-  it("DEMO-storage: two-key format carrying the mock's legacy key strings exactly", () => {
+  it("DEMO-storage: two-key format carrying the demo's own key strings", () => {
     assert.deepEqual(demoStorageFormat, {
       kind: "two-key",
-      keys: { layout: "mn-dockview7-floats-v1", heights: "mn-dockview7-heights-v1" },
+      keys: { layout: "pl-demo-layout-v1", heights: "pl-demo-heights-v1" },
     });
-    assert.equal(DEMO_LAYOUT_KEY, "mn-dockview7-floats-v1");
-    assert.equal(DEMO_HEIGHTS_KEY, "mn-dockview7-heights-v1");
+    assert.equal(DEMO_LAYOUT_KEY, "pl-demo-layout-v1");
+    assert.equal(DEMO_HEIGHTS_KEY, "pl-demo-heights-v1");
   });
 });
 

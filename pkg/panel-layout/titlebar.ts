@@ -17,12 +17,14 @@ import { floatingGroups } from './pinHeights.js';
 
 
 
-const GRIP_CLASS = 'mn-drag-grip';
+const GRIP_CLASS = 'pl-drag-grip';
 
 /**
- * Decorate each float titlebar with the text-free drag-grip span. Idempotent
- * (skips bars that already carry a grip); the grip is decorative
- * (aria-hidden, pointer-events:none — the bar itself is the handle).
+ * Decorate each float titlebar with the text-free drag-grip span and the
+ * `data-pl-titlebar` hook (api.spec.md §2.7 — the stable consumer handle;
+ * styling classes are private). Idempotent (skips bars that already carry
+ * a grip); the grip is decorative (aria-hidden, pointer-events:none — the
+ * bar itself is the handle).
  *
  * The bar lookup uses the mock's plain truthiness guard, not an
  * instanceof check: `querySelector` on a titlebar-class element is always an
@@ -31,7 +33,11 @@ const GRIP_CLASS = 'mn-drag-grip';
 export function decorateTitlebars(api: DockviewApi): void {
   for (const fp of floatingGroups(api)) {
     const bar = fp.overlay.element.querySelector('.dv-floating-titlebar');
-    if (!bar || bar.querySelector('.' + GRIP_CLASS)) {
+    if (!bar) {
+      continue;
+    }
+    bar.setAttribute('data-pl-titlebar', '');
+    if (bar.querySelector('.' + GRIP_CLASS)) {
       continue;
     }
     const grip = document.createElement('span');
@@ -54,7 +60,7 @@ interface FloatingGroupWithTitleBar {
   readonly _titleBar?: TitleBarLike;
 }
 
-const MARKER = '__mnMoveOnly';
+const MARKER = '__plMoveOnly';
 
 /**
  * Make float titlebars move-ONLY (kill the redock race): disables the

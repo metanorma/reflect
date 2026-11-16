@@ -370,8 +370,8 @@ export interface PinnedHeightsSettledEvent {
 }
 
 /**
- * The rAF seam, injected for the Node tests (the mock's
- * `window.__mnPinRaf` cancel-then-schedule discipline).
+ * The rAF seam, injected for the Node tests (cancel-then-schedule
+ * discipline: a pending frame is cancelled before the next is scheduled).
  * A handle is returned per schedule so pending work stays cancellable.
  */
 export interface PassScheduler {

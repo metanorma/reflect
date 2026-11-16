@@ -29,7 +29,7 @@
       "y": 539
     },
     "unwrapHoverActive": true,
-    "layoutAreaClasses": "layoutArea mn-unwrap-hover",
+    "layoutAreaClasses": "layoutArea pl-unwrap-hover",
     "ghost": {
       "selector": ".dv-tab-ghost-drag",
       "rect": {

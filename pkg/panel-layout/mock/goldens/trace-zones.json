@@ -1,7 +1,7 @@
 {
   "topic": "zones",
   "moment": "HP2 panel-tab drag hovering the doc-grid surface (pointer over gray pasteboard)",
-  "layoutAreaClasses": "layoutArea mn-unwrap-hover",
+  "layoutAreaClasses": "layoutArea pl-unwrap-hover",
   "unwrapHoverActive": true,
   "ghostPresent": true,
   "zoneElements": [

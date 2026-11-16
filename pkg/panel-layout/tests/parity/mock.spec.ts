@@ -66,8 +66,8 @@ test.beforeEach(async ({ page }) => {
   // fresh storage per spec run: clear from a blank same-origin document
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => {
-    localStorage.removeItem('mn-dockview7-floats-v1');
-    localStorage.removeItem('mn-dockview7-heights-v1');
+    localStorage.removeItem('pl-demo-layout-v1');
+    localStorage.removeItem('pl-demo-heights-v1');
   });
 });
 
@@ -122,7 +122,7 @@ test('HP1 preset + HP2 unwrap + HP3 merge', async ({ page }) => {
   await page.mouse.move(pb.x, pb.y, { steps: DRAG_STEPS });
   await page.waitForFunction(() => document
     .querySelector('.layoutArea')
-    ?.classList.contains('mn-unwrap-hover'));
+    ?.classList.contains('pl-unwrap-hover'));
   await page.waitForTimeout(ZONE_SETTLE_MS);
   await page.mouse.up();
   await settle(page);
@@ -159,7 +159,7 @@ test('HP4 stack + HP5 park + HP6 resize', async ({ page }) => {
     await page.mouse.move(pb.x, pb.y, { steps: DRAG_STEPS });
     await page.waitForFunction(() => document
       .querySelector('.layoutArea')
-      ?.classList.contains('mn-unwrap-hover'));
+      ?.classList.contains('pl-unwrap-hover'));
     await page.waitForTimeout(ZONE_SETTLE_MS);
     await page.mouse.up();
     await settle(page);
@@ -272,7 +272,7 @@ test('HP8 reload round-trip', async ({ page }) => {
     await page.mouse.move(pb.x, pb.y, { steps: DRAG_STEPS });
     await page.waitForFunction(() => document
       .querySelector('.layoutArea')
-      ?.classList.contains('mn-unwrap-hover'));
+      ?.classList.contains('pl-unwrap-hover'));
     await page.waitForTimeout(ZONE_SETTLE_MS);
     await page.mouse.up();
     await settle(page);
@@ -379,7 +379,7 @@ test('HP7 auto-wrap OFF → doc sibling merge', async ({ page }) => {
     await page.mouse.move(pb.x, pb.y, { steps: DRAG_STEPS });
     await page.waitForFunction(() => document
       .querySelector('.layoutArea')
-      ?.classList.contains('mn-unwrap-hover'));
+      ?.classList.contains('pl-unwrap-hover'));
     await page.waitForTimeout(ZONE_SETTLE_MS);
     await page.mouse.up();
     await settle(page);
@@ -509,7 +509,7 @@ test('HP7 auto-wrap OFF → doc sibling merge', async ({ page }) => {
   // zone (the merge-as-tab target the golden captured).
   await page.waitForFunction(() => {
     const area = document.querySelector('.layoutArea');
-    if (!area || area.classList.contains('mn-unwrap-hover')) return false;
+    if (!area || area.classList.contains('pl-unwrap-hover')) return false;
     const sel = [...area.querySelectorAll('.dv-drop-target-selection')]
       .find((el) => !el.closest('.dv-resize-container'));
     return !!sel

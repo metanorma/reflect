@@ -54,7 +54,7 @@ all position forms `{left,top,width,height}`.
 **HP2 — Drag panel tab out of a tabset → new floating window (auto-wrap).**
 1. Pointer-drag a panel tab (e.g. from Navigation) over the doc grid
    surface — pasteboard or page, any zone.
-2. `.mn-unwrap-hover` suppresses doc-grid zone overlays; float-window
+2. `.pl-unwrap-hover` suppresses doc-grid zone overlays; float-window
    overlays remain (suppression rules, `panel-layout.css`).
 3. Release on the grid surface.
 *Outcome:* `handleWillDrop` (`unwrap.ts`) claims the drop: a new float
@@ -182,11 +182,11 @@ statusbar) intact; layout key reflects the emptied state. HP9 restores.
 | E2 Missing title | Panel without `title` | Tab shows panel id | — |
 | E3 Grip/tooltips at narrow width | Min-width window | Text-free 44px grip — unaffected; toggle `title` unaffected | — |
 | **F. Disabled/read-only** | | | |
-| F1 Auto-wrap OFF | Toolbar toggle | No hint change; `.mn-unwrap-hover` no longer applied → doc-grid zone overlays reappear; panel center-drop on grid merges as doc sibling tab (unclaimed stock path), and doc-grid edge zones stock-dock too — splits of the doc grid become possible (the OFF leak); float-window edge zones and the root band stay vetoed for panels, and whole-group drops stay barred from the doc grid entirely (float targets: center/top/bottom stock, left/right vetoed) | Toggle carries `aria-pressed` ([demo.spec.md](./demo.spec.md) §2 F1n) |
+| F1 Auto-wrap OFF | Toolbar toggle | No hint change; `.pl-unwrap-hover` no longer applied → doc-grid zone overlays reappear; panel center-drop on grid merges as doc sibling tab (unclaimed stock path), and doc-grid edge zones stock-dock too — splits of the doc grid become possible (the OFF leak); float-window edge zones and the root band stay vetoed for panels, and whole-group drops stay barred from the doc grid entirely (float targets: center/top/bottom stock, left/right vetoed) | Toggle carries `aria-pressed` ([demo.spec.md](./demo.spec.md) §2 F1n) |
 | F2 Titlebar move-only | Always (`decorateTitlebars` + move-only enforcement, titlebar.ts) | `grab`/`grabbing` cursors, grip darkens on hover; no redock from titlebar | Grip is decorative (`aria-hidden`, pointer-events:none) |
 | F3 Float-excluded panel dragged | Drag a float-excluded panel (demo: `doc`) toward a float | Ghost follows, all float targets vetoed (`docIntoFloat`), snaps back | Affordance mismatch; min: default cursor on excluded panel's tab |
 | F4 Window drag live | Titlebar pointerdown | Pin pass gated off (window-drag gate, windowDrag.ts); transform move; top/left contained, bottom free (`clampDragBox`) | Drawer park below bottom edge |
-| F5 Panel/group drag over grid | Drag over doc surface | `.mn-unwrap-hover` hides grid zone overlays, re-shows float ones (suppression rules, `panel-layout.css`) | — |
+| F5 Panel/group drag over grid | Drag over doc surface | `.pl-unwrap-hover` hides grid zone overlays, re-shows float ones (suppression rules, `panel-layout.css`) | — |
 | **G. Keyboard & focus** | | | |
 | G1 Tab-strip roving tabindex | Focus tab, arrows | Inherited, always on: arrows/Home/End move, Enter/Space activate, Delete/Backspace close+refocus | WAI-ARIA tabs, dockview `tabs.ts` |
 | G2 ctrl+] / ctrl+[ / F6 | Consumer option | Off unless the consumer passes `keyboardNavigation` — it rides the `dockviewOptions` passthrough verbatim (`splitDockviewOptions`, focus.ts) | demo default: off (§4) |
@@ -235,13 +235,13 @@ follows is the same information as prose, for reading; the JSON is the
 shared source that the library consumes (via its typed views) and any
 implementation agrees on.
 
-- **Storage** (`storageKeys`): the serialization model — heights map keyed by group id, `{top}`-only window forms, layout JSON shape — is library contract. The storage medium and key names are consumer configuration (demo: localStorage, `mn-dockview7-floats-v1` / `mn-dockview7-heights-v1`); absent (never written) on first load; written on layout change + takeover drags; wiped by restore-to-default.
+- **Storage**: the serialization model — heights map keyed by group id, `{top}`-only window forms, layout JSON shape — is library contract. The storage medium and key names are consumer configuration (demo: localStorage, `pl-demo-layout-v1` / `pl-demo-heights-v1`, defined in [`demo/storage.ts`](../demo/storage.ts)); absent (never written) on first load; written on layout change + takeover drags; wiped by restore-to-default.
 - **Toolbar**: Bold · Italic | Quote · Note | Xref · Eref | spacer | Auto-wrap panels: **ON** | Reset.
 - **Statusbar**: amber dot + status text | grow | `.live` hint | word count/saved line.
 - **Grid** (`presetLayout.grid`): HORIZONTAL 1200×800; `group-doc` / panel `doc`; `activeGroup:'group-doc'`; doc never floats.
 - **Floats** (`presetLayout.floatingGroups`): Navigation `{18,12} 252×450` — tabsets 244/132/74. Pinned `{292,12} 300×168` — 142. Inspector `{1050,12} 320×602` — 200/180/116/100. Panel tab titles per `panelTitles` (11 entries).
 - **Constants** (`constants`): MIN_TS_H 36, MIN_WIN_H 150, windowMinWidth 120, sashSize 4, titlebar 24px (`dvTokens['--dv-floating-titlebar-height']`), undockChrome 26, WRAP 260×200 (fallback).
-- **Design tokens** (`tokens`, `dvTokens`): mock `:root` custom properties (18) and the dockview theme overrides (20), including the tab strip height 30px, `--dv-border-radius` 8px, and float shadow/border. The sash transition vars (`0.1s`/`0.5s`, §3 J5) are the engine theme's own — the library only zeroes them under reduced motion (J7, `panel-layout.css`).
+- **Design tokens** (`tokens`, `dvTokens`): the library's `:root` custom properties (31, all `--pl-*`) and the dockview theme overrides (20 — color/gradient/shadow values are `var(--pl-*)` references into those tokens; geometry values are site literals), including the tab strip height 30px, `--dv-border-radius` 8px, and float shadow/border. The sash transition vars (`0.1s`/`0.5s`, §3 J5) are the engine theme's own — the library only zeroes them under reduced motion (J7, `panel-layout.css`).
 - **Dockview options**: the library owns `dndStrategy:'pointer'`, `floatingGroupDragHandle:'titlebar'`, `floatingGroupBounds` 0/0 (engine stock clamp a no-op; containment via `transformFloatingGroupDrag: clampDragBox` — top/left clamped per frame, bottom edge free) — consumer values for those four are ignored ([api.spec.md](./api.spec.md) §2.1); every other option is passthrough. Demo passes themeLight and dndEdges 160/26 (plus the mock-verbatim 0/0 `floatingGroupBounds`, owned → ignored); the tab is the library-forced stock `DockviewDefaultTab` (react-layer, §2.1); `keyboardNavigation` unset (demo default off, §3 G2).
 
 ## 5. Keyboard & focus behavior

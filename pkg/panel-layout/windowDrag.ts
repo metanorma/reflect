@@ -100,7 +100,7 @@ const ZONE_OVERLAY_SELECTORS = [
 
 /**
  * Sweep stale drop-zone overlays left in the main grid after a gesture and
- * drop the `.mn-unwrap-hover` suppression class (a following drag can start
+ * drop the `.pl-unwrap-hover` suppression class (a following drag can start
  * before the engine re-runs willShow, so the class alone wouldn't re-hide
  * them) — zone elements INSIDE float windows (real stacking/merge targets)
  * are kept.
@@ -109,7 +109,7 @@ export function sweepZoneOverlays(area: HTMLElement | null): void {
   if (!area) {
     return;
   }
-  area.classList.remove('mn-unwrap-hover');
+  area.classList.remove('pl-unwrap-hover');
   area.querySelectorAll(ZONE_OVERLAY_SELECTORS)
     .forEach((el) => {
       if (!el.closest('.dv-resize-container')) {
@@ -181,7 +181,7 @@ export interface WindowDragGateOptions {
  *   1. `live = false`
  *   2. `onRetireFirst(ev)` — the group-unwrap fallback (before any state
  *      clears)
- *   3. zone-overlay sweep (`.mn-unwrap-hover` off + stale non-float zone
+ *   3. zone-overlay sweep (`.pl-unwrap-hover` off + stale non-float zone
  *      elements removed)
  *   4. `normalizeTops(api)` — re-anchor bottoms so toJSON writes `{top}`
  *   5. `onDragEnd` subscriber notifications

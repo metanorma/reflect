@@ -191,8 +191,7 @@ export type { PanelErrorBoundaryProps } from './panelErrorBoundary.js';
  * hand-owned design tokens (`mock/design-tokens.json` — its
  * `_provenance` records the final extraction snapshot).
  * The budgeted surface is the token data itself; the engine-option views
- * (`DND_EDGES`, `FLOATING_GROUP_BOUNDS`), the consumer-configurable
- * storage key names (`STORAGE_KEYS`) and the extraction bookkeeping
+ * (`DND_EDGES`, `FLOATING_GROUP_BOUNDS`) and the extraction bookkeeping
  * (`PROVENANCE`) stay internal via `internal.ts`. behavior.spec.md §4;
  * the CSS half of this module is `panel-layout.css` (rows J4/J5).
  */
