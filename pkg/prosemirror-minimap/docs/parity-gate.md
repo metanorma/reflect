@@ -1358,12 +1358,24 @@ consider-and-rejected.
 
 **Options.**
 
-- **A — Composite assembly.** Per-class `paint: 'bar' | 'slab'` owning the
-  gestalt: `bar` = proportional length-encoded width + `barGapPx`; `slab`
-  = solid fill-width + group-gap rules (0 within a group, hairline at
-  boundaries) + `fill`/`edge` two-tone + `slabEdgeWidth`. G-07's `width`
+- **A — Composite assembly, theme-level.** One switch on the theme as a
+  whole, `paint: 'bar' | 'slab'`, owning the gestalt: `bar` = proportional
+  length-encoded width + `barGapPx`; `slab` = solid fill-width + group-gap
+  rules (0 within a group, hairline at boundaries) + `fill`/`edge`
+  two-tone + `slabEdgeWidth`. Theme-level rather than per-class because:
+  both real regimes are uniform (the mock-up is all-slab; the engine today
+  is all-bar — the width regime has always been renderer-global, so
+  per-class would be an architecture expansion, not a neutral choice);
+  mixed regimes would create undefined bar/slab gap boundaries; un-themed
+  classes resolve through `classes['text']`, so a per-class switch holds
+  "global" only via fallback inheritance and breaks the first time a class
+  is themed without it; and the spec's own precedent cuts knobs no consumer
+  exercises (§5.2's `groupOrder`). A per-class override is recorded as the
+  deferred extension path (the `RowSpec.groupId` pattern). The spec text
+  settles the tier-1 glyph boundary either way (glyph-enabled classes keep
+  the glyph path in tier 1, or slab mode disables glyphs). G-07's `width`
   knob is then recorded considered-and-rejected (subsumed by `paint`);
-  D4's two-tone fields are unchanged.
+  D4's two-tone fields are unchanged and remain per-class.
 - **B — Separable knobs.** Class-level `width: 'solid' | 'proportional'`
   (G-07 Option A verbatim) + an explicit class-level gap rule (or gap
   implicitly bound to `width`) + the two-tone pair. The composite `paint`
@@ -1376,10 +1388,11 @@ consider-and-rejected.
 cannot express contradictory states, and either assembly matches the
 census width leaves structurally, so this is an API-coherence decision, not
 a parity one. **Ordering: decide G-33 with or before G-07** — if G-33
-selects A, G-07's Option A stands with its knob subsumed; if B, G-07
-Option A stands as written and the gap rule's home must be named there.
+selects A, G-07's goal (solid mock-up classes) is met by the global switch
+and its class-level `width` knob is rejected; if B, G-07 Option A stands
+as written and the gap rule's home must be named there.
 
-**Decision (fill):** `pending → decided(____)`
+**Decision (fill):** `pending → decided(A)`
 
 ---
 
@@ -1397,7 +1410,7 @@ start in Phase 4.
 | G-04 | Chrome seam | Q4 | All chrome consumer-side; no package hooks (A) | pending |
 | G-05 | Labels module + partition | Q5, D2, README#7 | DOM label column; canvas lanes; overlay shadows (A) | pending |
 | G-06 | Label text source | D3 | Ratify D3: opaque consumer strings (A) | pending |
-| G-07 | Row paint: two-tone + width | D4, Q7 | Ratify D4 + `width:'solid'` knob (A) | pending |
+| G-07 | Row paint: two-tone + width | D4, Q7 | Ratify D4; width regime per G-33 assembly (A) | pending |
 | G-08 | Row/thumb floor values | Q6 | `rowHeight:2` + themeable thumb floor 8 (A) | pending |
 | G-09 | Zoom/indent constants | D9 | Ratify 0.12 / 4 (A) | pending |
 | G-10 | Reveal semantics | D6 | Ratify precise-center reveal (A) | pending |
@@ -1423,7 +1436,7 @@ start in Phase 4.
 | G-30 | Tooling choices ratification | README list, README#4 | Ratify set, exceptions markable (A) | pending |
 | G-31 | Pinned jump frames | this audit | Diagnose + re-record default-sweep first (A) | pending |
 | G-32 | Oracle hardening | gate review | Sanity asserts + sha256 manifest (A) | pending |
-| G-33 | Assembled theme surface | gate review | Composite `paint` assembly (A); decide with/before G-07 | pending |
+| G-33 | Assembled theme surface | gate review | Theme-level composite `paint` (A); decide with/before G-07 | pending |
 
 **Items without a recommendation:** none — every item above carries one. Three
 recommendations carry named contingencies: G-31's mechanism is unconfirmed
