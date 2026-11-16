@@ -15,7 +15,7 @@
  *
  * The fallback signal shape (`reason: layout-corrupt | heights-corrupt |
  * layout-restore-threw | storage-unavailable`) mirrors api.spec.md §2.2 —
- * the future `PanelLayout` component relays these verbatim as
+ * the `PanelLayout` component relays these verbatim as
  * `PanelLayoutFallbackEvent`s. This module emits the first two (loads)
  * and `storage-unavailable` (first write failure, once); the component
  * owns `layout-restore-threw` (A9, the fromJSON net).
@@ -78,9 +78,9 @@ export type StorageFormat =
       readonly layout: string; readonly heights: string } };
 
 /**
- * api.spec.md §2.2 reason union, spelled here so the future `PanelLayout`
- * can relay these events without re-mapping. Only the three reasons this
- * module can produce are ever emitted.
+ * api.spec.md §2.2 reason union, spelled here so `PanelLayout` relays
+ * these events without re-mapping. Only the three reasons this module
+ * can produce are ever emitted.
  */
 export type FallbackReason =
   | 'layout-corrupt'
@@ -160,9 +160,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** §2.6 layout half — TRUTHY `grid`, not presence (mock :670:
- *  `return j.grid ? j : null`). Deliberately shallow: `SerializedDockview`
- *  is dockview's format — deep validation is the fromJSON net's job (A9). */
+/** §2.6 layout half — TRUTHY `grid`, not presence (mock :670 at the
+ *  extraction commit: `return j.grid ? j : null`). Deliberately shallow:
+ *  `SerializedDockview` is dockview's format — deep validation is the
+ *  fromJSON net's job (A9). */
 const LayoutShapeSchema = v.looseObject({
   grid: v.pipe(v.unknown(), v.check((g) => Boolean(g), 'falsy grid')),
 });
@@ -176,12 +177,13 @@ const HeightsShapeSchema = v.pipe(
   v.record(v.string(), v.pipe(v.number(), v.finite())),
 );
 
-/** Mock :670 — truthy grid, certified by schema. */
+/** Mock :670 at the extraction commit — truthy grid, certified by schema. */
 function isLayoutShape(value: unknown): value is SerializedDockview {
   return v.is(LayoutShapeSchema, value);
 }
 
-/** Mock :921 — finite-number map (arrays rejected by the gate). */
+/** Mock :921 at the extraction commit — finite-number map (arrays rejected
+ *  by the gate). */
 function isHeightsShape(value: unknown): value is HeightsMap {
   return v.is(HeightsShapeSchema, value);
 }

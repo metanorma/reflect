@@ -91,8 +91,8 @@ export function suppressTitlebarGroupDrag(api: DockviewApi): void {
 export interface WatchTitlebarsOptions {
   /**
    * Observation root for the MutationObserver net. The mock watches its
-   * app-owned `#root` (:1495); the library default is `document.body`, and
-   * module 1 passes the layout container.
+   * app-owned `#root` (:1495 at the extraction commit); the library
+   * default is `document.body`, and module 1 passes the layout container.
    */
   readonly root?: HTMLElement;
   /**

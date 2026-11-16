@@ -223,7 +223,8 @@ export function createWindowDragGate(
   let disposed = false;
   let subscribers: GateSubscriber[] = [];
 
-  /** The retire sequence (mock `retire`, :1075–1093) — order is contract. */
+  /** The retire sequence (mock `retire` at the extraction commit,
+   * :1075–1093) — order is contract. */
   const retire = (ev: RetirePointerEvent): void => {
     // 1. gate off first — the pin pass's next schedule must not be mid-drag
     live = false;

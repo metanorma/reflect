@@ -355,11 +355,12 @@ export function floatExclusionVeto(
 }
 
 /**
- * Group-drag live state (the mock's `groupDragLive`, :1024): latched by
- * the onWillDragGroup wiring (`wireGroupDragFallback`, :1026–1038) and
- * consumed-and-cleared by the pointerup fallback. Only VOID-CONTAINER
- * drags reach the latch — the titlebar drag source is disabled by
- * suppressTitlebarGroupDrag (the move-only titlebar).
+ * Group-drag live state (the mock's `groupDragLive` at the extraction
+ * commit, :1024): latched by the onWillDragGroup wiring
+ * (`wireGroupDragFallback`, :1026–1038) and consumed-and-cleared by the
+ * pointerup fallback. Only VOID-CONTAINER drags reach the latch — the
+ * titlebar drag source is disabled by suppressTitlebarGroupDrag (the
+ * move-only titlebar).
  */
 export interface GroupDragLive {
   /** The group whose void-container drag is in flight; null when idle. */

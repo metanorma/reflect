@@ -1,7 +1,8 @@
 /**
  * `<PanelLayout>` — the front door (api.spec.md §2.1, §3 module 1): renders
  * `DockviewReact` with every behavior module wired, translating the mock's
- * `onReady` (:1321–1503) into the composition of the nine sibling modules.
+ * `onReady` (:1321–1503 at the extraction commit) into the composition of
+ * the nine sibling modules.
  *
  * The component itself is deliberately thin: every piece of behavior lives
  * in its owning module (see the composition map below); this file owns only
@@ -446,8 +447,8 @@ interface Wired {
 }
 
 /**
- * Everything the mock's `onReady` established (:1321–1503), composed from
- * the sibling modules in the mock's order:
+ * Everything the mock's `onReady` established (:1321–1503 at the
+ * extraction commit), composed from the sibling modules in the mock's order:
  *
  *  1. persistence (`loadLayout()` — A6/A7 silent fallback)
  *  2. `fromJSON(loadLayout() || defaultLayout)` — through the A9 net; the
@@ -508,9 +509,10 @@ function wirePanelLayout(
   // ---- persistence (module 2) ------------------------------------------
   //
   // LAYOUT-SAVE TIMING (the mock's exact discipline, goldens-pinned): the
-  // mock saved the layout SYNCHRONOUSLY once after the restore
-  // and then again at every layout-change event (:1327–1328), while heights
-  // + pins ride the rAF-debounced pass (:1337–1341). The pin wiring
+  // mock at the extraction commit saved the layout SYNCHRONOUSLY once
+  // after the restore and then again at every layout-change event
+  // (:1327–1328), while heights + pins ride the rAF-debounced pass
+  // (:1337–1341). The pin wiring
   // runs BOTH saves inside its debounced pass — settle-equivalent for
   // heights, but the stored LAYOUT then reflects post-pin window geometry,
   // and the goldens pin the pre-pin values (hp2 stores the source window at
@@ -716,7 +718,8 @@ export const PanelLayout: FC<PanelLayoutProps> = (props) => {
   );
 
   // Keep the autoWrap state the drop rules read live (the mock's
-  // `autoWrapEnabled = autoWrap` re-render sync, :1319).
+  // `autoWrapEnabled = autoWrap` re-render sync, :1319 at the extraction
+  // commit).
   useEffect(() => {
     setAutoWrapOn(autoWrap);
   }, [autoWrap]);
