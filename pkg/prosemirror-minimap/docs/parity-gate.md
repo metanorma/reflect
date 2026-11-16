@@ -472,7 +472,7 @@ largest visual divergence between baseline and engine today".
 
 **Options.**
 
-- **A — Ratify D4 + add a theme-level `width: 'solid' | 'proportional'`
+- **A — Ratify D4 + add a class-level `width: 'solid' | 'proportional'`
   theme entry; mockup classes set `solid`.** Binds: A.3 rows implemented;
   census `left`/width leaves then match structurally (no DEV entries needed
   for width); Phase-4 scope = theme type + renderer tier-2/3 width branch +
@@ -557,7 +557,7 @@ docHeight 131130 ≈ 0.12 exactly (masters `geom`).
 **Recommendation: A.** Both values are existing options; the numeric
 coincidence makes the mockup masters directly reusable.
 
-**Decision (fill):** `pending → decided(____)`
+**Decision (fill):** `pending → decided(A)`
 
 ---
 
