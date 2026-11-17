@@ -7,6 +7,32 @@ messages. See [CONVENTIONS.md](./CONVENTIONS.md) §4.
 
 ---
 
+## 2026-11-16 — minimap: `pmminimap-*` DOM namespace (de-brand the public surface)
+
+`docs/ProseMirrorMinimap.spec.md` (§9.1 markup, §11 `className` default,
+§12 styling contract) + `@metanorma/prosemirror-minimap` (`minimap.css`,
+`overlay.ts` class constants) + `editor-gui` e2e;**Commits: *(pending)***.
+
+- **Change** — The package's page-global DOM/CSS surface drops the
+  Metanorma `mn-` brand: structural classes `.mn-minimap`,
+  `.mn-minimap-canvas`, `.mn-minimap-viewport`, `.mn-minimap-building`
+  become `.pmminimap`, `.pmminimap-canvas`, `.pmminimap-viewport`,
+  `.pmminimap-building`; the DOM-overlay custom properties
+  `--mn-minimap-viewport-color`, `--mn-minimap-viewport-border-color`,
+  `--mn-minimap-viewport-focus-color`, `--mn-minimap-building-color`
+  become `--pmminimap-*`. Exported constant names (`OVERLAY_CLASS`,
+  `CONTAINER_CLASS`, `CANVAS_CLASS`) are unchanged — values only. The
+  package is unpublished (v0.1.0, workspace-only, single consumer); the
+  npm scope `@metanorma/` stays. Renamed ahead of the parity gate's
+  Phase 4 so the label-layer hooks (G-05) are born neutral.
+- **Value preservation** — pure identifier substitution: every CSS
+  literal (positions, radii, cursors, token fallbacks) is byte-identical;
+  no rule, selector combinator, or DOM attribute changes. Parity golden
+  masters (mockup DOM) untouched.
+- **Consumer** — editor-gui passes no `className` (the default applies);
+  consumer edits are e2e selectors only (`minimap.spec.ts`,
+  `layout.spec.ts`, `helpers.ts`).
+
 ## 2026-11-16 — panel-layout: `--pl-*` namespace, token-driven dv overrides, `data-pl-titlebar` DOM hook
 
 `pkg/panel-layout/docs/api.spec.md` (§2.7 DOM hooks + §3 module 10 + §6

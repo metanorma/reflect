@@ -27,7 +27,7 @@ export interface MinimapProps {
   view: MinimapView;
   /** Merged with the plugin's; the plugin wins (§11). */
   options?: MinimapOptions;
-  /** Applied to the container (default `mn-minimap`). */
+  /** Applied to the container (default `pmminimap`). */
   className?: string;
   /** Consumer placement. */
   style?: CSSProperties;

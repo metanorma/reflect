@@ -1378,7 +1378,7 @@ function fakeOverlay(paneRectOverride) {
   const listeners = new Map();
   lastOverlayStyles = { transform: '', height: '' };
   lastPaneRect = paneRectOverride ?? { top: 0, left: 0, height: 600 };
-  // The fake pane (`.mn-minimap`): the overlay's parent, with its own
+  // The fake pane (`.pmminimap`): the overlay's parent, with its own
   // rect — DISTINCT from the overlay's own (thumb) rect and from the
   // scroller's rect, so tests that move either cannot silently alias
   // the drag frame.

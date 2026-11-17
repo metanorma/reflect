@@ -41,7 +41,7 @@ import { readFileSync } from 'node:fs';
  * `minimapPane`): production minification renames them to bare hashes
  * (esbuild local-css emitted `minimapPane` as `"s"` — the name does not
  * survive), so class/substring selectors silently match nothing. Stable
- * selectors: GLOBAL classes (`.mn-doc-panel`, `.mn-minimap`, engine
+ * selectors: GLOBAL classes (`.mn-doc-panel`, `.pmminimap`, engine
  * `.dv-*`), the engine's `.ProseMirror`, and ARIA roles.
  */
 export function editor(page: Page): Locator {
@@ -222,7 +222,7 @@ export async function openParkedEditor(
   opts: { forcePickerFallback?: boolean } = {},
 ): Promise<void> {
   await openEditor(page, opts);
-  await closeFloatWindow(page, '.mn-minimap');
+  await closeFloatWindow(page, '.pmminimap');
   await parkToolbarRight(page);
 }
 

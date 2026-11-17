@@ -161,11 +161,11 @@ test.describe('minimap (package e2e)', () => {
       for (let i = 0; i < 30; i++) {
         await page.waitForTimeout(100);
         const gap = await page.evaluate(() => {
-          const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+          const canvas = document.querySelector('.pmminimap canvas') as HTMLCanvasElement;
           const ctx = canvas.getContext('2d')!;
           const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
           const w = canvas.width;
-          const thumb = document.querySelector('.mn-minimap-viewport') as HTMLElement;
+          const thumb = document.querySelector('.pmminimap-viewport') as HTMLElement;
           let lastInk = -1;
           for (let y = canvas.height - 1; y >= 0 && lastInk < 0; y--) {
             for (let x = 0; x < w; x++) {
@@ -240,8 +240,8 @@ test.describe('minimap (package e2e)', () => {
 
     const geo = await page.evaluate(() => {
       const pm = document.querySelector('.ProseMirror') as HTMLElement;
-      const pane = document.querySelector('.mn-minimap') as HTMLElement;
-      const thumb = document.querySelector('.mn-minimap-viewport') as HTMLElement;
+      const pane = document.querySelector('.pmminimap') as HTMLElement;
+      const thumb = document.querySelector('.pmminimap-viewport') as HTMLElement;
       const tb = thumb.getBoundingClientRect();
       return {
         maxScroll: pm.scrollHeight - pm.clientHeight,
@@ -260,7 +260,7 @@ test.describe('minimap (package e2e)', () => {
     // 2) Paint fills the pane: every vertical band of the canvas carries
     //    ink (pre-fix, only the top quarter painted).
     const bands = await page.evaluate(() => {
-      const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+      const canvas = document.querySelector('.pmminimap canvas') as HTMLCanvasElement;
       const ctx = canvas.getContext('2d')!;
       const w = canvas.width;
       const h = canvas.height;
@@ -305,8 +305,8 @@ test.describe('minimap (package e2e)', () => {
 
     const after = await page.evaluate(() => {
       const pm = document.querySelector('.ProseMirror') as HTMLElement;
-      const thumb = document.querySelector('.mn-minimap-viewport') as HTMLElement;
-      const pane = document.querySelector('.mn-minimap') as HTMLElement;
+      const thumb = document.querySelector('.pmminimap-viewport') as HTMLElement;
+      const pane = document.querySelector('.pmminimap') as HTMLElement;
       return {
         scrollTop: pm.scrollTop,
         thumbTopInPane: thumb.getBoundingClientRect().top
@@ -349,7 +349,7 @@ test.describe('minimap (package e2e)', () => {
     const rows = await paintedRows(page);
     expect(rows.length).toBeGreaterThan(0);
     const w = await page.evaluate(
-      () => (document.querySelector('.mn-minimap canvas') as HTMLCanvasElement).width,
+      () => (document.querySelector('.pmminimap canvas') as HTMLCanvasElement).width,
     );
     // Vacuous-pass guard: a collapsed pane would make width assertions
     // pass vacuously.
@@ -399,7 +399,7 @@ test.describe('minimap (package e2e)', () => {
     const rows = await paintedRows(page);
     expect(rows.length).toBeGreaterThan(0);
     const w = await page.evaluate(
-      () => (document.querySelector('.mn-minimap canvas') as HTMLCanvasElement).width,
+      () => (document.querySelector('.pmminimap canvas') as HTMLCanvasElement).width,
     );
     expect(w).toBeGreaterThanOrEqual(40);
 
@@ -505,7 +505,7 @@ test.describe('minimap (package e2e)', () => {
     // frame the estimate landed before the re-measure; the fix carries
     // the predecessor's measured height into the replacement row.
     const measure = () => page.evaluate(() => {
-      const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+      const canvas = document.querySelector('.pmminimap canvas') as HTMLCanvasElement;
       const ctx = canvas.getContext('2d')!;
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
       const w = canvas.width;
@@ -588,7 +588,7 @@ test.describe('minimap (package e2e)', () => {
     const rows = await paintedRows(page);
     expect(rows.length).toBeGreaterThan(0);
     const w = await page.evaluate(
-      () => (document.querySelector('.mn-minimap canvas') as HTMLCanvasElement).width,
+      () => (document.querySelector('.pmminimap canvas') as HTMLCanvasElement).width,
     );
     expect(w).toBeGreaterThanOrEqual(40);
 
@@ -694,7 +694,7 @@ test.describe('minimap (package e2e)', () => {
     /** Last y with the BLOCK class's color (#b08ad0 → 176,138,208). */
     const lastBlockInk = () => page.evaluate(() => {
       const canvas = document.querySelector(
-        '.mn-minimap canvas',
+        '.pmminimap canvas',
       ) as HTMLCanvasElement;
       const ctx = canvas.getContext('2d')!;
       const data = ctx.getImageData(

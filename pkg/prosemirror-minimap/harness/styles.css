@@ -1,5 +1,5 @@
 /**
- * Harness styles (§15.3). The minimap's own `.mn-minimap*` classes come
+ * Harness styles (§15.3). The minimap's own `.pmminimap*` classes come
  * from the package's `minimap.css` (bundled by the build); this file only
  * styles the page chrome (layout shell, scroll shapes).
  *

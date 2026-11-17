@@ -63,9 +63,9 @@ export async function loadDoc(page: Page, json: unknown): Promise<void> {
 
 // ── Locators ───────────────────────────────────────────────────────────
 
-/** The minimap container (`.mn-minimap`). */
+/** The minimap container (`.pmminimap`). */
 export function minimap(page: Page): Locator {
-  return page.locator('.mn-minimap');
+  return page.locator('.pmminimap');
 }
 
 /** The scroll container for the current scroll shape:
@@ -75,14 +75,14 @@ export function scrollContainer(page: Page): Locator {
   return page.locator('.mn-harness-scrollwrapper, .mn-harness-editor-scrolls .ProseMirror').first();
 }
 
-/** The viewport overlay (`.mn-minimap-viewport`). */
+/** The viewport overlay (`.pmminimap-viewport`). */
 export function overlay(page: Page): Locator {
-  return page.locator('.mn-minimap-viewport');
+  return page.locator('.pmminimap-viewport');
 }
 
-/** The canvas (`.mn-minimap canvas`). */
+/** The canvas (`.pmminimap canvas`). */
 export function canvas(page: Page): Locator {
-  return page.locator('.mn-minimap canvas');
+  return page.locator('.pmminimap canvas');
 }
 
 // ── Doc builders (synthetic schema; §15.1.1 node set) ──────────────────
@@ -141,7 +141,7 @@ export async function paintedRows(page: Page): Promise<
   Array<{ y: number; n: number; left: number; right: number }>
 > {
   return page.evaluate(() => {
-    const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+    const canvas = document.querySelector('.pmminimap canvas') as HTMLCanvasElement;
     const ctx = canvas.getContext('2d');
     if (ctx === null) return [];
     const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -169,7 +169,7 @@ export async function paintedRows(page: Page): Promise<
  * bar-band shape analysis. */
 export async function inkBands(page: Page): Promise<Array<{ top: number; bottom: number }>> {
   return page.evaluate(() => {
-    const canvas = document.querySelector('.mn-minimap canvas') as HTMLCanvasElement;
+    const canvas = document.querySelector('.pmminimap canvas') as HTMLCanvasElement;
     const ctx = canvas.getContext('2d')!;
     const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
     const w = canvas.width;
@@ -215,7 +215,7 @@ export async function thumbGeom(page: Page): Promise<{
   top: number; bottom: number; height: number;
 }> {
   return page.evaluate(() => {
-    const thumb = document.querySelector('.mn-minimap-viewport') as HTMLElement;
+    const thumb = document.querySelector('.pmminimap-viewport') as HTMLElement;
     const r = thumb.getBoundingClientRect();
     return { top: r.top, bottom: r.bottom, height: r.height };
   });

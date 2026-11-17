@@ -13,9 +13,9 @@
  */
 
 /** Overlay element classes (§9.1, §12). */
-export const OVERLAY_CLASS = 'mn-minimap-viewport';
-export const CONTAINER_CLASS = 'mn-minimap';
-export const CANVAS_CLASS = 'mn-minimap-canvas';
+export const OVERLAY_CLASS = 'pmminimap-viewport';
+export const CONTAINER_CLASS = 'pmminimap';
+export const CANVAS_CLASS = 'pmminimap-canvas';
 
 /** Keys handled by the `scrollbar` role contract (§9.3). */
 const SCROLLBAR_KEYS = new Set([
@@ -84,7 +84,7 @@ export interface OverlayHandlers {
  * also holds the sliding-window origin, §6.2, so it owns this closure).
  *
  * The drag/hover coordinate frame is the overlay's PARENT — the minimap
- * container (`.mn-minimap`, §9.1), the element that owns the track the
+ * container (`.pmminimap`, §9.1), the element that owns the track the
  * thumb slides in. It is stationary during hover (unlike the moving
  * overlay strip), so its client top is cached once per pointerenter and
  * reused for every move (§10.2 O(log n) with zero layout reads on the

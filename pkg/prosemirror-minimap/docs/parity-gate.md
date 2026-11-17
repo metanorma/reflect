@@ -366,7 +366,7 @@ external).
   CSS hooks. Binds: A.1 rows stay port/deviate as written (verification
   `screenshot`/`none`); Phase-4 scope = consumer-only.
 - **B — Add package structural hooks for legend/lane toggles**
-  (`mn-minimap-legend` etc. in `minimap.css`). Binds: spec §12 grows a
+  (`pmminimap-legend` etc. in `minimap.css`). Binds: spec §12 grows a
   structural-class list; parity.md A.1 legend row flips toward port; cost:
   package takes on chrome policy it currently disclaims; every hook is public
   API surface.

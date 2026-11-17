@@ -53,9 +53,9 @@ test.describe('panel layout integration', () => {
     await expect(page.getByRole('toolbar')).toBeVisible();
 
     // Minimap: the minimap pane inside its own (different) group…
-    const minimapGroup = page.locator('.dv-groupview:has(.mn-minimap)');
+    const minimapGroup = page.locator('.dv-groupview:has(.pmminimap)');
     await expect(minimapGroup).toHaveCount(1);
-    await expect(page.locator('.mn-minimap')).toBeVisible();
+    await expect(page.locator('.pmminimap')).toBeVisible();
 
     // Both overlay the editor: the doc panel still spans the grid.
     const editorBox = await page
@@ -113,7 +113,7 @@ test.describe('panel layout integration', () => {
     await page.locator('.mn-doc-panel .ProseMirror')
       .waitFor({ state: 'visible' });
     await expect(page.getByRole('toolbar')).toBeVisible();
-    await expect(page.locator('.mn-minimap')).toBeVisible();
+    await expect(page.locator('.pmminimap')).toBeVisible();
     expect(await page.locator('.dv-default-tab-action:visible').count()).toBe(2);
   });
 });

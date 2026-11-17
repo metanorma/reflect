@@ -1082,9 +1082,9 @@ editor currently shows — is a **separate DOM element**, not canvas paint
 (borrowed from `@replit/codemirror-minimap`):
 
 ```html
-<div class="mn-minimap">
-  <canvas class="mn-minimap-canvas" aria-hidden="true"></canvas>
-  <div class="mn-minimap-viewport" role="scrollbar"
+<div class="pmminimap">
+  <canvas class="pmminimap-canvas" aria-hidden="true"></canvas>
+  <div class="pmminimap-viewport" role="scrollbar"
        aria-orientation="vertical" aria-controls="<editor viewport id>"
        aria-valuemin="0" aria-valuemax="100" aria-valuenow="…"
        aria-label="Document position"></div>
@@ -1215,7 +1215,7 @@ The magnify view itself is out of scope (§16).
 <Minimap
   view={EditorView}          // required
   options?: MinimapOptions    // merged with the plugin's, plugin wins
-  className?: string          // applied to the container (default "mn-minimap")
+  className?: string          // applied to the container (default "pmminimap")
   style?: CSSProperties       // consumer placement
   editorViewportId?: string   // the editor viewport's id — aria-controls (§9.1)
 />
@@ -1251,14 +1251,14 @@ The magnify view itself is out of scope (§16).
 
 `minimap.css` declares only:
 
-- Structural classes: `.mn-minimap` (container: `position: relative;
-  overflow: hidden`), `.mn-minimap-canvas`, `.mn-minimap-viewport`
+- Structural classes: `.pmminimap` (container: `position: relative;
+  overflow: hidden`), `.pmminimap-canvas`, `.pmminimap-viewport`
   (`position: absolute; left: 0; right: 0; pointer-events: auto`), and
-  `.mn-minimap-building` (progress affordance hook).
+  `.pmminimap-building` (progress affordance hook).
 - DOM-overlay theme values as CSS custom properties
-  (`--mn-minimap-viewport-color`, `--mn-minimap-viewport-border-color`,
-  `--mn-minimap-viewport-focus-color`,
-  `--mn-minimap-building-color`), each declared **with a fallback** in the
+  (`--pmminimap-viewport-color`, `--pmminimap-viewport-border-color`,
+  `--pmminimap-viewport-focus-color`,
+  `--pmminimap-building-color`), each declared **with a fallback** in the
   rule that consumes it and never in a package-level `:root` block — a
   host's cascade layers (unlayered or `@layer`) always win, so the tokens
   are overridable by the consumer and by the host's existing token layer

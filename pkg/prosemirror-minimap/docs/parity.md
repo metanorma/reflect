@@ -65,13 +65,13 @@ job.
 |---|---|---|---|
 | `#minimapWrap` aside, `aria-label="Semantic minimap"` (mockup:732) | Consumer chrome around the package component: `pkg/editor-gui/MinimapPane.tsx` wrapper; package ships no placement ([spec](../../../docs/ProseMirrorMinimap.spec.md) §12) | port | screenshot |
 | `.mm-head` header: `STRUCTURE` + hint `click · drag · grip resizes` (mockup:733–736, CSS 448–450) | None in package; consumer header (ownership = open question Q4) | port | screenshot |
-| `#mmBody` flex row, `gap:5px`, `overflow:hidden` (mockup:737, CSS 451) | Package container `.mn-minimap` (`position:relative; overflow:hidden`); horizontal partition becomes in-canvas lane geometry (D5), not DOM gaps | deviate | ink-probe |
+| `#mmBody` flex row, `gap:5px`, `overflow:hidden` (mockup:737, CSS 451) | Package container `.pmminimap` (`position:relative; overflow:hidden`); horizontal partition becomes in-canvas lane geometry (D5), not DOM gaps | deviate | ink-probe |
 | `#mmCanvas` panning canvas, `will-change:transform` (mockup:742, CSS 454) | Sliding virtual surface + `setWindowOrigin` (`controller.ts` `windowOrigin`, `renderer.ts`); paint window translates instead of a DOM element | port | golden-master |
 | `#mmLabels` label column, right-aligned (mockup:743, CSS 455–466) | Planned `labels.ts` core module (D2; `overlay.ts` DOM precedent); unimplemented | port | golden-master |
 | `#mmStrip` 52px strip (mockup:744, CSS 468–471) | The canvas content region inside the consumer-set pane width; 52px is consumer layout, the strip/label/lane partition is canvas-space (Q5) | port | ink-probe |
 | Four `.lane` divs `diag`/`com`/`search`/`wear` created once and reused (mockup:1883–1891, CSS 485) | Renderer marker lanes (`renderer.ts` `planPaint` lane merge; `layers.ts` `LayerSpans.lane`); D5: order diag=1, notes=2, search=3, wear=4, geometry becomes a theme knob (engine is 3px wide, 1px gap, unbounded count) | deviate | ink-probe |
-| `#mmVpBox` viewport indicator living outside the canvas, screen-fixed in the pane (mockup:747, 2076–2094, CSS 488–492) | `overlay.ts` `.mn-minimap-viewport` DOM overlay ([spec](../../../docs/ProseMirrorMinimap.spec.md) §9.1); `hidden` toggle at 2079 maps to renderer attach/detach | port | unit |
-| `.mm-vp` left/right placement derived from `mmStrip.offsetLeft` (mockup:2230–2231) | Consumer CSS over `.mn-minimap-viewport` (package: `left:0; right:0`) | port | none |
+| `#mmVpBox` viewport indicator living outside the canvas, screen-fixed in the pane (mockup:747, 2076–2094, CSS 488–492) | `overlay.ts` `.pmminimap-viewport` DOM overlay ([spec](../../../docs/ProseMirrorMinimap.spec.md) §9.1); `hidden` toggle at 2079 maps to renderer attach/detach | port | unit |
+| `.mm-vp` left/right placement derived from `mmStrip.offsetLeft` (mockup:2230–2231) | Consumer CSS over `.pmminimap-viewport` (package: `left:0; right:0`) | port | none |
 | `.mm-vp .rsz` grip element + `::after` 26×3px bar affordance (mockup:496–503, 2081–2093) | None (unimplemented): needs an overlay-attached grip + a runtime zoom seam (Q9) | port | golden-master |
 | `.mm-foot` + `.legend` footer, wrapped-height budget feeds the strip (mockup:749–751, 1892, CSS 504–508) | Consumer chrome; the wrapped-height dependency is void (canvas pane is externally sized) — legend owns no geometry in the port | N-A | screenshot |
 | Legend entries: 5 type chips (non-interactive) + 4 lane toggles with `.off` strike-through (mockup:2114–2133) | Consumer legend; lane on/off needs a package lane-visibility seam that does not exist (Q11) | deviate | unit |
@@ -217,7 +217,7 @@ job.
 | Light palette: clause/front/term/req/float/note bg+edge pairs (mockup:510–515) | `MinimapTheme.classes` `fill`/`edge` (D4); consumer supplies hex values read from its token layer (§5.4) | port | screenshot |
 | Dark palette overrides for 5 types (mockup:516–520) | Consumer theme instance per app theme; re-read on theme-change events (a metrics change is an epoch, §5.4) | port | screenshot |
 | Contrast palette: all blocks `#fff` bg / `#000` edge (mockup:521) | Consumer theme instance | port | screenshot |
-| Accent color for thumb border/fill, active outline, legend (mockup:489, 481, 501) | DOM overlay tokens `--mn-minimap-viewport-*` (§12); active outline color = layer tone from the active-context layer (D7) | port | ink-probe |
+| Accent color for thumb border/fill, active outline, legend (mockup:489, 481, 501) | DOM overlay tokens `--pmminimap-viewport-*` (§12); active outline color = layer tone from the active-context layer (D7) | port | ink-probe |
 | `color-mix` 8% accent thumb fill (mockup:489) | Overlay token value, consumer-set | port | screenshot |
 | Theme cycle button persistence (mockup:2993–2994, 1243) | Consumer app theming | port | none |
 
@@ -328,7 +328,7 @@ direction — never a Phase-1 choice.
    source). Leaning: all chrome consumer-side (`MinimapPane.tsx`), with the
    package exposing the data the chrome needs (label texts via the labels
    module, lane metadata via layer declarations). Open: whether the legend
-   and lane toggles become package CSS hooks (`mn-minimap-*` structural
+   and lane toggles become package CSS hooks (`pmminimap-*` structural
    classes) so consumers do not re-derive lane order/colors.
 5. **In-canvas horizontal partition.** Mockup: labels column + 52px strip +
    4 lanes as flex siblings. Port: one canvas whose consumer-set width must

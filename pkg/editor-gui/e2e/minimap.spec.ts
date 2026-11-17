@@ -56,7 +56,7 @@ test.describe('minimap (consumer integration)', () => {
 
   test('minimap renders in a floating window over the layout area', async ({ page }) => {
     await openEditor(page);
-    const minimap = page.locator('.mn-minimap');
+    const minimap = page.locator('.pmminimap');
     await expect(minimap).toBeVisible();
 
     const minimapBox = await minimap.boundingBox();
@@ -72,7 +72,7 @@ test.describe('minimap (consumer integration)', () => {
     expect(layoutBox).not.toBeNull();
 
     // The minimap pane sits INSIDE a dockview group (floating window)…
-    const group = page.locator('.dv-groupview:has(.mn-minimap)');
+    const group = page.locator('.dv-groupview:has(.pmminimap)');
     await expect(group).toHaveCount(1);
 
     // …within the layout area's bounds…
@@ -104,9 +104,9 @@ test.describe('minimap (consumer integration)', () => {
     // Let the sliced build + stride sampling converge on the layout.
     await page.waitForTimeout(500);
 
-    const overlay = page.locator('.mn-minimap-viewport');
+    const overlay = page.locator('.pmminimap-viewport');
     await expect(overlay).toBeVisible();
-    const canvas = page.locator('.mn-minimap canvas');
+    const canvas = page.locator('.pmminimap canvas');
     await expect(canvas).toBeVisible();
     const canvasBox = await canvas.boundingBox();
     expect(canvasBox!.width).toBeGreaterThan(10);
@@ -121,7 +121,7 @@ test.describe('minimap (consumer integration)', () => {
     // absolute y, so it survives pane height/position changes.
     const box = await overlay.boundingBox();
     expect(box).not.toBeNull();
-    const paneBox = await page.locator('.mn-minimap').boundingBox();
+    const paneBox = await page.locator('.pmminimap').boundingBox();
     expect(paneBox).not.toBeNull();
     await page.mouse.move(box!.x + box!.width / 2, box!.y + 10);
     await page.mouse.down();
