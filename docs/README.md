@@ -250,3 +250,27 @@ own document.
 | [`reference-marks.md`](./AdvancedMetanormaToolbar/reference-marks.md) | `xref`, `eref`, `concept`, `bcp14` marks + `footnote_marker`, `stem` inline nodes |
 | [`definition-lists.md`](./AdvancedMetanormaToolbar/definition-lists.md) | `dl`/`dt`/`dd` insertion logic |
 | [`undo-redo.md`](./AdvancedMetanormaToolbar/undo-redo.md) | Undo/redo via `prosemirror-history` |
+
+---
+
+### [`pkg/panel-layout/docs/`](../pkg/panel-layout/docs/behavior.spec.md) — Panel Layout (floating mini-windows)
+
+Defines `@metanorma/panel-layout`, the panel-shell layer for the editor GUI:
+floating "tabset group" mini-windows over a main document grid (dockview v7),
+with per-tabset pinned heights, auto-wrap undocking, drop vetoes, window-drag
+containment, corrupted-storage-safe persistence, and a focus/keyboard layer.
+
+| Document | Scope |
+|---|---|
+| [`behavior.spec.md`](../pkg/panel-layout/docs/behavior.spec.md) | Behavioral contract: happy-path flows (HP1–HP10) + the state matrix |
+| [`api.spec.md`](../pkg/panel-layout/docs/api.spec.md) | Public API + the ten-module inventory implementing it |
+| [`demo.spec.md`](../pkg/panel-layout/docs/demo.spec.md) | The demo consumer (`./demo` subpath): registrations, preset, storage keys, app chrome |
+
+**In-package spec suite.** The package is intended for independent publication
+and its contract spans several specs, so they live in the package itself at
+`pkg/panel-layout/docs/` (see [`CONVENTIONS.md`](./CONVENTIONS.md) §1.1). No
+workspace package consumes the library yet; its reference implementation is
+the single-file mock
+([`pkg/panel-layout/mock/editor-dockview7-floats.html`](../pkg/panel-layout/mock/editor-dockview7-floats.html)),
+and the parity suite drives the built artifacts (`dist/mock`, `dist/twin`)
+against the captured goldens.
